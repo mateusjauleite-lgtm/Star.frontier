@@ -1,0 +1,9 @@
+{
+  "appId": "com.mateus.starfrontier",
+  "appName": "Star Frontier",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "android": {
+    "backgroundColor": "#020817"
+  }
+}
