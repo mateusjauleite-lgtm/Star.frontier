@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
 
-  <title>Star Frontier — Protótipo 0.2</title>
+  <title>Star Frontier — Protótipo 0.3</title>
 
   <link rel="stylesheet" href="./style.css">
 
@@ -128,7 +128,7 @@
   <!-- JOGO -->
   <section id="game-screen" class="hidden">
 
-    <!-- CENÁRIO 3D: AGORA DENTRO DA TELA DO JOGO -->
+    <!-- CENÁRIO 3D -->
     <div id="game-root"></div>
 
     <!-- HUD -->
@@ -145,6 +145,17 @@
         <span>Combustível <b id="fuel">100%</b></span>
         <span>Carga <b id="cargo">0 / 100</b></span>
         <span>Créditos <b id="hud-credits">1.000</b></span>
+      </div>
+
+      <!-- INDICADOR DE NITRO -->
+      <div id="nitro-display" class="nitro-display">
+        <div class="nitro-heading">
+          <span>⚡ PROPULSÃO NITRO</span>
+          <b id="nitro-level">100%</b>
+        </div>
+        <div class="nitro-track">
+          <div id="nitro-fill" class="nitro-fill"></div>
+        </div>
       </div>
 
       <button id="game-menu" class="hud-menu">☰ Menu</button>
@@ -175,7 +186,7 @@
       </div>
 
       <div class="control-side right-side">
-        <div class="control-label">MIRA / ROTAÇÃO</div>
+        <div class="control-label">MIRA / VISÃO</div>
 
         <div id="aim-stick" class="stick">
           <div class="knob"></div>
@@ -190,6 +201,11 @@
           <button id="throttle-btn" class="control-button">▲ ACELERAR</button>
           <button id="brake-btn" class="control-button">▼ FREAR</button>
         </div>
+
+        <!-- NOVO BOTÃO DE NITRO -->
+        <button id="nitro-btn" class="control-button nitro-button">
+          ⚡ NITRO
+        </button>
 
         <button id="camera-btn" class="control-button">
           CÂMERA: 3ª PESSOA
