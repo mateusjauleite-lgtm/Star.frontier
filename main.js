@@ -14,11 +14,13 @@ const state = {
   hull: 100,
   shield: 100,
   speed: 0,
+  nitro: 100,
   ship: 'Aurora-7',
   character: 'Explorador',
   camera: 2,
   throttle: false,
   braking: false,
+  nitroButton: false,
   move: { x: 0, y: 0 },
   look: { yaw: 0, pitch: 0 },
   miningDrill: 'Broca básica',
@@ -36,10 +38,28 @@ const save = () =>
 const load = () => {
   try {
     const x = JSON.parse(localStorage.getItem('sf-demo-state'));
+
     if (x) {
       Object.assign(state, x);
+
+      state.settings = {
+        quality: 'Média',
+        music: 40,
+        effects: 70,
+        sensitivity: 1,
+        ...(x.settings || {})
+      };
+
       state.move = { x: 0, y: 0 };
-      state.look = { yaw: 0, pitch: 0, ...(x.look || {}) };
+      state.look = {
+        yaw: 0,
+        pitch: 0,
+        ...(x.look || {})
+      };
+
+      state.throttle = false;
+      state.braking = false;
+      state.nitroButton = false;
     }
   } catch {}
 };
@@ -47,22 +67,28 @@ const load = () => {
 load();
 
 function show(id) {
-  ['login-screen', 'menu-screen', 'game-screen'].forEach(x =>
-    $(x).classList.add('hidden')
-  );
-  $(id).classList.remove('hidden');
+  ['login-screen', 'menu-screen', 'game-screen'].forEach(x => {
+    $(x)?.classList.add('hidden');
+  });
+
+  $(id)?.classList.remove('hidden');
 }
 
 function toast(msg) {
-  $('toast').textContent = msg;
-  $('toast').classList.remove('hidden');
-  setTimeout(() => $('toast').classList.add('hidden'), 2200);
+  const el = $('toast');
+  if (!el) return;
+
+  el.textContent = msg;
+  el.classList.remove('hidden');
+
+  setTimeout(() => el.classList.add('hidden'), 2200);
 }
 
 function updateWallet() {
   $('credits').textContent = state.credits.toLocaleString('pt-BR');
   $('ore-total').textContent = state.ore;
   $('ship-name').textContent = state.ship;
+
   $('profile-line').textContent =
     `${state.country} ${state.user} · Nv. 1`;
 }
@@ -256,6 +282,7 @@ function renderPanel(key) {
 
   $('rename')?.addEventListener('click', () => {
     const n = prompt('Novo nome (máximo 18 caracteres):', state.user);
+
     if (n?.trim()) {
       state.user = n.trim().slice(0, 18);
       save();
@@ -272,6 +299,7 @@ function renderPanel(key) {
 
     state.credits -= 350;
     state.miningDrill = 'Broca reforçada';
+
     save();
     updateWallet();
     renderPanel(key);
@@ -289,6 +317,7 @@ function renderPanel(key) {
 
     state.credits -= 120;
     state.fuel = Math.min(100, state.fuel + 30);
+
     save();
     updateWallet();
     renderPanel(key);
@@ -314,6 +343,7 @@ updateWallet();
 
 let scene, camera, renderer, ship, stars;
 let asteroids = [];
+let exhaustFlames = [];
 let last = performance.now();
 let active = false;
 
@@ -327,10 +357,15 @@ function startGame() {
   show('game-screen');
   $('hud-user').textContent = `${state.country} ${state.user}`;
 
-  if (!renderer) init3D();
+  if (!renderer) {
+    init3D();
+  } else {
+    velocity.set(0, 0, 0);
+  }
 
   active = true;
   last = performance.now();
+
   toast('Setor Orion: aproxime-se dos asteroides para minerar.');
 }
 
@@ -340,7 +375,10 @@ function init3D() {
   scene.fog = new THREE.FogExp2(0x020817, 0.0011);
 
   camera = new THREE.PerspectiveCamera(
-    70, innerWidth / innerHeight, 0.1, 2500
+    70,
+    innerWidth / innerHeight,
+    0.1,
+    2500
   );
 
   renderer = new THREE.WebGLRenderer({
@@ -366,24 +404,25 @@ function init3D() {
   sun.position.set(30, 40, 20);
   scene.add(sun);
 
-  const pos = [];
+  const positions = [];
 
   for (let i = 0; i < 1800; i++) {
-    pos.push(
+    positions.push(
       (Math.random() - 0.5) * 1200,
       (Math.random() - 0.5) * 800,
       (Math.random() - 0.5) * 1200
     );
   }
 
-  const sg = new THREE.BufferGeometry();
-  sg.setAttribute(
+  const starGeometry = new THREE.BufferGeometry();
+
+  starGeometry.setAttribute(
     'position',
-    new THREE.Float32BufferAttribute(pos, 3)
+    new THREE.Float32BufferAttribute(positions, 3)
   );
 
   stars = new THREE.Points(
-    sg,
+    starGeometry,
     new THREE.PointsMaterial({
       color: 0xffffff,
       size: 1.5
@@ -392,7 +431,8 @@ function init3D() {
 
   scene.add(stars);
 
-  // Nave: nariz apontada para -Z.
+  // Construção da Aurora-7.
+  // A frente da nave aponta para -Z.
   ship = new THREE.Group();
   scene.add(ship);
 
@@ -422,8 +462,11 @@ function init3D() {
   nose.position.z = -2;
   ship.add(nose);
 
-  for (const s of [-1, 1]) {
-    const nac = new THREE.Mesh(
+  // Naceles e propulsores.
+  exhaustFlames = [];
+
+  for (const side of [-1, 1]) {
+    const nacelle = new THREE.Mesh(
       new THREE.CylinderGeometry(0.22, 0.3, 2.3, 12),
       new THREE.MeshStandardMaterial({
         color: 0x607c98,
@@ -431,17 +474,40 @@ function init3D() {
       })
     );
 
-    nac.rotation.x = Math.PI / 2;
-    nac.position.set(s * 1.35, 0.15, 0.35);
-    ship.add(nac);
+    nacelle.rotation.x = Math.PI / 2;
+    nacelle.position.set(side * 1.35, 0.15, 0.35);
+    ship.add(nacelle);
 
     const glow = new THREE.Mesh(
       new THREE.SphereGeometry(0.24, 12, 12),
-      new THREE.MeshBasicMaterial({ color: 0x39bfff })
+      new THREE.MeshBasicMaterial({
+        color: 0x39bfff
+      })
     );
 
-    glow.position.set(s * 1.35, 0.15, 1.55);
+    glow.position.set(side * 1.35, 0.15, 1.55);
     ship.add(glow);
+
+    // Chama de exaustão que aumenta com o nitro.
+    const flameMaterial = new THREE.MeshBasicMaterial({
+      color: 0x168bff,
+      transparent: true,
+      opacity: 0.65,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+
+    const flame = new THREE.Mesh(
+      new THREE.ConeGeometry(0.24, 1.6, 12),
+      flameMaterial
+    );
+
+    flame.rotation.x = Math.PI / 2;
+    flame.position.set(side * 1.35, 0.15, 2.25);
+    flame.scale.y = 0.08;
+
+    ship.add(flame);
+    exhaustFlames.push(flame);
   }
 
   const shieldMesh = new THREE.Mesh(
@@ -457,11 +523,14 @@ function init3D() {
   shieldMesh.scale.set(1, 0.7, 1.25);
   ship.add(shieldMesh);
 
-  for (let i = 0; i < 32; i++) {
-    const r = 1.1 + Math.random() * 2.2;
+  // Campo de asteroides.
+  asteroids = [];
 
-    const a = new THREE.Mesh(
-      new THREE.IcosahedronGeometry(r, 1),
+  for (let i = 0; i < 32; i++) {
+    const radius = 1.1 + Math.random() * 2.2;
+
+    const asteroid = new THREE.Mesh(
+      new THREE.IcosahedronGeometry(radius, 1),
       new THREE.MeshStandardMaterial({
         color: [0x665d56, 0x77716a, 0x4e5962][i % 3],
         roughness: 1,
@@ -469,25 +538,25 @@ function init3D() {
       })
     );
 
-    a.position.set(
+    asteroid.position.set(
       (Math.random() - 0.5) * 180,
       (Math.random() - 0.5) * 90,
       -25 - Math.random() * 260
     );
 
-    a.rotation.set(
+    asteroid.rotation.set(
       Math.random() * 3,
       Math.random() * 3,
       0
     );
 
-    a.userData = {
+    asteroid.userData = {
       ore: Math.floor(4 + Math.random() * 12),
-      radius: r
+      radius
     };
 
-    scene.add(a);
-    asteroids.push(a);
+    scene.add(asteroid);
+    asteroids.push(asteroid);
   }
 
   const station = new THREE.Mesh(
@@ -522,56 +591,154 @@ function resize3D() {
 
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
+
   renderer.setSize(innerWidth, innerHeight);
 }
 
 const forward = new THREE.Vector3();
+const desiredVelocity = new THREE.Vector3();
+const velocity = new THREE.Vector3();
 const cameraOffset = new THREE.Vector3();
 const lookRotation = new THREE.Quaternion();
+const viewRotation = new THREE.Quaternion();
 
-function loop(now) {
-  requestAnimationFrame(loop);
+function updateNitroHud(boosting) {
+  const level = THREE.MathUtils.clamp(state.nitro, 0, 100);
 
-  if (!active || !renderer) return;
+  const number = $('nitro-level');
+  const fill = $('nitro-fill');
+  const button = $('nitro-btn');
 
-  const dt = Math.min((now - last) / 1000, 0.04);
-  last = now;
+  if (number) {
+    number.textContent = Math.round(level) + '%';
+  }
 
-  const sens = state.settings.sensitivity || 1;
+  if (fill) {
+    fill.style.width = level + '%';
+  }
+
+  if (button) {
+    button.classList.toggle('active', boosting);
+  }
+}
+
+function updateFlight(dt) {
+  const sensitivity = state.settings.sensitivity || 1;
 
   // Joystick esquerdo: direção da nave.
   ship.rotation.order = 'YXZ';
-  ship.rotation.y -= state.move.x * 1.5 * dt * sens;
-  ship.rotation.x += state.move.y * 1.2 * dt * sens;
+
+  ship.rotation.y -=
+    state.move.x * 1.5 * dt * sensitivity;
+
+  // Eixo vertical corrigido:
+  // puxar o joystick para cima faz a nave subir.
+  ship.rotation.x -=
+    state.move.y * 1.2 * dt * sensitivity;
 
   ship.rotation.x = THREE.MathUtils.clamp(
-    ship.rotation.x, -1.15, 1.15
+    ship.rotation.x,
+    -1.15,
+    1.15
   );
 
-  // Aceleração e freio.
-  if (state.throttle && state.fuel > 0) {
-    state.speed = Math.min(75, state.speed + 18 * dt);
-    state.fuel = Math.max(0, state.fuel - 0.28 * dt);
+  // Nitro funciona como propulsão adicional.
+  const boosting =
+    state.nitroButton &&
+    state.nitro > 0 &&
+    state.fuel > 0 &&
+    !state.braking;
+
+  const accelerating =
+    (state.throttle || boosting) &&
+    state.fuel > 0;
+
+  if (accelerating) {
+    const acceleration = boosting ? 54 : 18;
+    const maximumSpeed = boosting ? 110 : 75;
+
+    state.speed = Math.min(
+      maximumSpeed,
+      state.speed + acceleration * dt
+    );
+
+    state.fuel = Math.max(
+      0,
+      state.fuel - (boosting ? 0.55 : 0.28) * dt
+    );
   }
 
   if (state.braking) {
-    state.speed = Math.max(0, state.speed - 30 * dt);
+    state.speed = Math.max(
+      0,
+      state.speed - 30 * dt
+    );
   }
 
-  state.speed = Math.max(0, state.speed - 1.4 * dt);
+  // Desaceleração natural quando solta o acelerador.
+  if (!accelerating && !state.braking) {
+    state.speed = Math.max(
+      0,
+      state.speed - 1.4 * dt
+    );
+  }
 
-  // Impulso acompanha a direção da nave.
+  // Consumo e recarga do nitro.
+  if (boosting) {
+    state.nitro = Math.max(
+      0,
+      state.nitro - 26 * dt
+    );
+  } else {
+    state.nitro = Math.min(
+      100,
+      state.nitro + 10 * dt
+    );
+  }
+
+  // Direção atual da frente da nave.
   forward.set(0, 0, -1).applyQuaternion(ship.quaternion);
-  ship.position.addScaledVector(forward, state.speed * dt * 0.45);
 
-  asteroids.forEach(a => {
-    a.rotation.x += 0.001;
-    a.rotation.y += 0.0015;
+  // Velocidade desejada acompanha a direção atual.
+  // A aproximação gradual mantém uma pequena inércia,
+  // mas evita continuar indefinidamente na direção antiga.
+  desiredVelocity
+    .copy(forward)
+    .multiplyScalar(state.speed * 0.45);
+
+  const response = state.braking ? 7 : 4.5;
+
+  velocity.lerp(
+    desiredVelocity,
+    Math.min(1, response * dt)
+  );
+
+  ship.position.addScaledVector(velocity, dt);
+
+  // Animação dos propulsores.
+  const enginePower = boosting
+    ? 1.65
+    : state.throttle
+      ? 0.75
+      : 0.08;
+
+  const flicker = 1 + Math.sin(performance.now() * 0.025) * 0.08;
+
+  exhaustFlames.forEach(flame => {
+    flame.scale.y = enginePower * flicker;
+
+    flame.material.color.setHex(
+      boosting ? 0x42f4ff : 0x168bff
+    );
+
+    flame.material.opacity = boosting ? 0.95 : 0.55;
   });
 
-  stars.rotation.y += 0.00012;
+  updateNitroHud(boosting);
+}
 
-  // Joystick direito: visão independente.
+function updateCamera() {
+  // Joystick direito: visão independente da direção de voo.
   lookRotation.setFromEuler(
     new THREE.Euler(
       state.look.pitch,
@@ -581,22 +748,49 @@ function loop(now) {
     )
   );
 
-  const viewRotation = ship.quaternion.clone().multiply(lookRotation);
+  viewRotation
+    .copy(ship.quaternion)
+    .multiply(lookRotation);
 
   if (state.camera === 0) {
     camera.position.copy(ship.position).add(
-      new THREE.Vector3(0, 0.45, -0.35).applyQuaternion(ship.quaternion)
+      new THREE.Vector3(0, 0.45, -0.35)
+        .applyQuaternion(ship.quaternion)
     );
   } else if (state.camera === 1) {
     camera.position.copy(ship.position).add(
-      new THREE.Vector3(0, 0.35, 1.2).applyQuaternion(ship.quaternion)
+      new THREE.Vector3(0, 0.35, 1.2)
+        .applyQuaternion(ship.quaternion)
     );
   } else {
-    cameraOffset.set(0, 4, 11).applyQuaternion(ship.quaternion);
+    cameraOffset
+      .set(0, 4, 11)
+      .applyQuaternion(ship.quaternion);
+
     camera.position.copy(ship.position).add(cameraOffset);
   }
 
   camera.quaternion.copy(viewRotation);
+}
+
+function loop(now) {
+  requestAnimationFrame(loop);
+
+  if (!active || !renderer) return;
+
+  const dt = Math.min((now - last) / 1000, 0.04);
+  last = now;
+
+  updateFlight(dt);
+
+  asteroids.forEach(asteroid => {
+    asteroid.rotation.x += 0.001;
+    asteroid.rotation.y += 0.0015;
+  });
+
+  stars.rotation.y += 0.00012;
+
+  updateCamera();
 
   renderer.render(scene, camera);
 
@@ -605,29 +799,31 @@ function loop(now) {
   $('cargo').textContent = state.cargo + ' / 100';
   $('hull').textContent = state.hull + '%';
   $('shield').textContent = state.shield + '%';
+
   $('hud-credits').textContent =
     state.credits.toLocaleString('pt-BR');
 }
 
-// Joystick esquerdo: controla a direção da nave.
+// Joystick esquerdo: direção da nave.
 function bindMoveStick() {
   const el = $('move-stick');
-  const knob = el.querySelector('.knob');
+  if (!el) return;
 
+  const knob = el.querySelector('.knob');
   let pointer = null;
 
   const move = e => {
-    const r = el.getBoundingClientRect();
+    const rect = el.getBoundingClientRect();
 
-    let x = e.clientX - r.left - r.width / 2;
-    let y = e.clientY - r.top - r.height / 2;
+    let x = e.clientX - rect.left - rect.width / 2;
+    let y = e.clientY - rect.top - rect.height / 2;
 
-    const max = r.width * 0.31;
-    const len = Math.hypot(x, y);
+    const max = rect.width * 0.31;
+    const length = Math.hypot(x, y);
 
-    if (len > max) {
-      x *= max / len;
-      y *= max / len;
+    if (length > max) {
+      x *= max / length;
+      y *= max / length;
     }
 
     state.move.x = x / max;
@@ -643,7 +839,9 @@ function bindMoveStick() {
   });
 
   el.addEventListener('pointermove', e => {
-    if (pointer === e.pointerId) move(e);
+    if (pointer === e.pointerId) {
+      move(e);
+    }
   });
 
   const end = e => {
@@ -652,16 +850,20 @@ function bindMoveStick() {
     pointer = null;
     state.move.x = 0;
     state.move.y = 0;
+
     knob.style.transform = 'translate(0,0)';
   };
 
   el.addEventListener('pointerup', end);
   el.addEventListener('pointercancel', end);
+  el.addEventListener('lostpointercapture', end);
 }
 
-// Joystick direito: movimenta a visão e mantém o ângulo.
+// Joystick direito: visão independente e persistente.
 function bindLookStick() {
   const el = $('aim-stick');
+  if (!el) return;
+
   const knob = el.querySelector('.knob');
 
   let pointer = null;
@@ -672,6 +874,7 @@ function bindLookStick() {
     pointer = e.pointerId;
     lastX = e.clientX;
     lastY = e.clientY;
+
     el.setPointerCapture(pointer);
   });
 
@@ -684,26 +887,30 @@ function bindLookStick() {
     lastX = e.clientX;
     lastY = e.clientY;
 
-    const sens = state.settings.sensitivity || 1;
+    const sensitivity = state.settings.sensitivity || 1;
 
-    state.look.yaw -= dx * 0.008 * sens;
-    state.look.pitch -= dy * 0.008 * sens;
+    state.look.yaw -= dx * 0.008 * sensitivity;
+    state.look.pitch -= dy * 0.008 * sensitivity;
 
     state.look.pitch = THREE.MathUtils.clamp(
-      state.look.pitch, -1.35, 1.35
+      state.look.pitch,
+      -1.35,
+      1.35
     );
 
-    const r = el.getBoundingClientRect();
-    const max = r.width * 0.31;
+    const rect = el.getBoundingClientRect();
+    const max = rect.width * 0.31;
 
     const x = THREE.MathUtils.clamp(
-      e.clientX - r.left - r.width / 2,
-      -max, max
+      e.clientX - rect.left - rect.width / 2,
+      -max,
+      max
     );
 
     const y = THREE.MathUtils.clamp(
-      e.clientY - r.top - r.height / 2,
-      -max, max
+      e.clientY - rect.top - rect.height / 2,
+      -max,
+      max
     );
 
     knob.style.transform = `translate(${x}px, ${y}px)`;
@@ -718,32 +925,40 @@ function bindLookStick() {
 
   el.addEventListener('pointerup', end);
   el.addEventListener('pointercancel', end);
+  el.addEventListener('lostpointercapture', end);
 }
 
 bindMoveStick();
 bindLookStick();
 
 function holdButton(id, key) {
-  const b = $(id);
+  const button = $(id);
+  if (!button) return;
 
-  b.addEventListener('pointerdown', e => {
+  button.addEventListener('pointerdown', e => {
     e.preventDefault();
+
     state[key] = true;
-    b.setPointerCapture(e.pointerId);
+
+    button.setPointerCapture(e.pointerId);
   });
 
-  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(ev =>
-    b.addEventListener(ev, () => {
-      state[key] = false;
-    })
-  );
+  const release = () => {
+    state[key] = false;
+  };
+
+  button.addEventListener('pointerup', release);
+  button.addEventListener('pointercancel', release);
+  button.addEventListener('lostpointercapture', release);
 }
 
 holdButton('throttle-btn', 'throttle');
 holdButton('brake-btn', 'braking');
+holdButton('nitro-btn', 'nitroButton');
 
 $('camera-btn').onclick = () => {
   state.camera = (state.camera + 1) % 3;
+
   $('camera-btn').textContent =
     'CÂMERA: ' + cameraNames[state.camera];
 };
@@ -752,7 +967,7 @@ $('mine-btn').onclick = () => {
   if (!active) return;
 
   const target = asteroids.find(
-    a => a.position.distanceTo(ship.position) < 18
+    asteroid => asteroid.position.distanceTo(ship.position) < 18
   );
 
   if (!target) {
@@ -782,6 +997,7 @@ $('mine-btn').onclick = () => {
 
   save();
   updateWallet();
+
   toast(`Extração concluída: +${amount} unidades de minério.`);
 };
 
@@ -793,10 +1009,12 @@ let npcReady = false;
 $('interact-btn').onclick = () => {
   if (!npcReady) {
     npcReady = true;
+
     openNpc(
       'Comerciante da estação',
       'Olá, piloto. Posso comprar todo o minério que estiver no seu compartimento. Toque novamente para vender.'
     );
+
     return;
   }
 
@@ -824,7 +1042,9 @@ $('resume-btn').onclick = () =>
 
 $('return-menu-btn').onclick = () => {
   active = false;
+
   $('game-menu-modal').classList.add('hidden');
+
   save();
   show('menu-screen');
   updateWallet();
