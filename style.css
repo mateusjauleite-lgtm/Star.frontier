@@ -104,6 +104,73 @@ box-shadow:0 0 20px #168bd455;
 .toast{top:auto;bottom:185px;text-align:center;width:auto;max-width:90vw}
 .npc-bubble button{padding:6px 12px}
 
+/* INDICADOR DE NITRO */
+.nitro-display{
+position:absolute;
+top:78px;
+left:50%;
+transform:translateX(-50%);
+width:min(190px,38vw);
+padding:8px 11px;
+border:1px solid #248ed0;
+border-radius:10px;
+background:rgba(3,18,36,.88);
+box-shadow:0 0 16px #008cff33;
+}
+
+.nitro-heading{
+display:flex;
+justify-content:space-between;
+align-items:center;
+gap:8px;
+font-size:10px;
+font-weight:800;
+letter-spacing:.7px;
+color:#a9ddff;
+}
+
+.nitro-heading b{
+color:#fff;
+font-size:12px;
+}
+
+.nitro-track{
+height:7px;
+margin-top:6px;
+overflow:hidden;
+border-radius:10px;
+background:#102b43;
+border:1px solid #285879;
+}
+
+.nitro-fill{
+width:100%;
+height:100%;
+border-radius:10px;
+background:linear-gradient(90deg,#0878d9,#37dfff);
+box-shadow:0 0 10px #19aaff;
+transition:width .15s linear;
+}
+
+.nitro-button{
+width:100%;
+min-height:36px;
+color:#dff8ff;
+border:1px solid #38caff;
+background:linear-gradient(135deg,#07528c,#087fc0);
+box-shadow:0 0 12px #009dff44;
+}
+
+.nitro-button:active{
+background:linear-gradient(135deg,#087fc0,#24cfff);
+box-shadow:0 0 22px #22cfffaa;
+}
+
+.nitro-button.active{
+background:linear-gradient(135deg,#087fc0,#24cfff);
+box-shadow:0 0 22px #22cfffaa;
+}
+
 /* CONTROLES DE VOO */
 #flight-controls{
 position:absolute;
@@ -162,6 +229,10 @@ background:#0009;
 .control-side{gap:6px}
 #flight-controls{padding-left:8px;padding-right:8px}
 .toast{bottom:175px}
+.nitro-display{top:72px;width:155px;padding:6px 9px}
+.nitro-heading{font-size:9px}
+.nitro-heading b{font-size:11px}
+.nitro-track{height:6px}
 }
 
 /* MODO PAISAGEM */
@@ -172,4 +243,5 @@ background:#0009;
 .right-side .knob{left:22px;top:22px}
 .control-button{padding:6px 8px}
 .hud-card{font-size:10px}
+.nitro-display{top:8px;width:145px}
 }
