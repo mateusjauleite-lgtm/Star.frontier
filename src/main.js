@@ -428,17 +428,79 @@ function init3D() {
   renderer.setSize(innerWidth, innerHeight);
   $('game-root').appendChild(renderer.domElement);
 
-  /* ILUMINAÇÃO */
+  /* ILUMINAÇÃO AMBIENTE E SOL */
 
-  scene.add(new THREE.HemisphereLight(0x9acfff, 0x101020, 1.7));
+  // Luz ambiente: ilumina suavemente as áreas que não recebem luz direta.
+  const ambientLight = new THREE.HemisphereLight(
+    0x9acfff,
+    0x111827,
+    0.75
+  );
+  scene.add(ambientLight);
 
-  const sun = new THREE.PointLight(0x83bfff, 130, 600);
-  sun.position.set(30, 40, 20);
+  // Luz principal: representa a iluminação emitida pelo Sol.
+  const sunPosition = new THREE.Vector3(-120, 65, -220);
+
+  const sunLight = new THREE.PointLight(
+    0xffd6a0,
+    260,
+    1800,
+    1.15
+  );
+
+  sunLight.position.copy(sunPosition);
+  scene.add(sunLight);
+
+  // Luz direcional para reforçar a iluminação dos objetos distantes.
+  const sunlight = new THREE.DirectionalLight(0xffe0b5, 2.0);
+  sunlight.position.copy(sunPosition);
+  scene.add(sunlight);
+
+  // Luz azul fraca de preenchimento para preservar detalhes nas sombras.
+  const fillLight = new THREE.DirectionalLight(0x5caaff, 0.35);
+  fillLight.position.set(100, 20, 80);
+  scene.add(fillLight);
+
+  /* SOL VISÍVEL */
+
+  const sun = new THREE.Group();
+  sun.position.copy(sunPosition);
   scene.add(sun);
 
-  const fillLight = new THREE.DirectionalLight(0x5caaff, 1.4);
-  fillLight.position.set(-20, 12, -30);
-  scene.add(fillLight);
+  // Superfície brilhante do Sol.
+  const sunCore = new THREE.Mesh(
+    new THREE.SphereGeometry(22, 48, 32),
+    new THREE.MeshBasicMaterial({
+      color: 0xffc45c
+    })
+  );
+  sun.add(sunCore);
+
+  // Primeira camada de brilho ao redor do Sol.
+  const sunGlow = new THREE.Mesh(
+    new THREE.SphereGeometry(29, 40, 28),
+    new THREE.MeshBasicMaterial({
+      color: 0xff9e35,
+      transparent: true,
+      opacity: 0.20,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    })
+  );
+  sun.add(sunGlow);
+
+  // Halo externo mais suave.
+  const sunHalo = new THREE.Mesh(
+    new THREE.SphereGeometry(37, 40, 28),
+    new THREE.MeshBasicMaterial({
+      color: 0xff6b28,
+      transparent: true,
+      opacity: 0.07,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    })
+  );
+  sun.add(sunHalo);
 
   /* ESTRELAS */
 
