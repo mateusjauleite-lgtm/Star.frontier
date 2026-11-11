@@ -1,247 +1,681 @@
 
-*{box-sizing:border-box}
-html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#030b18;color:#eaf6ff;font-family:system-ui,Arial,sans-serif;touch-action:pan-x pan-y}
-button,input,select{font:inherit}
-button{border:1px solid #287eb7;background:#0b2944;color:#eaf6ff;border-radius:10px;padding:12px 14px;font-weight:700;cursor:pointer}
-button:active{filter:brightness(1.35);transform:scale(.98)}
-button.primary{background:linear-gradient(135deg,#a85b08,#f2ad22);border-color:#ffd46b;color:#1b1305}
-button.secondary{background:#10243a}
-.hidden{display:none!important}
-
-.screen{
-position:fixed;
-inset:0;
-z-index:5;
-overflow:auto;
-background:linear-gradient(90deg,rgba(2,8,18,.88),rgba(2,12,25,.55)),url('./assets/menu-concept.png') center/cover no-repeat,#061222
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.login-card{width:min(440px,calc(100% - 28px));margin:4vh auto;background:rgba(3,17,34,.94);border:1px solid #268bd1;border-radius:18px;padding:22px;box-shadow:0 0 35px #007ac455}
-.brand{font-size:28px;font-weight:900;letter-spacing:2px;color:#d9f1ff}
-.subtitle{color:#85bce2;margin-top:0}
-.login-card label{display:block;margin:12px 0 5px;color:#a9c9df;font-size:13px}
-.login-card input,.login-card select{width:100%;padding:12px;border-radius:8px;border:1px solid #315b7b;background:#081a2c;color:white}
-.button-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:18px}
-.login-card small{display:block;color:#91a9bb;margin-top:14px;line-height:1.4}
+html, body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #030b18;
+  color: #eaf6ff;
+  font-family: system-ui, Arial, sans-serif;
+  touch-action: none;
+  overscroll-behavior: none;
+}
 
-.topbar{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;background:#061528df;border-bottom:1px solid #1c6798}
-.topbar b{font-size:20px}
-.topbar small{display:block;color:#9ec5e0}
-.wallet{display:flex;gap:16px;font-size:13px}
-.menu-layout{display:grid;grid-template-columns:minmax(190px,260px) 1fr;gap:18px;padding:18px;min-height:calc(100% - 70px)}
-.menu-nav{display:flex;flex-direction:column;gap:9px}
-.menu-nav button{text-align:left;min-height:48px}
-.menu-panel{display:grid;grid-template-columns:minmax(0,1fr) minmax(190px,260px);gap:14px}
-.hero-panel,.side-note{background:#06182bdc;border:1px solid #237cb3;border-radius:15px;padding:20px;backdrop-filter:blur(8px)}
-.hero-panel h1{margin:0 0 8px}
-.hero-panel p,.side-note p{color:#b5cde0;line-height:1.5}
-.ship-preview{display:flex;align-items:center;gap:16px;padding:14px;border:1px solid #245c83;border-radius:12px;background:#0a2943;margin:16px 0}
-.ship-icon{font-size:42px;color:#6bc9ff}
-.ship-preview small{display:block;color:#9db8cc}
-.panel-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
-.panel-actions button{min-width:130px}
-.field-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:12px 0}
-.field-row input[type=range]{max-width:170px}
-.option-card{padding:12px;margin:8px 0;background:#0b2941;border:1px solid #245d80;border-radius:10px}
-.option-card small{display:block;color:#9bb8cb}
+button, input, select {
+  font: inherit;
+}
+
+button {
+  border: 1px solid #287eb7;
+  background: #0b2944;
+  color: #eaf6ff;
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-weight: 700;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: none;
+}
+
+button:active {
+  filter: brightness(1.35);
+  transform: scale(.98);
+}
+
+button.primary {
+  background: linear-gradient(135deg,#a85b08,#f2ad22);
+  border-color: #ffd46b;
+  color: #1b1305;
+}
+
+button.secondary {
+  background: #10243a;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.screen {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  overflow: auto;
+  background:
+    linear-gradient(90deg,rgba(2,8,18,.88),rgba(2,12,25,.55)),
+    url('./assets/menu-concept.png') center/cover no-repeat,
+    #061222;
+}
+
+.login-card {
+  width: min(440px,calc(100% - 28px));
+  margin: 4vh auto;
+  background: rgba(3,17,34,.94);
+  border: 1px solid #268bd1;
+  border-radius: 18px;
+  padding: 22px;
+  box-shadow: 0 0 35px #007ac455;
+}
+
+.brand {
+  font-size: 28px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  color: #d9f1ff;
+}
+
+.subtitle {
+  color: #85bce2;
+  margin-top: 0;
+}
+
+.login-card label {
+  display: block;
+  margin: 12px 0 5px;
+  color: #a9c9df;
+  font-size: 13px;
+}
+
+.login-card input,
+.login-card select {
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #315b7b;
+  background: #081a2c;
+  color: white;
+  touch-action: auto;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.button-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.login-card small {
+  display: block;
+  color: #91a9bb;
+  margin-top: 14px;
+  line-height: 1.4;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 20px;
+  background: #061528df;
+  border-bottom: 1px solid #1c6798;
+}
+
+.topbar b {
+  font-size: 20px;
+}
+
+.topbar small {
+  display: block;
+  color: #9ec5e0;
+}
+
+.wallet {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+}
+
+.menu-layout {
+  display: grid;
+  grid-template-columns: minmax(190px,260px) 1fr;
+  gap: 18px;
+  padding: 18px;
+  min-height: calc(100% - 70px);
+}
+
+.menu-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.menu-nav button {
+  text-align: left;
+  min-height: 48px;
+}
+
+.menu-panel {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) minmax(190px,260px);
+  gap: 14px;
+}
+
+.hero-panel,
+.side-note {
+  background: #06182bdc;
+  border: 1px solid #237cb3;
+  border-radius: 15px;
+  padding: 20px;
+  backdrop-filter: blur(8px);
+}
+
+.hero-panel h1 {
+  margin: 0 0 8px;
+}
+
+.hero-panel p,
+.side-note p {
+  color: #b5cde0;
+  line-height: 1.5;
+}
+
+.ship-preview {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px;
+  border: 1px solid #245c83;
+  border-radius: 12px;
+  background: #0a2943;
+  margin: 16px 0;
+}
+
+.ship-icon {
+  font-size: 42px;
+  color: #6bc9ff;
+}
+
+.ship-preview small {
+  display: block;
+  color: #9db8cc;
+}
+
+.panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.panel-actions button {
+  min-width: 130px;
+}
+
+.field-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 12px 0;
+}
+
+.field-row input[type=range] {
+  max-width: 170px;
+}
+
+.option-card {
+  padding: 12px;
+  margin: 8px 0;
+  background: #0b2941;
+  border: 1px solid #245d80;
+  border-radius: 10px;
+}
+
+.option-card small {
+  display: block;
+  color: #9bb8cb;
+}
 
 /* CENÁRIO 3D */
-#game-root{
-position:fixed;
-inset:0;
-z-index:3;
-pointer-events:none;
+
+#game-root {
+  position: fixed;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
 }
 
-#game-root canvas{
-display:block;
-width:100%;
-height:100%;
+#game-root canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 /* TELA DE JOGO */
-#game-screen{
-position:fixed;
-inset:0;
-z-index:3;
-background:transparent;
+
+#game-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 3;
+  background: transparent;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 /* HUD */
-#hud{
-position:absolute;
-inset:0;
-z-index:4;
-pointer-events:none;
-padding:10px;
-display:flex;
-justify-content:space-between;
-align-items:flex-start;
-gap:8px;
+
+#hud {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  padding: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
 }
 
-.hud-card{display:flex;flex-direction:column;gap:4px;padding:9px 12px;background:#06182bd9;border:1px solid #277caf;border-radius:10px;font-size:12px}
-.hud-card span{color:#b8d2e5}
-.hud-card b{color:#fff}
-.hud-card.right{margin-left:auto}
-.hud-menu{pointer-events:auto;padding:9px 12px}
-
-.npc-bubble,.toast{
-pointer-events:auto;
-position:absolute;
-top:105px;
-left:50%;
-transform:translateX(-50%);
-width:min(330px,90vw);
-padding:12px;
-background:#06182bf2;
-border:1px solid #4aaeea;
-border-radius:12px;
-box-shadow:0 0 20px #168bd455;
+.hud-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 9px 12px;
+  background: #06182bd9;
+  border: 1px solid #277caf;
+  border-radius: 10px;
+  font-size: 12px;
 }
 
-.npc-bubble p{margin:6px 0 10px}
-.toast{top:auto;bottom:185px;text-align:center;width:auto;max-width:90vw}
-.npc-bubble button{padding:6px 12px}
-
-/* INDICADOR DE NITRO */
-.nitro-display{
-position:absolute;
-top:78px;
-left:50%;
-transform:translateX(-50%);
-width:min(190px,38vw);
-padding:8px 11px;
-border:1px solid #248ed0;
-border-radius:10px;
-background:rgba(3,18,36,.88);
-box-shadow:0 0 16px #008cff33;
+.hud-card span {
+  color: #b8d2e5;
 }
 
-.nitro-heading{
-display:flex;
-justify-content:space-between;
-align-items:center;
-gap:8px;
-font-size:10px;
-font-weight:800;
-letter-spacing:.7px;
-color:#a9ddff;
+.hud-card b {
+  color: #fff;
 }
 
-.nitro-heading b{
-color:#fff;
-font-size:12px;
+.hud-card.right {
+  margin-left: auto;
 }
 
-.nitro-track{
-height:7px;
-margin-top:6px;
-overflow:hidden;
-border-radius:10px;
-background:#102b43;
-border:1px solid #285879;
+.hud-menu {
+  pointer-events: auto;
+  padding: 9px 12px;
 }
 
-.nitro-fill{
-width:100%;
-height:100%;
-border-radius:10px;
-background:linear-gradient(90deg,#0878d9,#37dfff);
-box-shadow:0 0 10px #19aaff;
-transition:width .15s linear;
+.npc-bubble,
+.toast {
+  pointer-events: auto;
+  position: absolute;
+  top: 105px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(330px,90vw);
+  padding: 12px;
+  background: #06182bf2;
+  border: 1px solid #4aaeea;
+  border-radius: 12px;
+  box-shadow: 0 0 20px #168bd455;
 }
 
-.nitro-button{
-width:100%;
-min-height:36px;
-color:#dff8ff;
-border:1px solid #38caff;
-background:linear-gradient(135deg,#07528c,#087fc0);
-box-shadow:0 0 12px #009dff44;
+.npc-bubble p {
+  margin: 6px 0 10px;
 }
 
-.nitro-button:active{
-background:linear-gradient(135deg,#087fc0,#24cfff);
-box-shadow:0 0 22px #22cfffaa;
+.toast {
+  top: auto;
+  bottom: 185px;
+  text-align: center;
+  width: auto;
+  max-width: 90vw;
 }
 
-.nitro-button.active{
-background:linear-gradient(135deg,#087fc0,#24cfff);
-box-shadow:0 0 22px #22cfffaa;
+.npc-bubble button {
+  padding: 6px 12px;
+}
+
+/* NITRO */
+
+.nitro-display {
+  position: absolute;
+  top: 78px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(190px,38vw);
+  padding: 8px 11px;
+  border: 1px solid #248ed0;
+  border-radius: 10px;
+  background: rgba(3,18,36,.88);
+  box-shadow: 0 0 16px #008cff33;
+}
+
+.nitro-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .7px;
+  color: #a9ddff;
+}
+
+.nitro-heading b {
+  color: #fff;
+  font-size: 12px;
+}
+
+.nitro-track {
+  height: 7px;
+  margin-top: 6px;
+  overflow: hidden;
+  border-radius: 10px;
+  background: #102b43;
+  border: 1px solid #285879;
+}
+
+.nitro-fill {
+  width: 100%;
+  height: 100%;
+  border-radius: 10px;
+  background: linear-gradient(90deg,#0878d9,#37dfff);
+  box-shadow: 0 0 10px #19aaff;
+  transition: width .15s linear;
+}
+
+.nitro-button {
+  width: 100%;
+  min-height: 36px;
+  color: #dff8ff;
+  border: 1px solid #38caff;
+  background: linear-gradient(135deg,#07528c,#087fc0);
+  box-shadow: 0 0 12px #009dff44;
+}
+
+.nitro-button:active,
+.nitro-button.active {
+  background: linear-gradient(135deg,#087fc0,#24cfff);
+  box-shadow: 0 0 22px #22cfffaa;
 }
 
 /* CONTROLES DE VOO */
-#flight-controls{
-position:absolute;
-inset:auto 0 0;
-z-index:5;
-display:flex;
-justify-content:space-between;
-align-items:flex-end;
-padding:12px 16px max(16px,env(safe-area-inset-bottom));
-pointer-events:none;
+
+#flight-controls {
+  position: absolute;
+  inset: auto 0 0;
+  z-index: 5;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding: 12px 16px max(16px,env(safe-area-inset-bottom));
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
-.control-side{pointer-events:auto;display:flex;flex-direction:column;gap:8px;align-items:center}
-.control-label{font-size:10px;letter-spacing:1px;color:#b7d8ee;text-shadow:0 1px 4px #000}
-.stick{width:116px;height:116px;border:2px solid #64bff4;border-radius:50%;background:#0b315b99;position:relative;touch-action:none;box-shadow:0 0 18px #148bd344}
-.knob{position:absolute;left:35px;top:35px;width:42px;height:42px;border-radius:50%;background:#77caff;border:2px solid #d6f3ff;box-shadow:0 0 15px #38aaff}
-.control-button{padding:10px 12px;font-size:11px;min-width:104px;background:#0b3154df}
-.button-pair{display:flex;gap:6px}
-.right-side .stick{width:106px;height:106px}
-.right-side .knob{left:31px;top:31px}
+.control-side {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  position: relative;
+  z-index: 2;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.control-label {
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: #b7d8ee;
+  text-shadow: 0 1px 4px #000;
+  pointer-events: none;
+}
+
+.stick {
+  width: 116px;
+  height: 116px;
+  border: 2px solid #64bff4;
+  border-radius: 50%;
+  background: #0b315b99;
+  position: relative;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  box-shadow: 0 0 18px #148bd344;
+}
+
+.knob {
+  position: absolute;
+  left: 35px;
+  top: 35px;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: #77caff;
+  border: 2px solid #d6f3ff;
+  box-shadow: 0 0 15px #38aaff;
+  pointer-events: none;
+}
+
+.control-button {
+  padding: 10px 12px;
+  font-size: 11px;
+  min-width: 104px;
+  background: #0b3154df;
+}
+
+.button-pair {
+  display: flex;
+  gap: 6px;
+}
+
+/* ÁREA DE MIRA POR TOQUE */
+
+#aim-touch-area {
+  position: absolute;
+  inset: 0 0 0 34%;
+  z-index: 1;
+  pointer-events: auto;
+  touch-action: none;
+  background: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
 
 /* MENU DE PAUSA */
-.modal{
-position:absolute;
-inset:0;
-z-index:10;
-display:grid;
-place-items:center;
-background:#0009;
+
+.modal {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  background: #0009;
 }
 
-.modal-card{width:min(320px,90vw);padding:20px;background:#071a2e;border:1px solid #399bd6;border-radius:15px;display:flex;flex-direction:column;gap:10px}
-.modal-card h2{margin:0 0 8px}
+.modal-card {
+  width: min(320px,90vw);
+  padding: 20px;
+  background: #071a2e;
+  border: 1px solid #399bd6;
+  border-radius: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.modal-card h2 {
+  margin: 0 0 8px;
+}
 
 /* CELULAR */
-@media(max-width:720px){
-.screen{background-position:58% center}
-.menu-layout{grid-template-columns:1fr;padding:10px}
-.menu-nav{display:grid;grid-template-columns:1fr 1fr}
-.menu-nav button{font-size:12px;padding:10px 8px}
-.menu-panel{grid-template-columns:1fr}
-.side-note{display:none}
-.topbar{padding:10px}
-.topbar b{font-size:16px}
-.wallet{gap:8px;font-size:11px}
-.hero-panel{padding:14px}
-.login-card{margin:2vh auto}
-.hud-card{font-size:10px;padding:7px}
-.hud-card.right{margin-left:auto}
-.hud-menu{font-size:10px;padding:8px}
-.stick{width:98px;height:98px}
-.knob{left:27px;top:27px}
-.right-side .stick{width:94px;height:94px}
-.right-side .knob{left:24px;top:24px}
-.control-button{font-size:9px;min-width:82px;padding:9px 7px}
-.control-side{gap:6px}
-#flight-controls{padding-left:8px;padding-right:8px}
-.toast{bottom:175px}
-.nitro-display{top:72px;width:155px;padding:6px 9px}
-.nitro-heading{font-size:9px}
-.nitro-heading b{font-size:11px}
-.nitro-track{height:6px}
+
+@media(max-width:720px) {
+  .screen {
+    background-position: 58% center;
+  }
+
+  .menu-layout {
+    grid-template-columns: 1fr;
+    padding: 10px;
+  }
+
+  .menu-nav {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .menu-nav button {
+    font-size: 12px;
+    padding: 10px 8px;
+  }
+
+  .menu-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .side-note {
+    display: none;
+  }
+
+  .topbar {
+    padding: 10px;
+  }
+
+  .topbar b {
+    font-size: 16px;
+  }
+
+  .wallet {
+    gap: 8px;
+    font-size: 11px;
+  }
+
+  .hero-panel {
+    padding: 14px;
+  }
+
+  .login-card {
+    margin: 2vh auto;
+  }
+
+  .hud-card {
+    font-size: 10px;
+    padding: 7px;
+  }
+
+  .hud-card.right {
+    margin-left: auto;
+  }
+
+  .hud-menu {
+    font-size: 10px;
+    padding: 8px;
+  }
+
+  .stick {
+    width: 98px;
+    height: 98px;
+  }
+
+  .knob {
+    left: 27px;
+    top: 27px;
+  }
+
+  .control-button {
+    font-size: 9px;
+    min-width: 82px;
+    padding: 9px 7px;
+  }
+
+  .control-side {
+    gap: 6px;
+  }
+
+  #flight-controls {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  #aim-touch-area {
+    left: 32%;
+  }
+
+  .toast {
+    bottom: 175px;
+  }
+
+  .nitro-display {
+    top: 72px;
+    width: 155px;
+    padding: 6px 9px;
+  }
+
+  .nitro-heading {
+    font-size: 9px;
+  }
+
+  .nitro-heading b {
+    font-size: 11px;
+  }
+
+  .nitro-track {
+    height: 6px;
+  }
 }
 
 /* MODO PAISAGEM */
-@media(orientation:landscape) and (max-height:500px){
-.stick{width:82px;height:82px}
-.knob{width:34px;height:34px;left:22px;top:22px}
-.right-side .stick{width:82px;height:82px}
-.right-side .knob{left:22px;top:22px}
-.control-button{padding:6px 8px}
-.hud-card{font-size:10px}
-.nitro-display{top:8px;width:145px}
+
+@media(orientation:landscape) and (max-height:500px) {
+  .stick {
+    width: 82px;
+    height: 82px;
+  }
+
+  .knob {
+    width: 34px;
+    height: 34px;
+    left: 22px;
+    top: 22px;
+  }
+
+  .control-button {
+    padding: 6px 8px;
+  }
+
+  .hud-card {
+    font-size: 10px;
+  }
+
+  .nitro-display {
+    top: 8px;
+    width: 145px;
+  }
+
+  .control-side {
+    gap: 5px;
+  }
+
+  #flight-controls {
+    padding-bottom: 8px;
+  }
 }
