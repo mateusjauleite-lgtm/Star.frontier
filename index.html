@@ -2,12 +2,9 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-  <meta name="theme-color" content="#061222">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="mobile-web-app-capable" content="yes">
-
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#030b18">
   <title>Star Frontier — Protótipo 0.4</title>
 
   <link rel="stylesheet" href="./style.css">
@@ -15,7 +12,7 @@
   <script type="importmap">
     {
       "imports": {
-        "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js"
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
       }
     }
   </script>
@@ -23,104 +20,69 @@
 
 <body>
 
-  <!-- TELA DE LOGIN -->
+  <!-- LOGIN -->
   <section id="login-screen" class="screen">
     <div class="login-card">
-      <div class="brand">✦ STAR FRONTIER</div>
-      <p class="subtitle">Explore · Conquiste · Evolua</p>
+      <div class="brand">STAR FRONTIER</div>
+      <p class="subtitle">Uma nova fronteira espera por você.</p>
 
-      <label>Nome de usuário</label>
-      <input id="login-name" maxlength="18" placeholder="Seu nome de piloto" autocomplete="username">
+      <label for="login-name">Nome do piloto</label>
+      <input id="login-name" type="text" placeholder="Seu nome">
 
-      <label>Senha (protótipo local)</label>
-      <input id="login-pass" type="password" placeholder="Crie ou digite uma senha" autocomplete="current-password">
+      <label for="login-pass">Senha</label>
+      <input id="login-pass" type="password" placeholder="Sua senha">
 
-      <label>E-mail</label>
-      <input id="login-email" type="email" placeholder="seu@email.com">
+      <label for="login-email">E-mail</label>
+      <input id="login-email" type="email" placeholder="Seu e-mail">
 
-      <label>País / bandeira</label>
+      <label for="country">País</label>
       <select id="country">
-        <option value="🇧🇷">🇧🇷 Brasil</option>
-        <option value="🇵🇹">🇵🇹 Portugal</option>
-        <option value="🇺🇸">🇺🇸 Estados Unidos</option>
-        <option value="🇯🇵">🇯🇵 Japão</option>
-        <option value="🇨🇦">🇨🇦 Canadá</option>
-        <option value="🇫🇷">🇫🇷 França</option>
+        <option value="Brasil">Brasil</option>
+        <option value="Portugal">Portugal</option>
+        <option value="Estados Unidos">Estados Unidos</option>
+        <option value="Outro">Outro</option>
       </select>
 
       <div class="button-row">
-        <button id="login-btn" class="primary">Entrar / Cadastrar</button>
-        <button id="forgot-btn" class="secondary">Esqueci a senha</button>
+        <button id="login-btn" class="primary">ENTRAR</button>
+        <button id="forgot-btn" class="secondary">RECUPERAR</button>
       </div>
 
-      <small>
-        Protótipo: cadastro e sessão ficam somente neste aparelho.
-        Não use senha real.
-      </small>
+      <small>Prepare sua nave e explore o universo de Star Frontier.</small>
     </div>
   </section>
 
   <!-- MENU PRINCIPAL -->
   <section id="menu-screen" class="screen hidden">
-
     <header class="topbar">
       <div>
-        <b>✦ STAR FRONTIER</b>
-        <small id="profile-line">Piloto · Nv. 1</small>
+        <b>STAR FRONTIER</b>
+        <small>Central de comando</small>
       </div>
 
       <div class="wallet">
-        <span>◉ <b id="credits">1.000</b> CR</span>
-        <span>◆ <b id="ore-total">0</b> minério</span>
+        <span>Créditos: <b id="menu-credits">0</b></span>
       </div>
     </header>
 
     <div class="menu-layout">
-
       <nav class="menu-nav">
-        <button data-panel="play" class="primary">▶ Iniciar o jogo</button>
-        <button data-panel="story">▤ Modo história</button>
-        <button data-panel="character">♙ Personagens</button>
-        <button data-panel="ships">✧ Naves</button>
-        <button data-panel="shop">🛒 Loja do jogo</button>
-        <button data-panel="settings">⚙ Configurações de partida</button>
-        <button id="logout-btn" class="secondary">↩ Voltar à tela de login</button>
+        <button data-panel="play">JOGAR</button>
+        <button data-panel="story">HISTÓRIA</button>
+        <button data-panel="character">PERSONAGEM</button>
+        <button data-panel="ships">NAVE</button>
+        <button data-panel="shop">LOJA</button>
+        <button data-panel="settings">CONFIGURAÇÕES</button>
+        <button id="logout-btn" class="secondary">SAIR</button>
       </nav>
 
       <main class="menu-panel">
+        <div id="panel-content" class="hero-panel"></div>
 
-        <div class="hero-panel">
-          <h1 id="panel-title">Hangar orbital</h1>
-
-          <p id="panel-copy">
-            Sua jornada começa no Setor Orion.
-            Escolha uma atividade ou decole.
-          </p>
-
-          <div class="ship-preview">
-            <span class="ship-icon">◢</span>
-            <div>
-              <b id="ship-name">Aurora-7</b>
-              <small>Classe exploradora · nave inicial</small>
-            </div>
-          </div>
-
-          <div id="panel-content"></div>
-        </div>
-
-        <div class="side-note">
-          <b>Boletim da estação</b>
-          <p id="bulletin">
-            Asteroides ricos em ferro foram detectados na rota de mineração.
-          </p>
-
-          <b>Suporte & comunidade</b>
-          <p>
-            Protótipo offline: notícias e suporte online serão adicionados
-            em uma próxima etapa.
-          </p>
-        </div>
-
+        <aside class="side-note">
+          <h3>FRONTEIRA ESTELAR</h3>
+          <p>Explore, descubra recursos e construa seu caminho entre as estrelas.</p>
+        </aside>
       </main>
     </div>
   </section>
@@ -128,7 +90,6 @@
   <!-- JOGO -->
   <section id="game-screen" class="hidden">
 
-    <!-- CENÁRIO 3D -->
     <div id="game-root"></div>
 
     <!-- HUD -->
@@ -136,47 +97,45 @@
 
       <div class="hud-card">
         <b id="hud-user">PILOTO</b>
-        <span>Casco <b id="hull">100%</b></span>
-        <span>Escudo <b id="shield">100%</b></span>
+        <span>Casco: <b id="hull">100</b>%</span>
+        <span>Escudo: <b id="shield">100</b>%</span>
+        <span>Velocidade: <b id="speed">0</b></span>
+        <span>Combustível: <b id="fuel">100</b>%</span>
+        <span>Carga: <b id="cargo">0</b></span>
       </div>
 
       <div class="hud-card right">
-        <span>Velocidade <b id="speed">0</b></span>
-        <span>Combustível <b id="fuel">100%</b></span>
-        <span>Carga <b id="cargo">0 / 100</b></span>
-        <span>Créditos <b id="hud-credits">1.000</b></span>
+        <span>Créditos: <b id="hud-credits">0</b></span>
+        <button id="game-menu-btn" class="hud-menu">☰ MENU</button>
       </div>
-
-      <!-- INDICADOR DE NITRO -->
-      <div id="nitro-display" class="nitro-display">
-        <div class="nitro-heading">
-          <span>⚡ PROPULSÃO NITRO</span>
-          <b id="nitro-level">100%</b>
-        </div>
-        <div class="nitro-track">
-          <div id="nitro-fill" class="nitro-fill"></div>
-        </div>
-      </div>
-
-      <button id="game-menu" class="hud-menu">☰ Menu</button>
-
-      <div id="npc-bubble" class="npc-bubble hidden">
-        <b id="npc-name">Técnica de mineração</b>
-        <p id="npc-text">Bem-vindo à estação.</p>
-        <button id="npc-close">Fechar</button>
-      </div>
-
-      <div id="toast" class="toast hidden"></div>
 
     </div>
+
+    <!-- INDICADOR DE NITRO -->
+    <div id="nitro-display" class="nitro-display">
+      <div class="nitro-heading">
+        <span>ENERGIA DO NITRO</span>
+        <b id="nitro-level">100%</b>
+      </div>
+
+      <div class="nitro-track">
+        <div id="nitro-fill" class="nitro-fill"></div>
+      </div>
+    </div>
+
+    <!-- AVISOS E INTERAÇÕES -->
+    <div id="npc-bubble" class="npc-bubble hidden"></div>
+    <div id="toast" class="toast hidden"></div>
 
     <!-- CONTROLES DE VOO -->
     <div id="flight-controls">
 
-      <!-- Área de toque para controlar a visão -->
-      <div id="aim-touch-area"></div>
+      <!-- ÁREA DE MIRA: recebe arrasto para movimentar a câmera -->
+      <div id="aim-touch-area" aria-label="Área de controle da mira"></div>
 
+      <!-- CONTROLES DO LADO ESQUERDO -->
       <div class="control-side left-side">
+
         <div class="control-label">MOVIMENTO DA NAVE</div>
 
         <div id="move-stick" class="stick">
@@ -186,19 +145,32 @@
         <button id="mine-btn" class="control-button">
           ⛏ MINERAR
         </button>
+
       </div>
 
+      <!-- CONTROLES DO LADO DIREITO -->
       <div class="control-side right-side">
+
         <div class="control-label">COMANDOS</div>
 
         <div class="button-pair">
-          <button id="fire-btn" class="control-button">◎ DISPARAR</button>
-          <button id="interact-btn" class="control-button">F INTERAGIR</button>
+          <button id="fire-btn" class="control-button">
+            ◎ DISPARAR
+          </button>
+
+          <button id="interact-btn" class="control-button">
+            F INTERAGIR
+          </button>
         </div>
 
         <div class="button-pair">
-          <button id="throttle-btn" class="control-button">▲ ACELERAR</button>
-          <button id="brake-btn" class="control-button">▼ FREAR</button>
+          <button id="throttle-btn" class="control-button">
+            ▲ ACELERAR
+          </button>
+
+          <button id="brake-btn" class="control-button">
+            ▼ FREAR
+          </button>
         </div>
 
         <button id="nitro-btn" class="control-button nitro-button">
@@ -208,6 +180,7 @@
         <button id="camera-btn" class="control-button">
           CÂMERA: 3ª PESSOA
         </button>
+
       </div>
 
     </div>
@@ -215,15 +188,20 @@
     <!-- MENU DE PAUSA -->
     <div id="game-menu-modal" class="modal hidden">
       <div class="modal-card">
-        <h2>Menu de voo</h2>
-        <button id="resume-btn" class="primary">Retomar</button>
-        <button id="return-menu-btn">Voltar ao menu principal</button>
+        <h2>JOGO PAUSADO</h2>
+
+        <button id="resume-btn" class="primary">
+          CONTINUAR
+        </button>
+
+        <button id="return-menu-btn" class="secondary">
+          VOLTAR AO MENU
+        </button>
       </div>
     </div>
 
   </section>
 
-  <!-- INICIALIZAÇÃO DO JOGO -->
   <script type="module" src="./src/main.js"></script>
 
 </body>
