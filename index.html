@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
 
-  <title>Star Frontier — Protótipo 0.3</title>
+  <title>Star Frontier — Protótipo 0.4</title>
 
   <link rel="stylesheet" href="./style.css">
 
@@ -173,8 +173,11 @@
     <!-- CONTROLES DE VOO -->
     <div id="flight-controls">
 
+      <!-- Área de toque para controlar a visão -->
+      <div id="aim-touch-area"></div>
+
       <div class="control-side left-side">
-        <div class="control-label">MOVIMENTO</div>
+        <div class="control-label">MOVIMENTO DA NAVE</div>
 
         <div id="move-stick" class="stick">
           <div class="knob"></div>
@@ -186,11 +189,7 @@
       </div>
 
       <div class="control-side right-side">
-        <div class="control-label">MIRA / VISÃO</div>
-
-        <div id="aim-stick" class="stick">
-          <div class="knob"></div>
-        </div>
+        <div class="control-label">COMANDOS</div>
 
         <div class="button-pair">
           <button id="fire-btn" class="control-button">◎ DISPARAR</button>
@@ -202,7 +201,6 @@
           <button id="brake-btn" class="control-button">▼ FREAR</button>
         </div>
 
-        <!-- NOVO BOTÃO DE NITRO -->
         <button id="nitro-btn" class="control-button nitro-button">
           ⚡ NITRO
         </button>
