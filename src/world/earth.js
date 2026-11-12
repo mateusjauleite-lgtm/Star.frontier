@@ -87,13 +87,13 @@ function makeSurfaceTexture() {
     ctx.restore();
   }
 
-  // Regiões polares.
+  // Calotas polares: Ártico e Antártida, sem transformar as latitudes em continentes.
   ctx.fillStyle = 'rgba(225,239,235,0.94)';
   ctx.beginPath();
-  ctx.ellipse(1024, 15, 1024, 42, 0, 0, Math.PI * 2);
+  ctx.ellipse(1024, 13, 1024, 25, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.beginPath();
-  ctx.ellipse(1024, 1008, 1024, 34, 0, 0, Math.PI * 2);
+  ctx.ellipse(1024, 1010, 1024, 30, 0, 0, Math.PI * 2);
   ctx.fill();
 
   const texture = new THREE.CanvasTexture(canvas);
@@ -131,7 +131,7 @@ function makeCloudTexture() {
  * Retorna { group, update, dispose }.
  */
 export function createEarth(options = {}) {
-  const radius = options.radius ?? 48;
+  const radius = options.radius ?? 78;
   const position = options.position ?? [0, 0, -240];
   const group = new THREE.Group();
   group.name = 'StarFrontier-Earth';
@@ -141,7 +141,7 @@ export function createEarth(options = {}) {
   const cloudTexture = makeCloudTexture();
 
   const earth = new THREE.Mesh(
-    new THREE.SphereGeometry(radius, 96, 64),
+    new THREE.SphereGeometry(radius, 128, 80),
     new THREE.MeshStandardMaterial({
       map: surfaceTexture,
       roughness: 0.92,
@@ -155,7 +155,7 @@ export function createEarth(options = {}) {
   group.add(earth);
 
   const clouds = new THREE.Mesh(
-    new THREE.SphereGeometry(radius * 1.006, 72, 48),
+    new THREE.SphereGeometry(radius * 1.008, 96, 64),
     new THREE.MeshStandardMaterial({
       map: cloudTexture,
       transparent: true,
@@ -169,7 +169,7 @@ export function createEarth(options = {}) {
   group.add(clouds);
 
   const atmosphere = new THREE.Mesh(
-    new THREE.SphereGeometry(radius * 1.075, 72, 48),
+    new THREE.SphereGeometry(radius * 1.065, 96, 64),
     new THREE.ShaderMaterial({
       vertexShader: `
         varying vec3 vNormal;
