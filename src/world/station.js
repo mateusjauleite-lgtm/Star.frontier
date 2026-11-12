@@ -4,7 +4,7 @@ import * as THREE from 'three';
 export function createStation(options = {}) {
   const {
     position = [24, 3, -65],
-    scale = 1
+    scale = 1.18
   } = options;
 
   const group = new THREE.Group();
@@ -30,14 +30,18 @@ export function createStation(options = {}) {
     roughness: 0.24
   });
   const glass = new THREE.MeshPhysicalMaterial({
-    color: 0x70cfff,
-    emissive: 0x073653,
-    emissiveIntensity: 0.42,
-    metalness: 0.18,
-    roughness: 0.12,
-    transmission: 0.28,
+    color: 0xb9eaff,
+    emissive: 0x021321,
+    emissiveIntensity: 0.12,
+    metalness: 0.02,
+    roughness: 0.045,
+    transmission: 0.92,
+    thickness: 0.08,
+    ior: 1.12,
+    clearcoat: 0.85,
+    clearcoatRoughness: 0.06,
     transparent: true,
-    opacity: 0.78,
+    opacity: 0.2,
     side: THREE.DoubleSide,
     depthWrite: false
   });
@@ -68,6 +72,27 @@ export function createStation(options = {}) {
 
   const addRing = (parent, radius, tube, y, material, segments = 96) =>
     addMesh(parent, new THREE.TorusGeometry(radius, tube, 8, segments), material, [0, y, 0], [Math.PI / 2, 0, 0]);
+
+  // Plataforma circular extrudada com abertura retangular sobre a escadaria.
+  // O vão permite que a escada atravesse o piso superior até a área de pouso.
+  const makeLandingDeck = (radius, depth, openingWidth = 3.4) => {
+    const shape = new THREE.Shape();
+    shape.absarc(0, 0, radius, 0, Math.PI * 2, false);
+    const opening = new THREE.Path();
+    opening.moveTo(-openingWidth / 2, 4.0);
+    opening.lineTo(-openingWidth / 2, 8.9);
+    opening.lineTo(openingWidth / 2, 8.9);
+    opening.lineTo(openingWidth / 2, 4.0);
+    opening.closePath();
+    shape.holes.push(opening);
+    const geometry = new THREE.ExtrudeGeometry(shape, {
+      depth,
+      bevelEnabled: false,
+      curveSegments: 96
+    });
+    geometry.rotateX(-Math.PI / 2);
+    return geometry;
+  };
 
   // Observatório inferior: painéis panorâmicos separados por uma abertura real de entrada.
   // A passagem fica voltada para -Z, alinhada com a escadaria.
@@ -112,9 +137,9 @@ export function createStation(options = {}) {
   }
 
   // Plataforma superior circular: área livre para pouso da Aurora-7.
-  addMesh(group, new THREE.CylinderGeometry(11.25, 11.65, 1.05, 96), dark, [0, 1.45, 0]);
-  addMesh(group, new THREE.CylinderGeometry(10.95, 10.95, 0.12, 96), hull, [0, 2.02, 0]);
-  addMesh(group, new THREE.CylinderGeometry(9.5, 9.5, 0.035, 96), floorGlass, [0, 2.1, 0]);
+  addMesh(group, makeLandingDeck(11.65, 1.05), dark, [0, 0.925, 0]);
+  addMesh(group, makeLandingDeck(10.95, 0.12), hull, [0, 1.975, 0]);
+  addMesh(group, makeLandingDeck(9.5, 0.035), floorGlass, [0, 2.095, 0]);
   addRing(group, 10.65, 0.12, 2.12, trim);
   addRing(group, 7.7, 0.045, 2.13, light);
 
