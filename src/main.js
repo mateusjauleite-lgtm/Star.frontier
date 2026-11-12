@@ -1,5 +1,6 @@
 
 import * as THREE from 'three';
+import { createEarth } from './world/earth.js';
 
 const $ = id => document.getElementById(id);
 
@@ -358,6 +359,7 @@ let camera;
 let renderer;
 let ship;
 let stars;
+let earthSystem;
 
 let asteroids = [];
 let engineFlames = [];
@@ -405,6 +407,10 @@ function init3D() {
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x020817);
   scene.fog = new THREE.FogExp2(0x020817, 0.0011);
+
+  // Terra em posição distante, visível à frente da nave.
+  earthSystem = createEarth({ radius: 48, position: [0, 0, -240] });
+  scene.add(earthSystem.group);
 
   camera = new THREE.PerspectiveCamera(
     70,
@@ -1011,6 +1017,7 @@ function loop(now) {
 
   updateFlight(dt);
   updateCamera();
+  earthSystem?.update(dt);
 
   asteroids.forEach(asteroid => {
     asteroid.rotation.x += 0.001;
