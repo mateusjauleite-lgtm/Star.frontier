@@ -23,6 +23,7 @@ html,
 body {
   width: 100%;
   height: 100%;
+  min-height: 100%;
   margin: 0;
   overflow: hidden;
   background: var(--bg);
@@ -72,7 +73,12 @@ select:focus {
   display: none !important;
 }
 
-/* Telas principais */
+/* TELAS PRINCIPAIS */
+
+.screen {
+  position: fixed;
+  inset: 0;
+}
 
 #login-screen,
 #menu-screen {
@@ -82,7 +88,11 @@ select:focus {
   overflow-y: auto;
   padding: 22px;
   background:
-    radial-gradient(ellipse at 50% 20%, rgba(15, 95, 155, 0.2), transparent 55%),
+    radial-gradient(
+      ellipse at 50% 20%,
+      rgba(15, 95, 155, 0.2),
+      transparent 55%
+    ),
     linear-gradient(145deg, #071426, #030711 70%);
 }
 
@@ -94,44 +104,127 @@ select:focus {
 
 #login-screen > *,
 #menu-screen > * {
-  max-width: 720px;
+  max-width: 900px;
   margin-left: auto;
   margin-right: auto;
 }
 
-#login-screen h1,
-#menu-screen h1 {
+/* LOGIN */
+
+.login-card {
+  width: min(100%, 420px);
+  padding: 28px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--panel);
+  box-shadow:
+    0 15px 50px rgba(0, 0, 0, 0.45),
+    0 0 30px rgba(67, 217, 255, 0.06);
+}
+
+.brand {
   color: var(--cyan);
+  font-size: 27px;
+  font-weight: bold;
+  letter-spacing: 4px;
   text-align: center;
-  letter-spacing: 3px;
   text-shadow: 0 0 18px rgba(67, 217, 255, 0.4);
 }
 
-#login-screen button,
-#menu-screen button {
+.subtitle {
+  margin: 12px 0 24px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.login-card label {
+  display: block;
+  margin: 13px 0 6px;
+  color: var(--cyan);
+  font-size: 12px;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+.login-card small {
+  display: block;
+  margin-top: 18px;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1.5;
+}
+
+.button-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.button-row button {
+  flex: 1;
+}
+
+/* BOTÕES GERAIS */
+
+.primary,
+.secondary {
   min-height: 42px;
   padding: 10px 15px;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: linear-gradient(135deg, #123453, #0a1c32);
+  color: var(--text);
+  font-weight: bold;
 }
 
-#login-screen button:active,
-#menu-screen button:active {
+.primary {
+  border-color: rgba(67, 217, 255, 0.5);
+  color: var(--cyan);
+}
+
+.secondary {
+  background: rgba(10, 22, 40, 0.9);
+  color: var(--muted);
+}
+
+.primary:active,
+.secondary:active {
   transform: scale(0.97);
   border-color: var(--cyan);
 }
+
+/* MENU PRINCIPAL */
 
 #menu-screen {
   padding-top: 18px;
 }
 
-#menu-screen .topbar {
+.topbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 12px;
   margin-bottom: 20px;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.topbar b {
+  color: var(--cyan);
+  letter-spacing: 2px;
+}
+
+.topbar small {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+}
+
+.wallet {
+  color: var(--muted);
+  font-size: 13px;
 }
 
 #menu-credits {
@@ -139,13 +232,43 @@ select:focus {
   font-weight: bold;
 }
 
-#menu-screen [data-panel] {
-  margin: 4px;
+.menu-layout {
+  display: grid;
+  grid-template-columns: minmax(145px, 210px) minmax(0, 1fr);
+  gap: 15px;
+}
+
+.menu-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.menu-nav button {
+  width: 100%;
+  min-height: 46px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: linear-gradient(135deg, #123453, #0a1c32);
+  color: var(--text);
+  font-weight: bold;
+}
+
+.menu-nav button:active,
+#menu-screen button:active {
+  transform: scale(0.97);
+  border-color: var(--cyan);
+}
+
+.menu-panel {
+  min-width: 0;
 }
 
 #panel-content {
-  margin-top: 20px;
-  padding: 18px;
+  min-height: 180px;
+  margin-top: 0;
+  padding: 20px;
   border: 1px solid var(--border);
   border-radius: 15px;
   background: var(--panel);
@@ -161,7 +284,26 @@ select:focus {
   margin: 5px 3px;
 }
 
-/* Área do jogo */
+.side-note {
+  margin-top: 14px;
+  padding: 15px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel-light);
+}
+
+.side-note h3 {
+  margin-top: 0;
+  color: var(--cyan);
+  letter-spacing: 1px;
+}
+
+.side-note p {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+/* ÁREA DO JOGO */
 
 #game-screen {
   position: fixed;
@@ -202,13 +344,23 @@ select:focus {
   pointer-events: none;
 }
 
-.hud-panel {
+.hud-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 110px;
   padding: 8px 11px;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: rgba(3, 12, 26, 0.78);
   backdrop-filter: blur(8px);
   font-size: 12px;
+  pointer-events: none;
+}
+
+.hud-card.right {
+  align-items: flex-end;
+  pointer-events: none;
 }
 
 #hud-user {
@@ -223,6 +375,7 @@ select:focus {
 #cargo,
 #hud-credits {
   margin: 3px 0;
+  font-weight: bold;
 }
 
 #hull {
@@ -233,10 +386,7 @@ select:focus {
   color: var(--cyan);
 }
 
-#fuel {
-  color: var(--gold);
-}
-
+#fuel,
 #hud-credits {
   color: var(--gold);
 }
@@ -248,18 +398,18 @@ select:focus {
   border-radius: 10px;
   background: rgba(5, 22, 42, 0.9);
   color: var(--cyan);
-  font-size: 20px;
+  font-size: 16px;
   pointer-events: auto;
 }
 
-/* Nitro */
+/* NITRO */
 
 #nitro-display {
   position: absolute;
   top: 112px;
   right: 12px;
   z-index: 4;
-  width: 115px;
+  width: 150px;
   padding: 8px;
   border: 1px solid rgba(67, 217, 255, 0.35);
   border-radius: 9px;
@@ -269,11 +419,18 @@ select:focus {
   pointer-events: none;
 }
 
-#nitro-level {
-  margin-bottom: 5px;
+.nitro-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 5px;
+  margin-bottom: 7px;
 }
 
-#nitro-fill {
+#nitro-level {
+  color: var(--text);
+}
+
+.nitro-track {
   width: 100%;
   height: 7px;
   overflow: hidden;
@@ -281,13 +438,16 @@ select:focus {
   background: rgba(255, 255, 255, 0.12);
 }
 
-#nitro-fill > * {
+#nitro-fill {
+  width: 100%;
   height: 100%;
   border-radius: inherit;
   background: linear-gradient(90deg, #168bff, #43d9ff);
+  box-shadow: 0 0 9px rgba(67, 217, 255, 0.45);
+  transition: width 0.15s linear;
 }
 
-/* Controles de voo */
+/* CONTROLES DE VOO */
 
 #flight-controls {
   position: absolute;
@@ -314,11 +474,25 @@ select:focus {
 
 .left-side {
   flex-direction: column;
+  align-items: flex-start;
 }
 
 .right-side {
   flex-direction: column;
   align-items: flex-end;
+}
+
+.control-label {
+  color: var(--cyan);
+  font-size: 10px;
+  font-weight: bold;
+  letter-spacing: 1px;
+  text-shadow: 0 1px 5px #000;
+}
+
+.button-pair {
+  display: flex;
+  gap: 7px;
 }
 
 .stick {
@@ -329,7 +503,11 @@ select:focus {
   border: 2px solid rgba(67, 217, 255, 0.48);
   border-radius: 50%;
   background:
-    radial-gradient(circle, rgba(67, 217, 255, 0.12), rgba(5, 17, 34, 0.8));
+    radial-gradient(
+      circle,
+      rgba(67, 217, 255, 0.12),
+      rgba(5, 17, 34, 0.8)
+    );
   box-shadow: inset 0 0 18px rgba(67, 217, 255, 0.1);
   touch-action: none;
 }
@@ -354,7 +532,11 @@ select:focus {
   padding: 8px 10px;
   border: 1px solid rgba(67, 217, 255, 0.38);
   border-radius: 12px;
-  background: linear-gradient(145deg, rgba(15, 47, 75, 0.96), rgba(4, 15, 31, 0.96));
+  background: linear-gradient(
+    145deg,
+    rgba(15, 47, 75, 0.96),
+    rgba(4, 15, 31, 0.96)
+  );
   color: var(--text);
   font-size: 12px;
   font-weight: bold;
@@ -388,7 +570,7 @@ select:focus {
   box-shadow: 0 0 20px rgba(67, 217, 255, 0.55);
 }
 
-/* Área de movimento da câmera */
+/* ÁREA DE MOVIMENTO DA CÂMERA */
 
 #aim-touch-area {
   position: absolute;
@@ -399,7 +581,7 @@ select:focus {
   touch-action: none;
 }
 
-/* Mensagens e conversas */
+/* MENSAGENS E INTERAÇÕES */
 
 #npc-bubble {
   position: absolute;
@@ -432,7 +614,7 @@ select:focus {
   pointer-events: none;
 }
 
-/* Menu de pausa */
+/* MENU DE PAUSA */
 
 #game-menu-modal {
   position: fixed;
@@ -450,33 +632,34 @@ select:focus {
   display: none;
 }
 
-#game-menu-modal > div,
-#game-menu-modal .modal-content {
+#game-menu-modal .modal-card {
   width: min(100%, 360px);
   padding: 22px;
   border: 1px solid var(--border);
   border-radius: 16px;
   background: var(--panel);
   text-align: center;
+  box-shadow: 0 15px 45px rgba(0, 0, 0, 0.45);
+}
+
+#game-menu-modal h2 {
+  color: var(--cyan);
 }
 
 #game-menu-modal button {
   width: 100%;
   min-height: 46px;
   margin: 6px 0;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: linear-gradient(135deg, #123453, #0a1c32);
 }
 
-/* Celular em modo paisagem */
+/* CELULAR EM MODO PAISAGEM */
 
 @media (orientation: landscape) and (max-height: 600px) {
   #hud {
     padding: 6px;
   }
 
-  .hud-panel {
+  .hud-card {
     padding: 5px 8px;
     font-size: 10px;
   }
@@ -484,7 +667,7 @@ select:focus {
   #nitro-display {
     top: 78px;
     right: 8px;
-    width: 95px;
+    width: 125px;
   }
 
   #flight-controls {
@@ -513,12 +696,20 @@ select:focus {
     gap: 6px;
   }
 
+  .button-pair {
+    gap: 5px;
+  }
+
   #npc-bubble {
     bottom: 115px;
   }
+
+  #toast {
+    top: 55px;
+  }
 }
 
-/* Telas pequenas */
+/* TELAS PEQUENAS */
 
 @media (max-width: 420px) {
   #flight-controls {
@@ -534,6 +725,7 @@ select:focus {
   .control-button {
     min-width: 72px;
     min-height: 43px;
+    padding: 6px;
     font-size: 11px;
   }
 
@@ -543,10 +735,19 @@ select:focus {
 
   #nitro-display {
     top: 125px;
+    width: 120px;
+  }
+
+  .login-card {
+    padding: 20px;
+  }
+
+  .brand {
+    font-size: 23px;
   }
 }
 
-/* Acessibilidade e telas maiores */
+/* TELAS MAIORES */
 
 @media (min-width: 800px) {
   #flight-controls {
@@ -562,5 +763,26 @@ select:focus {
     min-width: 95px;
     min-height: 50px;
     font-size: 13px;
+  }
+}
+
+/* MENU EM TELAS ESTREITAS */
+
+@media (max-width: 600px) {
+  .menu-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .menu-nav {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .menu-nav button {
+    font-size: 11px;
+  }
+
+  .side-note {
+    margin-bottom: 20px;
   }
 }
