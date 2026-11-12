@@ -69,18 +69,24 @@ export function createStation(options = {}) {
   const addRing = (parent, radius, tube, y, material, segments = 96) =>
     addMesh(parent, new THREE.TorusGeometry(radius, tube, 8, segments), material, [0, y, 0], [Math.PI / 2, 0, 0]);
 
-  // Casco inferior: observatório pressurizado com paredes panorâmicas de vidro.
-  addMesh(group, new THREE.CylinderGeometry(8.55, 8.9, 3.9, 64, 1, true), glass, [0, -1.45, 0]);
+  // Observatório inferior: painéis panorâmicos separados por uma abertura real de entrada.
+  // A passagem fica voltada para -Z, alinhada com a escadaria.
   addMesh(group, new THREE.CylinderGeometry(8.65, 8.65, 0.32, 64), dark, [0, -3.42, 0]);
   addMesh(group, new THREE.CylinderGeometry(8.35, 8.35, 0.12, 64), floorGlass, [0, -3.2, 0]);
 
-  // Anéis estruturais do observatório e montantes entre os painéis.
   addRing(group, 8.72, 0.28, 0.48, hull);
   addRing(group, 8.72, 0.2, -3.38, trim);
-  for (let i = 0; i < 24; i++) {
-    const angle = (i / 24) * Math.PI * 2;
-    const x = Math.cos(angle) * 8.62;
-    const z = Math.sin(angle) * 8.62;
+
+  const wallRadius = 8.62;
+  const wallSegments = 28;
+  for (let i = 0; i < wallSegments; i++) {
+    const angle = (i / wallSegments) * Math.PI * 2;
+    const aroundEntry = Math.abs(Math.atan2(Math.sin(angle - Math.PI), Math.cos(angle - Math.PI))) < 0.34;
+    if (aroundEntry) continue;
+
+    const x = Math.sin(angle) * wallRadius;
+    const z = Math.cos(angle) * wallRadius;
+    addBox(group, [1.92, 3.55, 0.14], [x, -1.45, z], glass, [0, -angle, 0]);
     addBox(group, [0.13, 3.65, 0.16], [x, -1.45, z], dark, [0, -angle, 0]);
   }
 
@@ -133,10 +139,12 @@ export function createStation(options = {}) {
     addBox(group, [2.5, 0.13, 0.48], [0, y, z], i % 2 ? hull : dark);
     addBox(group, [2.25, 0.025, 0.035], [0, y + 0.075, z - 0.18], light);
   }
-  addBox(group, [2.8, 2.45, 0.22], [0, -1.65, -8.35], dark);
-  addBox(group, [1.65, 2.05, 0.08], [0, -1.62, -8.48], glass);
-  addBox(group, [0.12, 2.15, 0.12], [-0.92, -1.62, -8.5], trim);
-  addBox(group, [0.12, 2.15, 0.12], [0.92, -1.62, -8.5], trim);
+  // Portal aberto: sem painel de vidro bloqueando a passagem.
+  addBox(group, [0.18, 2.35, 0.2], [-1.18, -1.62, -8.48], dark);
+  addBox(group, [0.18, 2.35, 0.2], [1.18, -1.62, -8.48], dark);
+  addBox(group, [2.55, 0.18, 0.2], [0, -0.42, -8.48], dark);
+  addBox(group, [0.08, 2.1, 0.08], [-1.05, -1.62, -8.58], light);
+  addBox(group, [0.08, 2.1, 0.08], [1.05, -1.62, -8.58], light);
 
   // Guarda-corpo baixo no perímetro da plataforma, sem bloquear o pouso.
   addRing(group, 10.95, 0.075, 2.72, hull);
