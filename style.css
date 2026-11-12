@@ -359,7 +359,13 @@ select:focus {
 }
 
 .hud-card.right {
-  align-items: flex-end;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 9px;
+  min-width: 0;
+  padding: 5px 7px 5px 10px;
   pointer-events: none;
 }
 
@@ -392,8 +398,10 @@ select:focus {
 }
 
 #game-menu-btn {
+  flex: 0 0 42px;
   min-width: 42px;
   min-height: 42px;
+  margin: 0;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: rgba(5, 22, 42, 0.9);
@@ -664,6 +672,17 @@ select:focus {
     font-size: 10px;
   }
 
+  .hud-card.right {
+    gap: 7px;
+    padding: 3px 5px 3px 8px;
+  }
+
+  #game-menu-btn {
+    flex-basis: 36px;
+    min-width: 36px;
+    min-height: 36px;
+  }
+
   #nitro-display {
     top: 78px;
     right: 8px;
@@ -744,6 +763,14 @@ select:focus {
 
   .brand {
     font-size: 23px;
+  }
+
+  .hud-card {
+    min-width: 0;
+  }
+
+  .hud-card.right {
+    gap: 6px;
   }
 }
 
