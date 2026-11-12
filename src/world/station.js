@@ -68,14 +68,13 @@ export function createStation(options = {}) {
   group.add(ring);
 
   for (let i = 0; i < 4; i++) {
-    const angle = i * Math.PI / 2;
     const spoke = addBox(
       group,
-      [0.65, 0.65, 8.7],
-      [Math.cos(angle) * 4.8, Math.sin(angle) * 4.8, 0],
-      structure
+      [8.7, 0.65, 0.65],
+      [0, 0, 0],
+      structure,
+      [0, 0, i * Math.PI / 2]
     );
-    spoke.rotation.z = angle;
   }
 
   // Núcleo central pressurizado.
