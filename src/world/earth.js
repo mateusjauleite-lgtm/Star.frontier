@@ -32,7 +32,9 @@ const CONTINENTS = [
   [[-10,51],[-7,52],[-6,55],[-8,55]],
   // Nova Zelândia
   [[172,-34],[176,-38],[178,-42],[174,-46],[168,-44],[166,-40]],
-  [[173,-41],[176,-43],[170,-47],[167,-46]]
+  [[173,-41],[176,-43],[170,-47],[167,-46]],
+  // Antártida, representada como continente e não apenas uma faixa de gelo.
+  [[-180,-70],[-160,-68],[-140,-70],[-120,-73],[-100,-72],[-80,-75],[-60,-74],[-40,-70],[-20,-72],[0,-75],[20,-73],[40,-70],[60,-72],[80,-74],[100,-72],[120,-70],[140,-68],[160,-70],[180,-72],[180,-90],[-180,-90]]
 ];
 
 function makeSurfaceTexture() {
@@ -101,9 +103,7 @@ function makeSurfaceTexture() {
   ctx.beginPath();
   ctx.ellipse(1024, 13, 1024, 25, 0, 0, Math.PI * 2);
   ctx.fill();
-  ctx.beginPath();
-  ctx.ellipse(1024, 1010, 1024, 30, 0, 0, Math.PI * 2);
-  ctx.fill();
+  // A Antártida já está desenhada na lista de continentes.
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
