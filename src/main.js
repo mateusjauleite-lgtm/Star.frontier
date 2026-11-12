@@ -324,18 +324,55 @@ const viewEuler = new THREE.Euler(0, 0, 0, 'YXZ');
 const cameraViewQuaternion = new THREE.Quaternion();
 const forwardVector = new THREE.Vector3();
 
-function startGame() {
+let launching = false;
+
+function loadingStep(percent, message) {
+  const fill = $('loading-progress-fill');
+  const value = $('loading-progress-value');
+  const status = $('loading-status');
+
+  if (fill) fill.style.width = percent + '%';
+  if (value) value.textContent = percent + '%';
+  if (status) status.textContent = message;
+
+  return new Promise(resolve => {
+    requestAnimationFrame(() => requestAnimationFrame(resolve));
+  });
+}
+
+async function startGame() {
+  if (launching) return;
+
+  launching = true;
+  active = false;
   show('game-screen');
 
-  if (!renderer) {
-    init3D();
+  const loadingScreen = $('loading-screen');
+  loadingScreen?.classList.remove('hidden');
+
+  try {
+    await loadingStep(6, 'Iniciando sistemas da missão...');
+
+    if (!renderer) {
+      await init3D();
+    }
+
+    await loadingStep(100, 'Todos os sistemas prontos. Boa viagem, piloto.');
+    await new Promise(resolve => setTimeout(resolve, 350));
+
+    loadingScreen?.classList.add('hidden');
+    active = true;
+    last = performance.now();
+
+    updateWallet();
+    toast('Setor Orion: aproxime-se dos asteroides para minerar.');
+  } catch (error) {
+    console.error('Falha ao iniciar Star Frontier:', error);
+    show('menu-screen');
+    alert('Não foi possível carregar o jogo. Tente decolar novamente.');
+  } finally {
+    launching = false;
   }
-
-  active = true;
-  last = performance.now();
-
-  updateWallet();
-  toast('Setor Orion: aproxime-se dos asteroides para minerar.');
 }
 
 function addShipBox(parent, geometry, material, position, rotation = { x: 0, y: 0, z: 0 }) {
@@ -348,7 +385,7 @@ function addShipBox(parent, geometry, material, position, rotation = { x: 0, y: 
   return mesh;
 }
 
-function init3D() {
+async function init3D() {
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x020817);
   scene.fog = new THREE.FogExp2(0x020817, 0.0011);
@@ -379,10 +416,14 @@ function init3D() {
   renderer.setSize(innerWidth, innerHeight);
   $('game-root').appendChild(renderer.domElement);
 
+  await loadingStep(24, 'Preparando o espaço e a iluminação...');
+
   /* ILUMINAÇÃO E CAMPO ESTELAR */
 
   lightingSystem = createSpaceLighting(scene);
   stars = lightingSystem.stars;
+
+  await loadingStep(42, 'Montando a nave Aurora-7...');
 
   /* AURORA-7 */
 
@@ -631,10 +672,14 @@ function init3D() {
   shieldMesh.scale.set(1.05, 0.62, 1.45);
   ship.add(shieldMesh);
 
+  await loadingStep(70, 'Carregando campo de asteroides...');
+
   /* CAMPO DE ASTEROIDES */
 
   asteroidSystem = createAsteroidField(scene, { count: 32 });
   asteroids = asteroidSystem.asteroids;
+
+  await loadingStep(84, 'Carregando estação orbital e observatório...');
 
   /* ESTAÇÃO ORBITAL */
 
@@ -654,6 +699,8 @@ function init3D() {
 
   orbitSystem = createOrbitSystem({ center: [0, 0, -240], radius: 177 });
   scene.add(orbitSystem.group);
+
+  await loadingStep(96, 'Finalizando cenário e sistemas de voo...');
 
   window.addEventListener('resize', resize3D);
 
