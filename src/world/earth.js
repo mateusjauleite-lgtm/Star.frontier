@@ -206,6 +206,7 @@ export function createEarth(options = {}) {
     sunDirection[1] * radius * 5,
     sunDirection[2] * radius * 5
   );
+  sunlight.target = earth;
   group.add(sunlight);
 
   const ambient = new THREE.AmbientLight(0x263d62, 0.28);
