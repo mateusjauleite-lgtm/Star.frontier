@@ -1,73 +1,10 @@
-
 import * as THREE from 'three';
 import { createEarth } from './world/earth.js';
 import { createStation } from './world/station.js';
+import { state } from './core/state.js';
+import { saveState as save, loadState as load } from './core/storage.js';
 
 const $ = id => document.getElementById(id);
-
-const state = {
-  user: '',
-  email: '',
-  country: 'Brasil',
-  credits: 1000,
-  ore: 0,
-  fuel: 100,
-  cargo: 0,
-  hull: 100,
-  shield: 100,
-  speed: 0,
-  ship: 'Aurora-7',
-  character: 'Explorador',
-  camera: 2,
-  throttle: false,
-  braking: false,
-  nitroButton: false,
-  nitro: 100,
-  move: { x: 0, y: 0 },
-  view: { x: 0, y: 0 },
-  miningDrill: 'Broca básica',
-  settings: {
-    quality: 'Média',
-    music: 40,
-    effects: 70,
-    sensitivity: 1
-  }
-};
-
-const save = () => {
-  try {
-    localStorage.setItem('sf-demo-state', JSON.stringify(state));
-  } catch (e) {
-    console.warn('Não foi possível salvar:', e);
-  }
-};
-
-const load = () => {
-  try {
-    const data = JSON.parse(localStorage.getItem('sf-demo-state'));
-
-    if (!data) return;
-
-    Object.assign(state, data);
-
-    state.settings = {
-      quality: 'Média',
-      music: 40,
-      effects: 70,
-      sensitivity: 1,
-      ...(data.settings || {})
-    };
-
-    state.move = { x: 0, y: 0 };
-    state.view = { x: 0, y: 0 };
-    state.throttle = false;
-    state.braking = false;
-    state.nitroButton = false;
-    state.nitro = Number.isFinite(data.nitro) ? data.nitro : 100;
-  } catch (e) {
-    console.warn('Erro ao carregar dados:', e);
-  }
-};
 
 load();
 
