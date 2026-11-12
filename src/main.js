@@ -430,7 +430,6 @@ function init3D() {
 
   /* ILUMINAÇÃO AMBIENTE E SOL */
 
-  // Luz ambiente: ilumina suavemente as áreas que não recebem luz direta.
   const ambientLight = new THREE.HemisphereLight(
     0x9acfff,
     0x111827,
@@ -438,7 +437,6 @@ function init3D() {
   );
   scene.add(ambientLight);
 
-  // Luz principal: representa a iluminação emitida pelo Sol.
   const sunPosition = new THREE.Vector3(-120, 65, -220);
 
   const sunLight = new THREE.PointLight(
@@ -451,12 +449,10 @@ function init3D() {
   sunLight.position.copy(sunPosition);
   scene.add(sunLight);
 
-  // Luz direcional para reforçar a iluminação dos objetos distantes.
   const sunlight = new THREE.DirectionalLight(0xffe0b5, 2.0);
   sunlight.position.copy(sunPosition);
   scene.add(sunlight);
 
-  // Luz azul fraca de preenchimento para preservar detalhes nas sombras.
   const fillLight = new THREE.DirectionalLight(0x5caaff, 0.35);
   fillLight.position.set(100, 20, 80);
   scene.add(fillLight);
@@ -467,7 +463,6 @@ function init3D() {
   sun.position.copy(sunPosition);
   scene.add(sun);
 
-  // Superfície brilhante do Sol.
   const sunCore = new THREE.Mesh(
     new THREE.SphereGeometry(22, 48, 32),
     new THREE.MeshBasicMaterial({
@@ -476,7 +471,6 @@ function init3D() {
   );
   sun.add(sunCore);
 
-  // Primeira camada de brilho ao redor do Sol.
   const sunGlow = new THREE.Mesh(
     new THREE.SphereGeometry(29, 40, 28),
     new THREE.MeshBasicMaterial({
@@ -489,7 +483,6 @@ function init3D() {
   );
   sun.add(sunGlow);
 
-  // Halo externo mais suave.
   const sunHalo = new THREE.Mesh(
     new THREE.SphereGeometry(37, 40, 28),
     new THREE.MeshBasicMaterial({
@@ -1029,7 +1022,7 @@ function loop(now) {
   renderer.render(scene, camera);
 
   if ($('speed')) $('speed').textContent = Math.round(state.speed);
-  if ($('fuel')) $('fuel').textContent = Math.round(state.fuel) + '%';
+  if ($('fuel')) $('fuel').textContent = Math.round(state.fuel);
   if ($('cargo')) $('cargo').textContent = state.cargo + ' / 100';
   if ($('hull')) $('hull').textContent = state.hull;
   if ($('shield')) $('shield').textContent = state.shield;
