@@ -1,6 +1,7 @@
 
 import * as THREE from 'three';
 import { createEarth } from './world/earth.js';
+import { createStation } from './world/station.js';
 
 const $ = id => document.getElementById(id);
 
@@ -360,6 +361,7 @@ let renderer;
 let ship;
 let stars;
 let earthSystem;
+let stationSystem;
 
 let asteroids = [];
 let engineFlames = [];
@@ -814,30 +816,10 @@ function init3D() {
     asteroids.push(asteroid);
   }
 
-  /* ESTAÇÃO */
+  /* ESTAÇÃO ORBITAL */
 
-  const station = new THREE.Group();
-
-  const stationRing = new THREE.Mesh(
-    new THREE.TorusGeometry(10, 0.8, 12, 48),
-    new THREE.MeshStandardMaterial({
-      color: 0x438bb5,
-      metalness: 0.8,
-      roughness: 0.3
-    })
-  );
-
-  station.add(stationRing);
-
-  const stationCore = new THREE.Mesh(
-    new THREE.CylinderGeometry(2.5, 2.5, 5, 16),
-    darkMat
-  );
-
-  stationCore.rotation.x = Math.PI / 2;
-  station.add(stationCore);
-  station.position.set(24, 3, -65);
-  scene.add(station);
+  stationSystem = createStation({ position: [24, 3, -65] });
+  scene.add(stationSystem.group);
 
   const npc = new THREE.Mesh(
     new THREE.SphereGeometry(1.3, 16, 12),
