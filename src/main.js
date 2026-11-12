@@ -729,17 +729,23 @@ function updateFlight(dt) {
 
   ship.position.addScaledVector(forwardVector, state.speed * dt * 0.45);
 
-  // A Aurora-7 não atravessa o casco da estação.
-  // O pouso continua possível por cima, mantendo a nave acima da plataforma.
+  // Colisão apenas no casco do observatório inferior.
+  // Não cria uma parede na borda do escudo nem bloqueia o pouso na plataforma.
   const stationCenter = new THREE.Vector3(24, 3, -65);
   const dx = ship.position.x - stationCenter.x;
   const dz = ship.position.z - stationCenter.z;
   const horizontalDistance = Math.hypot(dx, dz);
-  const minimumClearance = 12.4;
-  const landingHeight = stationCenter.y + 4.5;
-  if (horizontalDistance < minimumClearance && ship.position.y < landingHeight) {
+  const lowerDeckRadius = 10.35;
+  const relativeHeight = ship.position.y - stationCenter.y;
+  const stairCorridor = Math.abs(dx) < 2.15 && dz < 0;
+  if (
+    horizontalDistance < lowerDeckRadius &&
+    relativeHeight > -3.8 &&
+    relativeHeight < 0.75 &&
+    !stairCorridor
+  ) {
     const safeDistance = Math.max(horizontalDistance, 0.001);
-    const push = minimumClearance - safeDistance;
+    const push = lowerDeckRadius - safeDistance;
     ship.position.x += (dx / safeDistance) * push;
     ship.position.z += (dz / safeDistance) * push;
     state.speed = Math.min(state.speed, 8);
