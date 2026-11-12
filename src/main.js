@@ -829,7 +829,7 @@ function init3D() {
     })
   );
 
-  npc.position.set(24, 3, -65);
+  npc.position.set(24, 3, -77);
   scene.add(npc);
 
   window.addEventListener('resize', resize3D);
