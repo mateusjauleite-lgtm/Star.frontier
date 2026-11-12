@@ -3,19 +3,18 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+  >
   <meta name="theme-color" content="#030b18">
-  <title>Star Frontier — Protótipo 0.4</title>
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  <title>Star Frontier</title>
 
   <link rel="stylesheet" href="./style.css">
-
-  <script type="importmap">
-    {
-      "imports": {
-        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
-      }
-    }
-  </script>
 </head>
 
 <body>
@@ -27,13 +26,28 @@
       <p class="subtitle">Uma nova fronteira espera por você.</p>
 
       <label for="login-name">Nome do piloto</label>
-      <input id="login-name" type="text" placeholder="Seu nome">
+      <input
+        id="login-name"
+        type="text"
+        placeholder="Seu nome"
+        autocomplete="username"
+      >
 
       <label for="login-pass">Senha</label>
-      <input id="login-pass" type="password" placeholder="Sua senha">
+      <input
+        id="login-pass"
+        type="password"
+        placeholder="Sua senha"
+        autocomplete="current-password"
+      >
 
       <label for="login-email">E-mail</label>
-      <input id="login-email" type="email" placeholder="Seu e-mail">
+      <input
+        id="login-email"
+        type="email"
+        placeholder="Seu e-mail"
+        autocomplete="email"
+      >
 
       <label for="country">País</label>
       <select id="country">
@@ -54,6 +68,7 @@
 
   <!-- MENU PRINCIPAL -->
   <section id="menu-screen" class="screen hidden">
+
     <header class="topbar">
       <div>
         <b>STAR FRONTIER</b>
@@ -66,6 +81,7 @@
     </header>
 
     <div class="menu-layout">
+
       <nav class="menu-nav">
         <button data-panel="play">JOGAR</button>
         <button data-panel="story">HISTÓRIA</button>
@@ -81,9 +97,13 @@
 
         <aside class="side-note">
           <h3>FRONTEIRA ESTELAR</h3>
-          <p>Explore, descubra recursos e construa seu caminho entre as estrelas.</p>
+          <p>
+            Explore, descubra recursos e construa seu caminho
+            entre as estrelas.
+          </p>
         </aside>
       </main>
+
     </div>
   </section>
 
@@ -97,6 +117,7 @@
 
       <div class="hud-card">
         <b id="hud-user">PILOTO</b>
+
         <span>Casco: <b id="hull">100</b>%</span>
         <span>Escudo: <b id="shield">100</b>%</span>
         <span>Velocidade: <b id="speed">0</b></span>
@@ -106,13 +127,16 @@
 
       <div class="hud-card right">
         <span>Créditos: <b id="hud-credits">0</b></span>
-        <button id="game-menu-btn" class="hud-menu">☰ MENU</button>
+        <button id="game-menu-btn" class="hud-menu">
+          ☰ MENU
+        </button>
       </div>
 
     </div>
 
     <!-- INDICADOR DE NITRO -->
     <div id="nitro-display" class="nitro-display">
+
       <div class="nitro-heading">
         <span>ENERGIA DO NITRO</span>
         <b id="nitro-level">100%</b>
@@ -121,6 +145,7 @@
       <div class="nitro-track">
         <div id="nitro-fill" class="nitro-fill"></div>
       </div>
+
     </div>
 
     <!-- AVISOS E INTERAÇÕES -->
@@ -130,10 +155,12 @@
     <!-- CONTROLES DE VOO -->
     <div id="flight-controls">
 
-      <!-- ÁREA DE MIRA: recebe arrasto para movimentar a câmera -->
-      <div id="aim-touch-area" aria-label="Área de controle da mira"></div>
+      <div
+        id="aim-touch-area"
+        aria-label="Área de controle da mira"
+      ></div>
 
-      <!-- CONTROLES DO LADO ESQUERDO -->
+      <!-- LADO ESQUERDO -->
       <div class="control-side left-side">
 
         <div class="control-label">MOVIMENTO DA NAVE</div>
@@ -148,7 +175,7 @@
 
       </div>
 
-      <!-- CONTROLES DO LADO DIREITO -->
+      <!-- LADO DIREITO -->
       <div class="control-side right-side">
 
         <div class="control-label">COMANDOS</div>
@@ -187,6 +214,7 @@
 
     <!-- MENU DE PAUSA -->
     <div id="game-menu-modal" class="modal hidden">
+
       <div class="modal-card">
         <h2>JOGO PAUSADO</h2>
 
@@ -198,10 +226,12 @@
           VOLTAR AO MENU
         </button>
       </div>
+
     </div>
 
   </section>
 
+  <!-- MOTOR PRINCIPAL -->
   <script type="module" src="./src/main.js"></script>
 
 </body>
