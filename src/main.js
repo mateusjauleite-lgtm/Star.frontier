@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import { createEarth } from './world/earth.js';
 import { createStation } from './world/station.js';
+import { createOrbitSystem } from './world/orbits.js';
+import { createAsteroidField } from './world/asteroids.js';
+import { createSpaceLighting } from './world/lighting.js';
 import { state } from './core/state.js';
 import { saveState as save, loadState as load } from './core/storage.js';
 
@@ -299,6 +302,9 @@ let ship;
 let stars;
 let earthSystem;
 let stationSystem;
+let orbitSystem;
+let asteroidSystem;
+let lightingSystem;
 
 let asteroids = [];
 let engineFlames = [];
@@ -348,7 +354,7 @@ function init3D() {
   scene.fog = new THREE.FogExp2(0x020817, 0.0011);
 
   // Terra em posição distante, visível à frente da nave.
-  earthSystem = createEarth({ radius: 48, position: [0, 0, -240] });
+  earthSystem = createEarth({ radius: 78, position: [0, 0, -240] });
   scene.add(earthSystem.group);
 
   camera = new THREE.PerspectiveCamera(
@@ -373,101 +379,10 @@ function init3D() {
   renderer.setSize(innerWidth, innerHeight);
   $('game-root').appendChild(renderer.domElement);
 
-  /* ILUMINAÇÃO AMBIENTE E SOL */
+  /* ILUMINAÇÃO E CAMPO ESTELAR */
 
-  const ambientLight = new THREE.HemisphereLight(
-    0x9acfff,
-    0x111827,
-    0.75
-  );
-  scene.add(ambientLight);
-
-  const sunPosition = new THREE.Vector3(-120, 65, -220);
-
-  const sunLight = new THREE.PointLight(
-    0xffd6a0,
-    260,
-    1800,
-    1.15
-  );
-
-  sunLight.position.copy(sunPosition);
-  scene.add(sunLight);
-
-  const sunlight = new THREE.DirectionalLight(0xffe0b5, 2.0);
-  sunlight.position.copy(sunPosition);
-  scene.add(sunlight);
-
-  const fillLight = new THREE.DirectionalLight(0x5caaff, 0.35);
-  fillLight.position.set(100, 20, 80);
-  scene.add(fillLight);
-
-  /* SOL VISÍVEL */
-
-  const sun = new THREE.Group();
-  sun.position.copy(sunPosition);
-  scene.add(sun);
-
-  const sunCore = new THREE.Mesh(
-    new THREE.SphereGeometry(22, 48, 32),
-    new THREE.MeshBasicMaterial({
-      color: 0xffc45c
-    })
-  );
-  sun.add(sunCore);
-
-  const sunGlow = new THREE.Mesh(
-    new THREE.SphereGeometry(29, 40, 28),
-    new THREE.MeshBasicMaterial({
-      color: 0xff9e35,
-      transparent: true,
-      opacity: 0.20,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false
-    })
-  );
-  sun.add(sunGlow);
-
-  const sunHalo = new THREE.Mesh(
-    new THREE.SphereGeometry(37, 40, 28),
-    new THREE.MeshBasicMaterial({
-      color: 0xff6b28,
-      transparent: true,
-      opacity: 0.07,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false
-    })
-  );
-  sun.add(sunHalo);
-
-  /* ESTRELAS */
-
-  const positions = [];
-
-  for (let i = 0; i < 2200; i++) {
-    positions.push(
-      (Math.random() - 0.5) * 1200,
-      (Math.random() - 0.5) * 800,
-      (Math.random() - 0.5) * 1200
-    );
-  }
-
-  const starGeometry = new THREE.BufferGeometry();
-
-  starGeometry.setAttribute(
-    'position',
-    new THREE.Float32BufferAttribute(positions, 3)
-  );
-
-  stars = new THREE.Points(
-    starGeometry,
-    new THREE.PointsMaterial({
-      color: 0xffffff,
-      size: 1.5
-    })
-  );
-
-  scene.add(stars);
+  lightingSystem = createSpaceLighting(scene);
+  stars = lightingSystem.stars;
 
   /* AURORA-7 */
 
@@ -716,42 +631,10 @@ function init3D() {
   shieldMesh.scale.set(1.05, 0.62, 1.45);
   ship.add(shieldMesh);
 
-  /* ASTEROIDES */
+  /* CAMPO DE ASTEROIDES */
 
-  asteroids = [];
-
-  for (let i = 0; i < 32; i++) {
-    const radius = 1.1 + Math.random() * 2.2;
-
-    const asteroid = new THREE.Mesh(
-      new THREE.IcosahedronGeometry(radius, 1),
-      new THREE.MeshStandardMaterial({
-        color: [0x665d56, 0x77716a, 0x4e5962][i % 3],
-        roughness: 1,
-        flatShading: true
-      })
-    );
-
-    asteroid.position.set(
-      (Math.random() - 0.5) * 180,
-      (Math.random() - 0.5) * 90,
-      -25 - Math.random() * 260
-    );
-
-    asteroid.rotation.set(
-      Math.random() * 3,
-      Math.random() * 3,
-      0
-    );
-
-    asteroid.userData = {
-      ore: Math.floor(4 + Math.random() * 12),
-      radius
-    };
-
-    scene.add(asteroid);
-    asteroids.push(asteroid);
-  }
+  asteroidSystem = createAsteroidField(scene, { count: 32 });
+  asteroids = asteroidSystem.asteroids;
 
   /* ESTAÇÃO ORBITAL */
 
@@ -768,6 +651,9 @@ function init3D() {
 
   npc.position.set(24, 3, -77);
   scene.add(npc);
+
+  orbitSystem = createOrbitSystem({ center: [0, 0, -240], radius: 177 });
+  scene.add(orbitSystem.group);
 
   window.addEventListener('resize', resize3D);
 
@@ -937,13 +823,9 @@ function loop(now) {
   updateFlight(dt);
   updateCamera();
   earthSystem?.update(dt);
-
-  asteroids.forEach(asteroid => {
-    asteroid.rotation.x += 0.001;
-    asteroid.rotation.y += 0.0015;
-  });
-
-  if (stars) stars.rotation.y += 0.00012;
+  orbitSystem?.update(dt);
+  asteroidSystem?.update(dt);
+  lightingSystem?.update(dt);
 
   renderer.render(scene, camera);
 
@@ -1152,8 +1034,8 @@ $('mine-btn')?.addEventListener('click', () => {
   state.cargo += amount;
 
   if (target.userData.ore <= 0) {
-    scene.remove(target);
-    asteroids = asteroids.filter(asteroid => asteroid !== target);
+    asteroidSystem?.remove(target);
+    asteroids = asteroidSystem?.asteroids || [];
   }
 
   save();
