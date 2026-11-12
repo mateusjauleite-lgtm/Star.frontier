@@ -729,25 +729,44 @@ function updateFlight(dt) {
 
   ship.position.addScaledVector(forwardVector, state.speed * dt * 0.45);
 
-  // Colisão apenas no casco do observatório inferior.
-  // Não cria uma parede na borda do escudo nem bloqueia o pouso na plataforma.
+  // Colisão da plataforma e do observatório para a Aurora-7.
+  // A abertura e a escadaria continuam livres para o personagem,
+  // mas são tratadas como piso sólido para a nave.
   const stationCenter = new THREE.Vector3(24, 3, -65);
+  const stationScale = 1.18;
   const dx = ship.position.x - stationCenter.x;
   const dz = ship.position.z - stationCenter.z;
   const horizontalDistance = Math.hypot(dx, dz);
-  const lowerDeckRadius = 10.35;
-  const relativeHeight = ship.position.y - stationCenter.y;
-  const stairCorridor = Math.abs(dx) < 2.15 && dz < 0;
+  let relativeHeight = ship.position.y - stationCenter.y;
+
+  // O vão da escadaria não permite a passagem da nave.
+  // Ao cruzar o nível do piso superior, a nave é mantida acima da plataforma.
+  const landingDeckTop = 2.13 * stationScale;
+  const shipClearance = 1.2;
+  const landingDeckRadius = 11.65 * stationScale - 0.4;
+  if (
+    horizontalDistance < landingDeckRadius &&
+    relativeHeight >= landingDeckTop - shipClearance &&
+    relativeHeight < landingDeckTop + shipClearance
+  ) {
+    ship.position.y = stationCenter.y + landingDeckTop + shipClearance;
+    relativeHeight = ship.position.y - stationCenter.y;
+    state.speed = Math.min(state.speed, 8);
+  }
+
+  // Parede invisível ao redor do observatório inferior.
+  // Não há exceção no corredor da escada: a nave não entra no ambiente de bípedes.
+  const lowerDeckRadius = 8.65 * stationScale + 2.4;
   if (
     horizontalDistance < lowerDeckRadius &&
-    relativeHeight > -3.8 &&
-    relativeHeight < 0.75 &&
-    !stairCorridor
+    relativeHeight > -4.2 &&
+    relativeHeight < landingDeckTop - shipClearance
   ) {
     const safeDistance = Math.max(horizontalDistance, 0.001);
-    const push = lowerDeckRadius - safeDistance;
-    ship.position.x += (dx / safeDistance) * push;
-    ship.position.z += (dz / safeDistance) * push;
+    const nx = horizontalDistance > 0.001 ? dx / safeDistance : 1;
+    const nz = horizontalDistance > 0.001 ? dz / safeDistance : 0;
+    ship.position.x = stationCenter.x + nx * lowerDeckRadius;
+    ship.position.z = stationCenter.z + nz * lowerDeckRadius;
     state.speed = Math.min(state.speed, 8);
   }
 
