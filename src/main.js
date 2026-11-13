@@ -555,7 +555,7 @@ async function init3D() {
   characterModel = createCharacterModel({ suitColor: 0x263b50, accentColor: 0x36c9df });
   // O personagem pertence ao referencial da nave: acompanha translação e rotação
   // sem ficar para trás no espaço quando a Aurora-7 se movimenta.
-  characterModel.group.position.set(0, 8.93, -18);
+  characterModel.group.position.set(0, 8.91, -18);
   characterModel.group.rotation.y = characterYaw;
   shipVisual.add(characterModel.group);
   characterAnimator = createCharacterAnimator(characterModel);
@@ -793,8 +793,10 @@ function updateCharacterMovement(dt) {
     // o personagem fica dentro de uma elipse menor, no referencial da nave.
     const deck = characterModel.group.position;
     const deckCenterZ = -2;
-    const deckRadiusX = 21.2;
-    const deckRadiusZ = 34.5;
+    // Limite acompanha a área útil real do convés, sem a barreira artificial
+    // que antes impedia o acesso à região frontal da ponte.
+    const deckRadiusX = 21.8;
+    const deckRadiusZ = 39.0;
     const normalizedX = deck.x / deckRadiusX;
     const normalizedZ = (deck.z - deckCenterZ) / deckRadiusZ;
     const radial = Math.hypot(normalizedX, normalizedZ);
@@ -803,7 +805,7 @@ function updateCharacterMovement(dt) {
       deck.z = deckCenterZ + (normalizedZ / radial) * deckRadiusZ;
     }
     // Mantém os pés no plano superior do piso D1.
-    deck.y = 8.93;
+    deck.y = 8.91;
     characterModel.group.rotation.y = characterYaw;
     characterAnimator?.play(magnitude > 0.72 ? 'run' : 'walk');
   } else {
