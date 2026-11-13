@@ -986,10 +986,13 @@ function bindStick(id, key) {
       y *= max / length;
     }
 
-    state[key].x = x / max;
-    state[key].y = y / max;
+    const nextX = x / max;
+    const nextY = y / max;
     if (key === 'move' && shipComputer.isTerminalConnected('pilot-console')) {
-      shipComputer.dispatch('pilot-console', 'flight', 'movement', { x: state.move.x, y: state.move.y });
+      shipComputer.dispatch('pilot-console', 'flight', 'movement', { x: nextX, y: nextY });
+    } else {
+      state[key].x = nextX;
+      state[key].y = nextY;
     }
 
     if (knob) {
@@ -1016,10 +1019,11 @@ function bindStick(id, key) {
     if (pointer !== event.pointerId) return;
 
     pointer = null;
-    state[key].x = 0;
-    state[key].y = 0;
     if (key === 'move' && shipComputer.isTerminalConnected('pilot-console')) {
       shipComputer.dispatch('pilot-console', 'flight', 'movement', { x: 0, y: 0 });
+    } else {
+      state[key].x = 0;
+      state[key].y = 0;
     }
 
     if (knob) knob.style.transform = 'translate(0,0)';
@@ -1139,19 +1143,19 @@ if (aimArea) {
     previousTouchX = event.clientX;
     previousTouchY = event.clientY;
 
-    state.view.x = THREE.MathUtils.clamp(
-      state.view.x - dy * 0.004,
-      -1.15,
-      1.15
-    );
-
-    // A rotação horizontal é contínua: permite completar voltas de 360°.
-    state.view.y = THREE.MathUtils.euclideanModulo(
-      state.view.y - dx * 0.004 + Math.PI,
-      Math.PI * 2
-    ) - Math.PI;
+    const nextView = {
+      x: THREE.MathUtils.clamp(state.view.x - dy * 0.004, -1.15, 1.15),
+      // A rotação horizontal é contínua: permite completar voltas de 360°.
+      y: THREE.MathUtils.euclideanModulo(
+        state.view.y - dx * 0.004 + Math.PI,
+        Math.PI * 2
+      ) - Math.PI
+    };
     if (shipComputer.isTerminalConnected('pilot-console')) {
-      shipComputer.dispatch('pilot-console', 'flight', 'look', { x: state.view.x, y: state.view.y });
+      shipComputer.dispatch('pilot-console', 'flight', 'look', nextView);
+    } else {
+      state.view.x = nextView.x;
+      state.view.y = nextView.y;
     }
   });
 
@@ -1175,10 +1179,11 @@ function holdButton(id, key) {
   button.addEventListener('pointerdown', event => {
     event.preventDefault();
 
-    state[key] = true;
     const flightCommand = { throttle: 'throttle', braking: 'brake', nitroButton: 'nitro' }[key];
     if (flightCommand && shipComputer.isTerminalConnected('pilot-console')) {
       shipComputer.dispatch('pilot-console', 'flight', flightCommand, true);
+    } else {
+      state[key] = true;
     }
 
     try {
@@ -1189,10 +1194,11 @@ function holdButton(id, key) {
   });
 
   const stop = () => {
-    state[key] = false;
     const flightCommand = { throttle: 'throttle', braking: 'brake', nitroButton: 'nitro' }[key];
     if (flightCommand && shipComputer.isTerminalConnected('pilot-console')) {
       shipComputer.dispatch('pilot-console', 'flight', flightCommand, false);
+    } else {
+      state[key] = false;
     }
   };
 
