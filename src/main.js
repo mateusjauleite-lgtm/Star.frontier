@@ -501,7 +501,7 @@ async function init3D() {
 
   // Spawn inicial no Deck 1 — ponte de comando, dentro do casco.
   characterModel = createCharacterModel({ suitColor: 0x263b50, accentColor: 0x36c9df });
-  characterModel.group.position.set(0, 9.25, -18);
+  characterModel.group.position.set(0, 8.93, -18);
   characterModel.group.rotation.y = characterYaw;
   scene.add(characterModel.group);
   characterAnimator = createCharacterAnimator(characterModel);
@@ -736,7 +736,6 @@ function updateCharacterMovement(dt) {
     characterAnimator?.play('idle');
   }
   characterAnimator?.update(dt);
-  characterCore.setMovement(input.x, input.y);
 }
 
 /* CÂMERA */
