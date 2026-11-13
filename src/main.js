@@ -716,7 +716,6 @@ function loop(now) {
 
   updateFlight(dt);
   updateCamera();
-  updateCharacterHUD();
   earthSystem?.update(dt);
   orbitSystem?.update(dt);
   asteroidSystem?.update(dt);
