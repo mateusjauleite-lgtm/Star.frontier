@@ -4,12 +4,15 @@ import { createStation } from './world/station.js';
 import { createOrbitSystem } from './world/orbits.js';
 import { createAsteroidField } from './world/asteroids.js';
 import { createSpaceLighting } from './world/lighting.js';
-import { state } from './core/state.js';
+import { createStarshipInterior } from './ships/interior.js';
+import { createExplorationShip } from './ships/exploration.js';
+import { state, resetTransientState } from './core/state.js';
 import { saveState as save, loadState as load } from './core/storage.js';
 
 const $ = id => document.getElementById(id);
 
 load();
+state.ship = 'Nave exploradora';
 
 /* UTILITÁRIOS */
 
@@ -161,7 +164,7 @@ function renderPanel(key) {
   if (key === 'ships') {
     add(`
       <div class="option-card">
-        <b>Aurora-7</b>
+        <b>Nave exploradora — quatro decks</b>
         <small>Nave exploradora: equilíbrio entre velocidade e capacidade de carga.</small>
       </div>
       <div class="option-card">
@@ -305,6 +308,12 @@ let stationSystem;
 let orbitSystem;
 let asteroidSystem;
 let lightingSystem;
+let starshipInterior;
+let shipYaw;
+let shipPitch;
+let shipVisual;
+const flightQuaternion = new THREE.Quaternion();
+let pitchAngle = 0;
 
 let asteroids = [];
 let engineFlames = [];
@@ -343,6 +352,7 @@ function loadingStep(percent, message) {
 async function startGame() {
   if (launching) return;
 
+  resetTransientState();
   launching = true;
   active = false;
   show('game-screen');
@@ -423,254 +433,18 @@ async function init3D() {
   lightingSystem = createSpaceLighting(scene);
   stars = lightingSystem.stars;
 
-  await loadingStep(42, 'Montando a nave Aurora-7...');
+  await loadingStep(42, 'Montando a nave exploradora de quatro decks...');
 
-  /* AURORA-7 */
+  /* NAVE PRINCIPAL — CASCO, NACELLES E ESTRUTURA DE VOO */
 
-  ship = new THREE.Group();
+  const explorationShip = createExplorationShip();
+  ship = explorationShip.group;
+  shipYaw = explorationShip.yaw;
+  shipPitch = explorationShip.pitch;
+  shipVisual = explorationShip.visual;
+  engineFlames = explorationShip.engineFlames;
+  engineLights = explorationShip.engineLights;
   scene.add(ship);
-
-  const hullMat = new THREE.MeshStandardMaterial({
-    color: 0xaec5d8,
-    metalness: 0.78,
-    roughness: 0.27
-  });
-
-  const darkMat = new THREE.MeshStandardMaterial({
-    color: 0x263e55,
-    metalness: 0.8,
-    roughness: 0.3
-  });
-
-  const blueMat = new THREE.MeshStandardMaterial({
-    color: 0x357cae,
-    metalness: 0.65,
-    roughness: 0.25
-  });
-
-  const glassMat = new THREE.MeshStandardMaterial({
-    color: 0x43baff,
-    metalness: 0.5,
-    roughness: 0.12,
-    emissive: 0x07518b,
-    emissiveIntensity: 0.65
-  });
-
-  const goldMat = new THREE.MeshStandardMaterial({
-    color: 0xc18b42,
-    metalness: 0.75,
-    roughness: 0.3
-  });
-
-  const engineMat = new THREE.MeshBasicMaterial({
-    color: 0x29cfff
-  });
-
-  /* CASCO */
-
-  const core = new THREE.Mesh(
-    new THREE.CapsuleGeometry(0.9, 3.5, 6, 12),
-    hullMat
-  );
-
-  core.rotation.x = Math.PI / 2;
-  ship.add(core);
-
-  const nose = new THREE.Mesh(
-    new THREE.ConeGeometry(0.9, 2.5, 10),
-    blueMat
-  );
-
-  nose.rotation.x = -Math.PI / 2;
-  nose.position.z = -3;
-  ship.add(nose);
-
-  addShipBox(
-    ship,
-    new THREE.BoxGeometry(0.9, 0.16, 0.75),
-    glassMat,
-    { x: 0, y: 0.65, z: -1.65 }
-  );
-
-  const cockpit = new THREE.Mesh(
-    new THREE.SphereGeometry(0.72, 20, 12),
-    glassMat
-  );
-
-  cockpit.scale.set(1.05, 0.48, 1.3);
-  cockpit.position.set(0, 0.78, -0.85);
-  ship.add(cockpit);
-
-  addShipBox(
-    ship,
-    new THREE.BoxGeometry(1.2, 0.2, 2.1),
-    darkMat,
-    { x: 0, y: 1.02, z: 0.65 }
-  );
-
-  addShipBox(
-    ship,
-    new THREE.BoxGeometry(1.1, 0.3, 2.3),
-    blueMat,
-    { x: 0, y: -0.72, z: 0.7 }
-  );
-
-  /* ASAS E NACELLES */
-
-  for (const side of [-1, 1]) {
-    const wing = new THREE.Mesh(
-      new THREE.BoxGeometry(2.5, 0.18, 2.3),
-      hullMat
-    );
-
-    wing.position.set(side * 1.75, -0.08, 0.05);
-    wing.rotation.y = side * 0.12;
-    ship.add(wing);
-
-    const wingTip = new THREE.Mesh(
-      new THREE.BoxGeometry(0.38, 0.24, 1.6),
-      blueMat
-    );
-
-    wingTip.position.set(side * 2.85, -0.02, 0.15);
-    ship.add(wingTip);
-
-    const pylon = new THREE.Mesh(
-      new THREE.BoxGeometry(0.3, 0.45, 1.5),
-      darkMat
-    );
-
-    pylon.position.set(side * 1.45, 0.05, 0.55);
-    ship.add(pylon);
-
-    const nacelle = new THREE.Group();
-    nacelle.position.set(side * 2.45, 0.12, 0.75);
-    ship.add(nacelle);
-
-    const nacBody = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.34, 0.43, 3.4, 16),
-      darkMat
-    );
-
-    nacBody.rotation.x = Math.PI / 2;
-    nacelle.add(nacBody);
-
-    const nacTop = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.38, 0.38, 0.18, 16),
-      goldMat
-    );
-
-    nacTop.rotation.x = Math.PI / 2;
-    nacTop.position.z = -1.55;
-    nacelle.add(nacTop);
-
-    const engineRing = new THREE.Mesh(
-      new THREE.TorusGeometry(0.34, 0.09, 8, 20),
-      blueMat
-    );
-
-    engineRing.position.z = 1.72;
-    nacelle.add(engineRing);
-
-    const engineCore = new THREE.Mesh(
-      new THREE.SphereGeometry(0.27, 16, 12),
-      engineMat
-    );
-
-    engineCore.position.z = 1.77;
-    engineCore.scale.z = 0.55;
-    nacelle.add(engineCore);
-
-    const flameMaterial = new THREE.MeshBasicMaterial({
-      color: 0x29cfff,
-      transparent: true,
-      opacity: 0.4
-    });
-
-    const flame = new THREE.Mesh(
-      new THREE.ConeGeometry(0.28, 1.5, 12),
-      flameMaterial
-    );
-
-    flame.rotation.x = Math.PI / 2;
-    flame.position.z = 2.45;
-    nacelle.add(flame);
-    engineFlames.push(flame);
-
-    const engineLight = new THREE.PointLight(0x21bfff, 1.5, 15);
-    engineLight.position.set(0, 0, 2.1);
-    nacelle.add(engineLight);
-    engineLights.push(engineLight);
-  }
-
-  /* DETALHES */
-
-  for (const side of [-1, 1]) {
-    for (let i = 0; i < 3; i++) {
-      const windowMesh = new THREE.Mesh(
-        new THREE.BoxGeometry(0.13, 0.09, 0.3),
-        glassMat
-      );
-
-      windowMesh.position.set(side * 0.62, 0.63, -0.3 + i * 0.55);
-      ship.add(windowMesh);
-    }
-
-    const sidePanel = new THREE.Mesh(
-      new THREE.BoxGeometry(0.13, 0.4, 1.4),
-      blueMat
-    );
-
-    sidePanel.position.set(side * 0.92, -0.05, 0.8);
-    ship.add(sidePanel);
-  }
-
-  /* CARGA */
-
-  const cargoBay = new THREE.Mesh(
-    new THREE.BoxGeometry(1.25, 0.55, 1.45),
-    darkMat
-  );
-
-  cargoBay.position.set(0, -0.55, 1.5);
-  ship.add(cargoBay);
-
-  const hangarDoor = new THREE.Mesh(
-    new THREE.BoxGeometry(0.9, 0.08, 0.9),
-    goldMat
-  );
-
-  hangarDoor.position.set(0, -0.86, 1.5);
-  ship.add(hangarDoor);
-
-  /* LUZES DE POSIÇÃO */
-
-  for (const side of [-1, 1]) {
-    const navLight = new THREE.Mesh(
-      new THREE.SphereGeometry(0.13, 10, 8),
-      new THREE.MeshBasicMaterial({
-        color: side === -1 ? 0xff4545 : 0x35ff9a
-      })
-    );
-
-    navLight.position.set(side * 2.8, 0.2, -0.6);
-    ship.add(navLight);
-  }
-
-  /* ESCUDO */
-
-  const shieldMesh = new THREE.Mesh(
-    new THREE.SphereGeometry(4.5, 32, 20),
-    new THREE.MeshBasicMaterial({
-      color: 0x168bff,
-      wireframe: true,
-      transparent: true,
-      opacity: 0.055
-    })
-  );
-
-  shieldMesh.scale.set(1.05, 0.62, 1.45);
-  ship.add(shieldMesh);
 
   await loadingStep(70, 'Carregando campo de asteroides...');
 
@@ -685,6 +459,10 @@ async function init3D() {
 
   stationSystem = createStation({ position: [24, 3, -65] });
   scene.add(stationSystem.group);
+
+  await loadingStep(90, 'Integrando os quatro decks ao casco da nave...');
+  starshipInterior = createStarshipInterior({ position: [0, 0, 0] });
+  shipVisual.add(starshipInterior.group);
 
   const npc = new THREE.Mesh(
     new THREE.SphereGeometry(1.3, 16, 12),
@@ -720,35 +498,38 @@ function resize3D() {
 /* MOVIMENTO */
 
 function updateFlight(dt) {
-  if (!ship) return;
+  if (!ship || !shipYaw || !shipPitch || !shipVisual) return;
 
+  // Protege a simulação contra saltos de tempo quando o Android pausa ou atrasa um frame.
+  const safeDt = THREE.MathUtils.clamp(Number.isFinite(dt) ? dt : 0, 0, 0.04);
   const sensitivity = Number(state.settings.sensitivity) || 1;
 
-  ship.rotation.y -= state.move.x * 1.25 * dt * sensitivity;
+  // Guinada sempre no eixo vertical global; arfagem sempre no eixo lateral local.
+  // No joystick: puxar para cima (Y negativo) sobe; puxar para baixo (Y positivo) desce.
+  shipYaw.rotation.y -= state.move.x * 1.25 * safeDt * sensitivity;
 
-  // Mantém o eixo vertical no sentido intuitivo e impede capotamento acumulado.
-  // No joystick, y negativo = puxar para cima; y positivo = puxar para baixo.
-  const pitchInput = state.move.y * 1.0 * dt * sensitivity;
+  const pitchInput = state.move.y * safeDt * sensitivity;
   const maxPitch = THREE.MathUtils.degToRad(65);
-  ship.rotation.x = THREE.MathUtils.clamp(
-    ship.rotation.x - pitchInput,
+  pitchAngle = THREE.MathUtils.clamp(
+    pitchAngle - pitchInput,
     -maxPitch,
     maxPitch
   );
+  shipPitch.rotation.x = pitchAngle;
 
+  // A inclinação visual é isolada da orientação usada para navegar.
   const targetRoll = -state.move.x * 0.25;
-
-  ship.rotation.z = THREE.MathUtils.lerp(
-    ship.rotation.z,
+  shipVisual.rotation.z = THREE.MathUtils.lerp(
+    shipVisual.rotation.z,
     targetRoll,
-    Math.min(1, dt * 3)
+    Math.min(1, safeDt * 3)
   );
 
   /* ACELERAÇÃO */
 
   if (state.throttle && state.fuel > 0) {
-    state.speed = Math.min(75, state.speed + 18 * dt);
-    state.fuel = Math.max(0, state.fuel - 0.28 * dt);
+    state.speed = Math.min(75, state.speed + 18 * safeDt);
+    state.fuel = Math.max(0, state.fuel - 0.28 * safeDt);
   }
 
   /* NITRO */
@@ -759,33 +540,34 @@ function updateFlight(dt) {
     state.fuel > 0;
 
   if (boosting) {
-    state.speed = Math.min(115, state.speed + 55 * dt);
-    state.nitro = Math.max(0, state.nitro - 28 * dt);
-    state.fuel = Math.max(0, state.fuel - 0.55 * dt);
+    state.speed = Math.min(115, state.speed + 55 * safeDt);
+    state.nitro = Math.max(0, state.nitro - 28 * safeDt);
+    state.fuel = Math.max(0, state.fuel - 0.55 * safeDt);
   } else {
-    state.nitro = Math.min(100, state.nitro + 12 * dt);
+    state.nitro = Math.min(100, state.nitro + 12 * safeDt);
   }
 
   /* FREIO */
 
   if (state.braking) {
-    state.speed = Math.max(0, state.speed - 30 * dt);
+    state.speed = Math.max(0, state.speed - 30 * safeDt);
   }
 
   if (!state.throttle && !boosting) {
-    state.speed = Math.max(0, state.speed - 1.4 * dt);
+    state.speed = Math.max(0, state.speed - 1.4 * safeDt);
   }
 
   /* DESLOCAMENTO */
 
+  shipPitch.getWorldQuaternion(flightQuaternion);
   forwardVector
     .set(0, 0, -1)
-    .applyQuaternion(ship.quaternion)
+    .applyQuaternion(flightQuaternion)
     .normalize();
 
-  ship.position.addScaledVector(forwardVector, state.speed * dt * 0.45);
+  ship.position.addScaledVector(forwardVector, state.speed * safeDt * 0.45);
 
-  // Colisão da plataforma e do observatório para a Aurora-7.
+  // Colisão da plataforma e do observatório para a nave exploradora.
   // A abertura e a escadaria continuam livres para o personagem,
   // mas são tratadas como piso sólido para a nave.
   const stationCenter = new THREE.Vector3(24, 3, -65);
@@ -870,7 +652,7 @@ function updateFlight(dt) {
 /* CÂMERA */
 
 function updateCamera() {
-  if (!camera || !ship) return;
+  if (!camera || !ship || !shipVisual) return;
 
   viewEuler.set(
     state.view.x,
@@ -880,30 +662,31 @@ function updateCamera() {
   );
 
   cameraViewQuaternion.setFromEuler(viewEuler);
-
-  const finalQuaternion = ship.quaternion.clone()
-    .multiply(cameraViewQuaternion);
+  shipVisual.getWorldQuaternion(flightQuaternion);
+  const finalQuaternion = flightQuaternion.clone().multiply(cameraViewQuaternion);
 
   if (state.camera === 0) {
-    const offset = new THREE.Vector3(0, 0.45, -0.65)
-      .applyQuaternion(ship.quaternion);
+    // Ponto de visão dentro da ponte, no deck superior.
+    const offset = new THREE.Vector3(0, 11.1, -30)
+      .applyQuaternion(flightQuaternion);
 
     camera.position.copy(ship.position).add(offset);
     camera.quaternion.copy(finalQuaternion);
   } else if (state.camera === 1) {
-    const offset = new THREE.Vector3(0, 0.45, 0.25)
-      .applyQuaternion(ship.quaternion);
+    const offset = new THREE.Vector3(0, 10.8, -20)
+      .applyQuaternion(flightQuaternion);
 
     camera.position.copy(ship.position).add(offset);
     camera.quaternion.copy(finalQuaternion);
   } else {
-    const offset = new THREE.Vector3(0, 4.5, 13)
-      .applyQuaternion(ship.quaternion);
+    // Câmera externa mais próxima, orbitando a nave com o arrasto da mira.
+    const offset = new THREE.Vector3(0, 28, 112)
+      .applyQuaternion(flightQuaternion)
+      .applyQuaternion(cameraViewQuaternion);
 
     const desiredPosition = ship.position.clone().add(offset);
-
-    camera.position.lerp(desiredPosition, 0.09);
-    camera.quaternion.copy(finalQuaternion);
+    camera.position.lerp(desiredPosition, 0.12);
+    camera.lookAt(ship.position);
   }
 }
 
@@ -1000,6 +783,11 @@ function bindStick(id, key) {
 
 bindStick('move-stick', 'move');
 
+// Ao perder foco no Android, zera entradas para impedir joystick ou aceleração presos.
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) resetTransientState();
+});
+
 /* MIRA POR ARRASTO */
 
 const aimArea = $('aim-touch-area');
@@ -1030,11 +818,17 @@ if (aimArea) {
     previousTouchX = event.clientX;
     previousTouchY = event.clientY;
 
-    state.view.x -= dy * 0.004;
-    state.view.y -= dx * 0.004;
+    state.view.x = THREE.MathUtils.clamp(
+      state.view.x - dy * 0.004,
+      -1.15,
+      1.15
+    );
 
-    state.view.x = THREE.MathUtils.clamp(state.view.x, -1.15, 1.15);
-    state.view.y = THREE.MathUtils.clamp(state.view.y, -1.15, 1.15);
+    // A rotação horizontal é contínua: permite completar voltas de 360°.
+    state.view.y = THREE.MathUtils.euclideanModulo(
+      state.view.y - dx * 0.004 + Math.PI,
+      Math.PI * 2
+    ) - Math.PI;
   });
 
   const endAim = event => {
