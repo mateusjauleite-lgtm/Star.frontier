@@ -440,10 +440,10 @@ function addShipBox(parent, geometry, material, position, rotation = { x: 0, y: 
 async function init3D() {
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x020817);
-  scene.fog = new THREE.FogExp2(0x020817, 0.0011);
+  scene.fog = new THREE.FogExp2(0x020817, 0.00055);
 
   // Terra em posição distante, visível à frente da nave.
-  earthSystem = createEarth({ radius: 78, position: [0, 0, -240] });
+  earthSystem = createEarth({ radius: 78, position: [0, 0, -850] });
   scene.add(earthSystem.group);
 
   camera = new THREE.PerspectiveCamera(
@@ -492,7 +492,7 @@ async function init3D() {
 
   /* CAMPO DE ASTEROIDES */
 
-  asteroidSystem = createAsteroidField(scene, { count: 32 });
+  asteroidSystem = createAsteroidField(scene, { count: 24, center: [310, 0, -300], spread: [190, 100, 160] });
   asteroids = asteroidSystem.asteroids;
 
   await loadingStep(84, 'Carregando estação orbital e observatório...');
@@ -527,7 +527,7 @@ async function init3D() {
   npc.position.set(24, 3, -77);
   scene.add(npc);
 
-  orbitSystem = createOrbitSystem({ center: [0, 0, -240], radius: 177 });
+  orbitSystem = createOrbitSystem({ center: [0, 0, -850], radius: 177 });
   scene.add(orbitSystem.group);
 
   await loadingStep(96, 'Finalizando cenário e sistemas de voo...');
