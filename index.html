@@ -112,6 +112,39 @@
 
     <div id="game-root"></div>
 
+    <!-- HUD 1: PERSONAGEM -->
+    <div id="character-hud" class="character-hud">
+      <div class="character-hud-top">
+        <div class="character-identity">
+          <span class="character-kicker">STAR FRONTIER // EXPLORAÇÃO</span>
+          <b id="character-name">EXPLORADOR</b>
+          <small id="character-mode">A PÉ</small>
+        </div>
+        <button id="character-menu-btn" class="character-menu-btn" aria-label="Abrir menu">☰</button>
+      </div>
+
+      <div class="character-status">
+        <div class="character-stat">
+          <div class="character-stat-heading"><span>SAÚDE</span><b id="character-health-value">100%</b></div>
+          <div class="character-track"><div id="character-health" class="character-fill health-fill"></div></div>
+        </div>
+        <div class="character-stat">
+          <div class="character-stat-heading"><span>ENERGIA</span><b id="character-stamina-value">100%</b></div>
+          <div class="character-track"><div id="character-stamina" class="character-fill stamina-fill"></div></div>
+        </div>
+      </div>
+
+      <div class="character-equipment">
+        <div><span>TRAJE</span><b id="character-suit">Traje de exploração básico</b></div>
+        <div><span>EQUIPAMENTO</span><b id="character-tool">Nenhuma ferramenta equipada</b></div>
+      </div>
+
+      <div class="character-interaction">
+        <span>INTERAÇÃO</span>
+        <b id="character-interaction">SEM ALVO PRÓXIMO</b>
+      </div>
+    </div>
+
     <!-- TELA DE CARREGAMENTO -->
     <div id="loading-screen" class="loading-screen hidden">
       <div class="loading-card">
@@ -133,7 +166,7 @@
     </div>
 
     <!-- HUD -->
-    <div id="hud">
+    <div id="hud" class="ship-interface hidden">
 
       <div class="hud-card">
         <b id="hud-user">PILOTO</b>
@@ -155,7 +188,7 @@
     </div>
 
     <!-- INDICADOR DE NITRO -->
-    <div id="nitro-display" class="nitro-display">
+    <div id="nitro-display" class="nitro-display ship-interface hidden">
 
       <div class="nitro-heading">
         <span>ENERGIA DO NITRO</span>
@@ -173,7 +206,7 @@
     <div id="toast" class="toast hidden"></div>
 
     <!-- CONTROLES DE VOO -->
-    <div id="flight-controls">
+    <div id="flight-controls" class="ship-interface hidden">
 
       <div
         id="aim-touch-area"
