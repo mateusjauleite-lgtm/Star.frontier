@@ -741,17 +741,21 @@ function updateCharacterMovement(dt) {
     if (direction.lengthSq() > 0) direction.normalize();
     characterModel.group.position.addScaledVector(direction, 3.1 * magnitude * dt);
 
-    // Colisão simples do convés D1: mantém o explorador sobre a plataforma elíptica.
-    // As coordenadas são locais à nave, portanto a proteção acompanha a Aurora-7.
+    // Limite conservador do Deck 1, calculado pelo contorno interno do casco.
+    // A plataforma visual é mais larga que o casco na altura da ponte; por isso
+    // o personagem fica dentro de uma elipse menor, no referencial da nave.
     const deck = characterModel.group.position;
-    const normalizedX = deck.x / 23.2;
-    const normalizedZ = (deck.z + 2) / 38.2;
+    const deckCenterZ = -2;
+    const deckRadiusX = 21.2;
+    const deckRadiusZ = 34.5;
+    const normalizedX = deck.x / deckRadiusX;
+    const normalizedZ = (deck.z - deckCenterZ) / deckRadiusZ;
     const radial = Math.hypot(normalizedX, normalizedZ);
     if (radial > 1) {
-      deck.x = (normalizedX / radial) * 23.2;
-      deck.z = -2 + (normalizedZ / radial) * 38.2;
+      deck.x = (normalizedX / radial) * deckRadiusX;
+      deck.z = deckCenterZ + (normalizedZ / radial) * deckRadiusZ;
     }
-    // O piso superior do Deck 1 termina em y=8.91; mantém os pés apoiados.
+    // Mantém os pés no plano superior do piso D1.
     deck.y = 8.93;
     characterModel.group.rotation.y = characterYaw;
     characterAnimator?.play(magnitude > 0.72 ? 'run' : 'walk');
