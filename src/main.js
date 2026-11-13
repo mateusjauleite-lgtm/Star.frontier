@@ -14,6 +14,7 @@ import { createCharacterAnimator } from './character/characterAnimator.js';
 import { isPilotConsoleInRange, attachCharacterToPilotConsole, returnCharacterToDeck } from './ships/bridge/commandBridge.js';
 import { saveState as save, loadState as load } from './core/storage.js';
 import { createShipComputer } from './ships/computer/shipComputer.js';
+import { registerShipComputerSystems } from './ships/computer/shipComputerSystems.js';
 
 const $ = id => document.getElementById(id);
 
@@ -43,7 +44,7 @@ shipComputer.registerSystem('flight', {
 shipComputer.registerTerminal({
   id: 'pilot-console',
   name: 'Console de pilotagem',
-  systems: ['flight']
+  systems: ['flight', 'navigation', 'sensors', 'power']
 });
 const characterHUD = createCharacterHUD(document);
 let characterCameraMode = 'third-person';
@@ -401,6 +402,19 @@ const cameraViewQuaternion = new THREE.Quaternion();
 const forwardVector = new THREE.Vector3();
 
 let launching = false;
+let shipComputerSystemsRegistered = false;
+
+function registerComputerSubsystems() {
+  if (shipComputerSystemsRegistered) return;
+  registerShipComputerSystems(shipComputer, {
+    state,
+    getShip: () => ship,
+    getShipYaw: () => shipYaw?.rotation.y ?? 0,
+    getPitchAngle: () => pitchAngle,
+    getAsteroids: () => asteroids
+  });
+  shipComputerSystemsRegistered = true;
+}
 
 function loadingStep(percent, message) {
   const fill = $('loading-progress-fill');
@@ -437,6 +451,8 @@ async function startGame() {
     if (!renderer) {
       await init3D();
     }
+
+    registerComputerSubsystems();
 
     await loadingStep(100, 'Todos os sistemas prontos. Boa viagem, piloto.');
     await new Promise(resolve => setTimeout(resolve, 350));
