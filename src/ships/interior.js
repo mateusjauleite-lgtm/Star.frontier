@@ -106,7 +106,8 @@ export function createStarshipInterior(options = {}) {
     // Laterais abertas: o contorno do casco passa a definir os limites da ponte.
     doorwayWallX(0, y, 38.5, 48, 5.25, 0.55, 5.2, 3.1);
     // Pequena antecâmara de acesso na popa, sem dividir a área principal.
-    addBox(group, [16, 0.22, 0.35], [0, STARSHIP_LAYOUT.decks[0].y + 0.5, 40], trimMat, 'D1-Aft-Threshold');
+    // Filete de soleira assentado no mesmo plano do piso, sem ressalto flutuante.
+    addBox(group, [16, 0.035, 0.35], [0, STARSHIP_LAYOUT.decks[0].y + 0.2275, 40], trimMat, 'D1-Aft-Threshold');
   }
 
   // D2 — corredor longitudinal central e compartimentos independentes.
@@ -137,9 +138,10 @@ export function createStarshipInterior(options = {}) {
       doorwayWallZ(18.5, y, z, 17, 5.25, 0.45, 2.4, 2.9);
     }
     // Trechos de antepara entre os vãos de acesso aos compartimentos.
-    for (const z of [-40, -16.5, 6.5, 29.5, 49]) {
-      addBox(group, [0.45, 5.25, 6], [-18.5, y, z], wallMat, 'D3-Port-Service-Wall');
-      addBox(group, [0.45, 5.25, 6], [18.5, y, z], wallMat, 'D3-Starboard-Service-Wall');
+    for (const z of [-39.75, -16.5, 6.5, 29.5]) {
+      const segmentLength = z === -39.75 ? 6.5 : 6;
+      addBox(group, [0.45, 5.25, segmentLength], [-18.5, y, z], wallMat, 'D3-Port-Service-Wall');
+      addBox(group, [0.45, 5.25, segmentLength], [18.5, y, z], wallMat, 'D3-Starboard-Service-Wall');
     }
     // Divisórias internas dos compartimentos laterais.
     for (const z of [-16.5, 6.5, 29.5]) {
