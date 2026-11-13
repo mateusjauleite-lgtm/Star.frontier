@@ -99,14 +99,13 @@ export function createStarshipInterior(options = {}) {
     addBox(group, [0.45, 5.25, 82], [-3.8, y, 0], wallMat, 'D2-Corridor-Port-Wall');
     addBox(group, [0.45, 5.25, 82], [3.8, y, 0], wallMat, 'D2-Corridor-Starboard-Wall');
     for (const z of [-30, -9, 12, 33]) {
-      doorwayWallX(-15.2, y, z, 20, 5.25, 0.45, 2.6, 2.9);
-      doorwayWallX(15.2, y, z, 20, 5.25, 0.45, 2.6, 2.9);
+      doorwayWallZ(-3.8, y, z, 17, 5.25, 0.45, 2.6, 2.9);
+      doorwayWallZ(3.8, y, z, 17, 5.25, 0.45, 2.6, 2.9);
     }
-    // Anteparas transversais das salas, com portas voltadas ao corredor.
-    for (const x of [-15.2, 15.2]) {
-      for (const z of [-19.5, 1.5, 22.5]) {
-        addBox(group, [20, 5.25, 0.38], [x, y, z], wallMat, 'D2-Compartment-Partition');
-      }
+    // Anteparas transversais entre salas; as portas ficam voltadas ao corredor.
+    for (const z of [-19.5, 1.5, 22.5]) {
+      addBox(group, [18, 5.25, 0.38], [-15.2, y, z], wallMat, 'D2-Port-Compartment-Partition');
+      addBox(group, [18, 5.25, 0.38], [15.2, y, z], wallMat, 'D2-Starboard-Compartment-Partition');
     }
     doorwayWallZ(0, y, 49.2, 53, 5.25, 0.55, 5.2, 3.1);
   }
@@ -117,12 +116,14 @@ export function createStarshipInterior(options = {}) {
     addBox(group, [0.45, 5.25, 88], [-18.5, y, 0], wallMat, 'D3-Port-Service-Wall');
     addBox(group, [0.45, 5.25, 88], [18.5, y, 0], wallMat, 'D3-Starboard-Service-Wall');
     for (const z of [-28, -5, 18, 41]) {
-      doorwayWallX(-22.5, y, z, 9, 5.25, 0.45, 2.4, 2.9);
-      doorwayWallX(22.5, y, z, 9, 5.25, 0.45, 2.4, 2.9);
+      doorwayWallZ(-18.5, y, z, 17, 5.25, 0.45, 2.4, 2.9);
+      doorwayWallZ(18.5, y, z, 17, 5.25, 0.45, 2.4, 2.9);
     }
-    // Divisórias do salão central sem obstruir o eixo de circulação.
-    addBox(group, [0.38, 5.25, 24], [-18.5, y, -16], wallMat, 'D3-Port-Aft-Partition');
-    addBox(group, [0.38, 5.25, 24], [18.5, y, -16], wallMat, 'D3-Starboard-Aft-Partition');
+    // Divisórias internas dos compartimentos laterais.
+    for (const z of [-16.5, 6.5, 29.5]) {
+      addBox(group, [8, 5.25, 0.38], [-22.5, y, z], wallMat, 'D3-Port-Aft-Partition');
+      addBox(group, [8, 5.25, 0.38], [22.5, y, z], wallMat, 'D3-Starboard-Aft-Partition');
+    }
     doorwayWallX(0, y, 49.2, 53, 5.25, 0.55, 5.2, 3.1);
   }
 
@@ -141,7 +142,6 @@ export function createStarshipInterior(options = {}) {
     addBox(group, [54, 5.25, 0.55], [0, y, -49.2], bulkheadMat, 'D4-Hangar-Forward-Bulkhead');
     addBox(group, [10, 5.25, 0.55], [-22, y, 49.2], bulkheadMat, 'D4-Aft-Port-Pillar');
     addBox(group, [10, 5.25, 0.55], [22, y, 49.2], bulkheadMat, 'D4-Aft-Starboard-Pillar');
-    addBox(group, [0, 0, 0], [0, 0, 0], trimMat, 'D4-Hangar-Opening-Reference');
   }
 
   // Travessas externas que amarram os quatro níveis sem ocupar os corredores.
