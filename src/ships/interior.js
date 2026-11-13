@@ -55,14 +55,14 @@ export function createStarshipInterior(options = {}) {
     const side = (length - doorWidth) / 2;
     addBox(group, [side, height, thickness], [x - doorWidth / 2 - side / 2, y, z], wallMat, 'Wall-Door-Left');
     addBox(group, [side, height, thickness], [x + doorWidth / 2 + side / 2, y, z], wallMat, 'Wall-Door-Right');
-    addBox(group, [doorWidth, height - doorHeight, thickness], [x, y + (height + doorHeight) / 2, z], bulkheadMat, 'Wall-Door-Header');
+    addBox(group, [doorWidth, height - doorHeight, thickness], [x, y + doorHeight / 2, z], bulkheadMat, 'Wall-Door-Header');
   };
 
   const doorwayWallZ = (x, y, z, length, height, thickness, doorWidth = 2.4, doorHeight = 2.8) => {
     const side = (length - doorWidth) / 2;
     addBox(group, [thickness, height, side], [x, y, z - doorWidth / 2 - side / 2], wallMat, 'Wall-Door-Left');
     addBox(group, [thickness, height, side], [x, y, z + doorWidth / 2 + side / 2], wallMat, 'Wall-Door-Right');
-    addBox(group, [thickness, height - doorHeight, doorWidth], [x, y + (height + doorHeight) / 2, z], bulkheadMat, 'Wall-Door-Header');
+    addBox(group, [thickness, height - doorHeight, doorWidth], [x, y + doorHeight / 2, z], bulkheadMat, 'Wall-Door-Header');
   };
 
   const deckFloor = (deck, label) => {
