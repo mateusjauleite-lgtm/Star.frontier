@@ -106,7 +106,8 @@ export function createExplorationShip() {
   // Substitui o antigo domo azul; a câmera continua sendo calculada no main.js.
   const bridgeComputer = new THREE.Group();
   bridgeComputer.name = 'Bridge-Computer-Console';
-  bridgeComputer.position.set(0, 9.15, -33.2);
+  // Base apoiada diretamente no piso D1 (topo do deck em Y=8.91).
+  bridgeComputer.position.set(0, 8.90, -33.2);
   visual.add(bridgeComputer);
 
   const consoleBase = new THREE.Mesh(
