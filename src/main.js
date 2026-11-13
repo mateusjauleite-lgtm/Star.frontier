@@ -9,13 +9,24 @@ import { createExplorationShip } from './ships/exploration.js';
 import { state, resetTransientState } from './core/state.js';
 import { createCharacterCore } from './character/characterCore.js';
 import { createCharacterHUD } from './character/characterHUD.js';
+import { createCharacterModel } from './character/characterModel.js';
+import { createCharacterAnimator } from './character/characterAnimator.js';
 import { saveState as save, loadState as load } from './core/storage.js';
 
 const $ = id => document.getElementById(id);
 
 const characterCore = createCharacterCore();
 const characterHUD = createCharacterHUD(document);
-let characterCameraMode = 'first-person';
+let characterCameraMode = 'third-person';
+let characterModel = null;
+let characterAnimator = null;
+let characterYaw = 0;
+let characterPitch = 0;
+const characterForward = new THREE.Vector3();
+const characterRight = new THREE.Vector3();
+const characterMove = new THREE.Vector3();
+const characterLookEuler = new THREE.Euler(0, 0, 0, 'YXZ');
+let characterMoveInput = { x: 0, y: 0 };
 
 function updateCharacterCameraButton() {
   const button = $('character-camera-btn');
@@ -375,6 +386,7 @@ async function startGame() {
 
   resetTransientState();
   characterCore.initialize();
+  characterCore.setMode('on-foot');
   updateCharacterHUD();
   launching = true;
   active = false;
@@ -486,6 +498,14 @@ async function init3D() {
   await loadingStep(90, 'Integrando os quatro decks ao casco da nave...');
   starshipInterior = createStarshipInterior({ position: [0, 0, 0] });
   shipVisual.add(starshipInterior.group);
+
+  // Spawn inicial no Deck 1 — ponte de comando, dentro do casco.
+  characterModel = createCharacterModel({ suitColor: 0x263b50, accentColor: 0x36c9df });
+  characterModel.group.position.set(0, 9.25, -18);
+  characterModel.group.rotation.y = characterYaw;
+  scene.add(characterModel.group);
+  characterAnimator = createCharacterAnimator(characterModel);
+  characterAnimator.play('idle');
 
   const npc = new THREE.Mesh(
     new THREE.SphereGeometry(1.3, 16, 12),
@@ -672,6 +692,53 @@ function updateFlight(dt) {
   $('nitro-btn')?.classList.toggle('active', boosting);
 }
 
+/* CÂMERA DO PERSONAGEM — sempre dentro da nave */
+
+function updateCharacterCamera() {
+  if (!camera || !characterModel) return;
+  const player = characterModel.group;
+  const yaw = characterYaw;
+  const forward = new THREE.Vector3(Math.sin(yaw), 0, -Math.cos(yaw));
+  const target = player.position.clone().add(new THREE.Vector3(0, 1.25, 0));
+
+  if (characterCameraMode === 'first-person') {
+    camera.position.copy(player.position).add(new THREE.Vector3(0, 1.62, 0));
+    characterLookEuler.set(characterPitch, yaw, 0, 'YXZ');
+    camera.quaternion.setFromEuler(characterLookEuler);
+  } else {
+    // Ombro/costas: posição acima e atrás do explorador, sem sair do interior.
+    const offset = new THREE.Vector3(0, 2.35, 5.2);
+    offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+    const desired = player.position.clone().add(offset);
+    camera.position.lerp(desired, 0.22);
+    const lookTarget = target.addScaledVector(forward, 1.4);
+    camera.lookAt(lookTarget);
+  }
+}
+
+function updateCharacterMovement(dt) {
+  if (!characterModel || characterCore.snapshot().mode !== 'on-foot') return;
+  const input = characterMoveInput;
+  const magnitude = Math.min(1, Math.hypot(input.x, input.y));
+  if (magnitude > 0.08) {
+    characterYaw -= input.x * dt * 1.9;
+    const forward = new THREE.Vector3(Math.sin(characterYaw), 0, -Math.cos(characterYaw));
+    const right = new THREE.Vector3(Math.cos(characterYaw), 0, Math.sin(characterYaw));
+    const direction = forward.multiplyScalar(-input.y).add(right.multiplyScalar(input.x * 0.18));
+    if (direction.lengthSq() > 0) direction.normalize();
+    characterModel.group.position.addScaledVector(direction, 3.1 * magnitude * dt);
+    // Limites provisórios seguros do salão da ponte do Deck 1.
+    characterModel.group.position.x = THREE.MathUtils.clamp(characterModel.group.position.x, -19, 19);
+    characterModel.group.position.z = THREE.MathUtils.clamp(characterModel.group.position.z, -38, 34);
+    characterModel.group.rotation.y = characterYaw;
+    characterAnimator?.play(magnitude > 0.72 ? 'run' : 'walk');
+  } else {
+    characterAnimator?.play('idle');
+  }
+  characterAnimator?.update(dt);
+  characterCore.setMovement(input.x, input.y);
+}
+
 /* CÂMERA */
 
 function updateCamera() {
@@ -723,8 +790,13 @@ function loop(now) {
   const dt = Math.min((now - last) / 1000, 0.04);
   last = now;
 
-  updateFlight(dt);
-  updateCamera();
+  if (characterCore.snapshot().mode === 'on-foot') {
+    updateCharacterMovement(dt);
+    updateCharacterCamera();
+  } else {
+    updateFlight(dt);
+    updateCamera();
+  }
   earthSystem?.update(dt);
   orbitSystem?.update(dt);
   asteroidSystem?.update(dt);
@@ -805,6 +877,77 @@ function bindStick(id, key) {
 }
 
 bindStick('move-stick', 'move');
+
+// Joystick exclusivo do personagem; não altera os comandos de voo.
+const characterStick = $('character-move-stick');
+if (characterStick) {
+  const knob = characterStick.querySelector('.character-move-knob');
+  let pointer = null;
+  const moveCharacterStick = event => {
+    const rect = characterStick.getBoundingClientRect();
+    let x = event.clientX - rect.left - rect.width / 2;
+    let y = event.clientY - rect.top - rect.height / 2;
+    const max = rect.width * 0.31;
+    const length = Math.hypot(x, y);
+    if (length > max) { x *= max / length; y *= max / length; }
+    characterMoveInput = { x: x / max, y: y / max };
+    if (knob) knob.style.transform = `translate(${x}px, ${y}px)`;
+  };
+  characterStick.addEventListener('pointerdown', event => {
+    event.preventDefault();
+    pointer = event.pointerId;
+    characterStick.setPointerCapture(pointer);
+    moveCharacterStick(event);
+  });
+  characterStick.addEventListener('pointermove', event => {
+    if (pointer !== event.pointerId) return;
+    event.preventDefault();
+    moveCharacterStick(event);
+  });
+  const endCharacterMove = event => {
+    if (pointer !== event.pointerId) return;
+    pointer = null;
+    characterMoveInput = { x: 0, y: 0 };
+    if (knob) knob.style.transform = 'translate(0,0)';
+  };
+  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type =>
+    characterStick.addEventListener(type, endCharacterMove)
+  );
+}
+
+const characterAim = $('character-aim-area');
+let characterAimPointer = null;
+let characterPreviousX = 0;
+let characterPreviousY = 0;
+if (characterAim) {
+  characterAim.addEventListener('pointerdown', event => {
+    event.preventDefault();
+    characterAimPointer = event.pointerId;
+    characterPreviousX = event.clientX;
+    characterPreviousY = event.clientY;
+    characterAim.setPointerCapture(characterAimPointer);
+  });
+  characterAim.addEventListener('pointermove', event => {
+    if (characterAimPointer !== event.pointerId) return;
+    event.preventDefault();
+    const dx = event.clientX - characterPreviousX;
+    const dy = event.clientY - characterPreviousY;
+    characterPreviousX = event.clientX;
+    characterPreviousY = event.clientY;
+    characterYaw -= dx * 0.005;
+    characterPitch = THREE.MathUtils.clamp(characterPitch - dy * 0.004, -0.65, 0.65);
+  });
+  const endCharacterAim = event => {
+    if (characterAimPointer === event.pointerId) characterAimPointer = null;
+  };
+  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type =>
+    characterAim.addEventListener(type, endCharacterAim)
+  );
+}
+
+$('character-action-btn')?.addEventListener('click', () => {
+  toast('Nenhum objeto interativo ao alcance.');
+});
 
 // Ao perder foco no Android, zera entradas para impedir joystick ou aceleração presos.
 document.addEventListener('visibilitychange', () => {
@@ -1035,6 +1178,7 @@ $('character-camera-btn')?.addEventListener('click', () => {
     ? 'third-person'
     : 'first-person';
   updateCharacterCameraButton();
+  if (camera && characterModel) updateCharacterCamera();
 });
 updateCharacterCameraButton();
 
