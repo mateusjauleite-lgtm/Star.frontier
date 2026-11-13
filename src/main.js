@@ -30,6 +30,10 @@ const characterLookEuler = new THREE.Euler(0, 0, 0, 'YXZ');
 let characterMoveInput = { x: 0, y: 0 };
 let pilotInteractionAvailable = false;
 const pilotPlayerWorldPosition = new THREE.Vector3();
+const characterCameraWorldPosition = new THREE.Vector3();
+const characterCameraWorldQuaternion = new THREE.Quaternion();
+const characterCameraForward = new THREE.Vector3();
+const characterCameraOffset = new THREE.Vector3();
 
 function updateCharacterCameraButton() {
   const button = $('character-camera-btn');
@@ -702,21 +706,25 @@ function updateFlight(dt) {
 function updateCharacterCamera() {
   if (!camera || !characterModel) return;
   const player = characterModel.group;
-  const yaw = characterYaw;
-  const forward = new THREE.Vector3(Math.sin(yaw), 0, -Math.cos(yaw));
-  const target = player.position.clone().add(new THREE.Vector3(0, 1.25, 0));
+  player.getWorldPosition(characterCameraWorldPosition);
+  player.getWorldQuaternion(characterCameraWorldQuaternion);
+  characterCameraForward.set(0, 0, -1).applyQuaternion(characterCameraWorldQuaternion).normalize();
+
+  const target = characterCameraWorldPosition.clone().add(new THREE.Vector3(0, 1.25, 0));
 
   if (characterCameraMode === 'first-person') {
-    camera.position.copy(player.position).add(new THREE.Vector3(0, 1.62, 0));
-    characterLookEuler.set(characterPitch, yaw, 0, 'YXZ');
-    camera.quaternion.setFromEuler(characterLookEuler);
+    characterCameraOffset.set(0, 1.62, 0).applyQuaternion(characterCameraWorldQuaternion);
+    camera.position.copy(characterCameraWorldPosition).add(characterCameraOffset);
+    characterLookEuler.set(characterPitch, 0, 0, 'YXZ');
+    camera.quaternion.copy(characterCameraWorldQuaternion).multiply(
+      new THREE.Quaternion().setFromEuler(characterLookEuler)
+    );
   } else {
-    // Ombro/costas: posição acima e atrás do explorador, sem sair do interior.
-    const offset = new THREE.Vector3(0, 2.35, 5.2);
-    offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
-    const desired = player.position.clone().add(offset);
+    // Ombro/costas calculado no referencial mundial, acompanhando a nave.
+    characterCameraOffset.set(0, 2.35, 5.2).applyQuaternion(characterCameraWorldQuaternion);
+    const desired = characterCameraWorldPosition.clone().add(characterCameraOffset);
     camera.position.lerp(desired, 0.22);
-    const lookTarget = target.addScaledVector(forward, 1.4);
+    const lookTarget = target.addScaledVector(characterCameraForward, 1.4);
     camera.lookAt(lookTarget);
   }
 }
