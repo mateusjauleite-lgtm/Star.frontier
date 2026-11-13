@@ -12,7 +12,7 @@ export const state = {
   hull: 100,
   shield: 100,
   speed: 0,
-  ship: 'Aurora-7',
+  ship: 'Nave exploradora',
   character: 'Explorador',
   camera: 2,
   throttle: false,
