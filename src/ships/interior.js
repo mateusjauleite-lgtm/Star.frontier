@@ -96,11 +96,14 @@ export function createStarshipInterior(options = {}) {
   // D2 — corredor longitudinal central e compartimentos independentes.
   {
     const y = STARSHIP_LAYOUT.decks[1].y + 2.65;
-    addBox(group, [0.45, 5.25, 82], [-3.8, y, 0], wallMat, 'D2-Corridor-Port-Wall');
-    addBox(group, [0.45, 5.25, 82], [3.8, y, 0], wallMat, 'D2-Corridor-Starboard-Wall');
     for (const z of [-30, -9, 12, 33]) {
       doorwayWallZ(-3.8, y, z, 17, 5.25, 0.45, 2.6, 2.9);
       doorwayWallZ(3.8, y, z, 17, 5.25, 0.45, 2.6, 2.9);
+    }
+    // Fechamentos entre os vãos de porta, preservando a continuidade do corredor.
+    for (const z of [-41, -19.5, 1.5, 22.5, 43.5]) {
+      addBox(group, [0.45, 5.25, 4], [-3.8, y, z], wallMat, 'D2-Corridor-Port-Wall');
+      addBox(group, [0.45, 5.25, 4], [3.8, y, z], wallMat, 'D2-Corridor-Starboard-Wall');
     }
     // Anteparas transversais entre salas; as portas ficam voltadas ao corredor.
     for (const z of [-19.5, 1.5, 22.5]) {
@@ -113,11 +116,14 @@ export function createStarshipInterior(options = {}) {
   // D3 — salão técnico amplo, com salas laterais e corredor de serviço.
   {
     const y = STARSHIP_LAYOUT.decks[2].y + 2.65;
-    addBox(group, [0.45, 5.25, 88], [-18.5, y, 0], wallMat, 'D3-Port-Service-Wall');
-    addBox(group, [0.45, 5.25, 88], [18.5, y, 0], wallMat, 'D3-Starboard-Service-Wall');
     for (const z of [-28, -5, 18, 41]) {
       doorwayWallZ(-18.5, y, z, 17, 5.25, 0.45, 2.4, 2.9);
       doorwayWallZ(18.5, y, z, 17, 5.25, 0.45, 2.4, 2.9);
+    }
+    // Trechos de antepara entre os vãos de acesso aos compartimentos.
+    for (const z of [-40, -16.5, 6.5, 29.5, 49]) {
+      addBox(group, [0.45, 5.25, 6], [-18.5, y, z], wallMat, 'D3-Port-Service-Wall');
+      addBox(group, [0.45, 5.25, 6], [18.5, y, z], wallMat, 'D3-Starboard-Service-Wall');
     }
     // Divisórias internas dos compartimentos laterais.
     for (const z of [-16.5, 6.5, 29.5]) {
