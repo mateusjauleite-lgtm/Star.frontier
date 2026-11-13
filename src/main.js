@@ -15,6 +15,15 @@ const $ = id => document.getElementById(id);
 
 const characterCore = createCharacterCore();
 const characterHUD = createCharacterHUD(document);
+let characterCameraMode = 'first-person';
+
+function updateCharacterCameraButton() {
+  const button = $('character-camera-btn');
+  if (!button) return;
+  button.textContent = characterCameraMode === 'first-person'
+    ? 'CÂMERA: 1ª PESSOA'
+    : 'CÂMERA: 3ª PESSOA';
+}
 
 function updateCharacterHUD() {
   characterHUD.update({
@@ -1020,6 +1029,14 @@ $('interact-btn')?.addEventListener('click', () => {
 });
 
 /* MENU DE PAUSA */
+
+$('character-camera-btn')?.addEventListener('click', () => {
+  characterCameraMode = characterCameraMode === 'first-person'
+    ? 'third-person'
+    : 'first-person';
+  updateCharacterCameraButton();
+});
+updateCharacterCameraButton();
 
 $('character-menu-btn')?.addEventListener('click', () => {
   $('game-menu-modal')?.classList.remove('hidden');
