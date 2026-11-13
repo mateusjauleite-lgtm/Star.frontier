@@ -1,71 +1,13 @@
-
 import * as THREE from 'three';
+import { createEarth } from './world/earth.js';
+import { createStation } from './world/station.js';
+import { createOrbitSystem } from './world/orbits.js';
+import { createAsteroidField } from './world/asteroids.js';
+import { createSpaceLighting } from './world/lighting.js';
+import { state } from './core/state.js';
+import { saveState as save, loadState as load } from './core/storage.js';
 
 const $ = id => document.getElementById(id);
-
-const state = {
-  user: '',
-  email: '',
-  country: 'Brasil',
-  credits: 1000,
-  ore: 0,
-  fuel: 100,
-  cargo: 0,
-  hull: 100,
-  shield: 100,
-  speed: 0,
-  ship: 'Aurora-7',
-  character: 'Explorador',
-  camera: 2,
-  throttle: false,
-  braking: false,
-  nitroButton: false,
-  nitro: 100,
-  move: { x: 0, y: 0 },
-  view: { x: 0, y: 0 },
-  miningDrill: 'Broca básica',
-  settings: {
-    quality: 'Média',
-    music: 40,
-    effects: 70,
-    sensitivity: 1
-  }
-};
-
-const save = () => {
-  try {
-    localStorage.setItem('sf-demo-state', JSON.stringify(state));
-  } catch (e) {
-    console.warn('Não foi possível salvar:', e);
-  }
-};
-
-const load = () => {
-  try {
-    const data = JSON.parse(localStorage.getItem('sf-demo-state'));
-
-    if (!data) return;
-
-    Object.assign(state, data);
-
-    state.settings = {
-      quality: 'Média',
-      music: 40,
-      effects: 70,
-      sensitivity: 1,
-      ...(data.settings || {})
-    };
-
-    state.move = { x: 0, y: 0 };
-    state.view = { x: 0, y: 0 };
-    state.throttle = false;
-    state.braking = false;
-    state.nitroButton = false;
-    state.nitro = Number.isFinite(data.nitro) ? data.nitro : 100;
-  } catch (e) {
-    console.warn('Erro ao carregar dados:', e);
-  }
-};
 
 load();
 
@@ -358,6 +300,11 @@ let camera;
 let renderer;
 let ship;
 let stars;
+let earthSystem;
+let stationSystem;
+let orbitSystem;
+let asteroidSystem;
+let lightingSystem;
 
 let asteroids = [];
 let engineFlames = [];
@@ -377,18 +324,55 @@ const viewEuler = new THREE.Euler(0, 0, 0, 'YXZ');
 const cameraViewQuaternion = new THREE.Quaternion();
 const forwardVector = new THREE.Vector3();
 
-function startGame() {
+let launching = false;
+
+function loadingStep(percent, message) {
+  const fill = $('loading-progress-fill');
+  const value = $('loading-progress-value');
+  const status = $('loading-status');
+
+  if (fill) fill.style.width = percent + '%';
+  if (value) value.textContent = percent + '%';
+  if (status) status.textContent = message;
+
+  return new Promise(resolve => {
+    requestAnimationFrame(() => requestAnimationFrame(resolve));
+  });
+}
+
+async function startGame() {
+  if (launching) return;
+
+  launching = true;
+  active = false;
   show('game-screen');
 
-  if (!renderer) {
-    init3D();
+  const loadingScreen = $('loading-screen');
+  loadingScreen?.classList.remove('hidden');
+
+  try {
+    await loadingStep(6, 'Iniciando sistemas da missão...');
+
+    if (!renderer) {
+      await init3D();
+    }
+
+    await loadingStep(100, 'Todos os sistemas prontos. Boa viagem, piloto.');
+    await new Promise(resolve => setTimeout(resolve, 350));
+
+    loadingScreen?.classList.add('hidden');
+    active = true;
+    last = performance.now();
+
+    updateWallet();
+    toast('Setor Orion: aproxime-se dos asteroides para minerar.');
+  } catch (error) {
+    console.error('Falha ao iniciar Star Frontier:', error);
+    show('menu-screen');
+    alert('Não foi possível carregar o jogo. Tente decolar novamente.');
+  } finally {
+    launching = false;
   }
-
-  active = true;
-  last = performance.now();
-
-  updateWallet();
-  toast('Setor Orion: aproxime-se dos asteroides para minerar.');
 }
 
 function addShipBox(parent, geometry, material, position, rotation = { x: 0, y: 0, z: 0 }) {
@@ -401,10 +385,14 @@ function addShipBox(parent, geometry, material, position, rotation = { x: 0, y: 
   return mesh;
 }
 
-function init3D() {
+async function init3D() {
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x020817);
   scene.fog = new THREE.FogExp2(0x020817, 0.0011);
+
+  // Terra em posição distante, visível à frente da nave.
+  earthSystem = createEarth({ radius: 78, position: [0, 0, -240] });
+  scene.add(earthSystem.group);
 
   camera = new THREE.PerspectiveCamera(
     70,
@@ -428,101 +416,14 @@ function init3D() {
   renderer.setSize(innerWidth, innerHeight);
   $('game-root').appendChild(renderer.domElement);
 
-  /* ILUMINAÇÃO AMBIENTE E SOL */
+  await loadingStep(24, 'Preparando o espaço e a iluminação...');
 
-  const ambientLight = new THREE.HemisphereLight(
-    0x9acfff,
-    0x111827,
-    0.75
-  );
-  scene.add(ambientLight);
+  /* ILUMINAÇÃO E CAMPO ESTELAR */
 
-  const sunPosition = new THREE.Vector3(-120, 65, -220);
+  lightingSystem = createSpaceLighting(scene);
+  stars = lightingSystem.stars;
 
-  const sunLight = new THREE.PointLight(
-    0xffd6a0,
-    260,
-    1800,
-    1.15
-  );
-
-  sunLight.position.copy(sunPosition);
-  scene.add(sunLight);
-
-  const sunlight = new THREE.DirectionalLight(0xffe0b5, 2.0);
-  sunlight.position.copy(sunPosition);
-  scene.add(sunlight);
-
-  const fillLight = new THREE.DirectionalLight(0x5caaff, 0.35);
-  fillLight.position.set(100, 20, 80);
-  scene.add(fillLight);
-
-  /* SOL VISÍVEL */
-
-  const sun = new THREE.Group();
-  sun.position.copy(sunPosition);
-  scene.add(sun);
-
-  const sunCore = new THREE.Mesh(
-    new THREE.SphereGeometry(22, 48, 32),
-    new THREE.MeshBasicMaterial({
-      color: 0xffc45c
-    })
-  );
-  sun.add(sunCore);
-
-  const sunGlow = new THREE.Mesh(
-    new THREE.SphereGeometry(29, 40, 28),
-    new THREE.MeshBasicMaterial({
-      color: 0xff9e35,
-      transparent: true,
-      opacity: 0.20,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false
-    })
-  );
-  sun.add(sunGlow);
-
-  const sunHalo = new THREE.Mesh(
-    new THREE.SphereGeometry(37, 40, 28),
-    new THREE.MeshBasicMaterial({
-      color: 0xff6b28,
-      transparent: true,
-      opacity: 0.07,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false
-    })
-  );
-  sun.add(sunHalo);
-
-  /* ESTRELAS */
-
-  const positions = [];
-
-  for (let i = 0; i < 2200; i++) {
-    positions.push(
-      (Math.random() - 0.5) * 1200,
-      (Math.random() - 0.5) * 800,
-      (Math.random() - 0.5) * 1200
-    );
-  }
-
-  const starGeometry = new THREE.BufferGeometry();
-
-  starGeometry.setAttribute(
-    'position',
-    new THREE.Float32BufferAttribute(positions, 3)
-  );
-
-  stars = new THREE.Points(
-    starGeometry,
-    new THREE.PointsMaterial({
-      color: 0xffffff,
-      size: 1.5
-    })
-  );
-
-  scene.add(stars);
+  await loadingStep(42, 'Montando a nave Aurora-7...');
 
   /* AURORA-7 */
 
@@ -771,67 +672,19 @@ function init3D() {
   shieldMesh.scale.set(1.05, 0.62, 1.45);
   ship.add(shieldMesh);
 
-  /* ASTEROIDES */
+  await loadingStep(70, 'Carregando campo de asteroides...');
 
-  asteroids = [];
+  /* CAMPO DE ASTEROIDES */
 
-  for (let i = 0; i < 32; i++) {
-    const radius = 1.1 + Math.random() * 2.2;
+  asteroidSystem = createAsteroidField(scene, { count: 32 });
+  asteroids = asteroidSystem.asteroids;
 
-    const asteroid = new THREE.Mesh(
-      new THREE.IcosahedronGeometry(radius, 1),
-      new THREE.MeshStandardMaterial({
-        color: [0x665d56, 0x77716a, 0x4e5962][i % 3],
-        roughness: 1,
-        flatShading: true
-      })
-    );
+  await loadingStep(84, 'Carregando estação orbital e observatório...');
 
-    asteroid.position.set(
-      (Math.random() - 0.5) * 180,
-      (Math.random() - 0.5) * 90,
-      -25 - Math.random() * 260
-    );
+  /* ESTAÇÃO ORBITAL */
 
-    asteroid.rotation.set(
-      Math.random() * 3,
-      Math.random() * 3,
-      0
-    );
-
-    asteroid.userData = {
-      ore: Math.floor(4 + Math.random() * 12),
-      radius
-    };
-
-    scene.add(asteroid);
-    asteroids.push(asteroid);
-  }
-
-  /* ESTAÇÃO */
-
-  const station = new THREE.Group();
-
-  const stationRing = new THREE.Mesh(
-    new THREE.TorusGeometry(10, 0.8, 12, 48),
-    new THREE.MeshStandardMaterial({
-      color: 0x438bb5,
-      metalness: 0.8,
-      roughness: 0.3
-    })
-  );
-
-  station.add(stationRing);
-
-  const stationCore = new THREE.Mesh(
-    new THREE.CylinderGeometry(2.5, 2.5, 5, 16),
-    darkMat
-  );
-
-  stationCore.rotation.x = Math.PI / 2;
-  station.add(stationCore);
-  station.position.set(24, 3, -65);
-  scene.add(station);
+  stationSystem = createStation({ position: [24, 3, -65] });
+  scene.add(stationSystem.group);
 
   const npc = new THREE.Mesh(
     new THREE.SphereGeometry(1.3, 16, 12),
@@ -841,8 +694,13 @@ function init3D() {
     })
   );
 
-  npc.position.set(24, 3, -65);
+  npc.position.set(24, 3, -77);
   scene.add(npc);
+
+  orbitSystem = createOrbitSystem({ center: [0, 0, -240], radius: 177 });
+  scene.add(orbitSystem.group);
+
+  await loadingStep(96, 'Finalizando cenário e sistemas de voo...');
 
   window.addEventListener('resize', resize3D);
 
@@ -926,6 +784,47 @@ function updateFlight(dt) {
     .normalize();
 
   ship.position.addScaledVector(forwardVector, state.speed * dt * 0.45);
+
+  // Colisão da plataforma e do observatório para a Aurora-7.
+  // A abertura e a escadaria continuam livres para o personagem,
+  // mas são tratadas como piso sólido para a nave.
+  const stationCenter = new THREE.Vector3(24, 3, -65);
+  const stationScale = 1.18;
+  const dx = ship.position.x - stationCenter.x;
+  const dz = ship.position.z - stationCenter.z;
+  const horizontalDistance = Math.hypot(dx, dz);
+  let relativeHeight = ship.position.y - stationCenter.y;
+
+  // O vão da escadaria não permite a passagem da nave.
+  // Ao cruzar o nível do piso superior, a nave é mantida acima da plataforma.
+  const landingDeckTop = 2.13 * stationScale;
+  const shipClearance = 1.2;
+  const landingDeckRadius = 11.65 * stationScale - 0.4;
+  if (
+    horizontalDistance < landingDeckRadius &&
+    relativeHeight >= landingDeckTop - shipClearance &&
+    relativeHeight < landingDeckTop + shipClearance
+  ) {
+    ship.position.y = stationCenter.y + landingDeckTop + shipClearance;
+    relativeHeight = ship.position.y - stationCenter.y;
+    state.speed = Math.min(state.speed, 8);
+  }
+
+  // Parede invisível ao redor do observatório inferior.
+  // Não há exceção no corredor da escada: a nave não entra no ambiente de bípedes.
+  const lowerDeckRadius = 8.65 * stationScale + 2.4;
+  if (
+    horizontalDistance < lowerDeckRadius &&
+    relativeHeight > -4.2 &&
+    relativeHeight < landingDeckTop - shipClearance
+  ) {
+    const safeDistance = Math.max(horizontalDistance, 0.001);
+    const nx = horizontalDistance > 0.001 ? dx / safeDistance : 1;
+    const nz = horizontalDistance > 0.001 ? dz / safeDistance : 0;
+    ship.position.x = stationCenter.x + nx * lowerDeckRadius;
+    ship.position.z = stationCenter.z + nz * lowerDeckRadius;
+    state.speed = Math.min(state.speed, 8);
+  }
 
   /* EFEITOS DAS NACELLES */
 
@@ -1020,13 +919,10 @@ function loop(now) {
 
   updateFlight(dt);
   updateCamera();
-
-  asteroids.forEach(asteroid => {
-    asteroid.rotation.x += 0.001;
-    asteroid.rotation.y += 0.0015;
-  });
-
-  if (stars) stars.rotation.y += 0.00012;
+  earthSystem?.update(dt);
+  orbitSystem?.update(dt);
+  asteroidSystem?.update(dt);
+  lightingSystem?.update(dt);
 
   renderer.render(scene, camera);
 
@@ -1235,8 +1131,8 @@ $('mine-btn')?.addEventListener('click', () => {
   state.cargo += amount;
 
   if (target.userData.ore <= 0) {
-    scene.remove(target);
-    asteroids = asteroids.filter(asteroid => asteroid !== target);
+    asteroidSystem?.remove(target);
+    asteroids = asteroidSystem?.asteroids || [];
   }
 
   save();
