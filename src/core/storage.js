@@ -24,6 +24,8 @@ export function loadState() {
     }
 
     Object.assign(state, data);
+    // A nave ativa atual substitui o identificador antigo salvo localmente.
+    state.ship = 'Nave exploradora';
 
     state.settings = {
       quality: 'Média',
