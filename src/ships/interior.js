@@ -85,7 +85,7 @@ export function createStarshipInterior(options = {}) {
   const deckFloor = (deck, label) => {
     const y = deck.y;
     const footprints = {
-      D1: [50, 82], D2: [45, 74], D3: [40, 66], D4: [35, 58]
+      D1: [50, 82], D2: [50, 94], D3: [53, 102], D4: [35, 58]
     };
     const [width, length] = footprints[deck.id];
     addDeckPlate(y, width, length, floorMat, label + '-Floor', 0.42);
