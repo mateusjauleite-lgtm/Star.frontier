@@ -67,14 +67,14 @@ export function createStarshipInterior(options = {}) {
 
   const deckFloor = (deck, label) => {
     const y = deck.y;
-    addBox(group, [54, 0.42, 100], [0, y, 0], floorMat, label + '-Floor');
+    addBox(group, [54, 0.42, 86], [0, y, -2], floorMat, label + '-Floor');
     // Abertura técnica apenas demarcada: o vão será recortado quando
     // o sistema vertical de transporte for implementado.
     addBox(group, [5.8, 0.035, 5.8], [0, y + 0.23, 34], shaftMat, label + '-Reserved-Vertical-Access');
-    addBox(group, [54, 0.22, 100], [0, y + 5.35, 0], ceilingMat, label + '-Ceiling');
+    addBox(group, [54, 0.22, 86], [0, y + 5.35, -2], ceilingMat, label + '-Ceiling');
     // Reforços estruturais laterais.
-    addBox(group, [0.7, 5.25, 100], [-27.2, y + 2.75, 0], bulkheadMat, label + '-Port-Bulkhead');
-    addBox(group, [0.7, 5.25, 100], [27.2, y + 2.75, 0], bulkheadMat, label + '-Starboard-Bulkhead');
+    addBox(group, [0.7, 5.25, 86], [-27.2, y + 2.75, -2], bulkheadMat, label + '-Port-Bulkhead');
+    addBox(group, [0.7, 5.25, 86], [27.2, y + 2.75, -2], bulkheadMat, label + '-Starboard-Bulkhead');
   };
 
   for (const deck of STARSHIP_LAYOUT.decks) {
@@ -88,7 +88,7 @@ export function createStarshipInterior(options = {}) {
     const y = STARSHIP_LAYOUT.decks[0].y + 2.65;
     addBox(group, [0.45, 5.25, 100], [-26.5, y, 0], wallMat, 'D1-Port-Inner-Wall');
     addBox(group, [0.45, 5.25, 100], [26.5, y, 0], wallMat, 'D1-Starboard-Inner-Wall');
-    doorwayWallX(0, y, 49.2, 53, 5.25, 0.55, 5.2, 3.1);
+    doorwayWallX(0, y, 41.2, 53, 5.25, 0.55, 5.2, 3.1);
     // Pequena antecâmara de acesso na popa, sem dividir a área principal.
     addBox(group, [16, 0.22, 0.35], [0, STARSHIP_LAYOUT.decks[0].y + 0.5, 40], trimMat, 'D1-Aft-Threshold');
   }
@@ -110,7 +110,7 @@ export function createStarshipInterior(options = {}) {
       addBox(group, [18, 5.25, 0.38], [-15.2, y, z], wallMat, 'D2-Port-Compartment-Partition');
       addBox(group, [18, 5.25, 0.38], [15.2, y, z], wallMat, 'D2-Starboard-Compartment-Partition');
     }
-    doorwayWallZ(0, y, 49.2, 53, 5.25, 0.55, 5.2, 3.1);
+    doorwayWallZ(0, y, 41.2, 53, 5.25, 0.55, 5.2, 3.1);
   }
 
   // D3 — salão técnico amplo, com salas laterais e corredor de serviço.
@@ -144,10 +144,15 @@ export function createStarshipInterior(options = {}) {
     addBox(group, [10, 5.25, 0.4], [25, y, -26], wallMat, 'D4-Starboard-Support-Partition');
     addBox(group, [10, 5.25, 0.4], [-25, y, 23], wallMat, 'D4-Port-Aft-Partition');
     addBox(group, [10, 5.25, 0.4], [25, y, 23], wallMat, 'D4-Starboard-Aft-Partition');
-    // Parede de proa; a popa fica aberta para a futura porta do hangar.
-    addBox(group, [54, 5.25, 0.55], [0, y, -49.2], bulkheadMat, 'D4-Hangar-Forward-Bulkhead');
-    addBox(group, [10, 5.25, 0.55], [-22, y, 49.2], bulkheadMat, 'D4-Aft-Port-Pillar');
-    addBox(group, [10, 5.25, 0.55], [22, y, 49.2], bulkheadMat, 'D4-Aft-Starboard-Pillar');
+    // Porta externa do hangar exclusiva do D4, integrada ao reforço da popa.
+    addBox(group, [54, 5.25, 0.55], [0, y, -45.2], bulkheadMat, 'D4-Hangar-Forward-Bulkhead');
+    const doorWidth = 16;
+    const doorHeight = 4.2;
+    const sideWidth = (54 - doorWidth) / 2;
+    addBox(group, [sideWidth, 5.25, 0.75], [-(doorWidth / 2 + sideWidth / 2), y, 41.2], bulkheadMat, 'D4-Aft-Door-Port-Frame');
+    addBox(group, [sideWidth, 5.25, 0.75], [(doorWidth / 2 + sideWidth / 2), y, 41.2], bulkheadMat, 'D4-Aft-Door-Starboard-Frame');
+    addBox(group, [doorWidth, (5.25 - doorHeight) / 2, 0.75], [0, y + (doorHeight + 5.25) / 4, 41.2], bulkheadMat, 'D4-Aft-Door-Header');
+    addBox(group, [doorWidth, 0.28, 0.75], [0, y - 2.48, 41.2], trimMat, 'D4-Hangar-Door-Threshold');
   }
 
   // Travessas externas que amarram os quatro níveis sem ocupar os corredores.
