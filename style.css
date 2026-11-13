@@ -1089,3 +1089,35 @@ select:focus {
     padding: 7px 12px;
   }
 }
+
+.character-top-actions {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  pointer-events: auto;
+}
+.character-camera-btn {
+  min-height: 42px;
+  padding: 0 11px;
+  border: 1px solid rgba(83, 190, 255, 0.32);
+  border-radius: 10px;
+  background: rgba(5, 22, 42, 0.9);
+  color: var(--cyan);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.55px;
+  white-space: nowrap;
+}
+.character-menu-btn {
+  flex: 0 0 42px;
+}
+@media (orientation: landscape) and (max-height: 600px) {
+  .character-camera-btn {
+    min-height: 36px;
+    padding: 0 8px;
+    font-size: 9px;
+  }
+  .character-menu-btn {
+    flex-basis: 36px;
+  }
+}
