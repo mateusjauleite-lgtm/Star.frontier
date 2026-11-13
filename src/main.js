@@ -504,9 +504,11 @@ async function init3D() {
 
   // Spawn inicial no Deck 1 — ponte de comando, dentro do casco.
   characterModel = createCharacterModel({ suitColor: 0x263b50, accentColor: 0x36c9df });
+  // O personagem pertence ao referencial da nave: acompanha translação e rotação
+  // sem ficar para trás no espaço quando a Aurora-7 se movimenta.
   characterModel.group.position.set(0, 8.93, -18);
   characterModel.group.rotation.y = characterYaw;
-  scene.add(characterModel.group);
+  shipVisual.add(characterModel.group);
   characterAnimator = createCharacterAnimator(characterModel);
   characterAnimator.play('idle');
 
@@ -730,9 +732,19 @@ function updateCharacterMovement(dt) {
     const direction = forward.multiplyScalar(-input.y).add(right.multiplyScalar(input.x * 0.18));
     if (direction.lengthSq() > 0) direction.normalize();
     characterModel.group.position.addScaledVector(direction, 3.1 * magnitude * dt);
-    // Limites provisórios seguros do salão da ponte do Deck 1.
-    characterModel.group.position.x = THREE.MathUtils.clamp(characterModel.group.position.x, -19, 19);
-    characterModel.group.position.z = THREE.MathUtils.clamp(characterModel.group.position.z, -38, 34);
+
+    // Colisão simples do convés D1: mantém o explorador sobre a plataforma elíptica.
+    // As coordenadas são locais à nave, portanto a proteção acompanha a Aurora-7.
+    const deck = characterModel.group.position;
+    const normalizedX = deck.x / 23.2;
+    const normalizedZ = (deck.z + 2) / 38.2;
+    const radial = Math.hypot(normalizedX, normalizedZ);
+    if (radial > 1) {
+      deck.x = (normalizedX / radial) * 23.2;
+      deck.z = -2 + (normalizedZ / radial) * 38.2;
+    }
+    // O piso superior do Deck 1 termina em y=8.91; mantém os pés apoiados.
+    deck.y = 8.93;
     characterModel.group.rotation.y = characterYaw;
     characterAnimator?.play(magnitude > 0.72 ? 'run' : 'walk');
   } else {
