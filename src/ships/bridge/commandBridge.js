@@ -3,13 +3,13 @@ import * as THREE from 'three';
 // Integração entre personagem e nave. A posição é local ao modelo da nave.
 export const PILOT_CONSOLE_LOCAL_POSITION = Object.freeze({
   x: 0,
-  y: 8.93,
+  y: 8.91,
   z: -29.5
 });
 
 const DECK_EXIT_LOCAL_POSITION = Object.freeze({
   x: 0,
-  y: 8.93,
+  y: 8.91,
   z: -25.5
 });
 
