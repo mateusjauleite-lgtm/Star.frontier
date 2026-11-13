@@ -665,7 +665,8 @@ async function init3D() {
       color: 0x168bff,
       wireframe: true,
       transparent: true,
-      opacity: 0.055
+      opacity: 0.16,
+      depthWrite: false
     })
   );
 
@@ -810,21 +811,8 @@ function updateFlight(dt) {
     state.speed = Math.min(state.speed, 8);
   }
 
-  // Parede invisível ao redor do observatório inferior.
-  // Não há exceção no corredor da escada: a nave não entra no ambiente de bípedes.
-  const lowerDeckRadius = 8.65 * stationScale + 2.4;
-  if (
-    horizontalDistance < lowerDeckRadius &&
-    relativeHeight > -4.2 &&
-    relativeHeight < landingDeckTop - shipClearance
-  ) {
-    const safeDistance = Math.max(horizontalDistance, 0.001);
-    const nx = horizontalDistance > 0.001 ? dx / safeDistance : 1;
-    const nz = horizontalDistance > 0.001 ? dz / safeDistance : 0;
-    ship.position.x = stationCenter.x + nx * lowerDeckRadius;
-    ship.position.z = stationCenter.z + nz * lowerDeckRadius;
-    state.speed = Math.min(state.speed, 8);
-  }
+  // A nave não recebe uma parede cilíndrica invisível ao redor do observatório.
+  // A plataforma superior continua protegida pela colisão de pouso acima.
 
   /* EFEITOS DAS NACELLES */
 
