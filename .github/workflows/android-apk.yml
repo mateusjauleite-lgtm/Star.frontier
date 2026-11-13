@@ -4,7 +4,7 @@ name: Build Android APK
 on:
   workflow_dispatch:
   push:
-    branches: [ main, architecture/modules-skeleton ]
+    branches: [ main, architecture/modules-skeleton, feature/four-deck-starship-interior ]
 
 jobs:
   build:
