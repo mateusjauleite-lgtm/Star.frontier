@@ -65,16 +65,33 @@ export function createStarshipInterior(options = {}) {
     addBox(group, [thickness, height - doorHeight, doorWidth], [x, y + doorHeight / 2, z], bulkheadMat, 'Wall-Door-Header');
   };
 
+  const addDeckPlate = (y, width, length, material, name, thickness) => {
+    // Planta elíptica acompanha o casco arredondado, sem criar uma moldura retangular.
+    const shape = new THREE.Shape();
+    shape.absellipse(0, 0, width / 2, length / 2, 0, Math.PI * 2, false, 0);
+    const geometry = new THREE.ExtrudeGeometry(shape, {
+      depth: thickness, bevelEnabled: false, curveSegments: 48
+    });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.rotation.x = Math.PI / 2;
+    mesh.position.set(0, y + thickness / 2, -2);
+    mesh.name = name;
+    mesh.castShadow = false;
+    mesh.receiveShadow = true;
+    group.add(mesh);
+    return mesh;
+  };
+
   const deckFloor = (deck, label) => {
     const y = deck.y;
-    addBox(group, [54, 0.42, 86], [0, y, -2], floorMat, label + '-Floor');
-    // Abertura técnica apenas demarcada: o vão será recortado quando
-    // o sistema vertical de transporte for implementado.
-    addBox(group, [5.8, 0.035, 5.8], [0, y + 0.23, 34], shaftMat, label + '-Reserved-Vertical-Access');
-    addBox(group, [54, 0.22, 86], [0, y + 5.35, -2], ceilingMat, label + '-Ceiling');
-    // Reforços estruturais laterais.
-    addBox(group, [0.7, 5.25, 86], [-27.2, y + 2.75, -2], bulkheadMat, label + '-Port-Bulkhead');
-    addBox(group, [0.7, 5.25, 86], [27.2, y + 2.75, -2], bulkheadMat, label + '-Starboard-Bulkhead');
+    const footprints = {
+      D1: [50, 82], D2: [45, 74], D3: [40, 66], D4: [35, 58]
+    };
+    const [width, length] = footprints[deck.id];
+    addDeckPlate(y, width, length, floorMat, label + '-Floor', 0.42);
+    // Acesso técnico permanece marcado no piso, dentro da área útil.
+    addBox(group, [5.8, 0.035, 5.8], [0, y + 0.23, 25], shaftMat, label + '-Reserved-Vertical-Access');
+    addDeckPlate(y + 5.35, width, length, ceilingMat, label + '-Ceiling', 0.22);
   };
 
   for (const deck of STARSHIP_LAYOUT.decks) {
@@ -86,9 +103,8 @@ export function createStarshipInterior(options = {}) {
   // que será adicionada em uma etapa posterior.
   {
     const y = STARSHIP_LAYOUT.decks[0].y + 2.65;
-    addBox(group, [0.45, 5.25, 100], [-26.5, y, 0], wallMat, 'D1-Port-Inner-Wall');
-    addBox(group, [0.45, 5.25, 100], [26.5, y, 0], wallMat, 'D1-Starboard-Inner-Wall');
-    doorwayWallX(0, y, 41.2, 53, 5.25, 0.55, 5.2, 3.1);
+    // Laterais abertas: o contorno do casco passa a definir os limites da ponte.
+    doorwayWallX(0, y, 38.5, 48, 5.25, 0.55, 5.2, 3.1);
     // Pequena antecâmara de acesso na popa, sem dividir a área principal.
     addBox(group, [16, 0.22, 0.35], [0, STARSHIP_LAYOUT.decks[0].y + 0.5, 40], trimMat, 'D1-Aft-Threshold');
   }
@@ -137,30 +153,25 @@ export function createStarshipInterior(options = {}) {
   // A largura e o formato da abertura externa serão definidos depois.
   {
     const y = STARSHIP_LAYOUT.decks[3].y + 2.65;
-    addBox(group, [0.45, 5.25, 82], [-20.5, y, 0], wallMat, 'D4-Hangar-Port-Wall');
-    addBox(group, [0.45, 5.25, 82], [20.5, y, 0], wallMat, 'D4-Hangar-Starboard-Wall');
+    // Hangar sem paredes laterais externas: mantém o centro amplo e aberto.
     // Compartimentos de apoio nas laterais, mantendo o centro livre.
     addBox(group, [10, 5.25, 0.4], [-25, y, -26], wallMat, 'D4-Port-Support-Partition');
     addBox(group, [10, 5.25, 0.4], [25, y, -26], wallMat, 'D4-Starboard-Support-Partition');
     addBox(group, [10, 5.25, 0.4], [-25, y, 23], wallMat, 'D4-Port-Aft-Partition');
     addBox(group, [10, 5.25, 0.4], [25, y, 23], wallMat, 'D4-Starboard-Aft-Partition');
     // Porta externa do hangar exclusiva do D4, integrada ao reforço da popa.
-    addBox(group, [54, 5.25, 0.55], [0, y, -45.2], bulkheadMat, 'D4-Hangar-Forward-Bulkhead');
+    addBox(group, [30, 5.25, 0.55], [0, y, -28.5], bulkheadMat, 'D4-Hangar-Forward-Bulkhead');
     const doorWidth = 16;
     const doorHeight = 4.2;
     const sideWidth = (54 - doorWidth) / 2;
-    addBox(group, [sideWidth, 5.25, 0.75], [-(doorWidth / 2 + sideWidth / 2), y, 41.2], bulkheadMat, 'D4-Aft-Door-Port-Frame');
-    addBox(group, [sideWidth, 5.25, 0.75], [(doorWidth / 2 + sideWidth / 2), y, 41.2], bulkheadMat, 'D4-Aft-Door-Starboard-Frame');
-    addBox(group, [doorWidth, (5.25 - doorHeight) / 2, 0.75], [0, y + (doorHeight + 5.25) / 4, 41.2], bulkheadMat, 'D4-Aft-Door-Header');
-    addBox(group, [doorWidth, 0.28, 0.75], [0, y - 2.48, 41.2], trimMat, 'D4-Hangar-Door-Threshold');
+    const aftZ = 26.5;
+    addBox(group, [sideWidth, 5.25, 0.75], [-(doorWidth / 2 + sideWidth / 2), y, aftZ], bulkheadMat, 'D4-Aft-Door-Port-Frame');
+    addBox(group, [sideWidth, 5.25, 0.75], [(doorWidth / 2 + sideWidth / 2), y, aftZ], bulkheadMat, 'D4-Aft-Door-Starboard-Frame');
+    addBox(group, [doorWidth, (5.25 - doorHeight) / 2, 0.75], [0, y + (doorHeight + 5.25) / 4, aftZ], bulkheadMat, 'D4-Aft-Door-Header');
+    addBox(group, [doorWidth, 0.28, 0.75], [0, y - 2.48, aftZ], trimMat, 'D4-Hangar-Door-Threshold');
   }
 
-  // Travessas externas que amarram os quatro níveis sem ocupar os corredores.
-  for (const x of [-26.2, 26.2]) {
-    for (const z of [-46, 0, 46]) {
-      addBox(group, [0.8, 31, 0.8], [x, 0, z], bulkheadMat, 'Hull-Structural-Column');
-    }
-  }
+  // Removidas as seis colunas externas: elas formavam a gaiola retangular ao redor do casco.
 
   return {
     group,
