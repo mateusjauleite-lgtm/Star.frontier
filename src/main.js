@@ -679,12 +679,13 @@ function updateCamera() {
     camera.position.copy(ship.position).add(offset);
     camera.quaternion.copy(finalQuaternion);
   } else {
-    // Câmera externa afastada o bastante para enquadrar casco e as duas nacelles.
-    const offset = new THREE.Vector3(0, 42, 165)
-      .applyQuaternion(flightQuaternion);
+    // Câmera externa mais próxima, orbitando a nave com o arrasto da mira.
+    const offset = new THREE.Vector3(0, 28, 112)
+      .applyQuaternion(flightQuaternion)
+      .applyQuaternion(cameraViewQuaternion);
 
     const desiredPosition = ship.position.clone().add(offset);
-    camera.position.lerp(desiredPosition, 0.09);
+    camera.position.lerp(desiredPosition, 0.12);
     camera.lookAt(ship.position);
   }
 }
@@ -817,11 +818,17 @@ if (aimArea) {
     previousTouchX = event.clientX;
     previousTouchY = event.clientY;
 
-    state.view.x -= dy * 0.004;
-    state.view.y -= dx * 0.004;
+    state.view.x = THREE.MathUtils.clamp(
+      state.view.x - dy * 0.004,
+      -1.15,
+      1.15
+    );
 
-    state.view.x = THREE.MathUtils.clamp(state.view.x, -1.15, 1.15);
-    state.view.y = THREE.MathUtils.clamp(state.view.y, -1.15, 1.15);
+    // A rotação horizontal é contínua: permite completar voltas de 360°.
+    state.view.y = THREE.MathUtils.euclideanModulo(
+      state.view.y - dx * 0.004 + Math.PI,
+      Math.PI * 2
+    ) - Math.PI;
   });
 
   const endAim = event => {
