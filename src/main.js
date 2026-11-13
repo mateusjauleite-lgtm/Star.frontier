@@ -11,6 +11,7 @@ import { createCharacterCore } from './character/characterCore.js';
 import { createCharacterHUD } from './character/characterHUD.js';
 import { createCharacterModel } from './character/characterModel.js';
 import { createCharacterAnimator } from './character/characterAnimator.js';
+import { isPilotConsoleInRange, attachCharacterToPilotConsole, returnCharacterToDeck } from './ships/bridge/commandBridge.js';
 import { saveState as save, loadState as load } from './core/storage.js';
 
 const $ = id => document.getElementById(id);
@@ -27,6 +28,8 @@ const characterRight = new THREE.Vector3();
 const characterMove = new THREE.Vector3();
 const characterLookEuler = new THREE.Euler(0, 0, 0, 'YXZ');
 let characterMoveInput = { x: 0, y: 0 };
+let pilotInteractionAvailable = false;
+const pilotPlayerWorldPosition = new THREE.Vector3();
 
 function updateCharacterCameraButton() {
   const button = $('character-camera-btn');
@@ -738,6 +741,74 @@ function updateCharacterMovement(dt) {
   characterAnimator?.update(dt);
 }
 
+function updatePilotInteraction() {
+  if (!characterModel || !shipVisual || characterCore.snapshot().mode !== 'on-foot') return;
+
+  characterModel.group.getWorldPosition(pilotPlayerWorldPosition);
+  const available = isPilotConsoleInRange(pilotPlayerWorldPosition, shipVisual);
+
+  if (available === pilotInteractionAvailable) return;
+
+  pilotInteractionAvailable = available;
+  const button = $('character-action-btn');
+  if (button) {
+    button.disabled = !available;
+    button.textContent = available ? '◎ PILOTAR' : 'AÇÃO';
+    button.classList.toggle('available', available);
+  }
+
+  characterCore.setInteractionTarget(available ? 'PILOTAGEM DISPONÍVEL' : null);
+  updateCharacterHUD();
+}
+
+function setPilotInterface(activePilot) {
+  characterHUD.show(!activePilot);
+  ['hud', 'nitro-display', 'flight-controls'].forEach(id => {
+    $(id)?.classList.toggle('hidden', !activePilot);
+  });
+}
+
+function enterPilotMode() {
+  if (!pilotInteractionAvailable || characterCore.snapshot().mode !== 'on-foot') {
+    toast('Aproxime-se do ponto de pilotagem na ponte.');
+    return;
+  }
+
+  if (!attachCharacterToPilotConsole(characterModel, shipVisual)) return;
+
+  characterMoveInput = { x: 0, y: 0 };
+  characterCore.enterShipSeat();
+  pilotInteractionAvailable = false;
+  state.camera = 0;
+  state.view.x = 0;
+  state.view.y = 0;
+  setPilotInterface(true);
+  toast('Comando da Aurora-7 assumido.');
+}
+
+function exitPilotMode() {
+  if (characterCore.snapshot().mode !== 'ship-control') return;
+
+  characterYaw = returnCharacterToDeck(characterModel, shipVisual, scene);
+  characterPitch = 0;
+  characterCore.leaveShipSeat();
+
+  characterMoveInput = { x: 0, y: 0 };
+  state.move.x = 0;
+  state.move.y = 0;
+  state.throttle = false;
+  state.braking = false;
+  state.nitroButton = false;
+
+  const flightStick = $('move-stick')?.querySelector('.knob');
+  if (flightStick) flightStick.style.transform = 'translate(0,0)';
+
+  setPilotInterface(false);
+  updateCharacterHUD();
+  updatePilotInteraction();
+  toast('Você deixou o comando da nave.');
+}
+
 /* CÂMERA */
 
 function updateCamera() {
@@ -791,6 +862,7 @@ function loop(now) {
 
   if (characterCore.snapshot().mode === 'on-foot') {
     updateCharacterMovement(dt);
+    updatePilotInteraction();
     updateCharacterCamera();
   } else {
     updateFlight(dt);
@@ -944,9 +1016,10 @@ if (characterAim) {
   );
 }
 
-$('character-action-btn')?.addEventListener('click', () => {
-  toast('Nenhum objeto interativo ao alcance.');
-});
+$('character-action-btn')?.addEventListener('click', enterPilotMode);
+$('leave-pilot-btn')?.addEventListener('click', exitPilotMode);
+
+if ($('character-action-btn')) $('character-action-btn').disabled = true;
 
 // Ao perder foco no Android, zera entradas para impedir joystick ou aceleração presos.
 document.addEventListener('visibilitychange', () => {
