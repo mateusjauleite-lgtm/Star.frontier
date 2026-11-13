@@ -4,6 +4,7 @@ import { createStation } from './world/station.js';
 import { createOrbitSystem } from './world/orbits.js';
 import { createAsteroidField } from './world/asteroids.js';
 import { createSpaceLighting } from './world/lighting.js';
+import { createStarshipInterior } from './ships/interior.js';
 import { state } from './core/state.js';
 import { saveState as save, loadState as load } from './core/storage.js';
 
@@ -305,6 +306,7 @@ let stationSystem;
 let orbitSystem;
 let asteroidSystem;
 let lightingSystem;
+let starshipInterior;
 
 let asteroids = [];
 let engineFlames = [];
@@ -685,6 +687,10 @@ async function init3D() {
 
   stationSystem = createStation({ position: [24, 3, -65] });
   scene.add(stationSystem.group);
+
+  await loadingStep(90, 'Montando a estrutura interna da nave exploradora...');
+  starshipInterior = createStarshipInterior({ position: [0, 0, -150] });
+  scene.add(starshipInterior.group);
 
   const npc = new THREE.Mesh(
     new THREE.SphereGeometry(1.3, 16, 12),
