@@ -44,9 +44,58 @@ export function createExplorationShip() {
   };
 
   // Casco em duas conchas: seção superior e inferior, envolvendo os quatro decks.
+  // A janela panorâmica é uma abertura real no casco superior:
+  // os triângulos da área frontal são separados do casco e recebem vidro translúcido.
+  const upperHullSource = new THREE.SphereGeometry(1, 48, 24, 0, Math.PI * 2, 0, Math.PI / 2);
+  const upperPositions = upperHullSource.attributes.position;
+  const upperIndices = upperHullSource.index.array;
+  const hullIndices = [];
+  const windowIndices = [];
+
+  for (let i = 0; i < upperIndices.length; i += 3) {
+    const a = upperIndices[i];
+    const b = upperIndices[i + 1];
+    const c = upperIndices[i + 2];
+    const centerX = (upperPositions.getX(a) + upperPositions.getX(b) + upperPositions.getX(c)) / 3;
+    const centerY = (upperPositions.getY(a) + upperPositions.getY(b) + upperPositions.getY(c)) / 3;
+    const centerZ = (upperPositions.getZ(a) + upperPositions.getZ(b) + upperPositions.getZ(c)) / 3;
+    const isPanoramicWindow =
+      centerZ < -0.58 && centerZ > -0.94 &&
+      Math.abs(centerX) < 0.56 &&
+      centerY > 0.35 && centerY < 0.9;
+
+    (isPanoramicWindow ? windowIndices : hullIndices).push(a, b, c);
+  }
+
+  const upperHullGeometry = upperHullSource.clone();
+  upperHullGeometry.setIndex(hullIndices);
+  upperHullGeometry.computeVertexNormals();
+
+  const panoramicGlassGeometry = upperHullSource.clone();
+  panoramicGlassGeometry.setIndex(windowIndices);
+  panoramicGlassGeometry.computeVertexNormals();
+  upperHullSource.dispose();
+
   const upperHull = addMesh(
-    new THREE.SphereGeometry(1, 48, 24, 0, Math.PI * 2, 0, Math.PI / 2),
+    upperHullGeometry,
     hullMaterial, [0, 0, 0], [27.2, 15.2, 50], 'Upper-Saucer-Hull'
+  );
+
+  const panoramicGlassMaterial = new THREE.MeshPhysicalMaterial({
+    color: 0x9bdfff,
+    transparent: true,
+    opacity: 0.18,
+    roughness: 0.08,
+    metalness: 0.08,
+    side: THREE.DoubleSide,
+    depthWrite: false
+  });
+  addMesh(
+    panoramicGlassGeometry,
+    panoramicGlassMaterial,
+    [0, 0, 0],
+    [27.2, 15.2, 50],
+    'Bridge-Panoramic-Window'
   );
   const lowerHull = addMesh(
     new THREE.SphereGeometry(1, 48, 24, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2),
