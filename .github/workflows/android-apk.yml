@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: [ main ]
   push:
-    branches: [ main, architecture/modules-skeleton, feature/four-deck-starship-interior ]
+    branches: [ main, architecture/modules-skeleton, feature/four-deck-starship-interior, feature/character-core ]
 
 jobs:
   build:
