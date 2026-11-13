@@ -1198,8 +1198,8 @@ select:focus {
 }
 .character-move-knob {
   position: absolute;
-  left: 50%;
-  top: 50%;
+  left: calc(50% - 21px);
+  top: calc(50% - 21px);
   width: 42px;
   height: 42px;
   border-radius: 50%;
@@ -1241,6 +1241,6 @@ select:focus {
   .character-equipment span { font-size: 8px; }
   .character-equipment b { font-size: 10px; }
   .character-move-stick { width: 88px; height: 88px; }
-  .character-move-knob { width: 36px; height: 36px; }
+  .character-move-knob { width: 36px; height: 36px; left: calc(50% - 18px); top: calc(50% - 18px); }
   .character-action-btn { min-width: 66px; min-height: 48px; }
 }
