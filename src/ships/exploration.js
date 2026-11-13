@@ -102,9 +102,53 @@ export function createExplorationShip() {
     undersideMaterial, [0, 0, 0], [27.2, 15.2, 50], 'Lower-Saucer-Hull'
   );
 
-  // Reforço dorsal e casco de engenharia inferior.
-  addMesh(new THREE.SphereGeometry(1, 32, 20), trimMaterial,
-    [0, 12.2, -30], [6.2, 2.1, 8.5], 'Bridge-Dorsal-Dome');
+  // Console físico do computador central na ponte.
+  // Substitui o antigo domo azul; a câmera continua sendo calculada no main.js.
+  const bridgeComputer = new THREE.Group();
+  bridgeComputer.name = 'Bridge-Computer-Console';
+  bridgeComputer.position.set(0, 9.15, -33.2);
+  visual.add(bridgeComputer);
+
+  const consoleBase = new THREE.Mesh(
+    new THREE.BoxGeometry(4.8, 0.48, 2.15), undersideMaterial
+  );
+  consoleBase.position.set(0, 0.25, 0);
+  bridgeComputer.add(consoleBase);
+
+  const consoleBody = new THREE.Mesh(
+    new THREE.BoxGeometry(4.35, 0.82, 1.75), trimMaterial
+  );
+  consoleBody.position.set(0, 0.82, 0);
+  bridgeComputer.add(consoleBody);
+
+  const consoleTop = new THREE.Mesh(
+    new THREE.BoxGeometry(4.15, 0.12, 1.58), hullMaterial
+  );
+  consoleTop.position.set(0, 1.28, 0.02);
+  bridgeComputer.add(consoleTop);
+
+  const consoleDisplayMaterial = new THREE.MeshStandardMaterial({
+    color: 0x123448,
+    emissive: 0x087da8,
+    emissiveIntensity: 0.85,
+    metalness: 0.35,
+    roughness: 0.28
+  });
+  const consoleDisplay = new THREE.Mesh(
+    new THREE.BoxGeometry(2.7, 0.08, 0.92), consoleDisplayMaterial
+  );
+  consoleDisplay.position.set(0, 1.39, 0.02);
+  consoleDisplay.rotation.x = -0.16;
+  bridgeComputer.add(consoleDisplay);
+
+  const consoleStatus = new THREE.Mesh(
+    new THREE.BoxGeometry(0.62, 0.07, 0.34), glowMaterial
+  );
+  consoleStatus.position.set(-1.55, 1.39, 0.02);
+  bridgeComputer.add(consoleStatus);
+
+  // Reforço do casco de engenharia inferior.
+
   addMesh(new THREE.SphereGeometry(1, 36, 24), undersideMaterial,
     [0, -10.2, 18], [11.5, 4.8, 25], 'Engineering-Secondary-Hull');
 
