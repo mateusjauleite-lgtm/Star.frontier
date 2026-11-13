@@ -38,26 +38,20 @@ export function attachCharacterToPilotConsole(characterModel, shipVisual) {
     PILOT_CONSOLE_LOCAL_POSITION.y,
     PILOT_CONSOLE_LOCAL_POSITION.z
   );
-  characterModel.group.rotation.set(0, 0, 0);
   characterModel.group.visible = false;
   return true;
 }
 
-export function returnCharacterToDeck(characterModel, shipVisual, scene) {
-  if (!characterModel?.group || !shipVisual || !scene) return 0;
+export function returnCharacterToDeck(characterModel, shipVisual) {
+  if (!characterModel?.group || !shipVisual) return 0;
 
-  characterModel.group.visible = true;
+  // O personagem continua no referencial da nave após deixar o comando.
+  // Assim o convés não se desloca para longe dele quando a nave manobra.
   characterModel.group.position.set(
     DECK_EXIT_LOCAL_POSITION.x,
     DECK_EXIT_LOCAL_POSITION.y,
     DECK_EXIT_LOCAL_POSITION.z
   );
-
-  // Recoloca o personagem no mundo preservando a posição e orientação da nave.
-  scene.attach(characterModel.group);
-  const worldEuler = new THREE.Euler().setFromQuaternion(
-    characterModel.group.quaternion,
-    'YXZ'
-  );
-  return worldEuler.y;
+  characterModel.group.visible = true;
+  return characterModel.group.rotation.y;
 }
