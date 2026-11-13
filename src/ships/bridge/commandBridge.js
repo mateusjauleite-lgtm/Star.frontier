@@ -15,7 +15,7 @@ const DECK_EXIT_LOCAL_POSITION = Object.freeze({
 
 const consoleWorldPosition = new THREE.Vector3();
 
-export function isPilotConsoleInRange(characterWorldPosition, shipVisual, radius = 3.2) {
+export function isPilotConsoleInRange(characterWorldPosition, shipVisual, radius = 5.0) {
   if (!characterWorldPosition || !shipVisual) return false;
 
   consoleWorldPosition.set(
