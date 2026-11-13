@@ -6,12 +6,13 @@ import { createAsteroidField } from './world/asteroids.js';
 import { createSpaceLighting } from './world/lighting.js';
 import { createStarshipInterior } from './ships/interior.js';
 import { createExplorationShip } from './ships/exploration.js';
-import { state } from './core/state.js';
+import { state, resetTransientState } from './core/state.js';
 import { saveState as save, loadState as load } from './core/storage.js';
 
 const $ = id => document.getElementById(id);
 
 load();
+state.ship = 'Nave exploradora';
 
 /* UTILITÁRIOS */
 
@@ -351,6 +352,7 @@ function loadingStep(percent, message) {
 async function startGame() {
   if (launching) return;
 
+  resetTransientState();
   launching = true;
   active = false;
   show('game-screen');
@@ -779,6 +781,11 @@ function bindStick(id, key) {
 }
 
 bindStick('move-stick', 'move');
+
+// Ao perder foco no Android, zera entradas para impedir joystick ou aceleração presos.
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) resetTransientState();
+});
 
 /* MIRA POR ARRASTO */
 
