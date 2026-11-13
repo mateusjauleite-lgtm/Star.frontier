@@ -7,9 +7,21 @@ import { createSpaceLighting } from './world/lighting.js';
 import { createStarshipInterior } from './ships/interior.js';
 import { createExplorationShip } from './ships/exploration.js';
 import { state, resetTransientState } from './core/state.js';
+import { createCharacterCore } from './character/characterCore.js';
+import { createCharacterHUD } from './character/characterHUD.js';
 import { saveState as save, loadState as load } from './core/storage.js';
 
 const $ = id => document.getElementById(id);
+
+const characterCore = createCharacterCore();
+const characterHUD = createCharacterHUD(document);
+
+function updateCharacterHUD() {
+  characterHUD.update({
+    ...characterCore.snapshot(),
+    name: state.user || state.character || 'EXPLORADOR'
+  });
+}
 
 load();
 state.ship = 'Nave exploradora';
@@ -353,6 +365,8 @@ async function startGame() {
   if (launching) return;
 
   resetTransientState();
+  characterCore.initialize();
+  updateCharacterHUD();
   launching = true;
   active = false;
   show('game-screen');
@@ -702,6 +716,7 @@ function loop(now) {
 
   updateFlight(dt);
   updateCamera();
+  updateCharacterHUD();
   earthSystem?.update(dt);
   orbitSystem?.update(dt);
   asteroidSystem?.update(dt);
@@ -1006,6 +1021,10 @@ $('interact-btn')?.addEventListener('click', () => {
 });
 
 /* MENU DE PAUSA */
+
+$('character-menu-btn')?.addEventListener('click', () => {
+  $('game-menu-modal')?.classList.remove('hidden');
+});
 
 $('game-menu-btn')?.addEventListener('click', () => {
   state.throttle = false;
