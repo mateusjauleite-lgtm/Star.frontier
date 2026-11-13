@@ -528,8 +528,8 @@ function updateFlight(dt) {
   /* ACELERAÇÃO */
 
   if (state.throttle && state.fuel > 0) {
-    state.speed = Math.min(75, state.speed + 18 * dt);
-    state.fuel = Math.max(0, state.fuel - 0.28 * dt);
+    state.speed = Math.min(75, state.speed + 18 * safeDt);
+    state.fuel = Math.max(0, state.fuel - 0.28 * safeDt);
   }
 
   /* NITRO */
@@ -540,21 +540,21 @@ function updateFlight(dt) {
     state.fuel > 0;
 
   if (boosting) {
-    state.speed = Math.min(115, state.speed + 55 * dt);
-    state.nitro = Math.max(0, state.nitro - 28 * dt);
-    state.fuel = Math.max(0, state.fuel - 0.55 * dt);
+    state.speed = Math.min(115, state.speed + 55 * safeDt);
+    state.nitro = Math.max(0, state.nitro - 28 * safeDt);
+    state.fuel = Math.max(0, state.fuel - 0.55 * safeDt);
   } else {
-    state.nitro = Math.min(100, state.nitro + 12 * dt);
+    state.nitro = Math.min(100, state.nitro + 12 * safeDt);
   }
 
   /* FREIO */
 
   if (state.braking) {
-    state.speed = Math.max(0, state.speed - 30 * dt);
+    state.speed = Math.max(0, state.speed - 30 * safeDt);
   }
 
   if (!state.throttle && !boosting) {
-    state.speed = Math.max(0, state.speed - 1.4 * dt);
+    state.speed = Math.max(0, state.speed - 1.4 * safeDt);
   }
 
   /* DESLOCAMENTO */
@@ -565,7 +565,7 @@ function updateFlight(dt) {
     .applyQuaternion(flightQuaternion)
     .normalize();
 
-  ship.position.addScaledVector(forwardVector, state.speed * dt * 0.45);
+  ship.position.addScaledVector(forwardVector, state.speed * safeDt * 0.45);
 
   // Colisão da plataforma e do observatório para a nave exploradora.
   // A abertura e a escadaria continuam livres para o personagem,
@@ -667,13 +667,13 @@ function updateCamera() {
 
   if (state.camera === 0) {
     // Ponto de visão dentro da ponte, no deck superior.
-    const offset = new THREE.Vector3(0, 11.1, -39)
+    const offset = new THREE.Vector3(0, 11.1, -30)
       .applyQuaternion(flightQuaternion);
 
     camera.position.copy(ship.position).add(offset);
     camera.quaternion.copy(finalQuaternion);
   } else if (state.camera === 1) {
-    const offset = new THREE.Vector3(0, 10.8, -30)
+    const offset = new THREE.Vector3(0, 10.8, -20)
       .applyQuaternion(flightQuaternion);
 
     camera.position.copy(ship.position).add(offset);
