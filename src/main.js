@@ -867,7 +867,16 @@ function updateFlight(dt) {
   const sensitivity = Number(state.settings.sensitivity) || 1;
 
   ship.rotation.y -= state.move.x * 1.25 * dt * sensitivity;
-  ship.rotation.x -= state.move.y * 1.0 * dt * sensitivity;
+
+  // Mantém o eixo vertical no sentido intuitivo e impede capotamento acumulado.
+  // No joystick, y negativo = puxar para cima; y positivo = puxar para baixo.
+  const pitchInput = state.move.y * 1.0 * dt * sensitivity;
+  const maxPitch = THREE.MathUtils.degToRad(65);
+  ship.rotation.x = THREE.MathUtils.clamp(
+    ship.rotation.x - pitchInput,
+    -maxPitch,
+    maxPitch
+  );
 
   const targetRoll = -state.move.x * 0.25;
 
