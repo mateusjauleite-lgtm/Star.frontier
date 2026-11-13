@@ -65,12 +65,12 @@ export function createExplorationShip() {
     [0, -7.2, 39], [9.2, 4.2, 15], 'Integrated-Aft-Engineering-Pod');
 
   // Boca do hangar central: abertura escura recuada, sem moldura em caixa.
-  addMesh(new THREE.BoxGeometry(13.5, 4.8, 0.22), bulkheadMat,
-    [0, -7.1, 51.2], [1, 1, 1], 'Central-Aft-Hangar-Recess');
+  addMesh(new THREE.BoxGeometry(13.5, 4.8, 0.22), undersideMaterial,
+    [0, -7.1, 54.2], [1, 1, 1], 'Central-Aft-Hangar-Recess');
   addMesh(new THREE.BoxGeometry(13.9, 0.32, 0.42), trimMaterial,
-    [0, -4.55, 50.95], [1, 1, 1], 'Central-Hangar-Upper-Lip');
+    [0, -4.55, 53.95], [1, 1, 1], 'Central-Hangar-Upper-Lip');
   addMesh(new THREE.BoxGeometry(13.9, 0.32, 0.42), trimMaterial,
-    [0, -9.65, 50.95], [1, 1, 1], 'Central-Hangar-Lower-Lip');
+    [0, -9.65, 53.95], [1, 1, 1], 'Central-Hangar-Lower-Lip');
 
   for (const side of [-1, 1]) {
     const supportCurve = new THREE.CatmullRomCurve3([
