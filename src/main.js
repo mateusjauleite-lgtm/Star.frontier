@@ -13,10 +13,38 @@ import { createCharacterModel } from './character/characterModel.js';
 import { createCharacterAnimator } from './character/characterAnimator.js';
 import { isPilotConsoleInRange, attachCharacterToPilotConsole, returnCharacterToDeck } from './ships/bridge/commandBridge.js';
 import { saveState as save, loadState as load } from './core/storage.js';
+import { createShipComputer } from './ships/computer/shipComputer.js';
 
 const $ = id => document.getElementById(id);
 
 const characterCore = createCharacterCore();
+const shipComputer = createShipComputer();
+shipComputer.registerSystem('flight', {
+  name: 'Controle de voo',
+  commands: {
+    throttle: value => { state.throttle = Boolean(value); return state.throttle; },
+    brake: value => { state.braking = Boolean(value); return state.braking; },
+    nitro: value => { state.nitroButton = Boolean(value); return state.nitroButton; },
+    movement: value => {
+      if (!value || !Number.isFinite(value.x) || !Number.isFinite(value.y)) return false;
+      state.move.x = THREE.MathUtils.clamp(value.x, -1, 1);
+      state.move.y = THREE.MathUtils.clamp(value.y, -1, 1);
+      return true;
+    },
+    look: value => {
+      if (!value || !Number.isFinite(value.x) || !Number.isFinite(value.y)) return false;
+      state.view.x = THREE.MathUtils.clamp(value.x, -1.15, 1.15);
+      state.view.y = THREE.MathUtils.euclideanModulo(value.y + Math.PI, Math.PI * 2) - Math.PI;
+      return true;
+    }
+  },
+  getStatus: () => characterCore.snapshot().mode === 'ship-control' ? 'active' : 'standby'
+});
+shipComputer.registerTerminal({
+  id: 'pilot-console',
+  name: 'Console de pilotagem',
+  systems: ['flight']
+});
 const characterHUD = createCharacterHUD(document);
 let characterCameraMode = 'third-person';
 let characterModel = null;
@@ -389,6 +417,7 @@ function loadingStep(percent, message) {
 }
 
 async function startGame() {
+  shipComputer.boot();
   if (launching) return;
 
   resetTransientState();
@@ -798,7 +827,14 @@ function enterPilotMode() {
     return;
   }
 
-  if (!attachCharacterToPilotConsole(characterModel, shipVisual)) return;
+  if (!shipComputer.connectTerminal('pilot-console', state.user || 'PILOTO')) {
+    toast('Computador da nave indisponível ou console ocupado.');
+    return;
+  }
+  if (!attachCharacterToPilotConsole(characterModel, shipVisual)) {
+    shipComputer.disconnectTerminal('pilot-console');
+    return;
+  }
 
   characterMoveInput = { x: 0, y: 0 };
   characterCore.enterShipSeat();
@@ -813,6 +849,7 @@ function enterPilotMode() {
 function exitPilotMode() {
   if (characterCore.snapshot().mode !== 'ship-control') return;
 
+  shipComputer.disconnectTerminal('pilot-console');
   characterYaw = returnCharacterToDeck(characterModel, shipVisual, scene);
   characterPitch = 0;
   characterCore.leaveShipSeat();
@@ -935,6 +972,9 @@ function bindStick(id, key) {
 
     state[key].x = x / max;
     state[key].y = y / max;
+    if (key === 'move' && shipComputer.isTerminalConnected('pilot-console')) {
+      shipComputer.dispatch('pilot-console', 'flight', 'movement', { x: state.move.x, y: state.move.y });
+    }
 
     if (knob) {
       knob.style.transform = `translate(${x}px, ${y}px)`;
@@ -962,6 +1002,9 @@ function bindStick(id, key) {
     pointer = null;
     state[key].x = 0;
     state[key].y = 0;
+    if (key === 'move' && shipComputer.isTerminalConnected('pilot-console')) {
+      shipComputer.dispatch('pilot-console', 'flight', 'movement', { x: 0, y: 0 });
+    }
 
     if (knob) knob.style.transform = 'translate(0,0)';
   };
@@ -1091,6 +1134,9 @@ if (aimArea) {
       state.view.y - dx * 0.004 + Math.PI,
       Math.PI * 2
     ) - Math.PI;
+    if (shipComputer.isTerminalConnected('pilot-console')) {
+      shipComputer.dispatch('pilot-console', 'flight', 'look', { x: state.view.x, y: state.view.y });
+    }
   });
 
   const endAim = event => {
@@ -1114,6 +1160,10 @@ function holdButton(id, key) {
     event.preventDefault();
 
     state[key] = true;
+    const flightCommand = { throttle: 'throttle', braking: 'brake', nitroButton: 'nitro' }[key];
+    if (flightCommand && shipComputer.isTerminalConnected('pilot-console')) {
+      shipComputer.dispatch('pilot-console', 'flight', flightCommand, true);
+    }
 
     try {
       button.setPointerCapture(event.pointerId);
@@ -1124,6 +1174,10 @@ function holdButton(id, key) {
 
   const stop = () => {
     state[key] = false;
+    const flightCommand = { throttle: 'throttle', braking: 'brake', nitroButton: 'nitro' }[key];
+    if (flightCommand && shipComputer.isTerminalConnected('pilot-console')) {
+      shipComputer.dispatch('pilot-console', 'flight', flightCommand, false);
+    }
   };
 
   ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type => {
