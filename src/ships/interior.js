@@ -154,16 +154,12 @@ export function createStarshipInterior(options = {}) {
   {
     const y = STARSHIP_LAYOUT.decks[3].y + 2.65;
     // Hangar sem paredes laterais externas: mantém o centro amplo e aberto.
-    // Compartimentos de apoio nas laterais, mantendo o centro livre.
-    addBox(group, [10, 5.25, 0.4], [-25, y, -26], wallMat, 'D4-Port-Support-Partition');
-    addBox(group, [10, 5.25, 0.4], [25, y, -26], wallMat, 'D4-Starboard-Support-Partition');
-    addBox(group, [10, 5.25, 0.4], [-25, y, 23], wallMat, 'D4-Port-Aft-Partition');
-    addBox(group, [10, 5.25, 0.4], [25, y, 23], wallMat, 'D4-Starboard-Aft-Partition');
-    // Porta externa do hangar exclusiva do D4, integrada ao reforço da popa.
+    // Hangar livre de divisórias periféricas que ultrapassavam o novo contorno.
+    // Antepara frontal e moldura traseira dimensionadas para o deck reduzido.
     addBox(group, [30, 5.25, 0.55], [0, y, -28.5], bulkheadMat, 'D4-Hangar-Forward-Bulkhead');
     const doorWidth = 16;
     const doorHeight = 4.2;
-    const sideWidth = (54 - doorWidth) / 2;
+    const sideWidth = (35 - doorWidth) / 2;
     const aftZ = 26.5;
     addBox(group, [sideWidth, 5.25, 0.75], [-(doorWidth / 2 + sideWidth / 2), y, aftZ], bulkheadMat, 'D4-Aft-Door-Port-Frame');
     addBox(group, [sideWidth, 5.25, 0.75], [(doorWidth / 2 + sideWidth / 2), y, aftZ], bulkheadMat, 'D4-Aft-Door-Starboard-Frame');
