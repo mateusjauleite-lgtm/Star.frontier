@@ -18,7 +18,7 @@ export const STARSHIP_LAYOUT = Object.freeze({
 export function createStarshipInterior(options = {}) {
   const group = new THREE.Group();
   group.name = 'StarFrontier-ExplorationShip-Interior';
-  const position = options.position || [-70, 0, -105];
+  const position = options.position || [0, 0, 0];
   group.position.set(...position);
 
   const floorMat = new THREE.MeshStandardMaterial({
