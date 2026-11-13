@@ -770,6 +770,8 @@ function updateCharacterCamera() {
     const desired = characterCameraWorldPosition.clone().add(characterCameraOffset);
     camera.position.lerp(desired, 0.22);
     const lookTarget = target.addScaledVector(characterCameraForward, 1.4);
+    // O arrasto vertical da mira também inclina o ponto observado em terceira pessoa.
+    lookTarget.y += Math.sin(characterPitch) * 4.2;
     camera.lookAt(lookTarget);
   }
 }
@@ -1094,6 +1096,8 @@ if (characterAim) {
     characterPreviousY = event.clientY;
     characterYaw -= dx * 0.005;
     characterPitch = THREE.MathUtils.clamp(characterPitch - dy * 0.004, -0.65, 0.65);
+    // Atualiza a orientação imediatamente, mesmo quando o personagem está parado.
+    if (characterModel?.group) characterModel.group.rotation.y = characterYaw;
   });
   const endCharacterAim = event => {
     if (characterAimPointer === event.pointerId) characterAimPointer = null;
