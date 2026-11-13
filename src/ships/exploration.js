@@ -59,23 +59,27 @@ export function createExplorationShip() {
   addMesh(new THREE.SphereGeometry(1, 36, 24), undersideMaterial,
     [0, -10.2, 18], [11.5, 4.8, 25], 'Engineering-Secondary-Hull');
 
+  // Popa estrutural integrada: uma travessa contínua recebe a porta do hangar
+  // e distribui a carga para os dois suportes das nacelles.
+  addMesh(new THREE.BoxGeometry(43, 7.2, 8), undersideMaterial,
+    [0, -5.2, 45], [1, 1, 1], 'Integrated-Aft-Structural-Beam');
+  addMesh(new THREE.BoxGeometry(12, 5.5, 12), hullMaterial,
+    [0, -3.8, 48], [1, 1, 1], 'Aft-Hangar-Door-Frame');
+
+  for (const side of [-1, 1]) {
+    const aftArm = addMesh(new THREE.BoxGeometry(5.5, 5.2, 15), undersideMaterial,
+      [side * 17, -1.8, 48], [1, 1, 1], side < 0 ? 'Port-Aft-Nacelle-Root' : 'Starboard-Aft-Nacelle-Root');
+    aftArm.rotation.y = side * -0.12;
+  }
+
   const engineFlames = [];
   const engineLights = [];
 
   for (const side of [-1, 1]) {
-    // Pilares laterais conectam o casco às nacelles.
-    const pylon = addMesh(
-      new THREE.BoxGeometry(5.5, 13, 19),
-      undersideMaterial,
-      [side * 24, -2.2, 12],
-      [1, 1, 1],
-      side < 0 ? 'Port-Nacelle-Pylon' : 'Starboard-Nacelle-Pylon'
-    );
-    pylon.rotation.z = side * -0.22;
-
+    // Nacelles recuadas: paralelas ao eixo longitudinal e ligadas à popa integrada.
     const nacelle = new THREE.Group();
     nacelle.name = side < 0 ? 'Port-Warp-Nacelle' : 'Starboard-Warp-Nacelle';
-    nacelle.position.set(side * 37, 1.2, 10);
+    nacelle.position.set(side * 18, 0.2, 58);
     visual.add(nacelle);
 
     const body = new THREE.Mesh(
