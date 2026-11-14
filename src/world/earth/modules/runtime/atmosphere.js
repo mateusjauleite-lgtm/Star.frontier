@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import {
   EARTH_ATMOSPHERE_LAYERS,
   atmosphereAltitudeToVisualKm
-} from '../atmosphereModel.js';
+} from './atmosphereModel.js';
 
 export function createAtmosphereRuntime({ group, options, layers }) {
   const atmosphereGroup = new THREE.Group();
