@@ -204,7 +204,9 @@ Still required before the UI shell is considered integrated:
 - [x] Use UI-only input mode and cursor while the menu is open; restore game-only input when it closes.
 - [x] Forward display-name and section intent through Blueprint integration events without storing profile data in the controller.
 - [x] Set the controller as the Main GameMode's default PlayerController class.
-- [x] Review source lifecycle ordering: GameMode ensures the ship before player start; `Super::HandleStartingNewPlayer_Implementation` spawns/possesses the pawn; D1 placement follows; the local PlayerController owns the menu overlay; Character HUD is created after possession. Runtime ordering still requires Editor verification.
+- [x] Review source lifecycle ordering: GameMode ensures the ship before player start; `Super::HandleStartingNewPlayer_Implementation` spawns/possesses the pawn; D1 placement follows; the local PlayerController owns the menu overlay; Character HUD is created after possession.
+- [x] Offset the UE Character capsule centre by its scaled half-height when placing it at deck level, so its bottom aligns with the D1 floor instead of intersecting it.
+- [x] Add startup error logs for starting-ship spawn and deck-placement failures. Runtime ordering and collision still require Editor verification.
 - [ ] Verify touch interaction, keyboard/gamepad focus, menu dismissal and return to gameplay in a UE5.8 test map.
 
 ## Phase 6 — Integration and target-device validation
@@ -234,4 +236,4 @@ Still required before the UI shell is considered integrated:
 - [ ] Execute the script in Unreal Editor 5.8, save and commit `Content/StarFrontier/Maps/L_StarFrontier_Main.umap`.
 - [ ] Compile and run the map to verify the actual engine lifecycle, menu/HUD z-order, D1 placement and input handoff.
 
-**Initialization contract:** the map owns only entry-level actors and lighting. `FrontierGameMode` owns the starting ship and D1 placement. `FrontierPlayerController` owns the local main-menu overlay and input mode. `AFrontierCharacter` owns its on-foot HUD after possession. `AFrontierShip` owns ship/deck state; merely placing the character on D1 does not enter pilot mode.
+**Initialization contract:** the map owns only entry-level actors and lighting. `FrontierGameMode` owns the starting ship and D1 placement. `FrontierPlayerController` owns the local main-menu overlay and input mode. `AFrontierCharacter` owns its on-foot HUD after possession. `AFrontierShip` owns ship/deck state; deck placement offsets the capsule centre by its scaled half-height and does not enter pilot mode.
