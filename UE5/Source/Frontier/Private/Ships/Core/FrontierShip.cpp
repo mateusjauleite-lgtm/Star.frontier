@@ -100,7 +100,8 @@ bool AFrontierShip::PlaceCharacterOnDeck(AFrontierCharacter* Character, FName De
 
 void AFrontierShip::BeginPiloting(AFrontierCharacter* Character, FName NewCommanderId)
 {
-    if (!Character || !Character->CharacterState ||
+    APlayerController* PC = Character ? Cast<APlayerController>(Character->GetController()) : nullptr;
+    if (!Character || !Character->CharacterState || !PC || !PC->IsLocalController() ||
         Character->CharacterState->State.Mode != EFrontierCharacterMode::OnFoot ||
         (ActivePilot.IsValid() && ActivePilot.Get() != Character)) return;
 
@@ -115,7 +116,7 @@ void AFrontierShip::BeginPiloting(AFrontierCharacter* Character, FName NewComman
         if (UFrontierPlayerShipSubsystem* PlayerShip = World->GetSubsystem<UFrontierPlayerShipSubsystem>())
             PlayerShip->SetPlayerShip(this);
 
-    if (APlayerController* PC = Cast<APlayerController>(Character->GetController()))
+    if (PC)
     {
         PC->SetViewTarget(this);
         {
