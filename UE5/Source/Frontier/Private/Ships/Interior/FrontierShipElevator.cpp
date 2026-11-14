@@ -1,67 +1,89 @@
-#pragma once
+#include "Ships/Interior/FrontierShipElevator.h"
+#include "Ships/Core/FrontierShip.h"
+#include "Character/Core/FrontierCharacter.h"
+#include "Components/SphereComponent.h"
+#include "Components/SceneComponent.h"
 
-#include "CoreMinimal.h"
-#include "GameFramework/Actor.h"
-#include "Character/Interaction/FrontierInteractable.h"
-#include "FrontierShipElevator.generated.h"
-
-class AFrontierShip;
-class USphereComponent;
-
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FFrontierShipElevatorRequested, AActor*, Character);
-
-USTRUCT(BlueprintType)
-struct FRONTIER_API FFrontierShipElevatorStop
+AFrontierShipElevator::AFrontierShipElevator()
 {
-    GENERATED_BODY()
+    PrimaryActorTick.bCanEverTick = false;
+    USceneComponent* SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("ElevatorRoot"));
+    SetRootComponent(SceneRoot);
+    InteractionVolume = CreateDefaultSubobject<USphereComponent>(TEXT("ElevatorInteraction"));
+    InteractionVolume->SetupAttachment(SceneRoot);
+    InteractionVolume->SetSphereRadius(1050.0f);
+    InteractionVolume->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+    InteractionVolume->SetCollisionResponseToAllChannels(ECR_Ignore);
+    InteractionVolume->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Ship|Elevator")
-    FName DeckCode;
+    Stops.Add({ FName(TEXT("D1")), FVector(0.0f, 8.93f, 25.0f) });
+    Stops.Add({ FName(TEXT("D2")), FVector(0.0f, 3.13f, 25.0f) });
+    Stops.Add({ FName(TEXT("D3")), FVector(0.0f, -2.67f, 25.0f) });
+    Stops.Add({ FName(TEXT("D4")), FVector(0.0f, -8.47f, 25.0f) });
+}
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Ship|Elevator")
-    FVector LegacyThreePosition = FVector(0.0f, 0.23f, 25.0f);
-};
-
-UCLASS(Blueprintable)
-class FRONTIER_API AFrontierShipElevator : public AActor, public IFrontierInteractable
+void AFrontierShipElevator::BeginPlay()
 {
-    GENERATED_BODY()
+    Super::BeginPlay();
+}
 
-public:
-    AFrontierShipElevator();
+void AFrontierShipElevator::InitializeForShip(AFrontierShip* Ship)
+{
+    OwningShip = Ship;
+    if (Ship) AttachToActor(Ship, FAttachmentTransformRules::KeepWorldTransform);
+}
 
-    UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category="Ship|Elevator")
-    TObjectPtr<AFrontierShip> OwningShip;
+FName AFrontierShipElevator::GetNearestDeckCode(const AActor* Character) const
+{
+    if (!Character || !OwningShip) return NAME_None;
+    const FVector Local = OwningShip->GetActorTransform().InverseTransformPosition(Character->GetActorLocation());
+    FName Result = NAME_None;
+    float Best = TNumericLimits<float>::Max();
+    for (const FFrontierShipElevatorStop& Stop : Stops)
+    {
+        const float Height = AFrontierShip::ThreeToUnrealLocalPosition(Stop.LegacyThreePosition).Z;
+        const float Distance = FMath::Abs(Local.Z - Height);
+        if (Distance < Best) { Best = Distance; Result = Stop.DeckCode; }
+    }
+    return Result;
+}
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Ship|Elevator")
-    TObjectPtr<USphereComponent> InteractionVolume;
+bool AFrontierShipElevator::MoveCharacterToDeck(AActor* Character, FName DeckCode)
+{
+    AFrontierCharacter* FrontierCharacter = Cast<AFrontierCharacter>(Character);
+    return FrontierCharacter && OwningShip && OwningShip->PlaceCharacterOnDeck(FrontierCharacter, DeckCode);
+}
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Ship|Elevator")
-    TArray<FFrontierShipElevatorStop> Stops;
+bool AFrontierShipElevator::MoveUp(AActor* Character)
+{
+    const FName Current = GetNearestDeckCode(Character);
+    for (int32 I = 0; I < Stops.Num(); ++I)
+        if (Stops[I].DeckCode == Current)
+            return I > 0 && MoveCharacterToDeck(Character, Stops[I - 1].DeckCode);
+    return false;
+}
 
-    UPROPERTY(BlueprintAssignable, Category="Ship|Elevator")
-    FFrontierShipElevatorRequested OnElevatorRequested;
+bool AFrontierShipElevator::MoveDown(AActor* Character)
+{
+    const FName Current = GetNearestDeckCode(Character);
+    for (int32 I = 0; I < Stops.Num(); ++I)
+        if (Stops[I].DeckCode == Current)
+            return I < Stops.Num() - 1 && MoveCharacterToDeck(Character, Stops[I + 1].DeckCode);
+    return false;
+}
 
-protected:
-    virtual void BeginPlay() override;
+FText AFrontierShipElevator::GetInteractionLabel_Implementation() const
+{
+    return FText::FromString(TEXT("Usar elevador"));
+}
 
-public:
-    UFUNCTION(BlueprintCallable, Category="Ship|Elevator")
-    bool MoveCharacterToDeck(AActor* Character, FName DeckCode);
+bool AFrontierShipElevator::CanBeInteractedWith_Implementation(AActor* InteractingActor) const
+{
+    return IsValid(InteractingActor) && IsValid(OwningShip);
+}
 
-    UFUNCTION(BlueprintCallable, Category="Ship|Elevator")
-    bool MoveUp(AActor* Character);
-
-    UFUNCTION(BlueprintCallable, Category="Ship|Elevator")
-    bool MoveDown(AActor* Character);
-
-    UFUNCTION(BlueprintCallable, Category="Ship|Elevator")
-    FName GetNearestDeckCode(const AActor* Character) const;
-
-    UFUNCTION(BlueprintCallable, Category="Ship|Elevator")
-    void InitializeForShip(AFrontierShip* Ship);
-
-    virtual FText GetInteractionLabel_Implementation() const override;
-    virtual bool CanBeInteractedWith_Implementation(AActor* InteractingActor) const override;
-    virtual void Interact_Implementation(AActor* InteractingActor) override;
-};
+void AFrontierShipElevator::Interact_Implementation(AActor* InteractingActor)
+{
+    if (CanBeInteractedWith_Implementation(InteractingActor))
+        OnElevatorRequested.Broadcast(InteractingActor);
+}
