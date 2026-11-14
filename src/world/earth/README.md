@@ -49,6 +49,23 @@ is unchanged. See `interop/README.md` and
 `references/three-to-unreal-migration.md` for compatibility limits and staged
 migration gates.
 
+## Physical Earth profile and render scale
+
+`planetaryProfile.js` now defines a data-only Earth reference profile with
+mean radius 6,371.0088 km, equatorial and polar reference radii, and standard
+gravity. These scientific values are independent from the current Three.js
+visual radius (300 render units by default). The profile exposes explicit
+kilometre-to-render-unit conversion helpers; it does not rescale the existing
+scene automatically.
+
+The UE5 profile records 6,360 km as an Epic Sky Atmosphere documentation
+example only. The final atmosphere ground radius must be matched to the
+selected spherical mesh and visual scale. LWC is a precision aid, not a
+substitute for local tile coordinates, camera-relative rendering, or device
+profiling. The character HUD now displays the physical mean radius as compact
+planetary context; it does not claim a live altitude, gravity, or climate
+measurement.
+
 ## Planetary interior
 
 The new interior module is independent from the surface and atmosphere
