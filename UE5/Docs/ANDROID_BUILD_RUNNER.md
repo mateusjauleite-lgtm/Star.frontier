@@ -1,15 +1,15 @@
-# UE5 Android build runner
+# UE 5.8 Android build runner
 
 ## Purpose
 
-The workflow `.github/workflows/android-apk.yml` packages the native Unreal project. It does not use Node, Vite, Three.js or Capacitor.
+The workflow `.github/workflows/android-apk.yml` packages the native Unreal project. It does not use Node, Vite, Three.js or Capacitor.\n\nStar Frontier is pinned to **Unreal Engine 5.8** in `UE5/StarFrontier.uproject`. The Android preflight rejects any other major/minor engine version, preventing a runner from silently packaging with a different UE release.
 
 GitHub-hosted runners do not include the licensed Unreal Engine installation needed by this project. The workflow therefore targets a trusted, self-hosted **Windows x64** runner.
 
 ## 1. Prepare the Windows machine
 
-1. Install the exact Unreal Engine 5 version selected for Star Frontier. The repository intentionally leaves `EngineAssociation` blank until that version is confirmed.
-2. Open the project in that Editor version once and compile the Frontier C++ module. Resolve all compiler and plugin errors before treating the runner as build-ready.
+1. Install the official stable Unreal Engine **5.8** release from the Epic Games Launcher or an approved source-code build.
+2. Open `UE5/StarFrontier.uproject` with UE 5.8 and compile the Frontier C++ module. Resolve all compiler and plugin errors before treating the runner as build-ready.
 3. In Unreal Editor, open **Platforms → SDK Management → Android → Install SDK** and complete the Turnkey prompts. Turnkey installs the Android Studio command-line tools and the SDK, NDK and JDK versions verified for that engine release.
 4. Restart/log out and back in if Turnkey changed environment variables.
 5. Generate and save the startup map by running `UE5/Tools/EditorPython/create_main_startup_map.py` in the Unreal Editor. Commit `UE5/Content/StarFrontier/Maps/L_StarFrontier_Main.umap`.
@@ -19,7 +19,7 @@ GitHub-hosted runners do not include the licensed Unreal Engine installation nee
    .\UE5\Tools\CI\Validate-AndroidRunner.ps1
    ```
 
-The preflight checks the Unreal Automation Tool, UnrealBuildTool, engine version metadata, Java, Android SDK platform-tools, NDK metadata, project descriptor and startup map. It does not replace Unreal Turnkey's SDK compatibility validation.
+The preflight checks the Unreal Automation Tool, UnrealBuildTool, enforces UE 5.8 using engine version metadata, Java, Android SDK platform-tools, NDK metadata, project descriptor and startup map. It does not replace Unreal Turnkey's SDK compatibility validation.
 
 ## 2. Register the runner with GitHub
 
@@ -39,10 +39,10 @@ Open **Settings → Secrets and variables → Actions → Variables** and add:
 
 | Variable | Value |
 |---|---|
-| `UE_ROOT` | Unreal Engine installation root, containing `Engine/Build/BatchFiles/RunUAT.bat` |
+| `UE_ROOT` | Unreal Engine 5.8 installation root, containing `Engine/Build/BatchFiles/RunUAT.bat` |
 | `ANDROID_HOME` | Android SDK root installed/selected by Turnkey |
-| `NDKROOT` | Android NDK directory compatible with this Unreal version |
-| `JAVA_HOME` | JDK directory compatible with this Unreal version |
+| `NDKROOT` | Android NDK directory compatible with UE 5.8 |
+| `JAVA_HOME` | JDK directory compatible with UE 5.8 |
 
 These are paths, not credentials, so repository Actions variables are appropriate. Never put signing keystores, passwords or private keys in these variables; release signing should use GitHub Secrets and a separate protected release workflow.
 
@@ -50,7 +50,7 @@ These are paths, not credentials, so repository Actions variables are appropriat
 
 Use **Actions → Build Star Frontier UE5 Android APK → Run workflow**. The job:
 
-1. Validates the toolchain and startup map.
+1. Validates the UE 5.8 toolchain and startup map.
 2. Calls Unreal Automation Tool with `BuildCookRun` for Android Development.
 3. Checks that an APK exists.
 4. Uploads the APK as a workflow artifact for 14 days.
@@ -59,7 +59,7 @@ The first successful run is the acceptance gate for this pipeline. Until then, t
 
 ## Version compatibility
 
-Do not hard-code a generic Android Studio/SDK/NDK/JDK combination. Unreal's required versions depend on the exact engine release. Use Turnkey and the matching version of Epic's Android documentation. For current UE 5.8 documentation, Epic lists target SDK 35, minimum compile SDK 34, NDK r27c, Build Tools 35.0.1 and OpenJDK 21.0.3; these values must not be copied blindly if this project is opened with another UE version.
+Use the official stable UE 5.8 release and install its Android toolchain through Turnkey. Do not hard-code a generic Android Studio/SDK/NDK/JDK combination or reuse values from another Unreal release. Epic's UE 5.8 Android documentation lists target SDK 35, minimum compile SDK 34, NDK r27c, Build Tools 35.0.1 and OpenJDK 21.0.3; confirm the installed versions with UE 5.8 Turnkey before packaging.
 
 References:
 - [Android Quick Start](https://dev.epicgames.com/documentation/unreal-engine/android-quick-start)
