@@ -160,3 +160,13 @@ UE5 mapping:
 ## Migration status
 
 Planetary Core, Character Core, Ship Core and the initial Atmosphere & Climate Core now have native UE5 source scaffolds on the migration branch. Ship Core includes its root collision proxy, deck-definition composition, ship-local elevator selection, boost speed scaling, a guarded pilot-exit API and a visual-only Engine FX branch. Atmosphere & Climate includes composition, vertical layers, climate baseline and altitude sampling. These are source-level integrations only; they have not been compiled or tested in Unreal Editor. Ship assets, authored Data Assets, terminal configuration, Enhanced Input/mobile UI bindings and final collision tuning remain Editor-side work. The existing core names and branch boundaries must remain recognizable throughout the port.
+
+
+### Native UE5 Earth Core source slice (14 Nov 2026)
+
+- `AFrontierEarth` is the Earth-specific composition root. It consumes a valid Earth `UPlanetaryProfileDataAsset` and an `UAtmosphereClimateProfileDataAsset` that references the exact same planetary asset.
+- `UFrontierEarthBranchComponent` supplies the independent lifecycle contract for each branch. The actor creates seven separate component instances; this is an orchestration scaffold, not yet the visual renderer implementation.
+- Branch order and dependencies preserve the legacy registry: Interior []; Surface []; Terrain [Surface]; Oceans [Surface]; Atmosphere []; Clouds [Atmosphere]; Lighting [Atmosphere].
+- Physical dimensions remain in Planetary Core. The actor exposes a derived visual-units-per-kilometre ratio from the independent visual radius; it does not overwrite physical radius values.
+- Current asset audit: `assets/models` and `assets/textures` contain README placeholders only; no Earth model/texture payloads or native UE5 Earth `.uasset` / `.umap` packages are present in the migration branch. The planetary JSON profile exists, but its native Data Asset and the linked Earth atmosphere profile still need to be authored in Editor.
+- No Three.js runtime code or dependency is introduced into the UE5 module.
