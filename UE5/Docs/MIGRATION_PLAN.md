@@ -70,6 +70,32 @@ Still required before Character Core is considered migrated:
 
 ## Phase 3 — Ship Core and branches
 
+Initial native source scaffold committed:
+- [x] AFrontierShip owns ShipId, CommanderId and ship flight state.
+- [x] Exploration hull profile and modular mesh assembly component.
+- [x] Independent deck module actor and Data Asset with per-wall transform/collision.
+- [x] Four original deck identities: D1 command, D2 operations/science, D3 engineering, D4 hangar/support.
+- [x] Protected hangar-exit and elevator-access clearance volumes in deck definitions.
+- [x] Elevator actor with D1–D4 stops and deck routing.
+- [x] Bridge pilot station with original local console position and character interaction.
+- [x] Ship computer boot/shutdown, terminal permissions and navigation telemetry.
+- [x] Engine component for acceleration, speed, boost and braking.
+- [x] Dedicated ship camera boom and camera.
+- [x] Ship controls component exposing throttle, pitch, yaw, brake and boost.
+- [x] Player ship association World Subsystem.
+- [x] Pilot handoff attaches the character to the ship frame, changes view target and restores the character at the bridge exit when piloting ends.
+- [x] Explicit Three.js Y-up/metre-like to UE5 X-forward/Z-up/centimetre position conversion.
+
+Still required before Ship Core is considered migrated:
+- [ ] Import/assemble the actual exploration hull, nacelles, engines and interior mesh assets.
+- [ ] Create the four deck Data Assets and set each wall's transform/collision separately.
+- [ ] Define the actual hangar-exit and elevator-access clearance boxes and verify there are no obstructing meshes or collision.
+- [ ] Add bridge stations/console meshes and configure terminal permissions per station.
+- [ ] Bind flight controls to Enhanced Input and mobile UMG controls.
+- [ ] Connect pilot exit action to EndPiloting and validate camera/character restoration.
+- [ ] Verify character starts on Deck 1 and deck/elevator circulation is correct.
+- [ ] Compile with Unreal Build Tool and test ship movement, collision and deck routing in Editor.
+
 Preserve the existing ship branch ownership: exploration hull, interior/decks, bridge, computer, engines, camera, controls and player-ship association.
 
 - Keep ShipId and CommanderId owned by Ship Core.
@@ -114,7 +140,7 @@ Earth Core v1.6.0 remains the orchestrator of seven branches: interior, surface,
 
 ## Current limitations and risks
 
-1. The native Planetary and Character Core source scaffolds have not been compiled; Unreal Editor/Build Tool validation is still required.
+1. The native Planetary, Character and Ship Core source scaffolds have not been compiled; Unreal Editor/Build Tool validation is still required.
 2. A runnable `.uproject` and generated UE assets are not yet present.
 3. Planet-scale spherical streaming needs a dedicated coordinate/tile design; World Partition alone does not solve a spherical planet.
 4. High-end rendering features can exceed the target Android budget.
