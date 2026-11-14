@@ -51,19 +51,21 @@ void AFrontierCharacter::BeginPlay()
         }
     }
 
-    if (APlayerController* PC = Cast<APlayerController>(GetController()))
+}
+
+void AFrontierCharacter::PawnClientRestart()
+{
+    Super::PawnClientRestart();
+
+    APlayerController* PC = Cast<APlayerController>(GetController());
+    ULocalPlayer* LocalPlayer = PC ? PC->GetLocalPlayer() : nullptr;
+    UEnhancedInputLocalPlayerSubsystem* InputSubsystem = LocalPlayer
+        ? LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>()
+        : nullptr;
+
+    if (InputSubsystem && InputConfig && InputConfig->MappingContext)
     {
-        if (ULocalPlayer* LocalPlayer = PC->GetLocalPlayer())
-        {
-            if (UEnhancedInputLocalPlayerSubsystem* InputSubsystem =
-                LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
-            {
-                if (InputConfig && InputConfig->MappingContext)
-                {
-                    InputSubsystem->AddMappingContext(InputConfig->MappingContext, 0);
-                }
-            }
-        }
+        InputSubsystem->AddMappingContext(InputConfig->MappingContext, 0);
     }
 }
 
