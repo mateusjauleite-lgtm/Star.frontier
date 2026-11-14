@@ -8,6 +8,8 @@
 class AFrontierShip;
 class USphereComponent;
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FFrontierShipElevatorRequested, AActor*, Character);
+
 USTRUCT(BlueprintType)
 struct FRONTIER_API FFrontierShipElevatorStop
 {
@@ -36,6 +38,9 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Ship|Elevator")
     TArray<FFrontierShipElevatorStop> Stops;
+
+    UPROPERTY(BlueprintAssignable, Category="Ship|Elevator")
+    FFrontierShipElevatorRequested OnElevatorRequested;
 
 protected:
     virtual void BeginPlay() override;
