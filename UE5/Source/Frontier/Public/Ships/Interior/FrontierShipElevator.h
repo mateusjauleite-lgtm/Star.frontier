@@ -44,6 +44,18 @@ public:
     UFUNCTION(BlueprintCallable, Category="Ship|Elevator")
     bool MoveCharacterToDeck(AActor* Character, FName DeckCode);
 
+    UFUNCTION(BlueprintCallable, Category="Ship|Elevator")
+    bool MoveUp(AActor* Character);
+
+    UFUNCTION(BlueprintCallable, Category="Ship|Elevator")
+    bool MoveDown(AActor* Character);
+
+    UFUNCTION(BlueprintCallable, Category="Ship|Elevator")
+    FName GetNearestDeckCode(const AActor* Character) const;
+
+    UFUNCTION(BlueprintCallable, Category="Ship|Elevator")
+    void InitializeForShip(AFrontierShip* Ship);
+
     virtual FText GetInteractionLabel_Implementation() const override;
     virtual bool CanBeInteractedWith_Implementation(AActor* InteractingActor) const override;
     virtual void Interact_Implementation(AActor* InteractingActor) override;
