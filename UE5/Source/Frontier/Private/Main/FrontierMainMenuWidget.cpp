@@ -73,6 +73,7 @@ void UFrontierMainMenuWidget::BuildNativeLayout()
     BackgroundSlot->SetOffsets(FMargin(0.0f));
 
     USafeZone* SafeZone = WidgetTree->ConstructWidget<USafeZone>();
+    SafeZone->SetSidesToPad(true, true, true, true);
     Background->SetContent(SafeZone);
 
     UVerticalBox* MainColumn = WidgetTree->ConstructWidget<UVerticalBox>();
