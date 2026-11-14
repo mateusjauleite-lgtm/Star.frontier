@@ -194,7 +194,18 @@ Still required before the UI shell is considered integrated:
 - [ ] Apply the shared theme consistently to every HUD and panel.
 - [ ] Compile with Unreal Build Tool, inspect in UE 5.8 Editor, and test landscape/mobile safe areas and touch response.
 
-**Current gate:** native source scaffold only. No Unreal compile, Editor preview, runtime menu spawn, Blueprint asset or Android package has been verified.
+**Current gate:** PlayerController and menu wiring are native source scaffolds. Static source checks only; no Unreal compile, Editor preview, runtime menu spawn, Blueprint asset or Android package has been verified. The startup `.umap` is also still absent, so the configured default map must be generated in Editor before a full project launch test.
+
+### Main menu PlayerController integration
+
+- [x] Add `AFrontierPlayerController` with configurable menu widget class and opt-out flag for test maps.
+- [x] Create the native menu on the local controller and add it above the character HUD.
+- [x] Bind menu profile-name, section-change and play-request multicast delegates.
+- [x] Use UI-only input mode and cursor while the menu is open; restore game-only input when it closes.
+- [x] Forward display-name and section intent through Blueprint integration events without storing profile data in the controller.
+- [x] Set the controller as the Main GameMode's default PlayerController class.
+- [ ] Verify controller lifecycle ordering against pawn spawn, Character HUD and starting-ship placement in Unreal Editor.
+- [ ] Verify touch interaction, keyboard/gamepad focus, menu dismissal and return to gameplay in a UE5.8 test map.
 
 ## Phase 6 — Integration and target-device validation
 
