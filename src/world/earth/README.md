@@ -38,6 +38,17 @@ architecture guidance, not a claim that the current game already runs a
 geophysics or climate simulation. Physical units must remain separate from
 compressed visual scale.
 
+## Unreal Engine 5 interoperability
+
+The Earth core exposes a versioned, engine-neutral handoff contract at
+`interop/ue5Contract.js`. It defines a proposed GLB/glTF 2.0 asset boundary,
+explicit visual scale and coordinate verification, and the separation of
+scientific values from renderer-specific units. This is not a UE5 runtime,
+asset exporter, or completed migration. The active seven-layer Three.js Earth
+is unchanged. See `interop/README.md` and
+`references/three-to-unreal-migration.md` for compatibility limits and staged
+migration gates.
+
 ## Planetary interior
 
 The new interior module is independent from the surface and atmosphere
