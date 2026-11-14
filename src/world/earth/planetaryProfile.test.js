@@ -43,3 +43,25 @@ test('global elevation grid rejects invalid and no-data samples', () => {
   assert.equal(sampleEarthElevationGrid(grid, 180, 90), null);
   assert.equal(sampleEarthElevationGrid(null, 0, 0), null);
 });
+
+import { createEarthKernelAdapter } from './wasm/earthKernel.js';
+
+test('Earth kernel JavaScript fallback samples elevation and ignores zero-weight no-data neighbours', () => {
+  const kernel = createEarthKernelAdapter();
+  const grid = {
+    width: 2, height: 2,
+    values: new Float32Array([10, -9999, 30, 40]),
+    noDataValue: -9999
+  };
+  assert.equal(kernel.sampleElevation(grid, -180, 90), 10);
+  assert.equal(kernel.sampleElevation(grid, 180, 90), null);
+  assert.equal(kernel.sampleElevation(grid, 0, 0), null);
+  assert.equal(kernel.backend, 'javascript-fallback');
+});
+
+test('Earth kernel fallback converts physical elevation into visual units', () => {
+  const kernel = createEarthKernelAdapter();
+  assert.ok(Math.abs(kernel.elevationMetersToUnits(1000, 300, 6371.0088, 8) - (300 / 6371.0088 * 8)) < 1e-9);
+  kernel.dispose();
+  assert.equal(kernel.elevationMetersToUnits(1000, 300, 6371.0088, 8), null);
+});
