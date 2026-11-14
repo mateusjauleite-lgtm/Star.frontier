@@ -7,6 +7,19 @@ This source tree preserves the established Star Frontier **Core → branches** a
 - `Frontier.Build.cs` — Core, CoreUObject, Engine, EnhancedInput and UMG dependencies.
 - `Private/Frontier.cpp` — module entry point.
 
+## Initial Main Core source scaffold
+
+```text
+Main/
+  FrontierGameMode.h/.cpp
+Config/
+  DefaultEngine.ini
+```
+
+`AFrontierGameMode` is the world-entry coordinator after the Unreal Engine startup splash and map load. It selects `AFrontierCharacter` as the default pawn, spawns the configured exploration ship and places the possessed character on the configured starting deck (D1 by default). The default GameMode is registered in `Config/DefaultEngine.ini`.
+
+This is source/configuration scaffolding only. The UE5 project descriptor, startup map, authored ship Blueprint/assets and Editor validation are still missing. The engine's splash/logo is not implemented as a game menu by this class.
+
 ## Implemented first core: Planetary Core
 
 ```text
