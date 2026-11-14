@@ -1,6 +1,7 @@
 import { NASA_CONTINENT_REFERENCES } from './nasa+continentes.js';
 import { GOOGLE_EARTH_REFERENCES, GOOGLE_EARTH_REFERENCE_POLICY } from './google-earth.js';
 import { PLANETARY_SCIENCE_BASELINE } from '../../planetary/planetaryScience.js';
+import { EARTH_UE5_INTEROP } from '../interop/ue5Contract.js';
 
 /**
  * Research inputs only. Sources cannot alter the stable Earth baseline.
@@ -16,6 +17,14 @@ export const EARTH_REFERENCE_POLICY = Object.freeze({
 });
 
 export const EARTH_REFERENCE_SOURCES = Object.freeze([
+  {
+    id: 'unreal-engine-5-earth-interop',
+    provider: 'Star Frontier UE5 Interoperability Contract',
+    url: './interop/README.md',
+    scope: ['three-to-unreal-migration', 'gltf-glb', 'coordinate-conversion', 'android-compatibility'],
+    usage: 'migration-contract-and-validation-guidance',
+    contract: EARTH_UE5_INTEROP
+  },
   {
     id: 'planetary-science-baseline',
     provider: 'Star Frontier Planetary Science',
