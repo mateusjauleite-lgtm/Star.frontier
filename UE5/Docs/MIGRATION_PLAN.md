@@ -267,3 +267,7 @@ Still required before Earth Core is considered migrated:
 - [ ] Compile and validate the actor and authored assets in Unreal Engine 5.8.
 
 **Exit gate:** Earth actor loads with authored scientific profiles, all seven branch implementations initialize in dependency order, and the visual radius remains independent from physical planetary values.
+
+
+
+Earth profile Data Asset authoring is now scripted idempotently at `UE5/Content/Editor/Python/create_earth_profile_assets.py`. It reuses the existing planetary JSON and Earth atmosphere reference module, targeting the canonical paths documented in `EARTH_CORE.md`. The four D1–D4 ship-deck definitions remain separate; retain their existing idempotent script and asset paths. No duplicate deck assets are to be created for Earth Core.
