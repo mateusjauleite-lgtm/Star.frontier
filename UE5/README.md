@@ -1,46 +1,47 @@
 # Star Frontier — Unreal Engine 5
 
-This directory is the UE5 migration workspace. It follows the existing Star Frontier **Core → branches/modules** architecture; it is not a replacement architecture.
+This workspace is the destination for the **complete migration** of Star Frontier to Unreal Engine 5. UE5 is the sole target engine for future development.
 
-## Status
+## Migration direction
 
-- Migration branch: `ue5/frontier-migration`
-- Baseline: `feature/character-core`
-- Current Three.js runtime: preserved as behavioral and visual reference
-- UE5 runtime: not yet generated or compiled
-- Strategy: migrate existing cores and their branches incrementally, without destructive engine replacement
+- No new gameplay, world, ship, character, HUD or rendering features will be developed in Three.js.
+- Three.js is legacy source material used only to inspect existing behavior, data and assets while each system is ported.
+- The final game runtime is intended to be Unreal Engine 5; this is not a dual-engine project.
+- Existing cores and their branches must be migrated with their ownership boundaries intact. Do not replace them with a generic hierarchy or merge unrelated responsibilities.
+- As each UE5 core passes its acceptance checks, its Three.js counterpart becomes obsolete for active development.
 
-## Existing core systems to preserve
+## Existing core systems to migrate
 
-- Character Core → model, animation, HUD, movement/look and interaction branches.
-- Ship Core → exploration hull, interior/decks, bridge, computer, engines, camera and controls.
+- Character Core → model, animation, HUD, movement/look, camera and interaction branches.
+- Ship Core → exploration hull, interior/decks, bridge, computer, engines, camera, controls and player-ship association.
 - Earth Core v1.6.0 → seven branches: interior, surface, terrain, oceans, atmosphere, clouds and lighting.
-- Planetary Core → shared planetary identity, physical dimensions, gravity, rotation and coordinate rules.
-- Atmosphere & Climate Core → atmospheric science and climate data; rendering effects remain replaceable branches.
-- Geology & Biomes Core → interior, surface, terrain, oceans and biome/geology data.
+- Planetary Core → planetary identity, physical dimensions, gravity, rotation and coordinate rules.
+- Atmosphere & Climate Core → scientific atmospheric and climate data, separate from rendering effects.
+- Geology & Biomes Core → geological/ecological data and biome rules.
 
-The exact existing-to-UE5 mapping and ownership rules are in [CORE_SYSTEMS_MAP.md](Docs/CORE_SYSTEMS_MAP.md).
+The authoritative ownership map is [CORE_SYSTEMS_MAP.md](Docs/CORE_SYSTEMS_MAP.md).
 
 ## Migration sequence
 
-1. Update the existing core/branch registry and data contracts.
-2. Port Planetary Core as an engine-neutral data contract and UE5 adapter.
-3. Port Character Core state/input/camera behavior.
-4. Port Ship Core and its existing branches, keeping decks and wall modules independent.
-5. Port Earth Core and its seven branches, consuming the Planetary, Atmosphere & Climate, and Geology & Biomes domain cores.
-6. Profile and validate on the target Android device before increasing rendering quality.
+1. Complete the existing core/branch inventory and engine-neutral contracts.
+2. Implement Planetary Core in UE5.
+3. Migrate Character Core and its branches.
+4. Migrate Ship Core and its branches, preserving independently editable decks and ship systems.
+5. Migrate Earth Core and its seven branches, integrating Planetary, Atmosphere & Climate, and Geology & Biomes.
+6. Integrate, validate and profile the UE5 game on the target Android device.
 
-## Important boundaries
+## Current implementation status
 
-- The Earth physical profile is scientific reference data, not a complete planetary simulation.
-- Three.js modules are behavioral references, not drop-in UE5 code.
-- GLB/glTF is the first asset interchange format; renderer-specific materials and atmospheric effects must be rebuilt in UE5.
-- Never merge this branch into the active baseline until the migration gates pass.
+- Migration branch: `ue5/frontier-migration`
+- Baseline branch: `feature/character-core` remains preserved and separate.
+- UE5 workspace, core registry, migration plan and data contracts exist.
+- A runnable `.uproject`, native UE5 classes and a compiled Unreal build have **not** yet been produced.
+- Actual porting work must proceed core by core; documentation is not a substitute for implementation.
 
 ## Workspace
 
-- `Docs/CORE_SYSTEMS_MAP.md` — authoritative existing core/branch registry for migration.
-- `Docs/MIGRATION_PLAN.md` — phases and acceptance gates.
-- `Docs/THREE_TO_UE5_MAP.md` — implementation mapping.
+- `Docs/CORE_SYSTEMS_MAP.md` — authoritative core/branch ownership registry.
+- `Docs/MIGRATION_PLAN.md` — migration phases and acceptance gates.
+- `Docs/THREE_TO_UE5_MAP.md` — legacy implementation to UE5 mapping.
 - `Data/planetary-profile.json` — engine-neutral Earth reference data.
 - `Source/Frontier/README.md` — proposed C++/Blueprint module boundaries.
