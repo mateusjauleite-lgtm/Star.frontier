@@ -813,10 +813,11 @@ function updateCharacterMovement(dt) {
   const deck = characterModel.group.position;
 
   if (magnitude > 0.08) {
-    characterYaw -= input.x * dt * 1.9;
+    // A mira controla a orientação. O joystick apenas desloca o personagem,
+    // sem girá-lo junto com o eixo horizontal.
     const forward = new THREE.Vector3(Math.sin(characterYaw), 0, -Math.cos(characterYaw));
     const right = new THREE.Vector3(Math.cos(characterYaw), 0, Math.sin(characterYaw));
-    const direction = forward.multiplyScalar(-input.y).add(right.multiplyScalar(input.x * 0.18));
+    const direction = forward.multiplyScalar(-input.y).add(right.multiplyScalar(input.x));
     if (direction.lengthSq() > 0) direction.normalize();
 
     const step = 3.1 * magnitude * dt;
