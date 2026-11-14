@@ -1,13 +1,9 @@
-/** Structural contract for cloud layers and cloud motion. */
+/** Contract for the independent cloud coverage renderer. */
 export const EARTH_CLOUDS_MODULE = Object.freeze({
-  id: 'clouds',
-  label: 'Nuvens e cobertura',
-  domain: 'clouds',
-  status: 'planned',
-  enabledByDefault: false,
-  dependsOn: ['atmosphere'],
+  id: 'clouds', label: 'Nuvens e cobertura', domain: 'clouds',
+  status: 'preview', enabledByDefault: true, dependsOn: ['atmosphere'],
   referenceScopes: ['clouds', 'atmosphere'],
-  baselineTarget: 'legacy-cloud-shell',
-  responsibilities: ['cloud-layers', 'cloud-shadowing', 'cloud-motion'],
-  implementation: 'pending'
+  baselineTarget: 'modular-earth-clouds',
+  responsibilities: ['cloud-layers', 'cloud-motion', 'coverage-preview'],
+  implementation: './runtime/clouds.js'
 });
