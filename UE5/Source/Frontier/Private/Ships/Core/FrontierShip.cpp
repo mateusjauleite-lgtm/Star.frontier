@@ -40,6 +40,23 @@ void AFrontierShip::AssignCommander(FName NewCommanderId)
     OnIdentityChanged.Broadcast(Identity.ShipId, Identity.CommanderId);
 }
 
+bool AFrontierShip::PlaceCharacterOnDeck(AFrontierCharacter* Character, FName DeckCode)
+{
+    if (!Character) return false;
+
+    FVector LegacyPosition;
+    if (DeckCode == TEXT("D1")) LegacyPosition = FVector(0.0f, 8.91f, -25.5f);
+    else if (DeckCode == TEXT("D2")) LegacyPosition = FVector(0.0f, 3.13f, 25.0f);
+    else if (DeckCode == TEXT("D3")) LegacyPosition = FVector(0.0f, -2.67f, 25.0f);
+    else if (DeckCode == TEXT("D4")) LegacyPosition = FVector(0.0f, -8.47f, 25.0f);
+    else return false;
+
+    Character->AttachToActor(this, FAttachmentTransformRules::KeepWorldTransform);
+    Character->SetActorRelativeLocation(ThreeToUnrealLocalPosition(LegacyPosition));
+    Character->GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+    return true;
+}
+
 void AFrontierShip::BeginPiloting(AFrontierCharacter* Character, FName NewCommanderId)
 {
     if (!Character) return;
