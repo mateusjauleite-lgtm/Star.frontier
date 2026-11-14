@@ -98,6 +98,7 @@ Still required before Ship Core is considered migrated and playable:
 - [x] Add an Unreal Editor Python creation script for the four named deck Data Assets, including D1–D4 identity, labels and clearance flags.
 - [ ] Run the script in Unreal Editor to generate the four binary `.uasset` files, then assign them to the Ship Interior component's `DeckDefinitions` array.
 - [ ] Import floor/wall meshes and author each wall transform/collision separately; set clearance boxes only after measuring the real geometry.
+- [x] Port the legacy interior's four deck elevations and elliptical floor footprints into the deck Data Asset schema; provide an engine-basic-mesh fallback floor so deck geometry can be instantiated before final mesh import.
 - [ ] Define and verify the actual hangar-exit and elevator-access clearance boxes, with no obstructing meshes or collision.
 - [ ] Replace or fit the temporary box collision proxy to the final hull collision geometry.
 - [ ] Add bridge stations/console meshes and configure terminal permissions per station.
