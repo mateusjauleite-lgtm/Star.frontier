@@ -13,7 +13,8 @@ public class Frontier : ModuleRules
             "EnhancedInput",
             "UMG",
             "Slate",
-            "SlateCore"
+            "SlateCore",
+            "Niagara"
         });
     }
 }
