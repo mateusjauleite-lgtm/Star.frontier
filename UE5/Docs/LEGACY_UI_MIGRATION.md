@@ -30,8 +30,8 @@ UE5's `Config/DefaultEngine.ini` already sets the Android package name to `com.m
 
 | Legacy screen / HTML IDs | UE5 destination | Status |
 |---|---|---|
-| Login: `login-screen`, `login-name`, `login-pass`, `login-email`, `country`, `login-btn`, `forgot-btn` | `WBP_FrontierProfileEntry` (UMG), backed by a future profile/account service | Not implemented. The old password field is **not real authentication**: legacy JS only checks that name/password are non-empty and stores a local profile. Do not present it as secure login or store a plaintext password. |
-| Main menu: `menu-screen`, `menu-credits`, `panel-content`, `data-panel` | `WBP_FrontierMainMenu` (UMG) + game-instance/profile state | Not implemented. |
+| Login/profile entry: `login-screen`, `login-name`, `login-pass`, `login-email`, `country`, `login-btn`, `forgot-btn` | `UFrontierMainMenuWidget` profile-name row; future profile/account service remains separate | Initial display-name-only UMG input and handoff event scaffold committed. No password field, authentication, account creation or persistence is implemented. The legacy password field is **not real authentication** and must not be ported as secure login. |
+| Main menu: `menu-screen`, `menu-credits`, `panel-content`, `data-panel` | `UFrontierMainMenuWidget` (native UMG) + future PlayerController/GameInstance navigation | Initial native menu shell and section navigation scaffold committed; not yet spawned by a controller or connected to world startup/profile persistence. |
 | Menu panels: play, story, character, ships, shop, settings | Separate UMG panel widgets or data-driven menu entries; gameplay/economy logic stays in its owning systems | Content inventory captured; panel widgets and backend systems remain outstanding. |
 | Character HUD: `character-hud`, movement/look/action/elevator controls | `UFrontierCharacterHUDWidget` | Native UMG C++ scaffold already exists. Preserve the independent left movement and right 360° look zones. |
 | Character inventory: `inventory-modal`, `inventory-grid`, `inventory-clothing-view`, quick equipment slots | `WBP_FrontierInventory` (UMG) + Character inventory/equipment component | Not implemented as a dedicated UE widget. |
@@ -69,17 +69,26 @@ The CSS currently defines a dark navy science-fiction interface:
 - Accent gold: `#ffc857`; health/positive green: `#54e6a0`; warning red: `#ff5b68`.
 - Thin cyan-blue borders, compact uppercase labels, translucent panels and restrained glow.
 
-Recreate these as shared UE5 Slate/UMG style resources rather than translating CSS selectors one by one. Use anchors/size boxes and safe-zone-aware layout instead of CSS media queries. Keep the mobile landscape layout usable on narrow screens; test touch targets and safe areas on device.
+A shared native palette helper, `FFrontierUIStyle`, now centralizes the legacy colours for panels, headings, body text, buttons and translucent touch surfaces. The main-menu shell uses a UE `USafeZone`; the character and ship HUD button/touch-surface colours now consume the same helper. This is a source scaffold, not a verified visual match. Keep the mobile landscape layout usable on narrow screens; test touch targets, text scaling and safe areas in UE 5.8 mobile preview and on device.
 
 ## Conversion order
 
-1. **Shared UI theme and shell:** establish reusable colours, typography, panel/button styles, safe-zone rules and a single screen-navigation owner.
-2. **Main menu/profile entry:** replace the local demo login with a profile flow that does not imply server authentication; create play/story/character/ships/shop/settings panels.
+1. **Shared UI theme and shell:** [x] add reusable colour/style helpers and a SafeZone-wrapped native menu shell. [ ] verify typography, responsive layout and touch targets in Editor/device; [ ] establish one screen-navigation owner.
+2. **Main menu/profile entry:** [x] add a native UMG menu scaffold with Explore/Story/Character/Ships/Store/Settings navigation and a display-name-only profile input. [ ] connect the widget to PlayerController/GameInstance navigation and a real profile/save layer; [ ] implement each panel; [ ] keep authentication out until a real account service exists.
 3. **Loading and pause:** bind loading to real UE level/asset progress; preserve the safe pilot-exit sequence.
 4. **Inventory:** move item/equipment data into a Character-owned component and build a separate UMG view.
 5. **Integration:** bind the existing character and ship HUDs to the same shared theme; do not merge their ownership.
 6. **Gameplay systems:** port mining, station trade, economy, fuel and upgrades into gameplay systems before exposing them through menu buttons.
 7. **Acceptance:** compile in UE 5.8, inspect every widget in UMG/Editor, test touch input and safe areas, then package and test on Android.
+
+## Initial native UMG implementation (source only)
+
+Committed native source files:
+- `Source/Frontier/Public/UI/FrontierUIStyle.h` and `Private/UI/FrontierUIStyle.cpp` — shared legacy-inspired colour palette and panel/text/button helpers.
+- `Source/Frontier/Public/Main/FrontierMainMenuWidget.h` and `Private/Main/FrontierMainMenuWidget.cpp` — native main-menu shell, SafeZone wrapper, section navigation, display-name input and Blueprint handoff events.
+- Character and ship HUD button/touch-surface colours now use the shared style helper; their input and gameplay ownership remain unchanged.
+
+The menu widget is not yet instantiated by a PlayerController, GameMode or startup flow. Its Blueprint events are extension points, not connected game actions. The profile name is only forwarded to the event; it is not saved or authenticated. The Play event does not yet load a map or alter GameMode. No `.uasset` or Blueprint asset was fabricated.
 
 ## Explicit non-goals
 
