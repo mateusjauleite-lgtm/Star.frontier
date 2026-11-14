@@ -11,7 +11,9 @@ public class Frontier : ModuleRules
             "CoreUObject",
             "Engine",
             "EnhancedInput",
-            "UMG"
+            "UMG",
+            "Slate",
+            "SlateCore"
         });
     }
 }
