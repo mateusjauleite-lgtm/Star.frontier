@@ -27,6 +27,13 @@ AFrontierShip::AFrontierShip()
     ExplorationHull->SetupAttachment(ShipRoot);
 }
 
+FVector AFrontierShip::ThreeToUnrealLocalPosition(const FVector& ThreePosition)
+{
+    // Three.js source: Y-up, Z-forward. UE5: Z-up, X-forward. Source units are metres.
+    constexpr float CentimetresPerSourceUnit = 100.0f;
+    return FVector(-ThreePosition.Z, ThreePosition.X, ThreePosition.Y) * CentimetresPerSourceUnit;
+}
+
 void AFrontierShip::AssignCommander(FName NewCommanderId)
 {
     Identity.CommanderId = NewCommanderId;
@@ -40,7 +47,7 @@ void AFrontierShip::BeginPiloting(AFrontierCharacter* Character, FName NewComman
     AssignCommander(NewCommanderId);
     Character->EnterShipControlMode();
     Character->AttachToActor(this, FAttachmentTransformRules::KeepWorldTransform);
-    Character->SetActorRelativeLocation(FVector(0.0f, 8.91f, -29.5f));
+    Character->SetActorRelativeLocation(ThreeToUnrealLocalPosition(FVector(0.0f, 8.91f, -29.5f)));
     Character->GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     if (UWorld* World = GetWorld())
         if (UFrontierPlayerShipSubsystem* PlayerShip = World->GetSubsystem<UFrontierPlayerShipSubsystem>())
@@ -60,7 +67,7 @@ void AFrontierShip::EndPiloting()
         {
             PC->SetViewTarget(Character);
         }
-        Character->SetActorRelativeLocation(FVector(0.0f, 8.91f, -25.5f));
+        Character->SetActorRelativeLocation(ThreeToUnrealLocalPosition(FVector(0.0f, 8.91f, -25.5f)));
         Character->GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
         Character->LeaveShipControlMode();
     }
