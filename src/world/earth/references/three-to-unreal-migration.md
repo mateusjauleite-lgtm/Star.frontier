@@ -33,8 +33,10 @@ Three.js position. That is a visual game scale, not the physical Earth radius.
 The physical reference values must remain separate from render dimensions.
 The UE5 handoff must explicitly record:
 
-- physical mean radius in kilometres;
-- chosen UE world radius and scale factor;
+- physical mean radius in kilometres (current data profile: 6,371.0088 km);
+- chosen UE world radius and scale factor, kept independent from physical values;
+- UE5 Large World Coordinates for high-precision world transforms, while
+  retaining local tile coordinates and camera-relative rendering for GPU work;
 - altitude in kilometres and its visual mapping;
 - object origin and export transform;
 - axis/up-direction conversion and handedness verification;
@@ -68,7 +70,12 @@ hardware. This establishes platform support, not a guarantee that every UE5
 rendering feature will run well on every phone.
 
 The current Galaxy A34 target needs an actual device profile and on-device
-benchmark. Start with UE's mobile renderer and scalable settings. Do not make
+benchmark. The Earth physical profile now records a mean radius of
+6,371.0088 km separately from the existing 300-unit Three.js visual radius.
+Epic's Sky Atmosphere documentation uses 6,360 km in one Earth-like example;
+that is a renderer example, not the project's authoritative physical radius.
+Match the UE atmosphere ground radius to the actual imported spherical mesh
+before visual acceptance. Start with UE's mobile renderer and scalable settings. Do not make
 Lumen or the Android desktop renderer a requirement: Epic documents mobile
 Lumen as experimental and limited to high-end Android Vulkan SM5 profiles,
 and warns of significant performance costs. A supported GPU family alone
