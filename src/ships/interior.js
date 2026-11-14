@@ -30,11 +30,6 @@ export function createStarshipInterior(options = {}) {
   const bulkheadMat = new THREE.MeshStandardMaterial({
     color: 0x1b3043, metalness: 0.82, roughness: 0.38
   });
-  const ceilingMat = new THREE.MeshStandardMaterial({
-    color: 0x536b7d, metalness: 0.65, roughness: 0.52,
-    transparent: true, opacity: 0.22, depthWrite: false,
-    side: THREE.DoubleSide
-  });
   const trimMat = new THREE.MeshBasicMaterial({ color: 0x39bce8 });
   const shaftMat = new THREE.MeshStandardMaterial({
     color: 0x172737, metalness: 0.7, roughness: 0.55
@@ -142,9 +137,12 @@ export function createStarshipInterior(options = {}) {
     };
     const [width, length] = footprints[deck.id];
     addDeckPlate(y, width, length, floorMat, label + '-Floor', 0.42);
+    // O piso do deck imediatamente superior já funciona como teto deste deck.
+    // Não criar placas de teto independentes: elas duplicavam os planos entre
+    // os decks e produziam sobreposições visuais no hangar. No D1, o casco
+    // superior fecha o ambiente.
     // Acesso técnico permanece marcado no piso, dentro da área útil.
     addBox(group, [5.8, 0.035, 5.8], [0, y + 0.23, 25], shaftMat, label + '-Reserved-Vertical-Access');
-    addDeckPlate(y + 5.35, width, length, ceilingMat, label + '-Ceiling', 0.22);
   };
 
   for (const deck of STARSHIP_LAYOUT.decks) {
@@ -184,7 +182,7 @@ export function createStarshipInterior(options = {}) {
         if (Array.isArray(object.material)) object.material.forEach(m => m.dispose());
         else object.material?.dispose();
       });
-      [floorMat, wallMat, bulkheadMat, ceilingMat, trimMat, shaftMat].forEach(m => m.dispose());
+      [floorMat, wallMat, bulkheadMat, trimMat, shaftMat].forEach(m => m.dispose());
     }
   };
 }
