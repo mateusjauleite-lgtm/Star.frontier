@@ -1,99 +1,111 @@
-
-name: Build Android APK
+name: Build Star Frontier UE5 Android APK
 
 on:
   workflow_dispatch:
   pull_request:
     branches: [ main ]
+    paths:
+      - 'UE5/**'
+      - '.github/workflows/android-apk.yml'
   push:
-    branches: [ main, architecture/modules-skeleton, feature/four-deck-starship-interior, feature/character-core ]
+    branches: [ ue5/frontier-migration, main ]
+    paths:
+      - 'UE5/**'
+      - '.github/workflows/android-apk.yml'
 
+permissions:
+  contents: read
+
+# Requires a trusted self-hosted Windows runner with licensed UE and Android tooling.
 jobs:
-  build:
-    runs-on: ubuntu-latest
+  package-android:
+    runs-on: [self-hosted, Windows, X64, UnrealEngine5, Android]
+    timeout-minutes: 180
+
+    env:
+      UE_PROJECT: UE5/StarFrontier.uproject
+      UE_ROOT: ${{ vars.UE_ROOT }}
+      ANDROID_HOME: ${{ vars.ANDROID_HOME }}
+      NDKROOT: ${{ vars.NDKROOT }}
+      JAVA_HOME: ${{ vars.JAVA_HOME }}
+      ARCHIVE_DIR: UE5/Saved/Artifacts/Android
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-
-      - run: npm install
-
-      - run: npm test
-
-      - run: npm run build
-
-      - run: npx cap add android
-
-      - run: npx cap sync android
-
-      - name: Configure fullscreen landscape
+      - name: Validate Unreal and Android toolchains
+        shell: pwsh
         run: |
-          MAIN_ACTIVITY=$(find android/app/src/main/java -name MainActivity.java -print -quit)
+          $ErrorActionPreference = "Stop"
 
-          if [ -z "$MAIN_ACTIVITY" ]; then
-            echo "MainActivity.java não encontrado"
-            exit 1
-          fi
-
-          PACKAGE_LINE=$(grep '^package ' "$MAIN_ACTIVITY")
-
-          printf '%s\n' "$PACKAGE_LINE" > "$MAIN_ACTIVITY"
-
-          cat >> "$MAIN_ACTIVITY" <<'EOF'
-
-          import android.content.pm.ActivityInfo;
-          import android.os.Bundle;
-          import android.view.View;
-
-          import com.getcapacitor.BridgeActivity;
-
-          public class MainActivity extends BridgeActivity {
-
-              @Override
-              public void onCreate(Bundle savedInstanceState) {
-                  super.onCreate(savedInstanceState);
-
-                  setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
-                  hideSystemUI();
-              }
-
-              private void hideSystemUI() {
-                  getWindow().getDecorView().setSystemUiVisibility(
-                      View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                      | View.SYSTEM_UI_FLAG_FULLSCREEN
-                      | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                      | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                      | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                      | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                  );
-              }
-
-              @Override
-              public void onWindowFocusChanged(boolean hasFocus) {
-                  super.onWindowFocusChanged(hasFocus);
-
-                  if (hasFocus) {
-                      hideSystemUI();
-                  }
-              }
+          if ([string]::IsNullOrWhiteSpace($env:UE_ROOT)) {
+            throw "Configure the repository variable UE_ROOT on the self-hosted runner."
           }
-          EOF
 
-      - name: Build APK
+          $uat = Join-Path $env:UE_ROOT "Engine/Build/BatchFiles/RunUAT.bat"
+          if (!(Test-Path $uat)) {
+            throw "RunUAT.bat not found. UE_ROOT must point to the installed Unreal Engine root."
+          }
+
+          foreach ($name in @("ANDROID_HOME", "NDKROOT", "JAVA_HOME")) {
+            $value = [Environment]::GetEnvironmentVariable($name)
+            if ([string]::IsNullOrWhiteSpace($value) -or !(Test-Path $value)) {
+              throw "$name is missing or invalid. Configure Android SDK/NDK/JDK with Unreal Turnkey for this engine version."
+            }
+          }
+
+          if (!(Test-Path $env:UE_PROJECT)) {
+            throw "UE5 project descriptor not found: $env:UE_PROJECT"
+          }
+
+          $map = "UE5/Content/StarFrontier/Maps/L_StarFrontier_Main.umap"
+          if (!(Test-Path $map)) {
+            throw "Startup map is not generated yet. Run UE5/Tools/EditorPython/create_main_startup_map.py in Unreal Editor, save the map, and commit the .umap before packaging."
+          }
+
+      - name: Build, cook and package Android
+        shell: pwsh
         run: |
-          cd android
-          chmod +x gradlew
-          ./gradlew assembleDebug
+          $ErrorActionPreference = "Stop"
+          $uat = Join-Path $env:UE_ROOT "Engine/Build/BatchFiles/RunUAT.bat"
 
-      - uses: actions/upload-artifact@v4
+          if (Test-Path $env:ARCHIVE_DIR) {
+            Remove-Item $env:ARCHIVE_DIR -Recurse -Force
+          }
+          New-Item -ItemType Directory -Force -Path $env:ARCHIVE_DIR | Out-Null
+
+          $projectPath = (Resolve-Path $env:UE_PROJECT).Path
+          $archivePath = (Resolve-Path $env:ARCHIVE_DIR).Path
+          $arguments = @(
+            "BuildCookRun",
+            "-project=$projectPath",
+            "-noP4",
+            "-platform=Android",
+            "-clientconfig=Development",
+            "-build",
+            "-cook",
+            "-stage",
+            "-pak",
+            "-archive",
+            "-archivedirectory=$archivePath",
+            "-utf8output"
+          )
+
+          & $uat @arguments
+          if ($LASTEXITCODE -ne 0) {
+            throw "Unreal BuildCookRun failed with exit code $LASTEXITCODE."
+          }
+
+          $apk = Get-ChildItem -Path $env:ARCHIVE_DIR -Filter "*.apk" -Recurse
+          if (!$apk) {
+            throw "BuildCookRun completed but no APK was found in the archive directory."
+          }
+
+      - name: Upload UE5 Android package
+        uses: actions/upload-artifact@v4
         with:
-          name: star-frontier-debug-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: star-frontier-ue5-android-development
+          path: UE5/Saved/Artifacts/Android/**
+          if-no-files-found: error
+          retention-days: 14
