@@ -18,7 +18,7 @@ UE5 mapping:
 - Initial player placement → `StartingDeckCode`, defaulting to D1, delegated to `AFrontierShip::PlaceCharacterOnDeck`.
 - Global default GameMode registration → `Config/DefaultEngine.ini`.
 - Unreal Engine's own startup splash/logo remains an engine/project presentation setting, not a gameplay screen owned by Main Core.
-- A default map, project descriptor, startup menu and packaged splash configuration are not yet present; do not claim the project is launchable until those are created and validated in Unreal Editor.
+- `StarFrontier.uproject`, game/editor Target.cs files and the default map configuration are now present. `Tools/EditorPython/create_main_startup_map.py` creates the initial map in Unreal Editor; the `.umap` package, successful project generation/build and Editor validation are still outstanding.
 
 ## 1. Character Core
 
@@ -64,7 +64,8 @@ UE5 mapping:
 - Elevator → `AFrontierShipElevator`, with the four original D1–D4 stops and ship-local deck selection/routing.
 - Bridge → `AFrontierPilotStation` interaction actor; the legacy pilot-console location is converted to UE5 coordinates.
 - Computer → `UFrontierShipComputerComponent` with boot/shutdown, one active terminal, terminal system permissions and navigation telemetry.
-- Engines → `UFrontierShipEngineComponent` for acceleration, speed, boost and braking; boost scales the maximum speed.
+- Engine dynamics → `UFrontierShipEngineComponent` for acceleration, speed, boost and braking; boost scales the maximum speed.
+- Engine FX → `UFrontierShipEngineFXComponent` reads flight telemetry and drives two aft exhaust glow lights plus optional Niagara emitters. It is visual-only and does not own or alter movement, acceleration or speed.
 - Camera → `UFrontierShipCameraBoom` with its own camera.
 - Controls → `UFrontierShipControlsComponent` exposes throttle, pitch, yaw, brake, boost and a requester-checked pilot-exit request.
 - Player/owned ship → `UFrontierPlayerShipSubsystem` stores the current player ship.
@@ -156,4 +157,4 @@ UE5 mapping:
 
 ## Migration status
 
-Planetary Core, Character Core and Ship Core have native UE5 source scaffolds on the migration branch. Ship Core now includes its root collision proxy, deck-definition composition, ship-local elevator selection, boost speed scaling and a guarded pilot-exit API. These are source-level integrations only; they have not been compiled or tested in Unreal Editor. Ship assets, authored Data Assets, terminal configuration, Enhanced Input/mobile UI bindings and final collision tuning remain Editor-side work. The existing core names and branch boundaries must remain recognizable throughout the port.
+Planetary Core, Character Core and Ship Core have native UE5 source scaffolds on the migration branch. Ship Core now includes its root collision proxy, deck-definition composition, ship-local elevator selection, boost speed scaling, a guarded pilot-exit API and a visual-only Engine FX branch. These are source-level integrations only; they have not been compiled or tested in Unreal Editor. Ship assets, authored Data Assets, terminal configuration, Enhanced Input/mobile UI bindings and final collision tuning remain Editor-side work. The existing core names and branch boundaries must remain recognizable throughout the port.
