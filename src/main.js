@@ -386,6 +386,27 @@ let activeDeckIndex = 0;
 let shipYaw;
 let shipPitch;
 let shipVisual;
+
+// Estruturas externas da popa que invadem visualmente o espaço útil do Deck 4.
+// São ocultadas somente enquanto o personagem está no D4 e restauradas nos demais decks.
+const deck4ClearanceNames = new Set([
+  'Engineering-Secondary-Hull',
+  'Integrated-Aft-Engineering-Pod',
+  'Aft-Hangar-Nacelle-Junction',
+  'Central-Hangar-Upper-Lip',
+  'Central-Hangar-Lower-Lip'
+]);
+
+function updateDeck4Clearance() {
+  if (!shipVisual) return;
+  const deck4Active = activeDeckIndex === 3;
+  shipVisual.traverse(object => {
+    if (deck4ClearanceNames.has(object.name)) {
+      object.visible = !deck4Active;
+    }
+  });
+}
+
 const flightQuaternion = new THREE.Quaternion();
 let pitchAngle = 0;
 
@@ -537,6 +558,7 @@ async function init3D() {
   shipYaw = explorationShip.yaw;
   shipPitch = explorationShip.pitch;
   shipVisual = explorationShip.visual;
+  updateDeck4Clearance();
   engineFlames = explorationShip.engineFlames;
   engineLights = explorationShip.engineLights;
   scene.add(ship);
@@ -909,6 +931,7 @@ function moveElevator(direction) {
   if (nextIndex < 0 || nextIndex > 3) return false;
 
   activeDeckIndex = nextIndex;
+  updateDeck4Clearance();
   const deck = starshipInterior.layout.decks[activeDeckIndex];
   characterModel.group.position.set(0, deck.y + 0.21, 25);
   // O centro do elevador fica dentro da área livre dos quatro decks.
