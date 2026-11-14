@@ -39,7 +39,7 @@ protected:
     virtual FReply NativeOnTouchStarted(const FGeometry& Geometry, const FPointerEvent& Event) override;
     virtual FReply NativeOnTouchMoved(const FGeometry& Geometry, const FPointerEvent& Event) override;
     virtual FReply NativeOnTouchEnded(const FGeometry& Geometry, const FPointerEvent& Event) override;
-    virtual FReply NativeOnTouchCancelled(const FGeometry& Geometry, const FPointerEvent& Event) override;
+    virtual void NativeDestruct() override;
 
     UPROPERTY(BlueprintReadOnly, Category="Ship|HUD")
     TObjectPtr<AFrontierShip> ObservedShip;
