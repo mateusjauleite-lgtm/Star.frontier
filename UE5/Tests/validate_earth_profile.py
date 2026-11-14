@@ -31,7 +31,7 @@ REQUIRED_BUILDER_TOKENS = (
     "axial_tilt_degrees",
     "reference_altitude_km",
     "reference_datum",
-    "coordinate_convention",
+    "EPlanetaryCoordinateConvention",
     "body_fixed_frame",
     "longitude_east_positive",
     "link_profiles_to_open_earth_actors",
