@@ -2,9 +2,9 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "Main/FrontierMainMenuWidget.h"
 #include "FrontierPlayerController.generated.h"
 
-class UFrontierMainMenuWidget;
 
 /**
  * Main Core UI navigation owner.
@@ -42,7 +42,7 @@ public:
     void OnProfileDisplayNameSubmitted(const FText& DisplayName);
 
     UFUNCTION(BlueprintImplementableEvent, Category="Main|UI|Integration")
-    void OnMenuSectionSelected(uint8 Section);
+    void OnMenuSectionSelected(EFrontierMainMenuSection Section);
 
 protected:
     virtual void BeginPlay() override;
@@ -56,7 +56,7 @@ private:
     void HandleProfileNameSubmitted(const FText& DisplayName);
 
     UFUNCTION()
-    void HandleMenuSectionChanged(uint8 Section);
+    void HandleMenuSectionChanged(EFrontierMainMenuSection Section);
 
     UFUNCTION()
     void HandlePlayRequested();
