@@ -61,7 +61,8 @@ Still required before Character Core is considered migrated:
 - [ ] Create and assign Enhanced Input actions and mapping context in Editor.
 - [ ] Import/retarget the humanoid exploration suit skeletal mesh and skeleton.
 - [ ] Build the Animation Blueprint and map idle/walk/run/sit/stand poses from the legacy animator.
-- [ ] Build the compact mobile HUD Blueprint, including movement, action, aim and interaction controls.
+- [x] Port native UMG HUD state observation and Blueprint-callable mobile movement, camera-look, jump and interaction actions.
+- [ ] Build the compact mobile HUD Widget Blueprint, including joystick/button visuals, anchors and safe zones.
 - [ ] Connect the pilot-seat interaction to Ship Core possession/camera handoff.
 - [ ] Verify spawn location on Deck 1 bridge after Ship Core migration.
 - [ ] Compile with Unreal Build Tool and validate behavior in a UE5 test map.
@@ -105,9 +106,10 @@ Still required before Ship Core is considered migrated and playable:
 - [ ] Define and verify the actual hangar-exit and elevator-access clearance boxes, with no obstructing meshes or collision.
 - [ ] Replace or fit the temporary box collision proxy to the final hull collision geometry.
 - [ ] Add bridge stations/console meshes and configure terminal permissions per station.
-- [ ] Bind flight controls and the pilot-exit request to Enhanced Input and mobile UMG controls.
+- [x] Add native ship HUD control endpoints for throttle, yaw/pitch, brake, boost, pilot exit and elevator up/down; create/remove the pilot HUD with the piloting lifecycle.
+- [ ] Build and assign the visual ship HUD Widget Blueprint; bind touch controls to the native endpoints.
 - [ ] Verify character starts on Deck 1 and deck/elevator circulation is correct.
-- [ ] Compile with Unreal Build Tool and test ship movement, collision, camera handoff, computer permissions and deck routing in Editor.
+- [ ] Compile with Unreal Build Tool and test ship movement, collision, camera handoff, computer permissions, HUD touch input and deck routing in Editor.
 
 Preserve the existing ship branch ownership: exploration hull, interior/decks, bridge, computer, engines, camera, controls and player-ship association.
 
