@@ -1,6 +1,15 @@
 #include "Ships/Interior/FrontierShipInteriorComponent.h"
 #include "Ships/Interior/FrontierShipDeckModule.h"
 #include "Ships/Interior/FrontierShipDeckDefinition.h"
+#include "Engine/World.h"
+#include "GameFramework/Actor.h"
+
+void UFrontierShipInteriorComponent::BeginPlay()
+{
+    Super::BeginPlay();
+    if (bBuildMissingDeckModulesOnBeginPlay)
+        BuildMissingDeckModules();
+}
 
 AFrontierShipDeckModule* UFrontierShipInteriorComponent::FindDeck(FName DeckCode) const
 {
@@ -8,4 +17,36 @@ AFrontierShipDeckModule* UFrontierShipInteriorComponent::FindDeck(FName DeckCode
         if (Deck && Deck->Definition && Deck->Definition->DeckCode == DeckCode)
             return Deck;
     return nullptr;
+}
+
+int32 UFrontierShipInteriorComponent::BuildMissingDeckModules()
+{
+    AActor* ShipOwner = GetOwner();
+    UWorld* World = GetWorld();
+    if (!ShipOwner || !World) return 0;
+
+    int32 CreatedCount = 0;
+    for (UFrontierShipDeckDefinition* DeckDefinition : DeckDefinitions)
+    {
+        if (!DeckDefinition || DeckDefinition->DeckCode.IsNone() ||
+            FindDeck(DeckDefinition->DeckCode))
+            continue;
+
+        FActorSpawnParameters SpawnParameters;
+        SpawnParameters.Owner = ShipOwner;
+        SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+        AFrontierShipDeckModule* Deck = World->SpawnActor<AFrontierShipDeckModule>(
+            AFrontierShipDeckModule::StaticClass(), ShipOwner->GetActorTransform(), SpawnParameters);
+        if (!Deck) continue;
+
+        Deck->Definition = DeckDefinition;
+        Deck->AttachToActor(ShipOwner, FAttachmentTransformRules::KeepWorldTransform);
+        Deck->SetActorRelativeLocation(FVector::ZeroVector);
+        Deck->RebuildFromDefinition();
+        DeckModules.Add(Deck);
+        ++CreatedCount;
+    }
+
+    return CreatedCount;
 }
