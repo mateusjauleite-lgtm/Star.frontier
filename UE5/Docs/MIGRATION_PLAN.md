@@ -48,9 +48,9 @@ Existing branches: model, animation, HUD, movement/look, camera and interaction.
 
 Initial native source scaffold committed:
 - [x] Character state/mode contract with the existing on-foot/ship-control, standing/seated, health, stamina, grounded, movement, look, interaction-target and equipment fields.
-- [x] Native `AFrontierCharacter` actor using Unreal Character Movement.
+- [x] Native `AFrontierCharacter` actor using a dedicated `UFrontierCharacterMovementComponent` subclass.
 - [x] Dedicated third-person camera boom, elevated rear offset and full yaw orbit.
-- [x] Independent movement and look bindings through Enhanced Input.
+- [x] `UFrontierCharacterInputConfig` Data Asset and independent movement/look bindings through Enhanced Input.
 - [x] Model presentation Data Asset for skeletal mesh, animation class, materials and capsule height.
 - [x] Animation instance base exposing movement, grounded and seated state.
 - [x] Interaction interface and camera-forward interaction trace.
