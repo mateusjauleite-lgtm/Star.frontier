@@ -23,7 +23,8 @@ UE5 mapping:
 - Camera and 360-degree look → dedicated `UFrontierCharacterCameraBoom` + camera, driven by Enhanced Input.
 - Model and animation → `UFrontierCharacterPresentationData`, Skeletal Mesh and `UFrontierCharacterAnimInstance` base for an Animation Blueprint.
 - HUD → `UFrontierCharacterHUDWidget` observes state changes; it does not own gameplay state.
-- Movement → Unreal Character Movement Component; movement and look inputs are independent.
+- Movement → dedicated `UFrontierCharacterMovementComponent` subclass of Unreal Character Movement; movement and look inputs are independent.
+- Input → `UFrontierCharacterInputConfig` Data Asset stores the Enhanced Input mapping context and action assets.
 - Interaction → `UFrontierInteractable` interface; character performs a camera trace and delegates behavior to the target.
 - Seat state → explicit transition to ship-control mode; stop on-foot movement and hide on-foot HUD while seated.
 
@@ -137,4 +138,4 @@ UE5 mapping:
 
 ## Migration status
 
-This registry remains the authority for core ownership and branch boundaries. Native UE5 source scaffolds are now committed for Planetary Core and the first Character Core slice. Character Core includes its state/mode component, ACharacter actor, model presentation Data Asset, animation state base, dedicated camera boom, Enhanced Input bindings, movement integration, interaction interface and observer-only UMG HUD. These source scaffolds have not yet been compiled or tested in Unreal Editor. Character setup still needs input assets, mesh/rig, Animation Blueprint, HUD Blueprint and ship-seat integration. The existing core names and branch boundaries must remain recognizable throughout the port.
+This registry remains the authority for core ownership and branch boundaries. Native UE5 source scaffolds are now committed for Planetary Core and the first Character Core slice. Character Core includes its state/mode component, ACharacter actor, model presentation Data Asset, animation state base, dedicated camera boom, Enhanced Input configuration Data Asset and bindings, dedicated Character Movement Component subclass, interaction interface and observer-only UMG HUD. These source scaffolds have not yet been compiled or tested in Unreal Editor. Character setup still needs input assets, mesh/rig, Animation Blueprint, HUD Blueprint and ship-seat integration. The existing core names and branch boundaries must remain recognizable throughout the port.
