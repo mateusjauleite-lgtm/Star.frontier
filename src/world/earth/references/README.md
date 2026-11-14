@@ -22,7 +22,7 @@ Workflow:
 
 ## Reference catalogue
 
-- `planetary-science.md`: mass/radius/gravity, interior, tectonics, atmosphere,
+- `three-to-unreal-migration.md`: compatibility assessment and staged migration plan for moving the Earth renderer from Three.js to UE5.\n- `../interop/ue5Contract.js`: machine-readable UE5 handoff contract exposed by the Earth core.\n- `planetary-science.md`: mass/radius/gravity, interior, tectonics, atmosphere,
   climate, hydrology, planet-scale rendering, and the research toolchain.
 - `../planetary/planetaryScience.js`: shared machine-readable design contract
   for Earth and future planets.
