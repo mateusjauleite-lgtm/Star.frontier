@@ -135,4 +135,4 @@ UE5 mapping:
 
 ## Migration status
 
-This document is an architecture/update contract. It does not claim that UE5 classes or a runnable `.uproject` have been generated yet. The next implementation unit is the Planetary Core data contract, followed by the Character Core's UE5 state/input adapter. The existing core names and branch boundaries must remain recognizable throughout the port.
+This registry remains the authority for core ownership and branch boundaries. The first native UE5 implementation is now committed under `UE5/Source/Frontier/Worlds/Planetary/`: Planetary Core profile Data Asset, coordinate/scale subsystem, and separate identity, dimensions, gravity, rotation, altitude and coordinate branches. This source scaffold has not yet been compiled or tested in Unreal Editor. Next implementation unit: Character Core and its model, animation, camera, input, movement, interaction and HUD branches. The existing core names and branch boundaries must remain recognizable throughout the port.
