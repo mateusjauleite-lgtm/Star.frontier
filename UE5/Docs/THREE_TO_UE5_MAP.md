@@ -1,8 +1,8 @@
-# Existing Frontier Cores → Unreal Engine 5
+# Legacy Three.js Systems → Unreal Engine 5
 
-This map follows the established core/branch ownership. It is not a new hierarchy and does not claim that a runnable UE5 project already exists.
+This document maps existing Star Frontier behavior and ownership into the **final UE5 implementation**. Three.js is only a temporary reference for migration; it is not a parallel target engine and must not receive new feature development.
 
-See [CORE_SYSTEMS_MAP.md](CORE_SYSTEMS_MAP.md) for the full registry and branch inventory.
+See [CORE_SYSTEMS_MAP.md](CORE_SYSTEMS_MAP.md) for the authoritative existing core/branch inventory.
 
 | Existing core / branch | UE5 implementation target | Ownership rule |
 |---|---|---|
@@ -10,6 +10,7 @@ See [CORE_SYSTEMS_MAP.md](CORE_SYSTEMS_MAP.md) for the full registry and branch 
 | Character model branch | Skeletal Mesh / Character Actor | Visual representation only |
 | Character animation branch | Animation Blueprint | Consumes character state |
 | Character HUD branch | UMG widgets | Observes state; never owns movement |
+| Character movement/look/camera/input branches | Character Movement Component, PlayerController, Enhanced Input, camera components | Keep movement, look and camera responsibilities distinct |
 | Ship Core | Ship Actor + ship components | Owns ShipId, CommanderId and ship state |
 | Exploration hull branch | Static/Skeletal Mesh components | Hull and flight hierarchy remain separate from interior |
 | Interior/deck branch | Deck Actors / Level Instances | One independently editable module per deck |
@@ -22,7 +23,7 @@ See [CORE_SYSTEMS_MAP.md](CORE_SYSTEMS_MAP.md) for the full registry and branch 
 | Atmosphere & Climate Core | Data Assets/subsystem + UE atmosphere adapters | Scientific state is independent of rendering |
 | Geology & Biomes Core | Data Assets + terrain/PCG/tile adapters | Biome logic consumes climate, elevation and substrate data |
 
-## Proposed content layout preserving core boundaries
+## Proposed UE5 content layout preserving core boundaries
 
 ```text
 Content/Frontier/
@@ -86,7 +87,7 @@ Content/Frontier/
 - UMG for HUD and menus.
 - Enhanced Input for touch, gamepad and keyboard mappings.
 
-Use components within an Actor where independent placement/lifecycle is unnecessary; use separate Actors/Level Instances where a module must be independently edited, loaded, collided or replaced. Epic documents Actors, Components, Data Assets and the Gameplay Framework as the native building blocks for this modular approach.
+Use components within an Actor where independent placement/lifecycle is unnecessary; use separate Actors/Level Instances where a module must be independently edited, loaded, collided or replaced. Epic documents Actors, Components, Data Assets and the Gameplay Framework as native building blocks for this modular approach.
 
 ## Naming
 
