@@ -1,6 +1,7 @@
 #include "Ships/Core/FrontierShip.h"
 #include "Ships/Controls/FrontierShipControlsComponent.h"
 #include "Ships/Engines/FrontierShipEngineComponent.h"
+#include "Ships/Engines/FrontierShipEngineFXComponent.h"
 #include "Ships/Interior/FrontierShipInteriorComponent.h"
 #include "Ships/Computer/FrontierShipComputerComponent.h"
 #include "Ships/Camera/FrontierShipCameraBoom.h"
@@ -36,6 +37,7 @@ AFrontierShip::AFrontierShip()
 
     Controls = CreateDefaultSubobject<UFrontierShipControlsComponent>(TEXT("ShipControls"));
     Engines = CreateDefaultSubobject<UFrontierShipEngineComponent>(TEXT("ShipEngines"));
+    EnginesFX = CreateDefaultSubobject<UFrontierShipEngineFXComponent>(TEXT("ShipEngineFX"));
     Interior = CreateDefaultSubobject<UFrontierShipInteriorComponent>(TEXT("ShipInterior"));
     Computer = CreateDefaultSubobject<UFrontierShipComputerComponent>(TEXT("ShipComputer"));
     ShipCamera = CreateDefaultSubobject<UFrontierShipCameraBoom>(TEXT("ShipCameraBoom"));
