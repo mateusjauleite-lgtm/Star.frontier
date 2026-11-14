@@ -15,9 +15,20 @@ This workspace is the destination for the **complete migration** of Star Frontie
 The first Main Core source slice is present:
 - `AFrontierGameMode` is the world-entry coordinator after the Unreal Engine splash and map load.
 - It uses `AFrontierCharacter` as the default pawn, spawns the configured exploration ship and places the player on D1 by default.
-- `Config/DefaultEngine.ini` registers the GameMode.
+- `Config/DefaultEngine.ini` registers the GameMode and sets the Android package identity.
 
-The UE5 splash/logo belongs to Unreal's startup presentation; it is not the game's Main menu. The `.uproject` descriptor and an Editor Python map-generation script are now present. The actual `.umap` package, authored Niagara assets, successful project build and Editor verification are still outstanding.
+The UE5 splash/logo belongs to Unreal's startup presentation; it is not the game's Main menu. The `.uproject` descriptor and an Editor Python map-generation script are present. The actual `.umap` package, authored Niagara assets, successful project build and Editor verification are still outstanding.
+
+## Android build separation
+
+- `.github/workflows/android-apk.yml` is now the native UE5 Android packaging workflow. It invokes Unreal Automation Tool (`BuildCookRun`) and does not use Node, Vite, Three.js or Capacitor.
+- The UE5 workflow requires a trusted **self-hosted Windows runner** with the licensed Unreal Engine installation and the matching Android SDK, NDK and JDK already configured.
+- Configure repository Actions variables `UE_ROOT`, `ANDROID_HOME`, `NDKROOT` and `JAVA_HOME` for that runner. The Android toolchain should be installed/validated with Unreal Turnkey for the exact engine version.
+- The workflow deliberately stops before packaging if the startup map is missing. Run `Tools/EditorPython/create_main_startup_map.py` in Unreal Editor, save the generated map and commit `Content/StarFrontier/Maps/L_StarFrontier_Main.umap`.
+- `.github/workflows/legacy-android-apk.yml` preserves the old Vite/Three.js + Capacitor APK pipeline for historical testing. Its output is **not** a UE5 build.
+- Root `package.json` is explicitly marked as legacy web/Capacitor tooling. Its Three.js and Capacitor dependencies remain only to support the legacy source and workflow; UE5 compilation and packaging do not use npm.
+
+Epic's Android workflow requires an engine-compatible SDK/NDK/JDK toolchain and packages through Unreal's BuildCookRun automation. See the [Android Quick Start](https://dev.epicgames.com/documentation/unreal-engine/android-quick-start) and [Build Operations](https://dev.epicgames.com/documentation/unreal-engine/build-operations-cooking-packaging-deploying-and-running-projects-in-unreal-engine).
 
 ## Existing core systems to migrate
 
@@ -47,8 +58,8 @@ The authoritative ownership map is [CORE_SYSTEMS_MAP.md](Docs/CORE_SYSTEMS_MAP.m
 - Native Planetary Core source scaffold is committed: profile Data Asset, coordinate/scale subsystem and separate identity, dimensions, gravity, rotation, altitude and coordinate branches.
 - Frontier module rules and module entry point are committed.
 - The `.uproject` descriptor and game/editor targets are present, but the C++ has not yet been compiled by Unreal Build Tool or validated in Unreal Editor.
-- The initial `.umap` must still be generated in Editor; authored Niagara assets and a packaged game have not yet been produced.
-- The existing `.github/workflows/android-apk.yml` remains a Vite/Three.js + Capacitor APK workflow and does not build this UE5 project. It also does not currently trigger on `ue5/frontier-migration`; do not treat its APK as a UE5 build.
+- The initial `.umap` must still be generated in Editor; authored Niagara assets and a packaged UE5 game have not yet been produced.
+- The UE5 Android workflow is authored but has not been run; no self-hosted runner or Android APK build has been verified.
 
 ## Workspace
 
