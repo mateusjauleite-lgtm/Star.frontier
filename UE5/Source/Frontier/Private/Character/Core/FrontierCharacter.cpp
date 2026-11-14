@@ -100,7 +100,7 @@ void AFrontierCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
     if (InputConfig && InputConfig->Jump)
     {
         EnhancedInput->BindAction(InputConfig->Jump, ETriggerEvent::Started, this, &ACharacter::Jump);
-        EnhancedInput->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
+        EnhancedInput->BindAction(InputConfig->Jump, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
     }
     if (InputConfig && InputConfig->Interact)
         EnhancedInput->BindAction(InputConfig->Interact, ETriggerEvent::Started, this, &AFrontierCharacter::Interact);
