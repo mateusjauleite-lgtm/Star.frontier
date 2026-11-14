@@ -1,4 +1,5 @@
 import { NASA_CONTINENT_REFERENCES } from './nasa+continentes.js';
+import { GOOGLE_EARTH_REFERENCES, GOOGLE_EARTH_REFERENCE_POLICY } from './google-earth.js';
 
 /**
  * Research inputs only. Sources cannot alter the stable Earth baseline.
@@ -37,9 +38,11 @@ export const EARTH_REFERENCE_SOURCES = Object.freeze([
     id: 'google-earth',
     provider: 'Google Earth',
     url: 'https://earth.google.com/',
-    scope: ['terrain-study', 'mountains', 'coasts', 'geographic-detail'],
+    scope: ['terrain-study', 'mountains', 'coasts', 'geographic-detail', 'continents', 'islands'],
     usage: 'visual-research-only',
     attributionRequired: 'per-google-terms',
-    licenseReview: 'required-before-capture-or-redistribution'
+    licenseReview: 'required-before-capture-or-redistribution',
+    catalogue: GOOGLE_EARTH_REFERENCES,
+    policy: GOOGLE_EARTH_REFERENCE_POLICY
   }
 ]);
