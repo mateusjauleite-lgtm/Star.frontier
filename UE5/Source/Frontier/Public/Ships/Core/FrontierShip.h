@@ -102,6 +102,9 @@ public:
     UFUNCTION(BlueprintCallable, Category="Ship|Identity")
     void AssignCommander(FName NewCommanderId);
 
+    UFUNCTION(BlueprintCallable, Category="Ship|Interior")
+    bool PlaceCharacterOnDeck(AFrontierCharacter* Character, FName DeckCode);
+
     UFUNCTION(BlueprintCallable, Category="Ship|Bridge")
     void BeginPiloting(AFrontierCharacter* Character, FName NewCommanderId);
 
