@@ -6,8 +6,8 @@
 
 class UCameraComponent;
 class UFrontierCharacterCameraBoom;
-class UInputMappingContext;
-class UInputAction;
+class UFrontierCharacterInputConfig;
+class UFrontierCharacterMovementComponent;
 class UFrontierCharacterStateComponent;
 class UFrontierCharacterPresentationData;
 class UFrontierCharacterHUDWidget;
@@ -19,10 +19,13 @@ class FRONTIER_API AFrontierCharacter : public ACharacter
     GENERATED_BODY()
 
 public:
-    AFrontierCharacter();
+    explicit AFrontierCharacter(const FObjectInitializer& ObjectInitializer);
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Character|Core")
     TObjectPtr<UFrontierCharacterStateComponent> CharacterState;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Character|Movement")
+    TObjectPtr<UFrontierCharacterMovementComponent> CharacterMovementBranch;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Character|Camera")
     TObjectPtr<UFrontierCharacterCameraBoom> CameraBoom;
@@ -34,19 +37,7 @@ public:
     TObjectPtr<UFrontierCharacterPresentationData> PresentationData;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Character|Input")
-    TObjectPtr<UInputMappingContext> DefaultMappingContext;
-
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Character|Input")
-    TObjectPtr<UInputAction> MoveAction;
-
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Character|Input")
-    TObjectPtr<UInputAction> LookAction;
-
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Character|Input")
-    TObjectPtr<UInputAction> JumpAction;
-
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Character|Input")
-    TObjectPtr<UInputAction> InteractAction;
+    TObjectPtr<UFrontierCharacterInputConfig> InputConfig;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Character|HUD")
     TSubclassOf<UFrontierCharacterHUDWidget> CharacterHUDClass;
