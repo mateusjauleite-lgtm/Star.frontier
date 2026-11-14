@@ -157,56 +157,15 @@ export function createStarshipInterior(options = {}) {
   {
     const y = STARSHIP_LAYOUT.decks[0].y + 2.65;
     // Laterais abertas: o contorno do casco passa a definir os limites da ponte.
-    doorwayWallX(0, y, 38.5, 48, 5.25, 0.55, 5.2, 3.1);
+    // Sem divisórias na ponte: o limite lateral é definido pelo casco.
     // Pequena antecâmara de acesso na popa, sem dividir a área principal.
     // Filete de soleira assentado no mesmo plano do piso, sem ressalto flutuante.
     addBox(group, [16, 0.035, 0.35], [0, STARSHIP_LAYOUT.decks[0].y + 0.2275, 40], trimMat, 'D1-Aft-Threshold');
   }
 
-  // D2 — corredor longitudinal central e compartimentos independentes.
-  {
-    const y = STARSHIP_LAYOUT.decks[1].y + 2.65;
-    for (const z of [-30, -9, 12, 33]) {
-      doorwayWallZ(-3.8, y, z, 17, 5.25, 0.45, 2.6, 2.9);
-      doorwayWallZ(3.8, y, z, 17, 5.25, 0.45, 2.6, 2.9);
-    }
-    // Fechamentos entre os vãos de porta, preservando a continuidade do corredor.
-    // A passagem do elevador em D2 ocupa o trecho central ao redor de
-    // (x: 0, z: 25). Os segmentos laterais desse trecho foram removidos
-    // para manter a escotilha e sua área de acesso livres.
-    for (const z of [-41, -19.5, 1.5, 43.5]) {
-      addBox(group, [0.45, 5.25, 4], [-3.8, y, z], wallMat, 'D2-Corridor-Port-Wall');
-      addBox(group, [0.45, 5.25, 4], [3.8, y, z], wallMat, 'D2-Corridor-Starboard-Wall');
-    }
-    // Anteparas transversais entre salas; a divisória junto ao elevador
-    // (z=22.5) foi removida para liberar a circulação até o hangar.
-    for (const z of [-19.5, 1.5]) {
-      addBox(group, [18, 5.25, 0.38], [-15.2, y, z], wallMat, 'D2-Port-Compartment-Partition');
-      addBox(group, [18, 5.25, 0.38], [15.2, y, z], wallMat, 'D2-Starboard-Compartment-Partition');
-    }
-    doorwayWallZ(0, y, 41.2, 53, 5.25, 0.55, 5.2, 3.1);
-  }
+  // D2 — convés aberto. Piso, teto, casco e acesso técnico permanecem; divisórias removidas.
 
-  // D3 — salão técnico amplo, com salas laterais e corredor de serviço.
-  {
-    const y = STARSHIP_LAYOUT.decks[2].y + 2.65;
-    for (const z of [-28, -5, 18, 41]) {
-      doorwayWallZ(-18.5, y, z, 17, 5.25, 0.45, 2.4, 2.9);
-      doorwayWallZ(18.5, y, z, 17, 5.25, 0.45, 2.4, 2.9);
-    }
-    // Trechos de antepara entre os vãos de acesso aos compartimentos.
-    for (const z of [-39.75, -16.5, 6.5, 29.5]) {
-      const segmentLength = z === -39.75 ? 6.5 : 6;
-      addBox(group, [0.45, 5.25, segmentLength], [-18.5, y, z], wallMat, 'D3-Port-Service-Wall');
-      addBox(group, [0.45, 5.25, segmentLength], [18.5, y, z], wallMat, 'D3-Starboard-Service-Wall');
-    }
-    // Divisórias internas dos compartimentos laterais.
-    for (const z of [-16.5, 6.5, 29.5]) {
-      addBox(group, [8, 5.25, 0.38], [-22.5, y, z], wallMat, 'D3-Port-Aft-Partition');
-      addBox(group, [8, 5.25, 0.38], [22.5, y, z], wallMat, 'D3-Starboard-Aft-Partition');
-    }
-    doorwayWallX(0, y, 49.2, 53, 5.25, 0.55, 5.2, 3.1);
-  }
+  // D3 — convés aberto. Sem paredes ou anteparas internas.
 
   // D4 — hangar central amplo, com acesso de carga reservado na popa.
   // A largura e o formato da abertura externa serão definidos depois.
