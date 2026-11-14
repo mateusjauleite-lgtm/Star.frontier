@@ -1,8 +1,8 @@
 {
   "FileVersion": 3,
-  "EngineAssociation": "",
+  "EngineAssociation": "5.8",
   "Category": "Games",
-  "Description": "Star Frontier — Unreal Engine 5 project",
+  "Description": "Star Frontier — Unreal Engine 5.8 project",
   "Modules": [
     {
       "Name": "Frontier",
@@ -11,17 +11,8 @@
     }
   ],
   "Plugins": [
-    {
-      "Name": "Niagara",
-      "Enabled": true
-    },
-    {
-      "Name": "PythonScriptPlugin",
-      "Enabled": true
-    },
-    {
-      "Name": "EditorScriptingUtilities",
-      "Enabled": true
-    }
+    { "Name": "Niagara", "Enabled": true },
+    { "Name": "PythonScriptPlugin", "Enabled": true },
+    { "Name": "EditorScriptingUtilities", "Enabled": true }
   ]
 }
