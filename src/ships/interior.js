@@ -167,21 +167,9 @@ export function createStarshipInterior(options = {}) {
 
   // D3 — convés aberto. Sem paredes ou anteparas internas.
 
-  // D4 — hangar central amplo, com acesso de carga reservado na popa.
-  // A largura e o formato da abertura externa serão definidos depois.
-  {
-    const y = STARSHIP_LAYOUT.decks[3].y + 2.65;
-    // Hangar sem antepara frontal: mantém livre a entrada do deck.
-    // A moldura traseira continua definindo a abertura de carga.
-    const doorWidth = 16;
-    const doorHeight = 4.2;
-    const sideWidth = (35 - doorWidth) / 2;
-    const aftZ = 26.5;
-    addBox(group, [sideWidth, 5.25, 0.75], [-(doorWidth / 2 + sideWidth / 2), y, aftZ], bulkheadMat, 'D4-Aft-Door-Port-Frame');
-    addBox(group, [sideWidth, 5.25, 0.75], [(doorWidth / 2 + sideWidth / 2), y, aftZ], bulkheadMat, 'D4-Aft-Door-Starboard-Frame');
-    addBox(group, [doorWidth, (5.25 - doorHeight) / 2, 0.75], [0, y + (doorHeight + 5.25) / 4, aftZ], bulkheadMat, 'D4-Aft-Door-Header');
-    addBox(group, [doorWidth, 0.28, 0.75], [0, y - 2.48, aftZ], trimMat, 'D4-Hangar-Door-Threshold');
-  }
+  // D4 — hangar totalmente livre até a abertura externa.
+  // Não criar molduras, travessas ou soleiras no corredor de saída:
+  // as peças anteriores geravam caixas de colisão no acesso ao hangar.
 
   // Removidas as seis colunas externas: elas formavam a gaiola retangular ao redor do casco.
 
