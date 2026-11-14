@@ -25,6 +25,51 @@ AFrontierShipDeckModule* UFrontierShipInteriorComponent::FindDeck(FName DeckCode
 
 int32 UFrontierShipInteriorComponent::BuildMissingDeckModules()
 {
+    // Runtime defaults preserve the four-deck ship layout even before Editor
+    // Data Assets or imported floor meshes are available.
+    struct FDefaultDeck
+    {
+        EFrontierShipDeckId Id;
+        const TCHAR* Code;
+        const TCHAR* Name;
+        FVector LegacyPosition;
+        float Width;
+        float Length;
+        bool bHangarClear;
+    };
+
+    static const FDefaultDeck DefaultDecks[] = {
+        { EFrontierShipDeckId::Deck1_Command, TEXT("D1"), TEXT("Ponte de comando"), FVector(0.0f, 8.7f, -2.0f), 50.0f, 82.0f, false },
+        { EFrontierShipDeckId::Deck2_OperationsScience, TEXT("D2"), TEXT("Operações e ciência"), FVector(0.0f, 2.9f, -2.0f), 50.0f, 94.0f, false },
+        { EFrontierShipDeckId::Deck3_Engineering, TEXT("D3"), TEXT("Engenharia"), FVector(0.0f, -2.9f, -2.0f), 53.0f, 102.0f, false },
+        { EFrontierShipDeckId::Deck4_HangarSupport, TEXT("D4"), TEXT("Hangar e suporte"), FVector(0.0f, -8.7f, -2.0f), 35.0f, 58.0f, true }
+    };
+
+    for (const FDefaultDeck& DefaultDeck : DefaultDecks)
+    {
+        const bool bAlreadyDefined = DeckDefinitions.ContainsByPredicate(
+            [&DefaultDeck](const UFrontierShipDeckDefinition* Existing)
+            {
+                return Existing && Existing->DeckCode == FName(DefaultDeck.Code);
+            });
+        if (bAlreadyDefined) continue;
+
+        UFrontierShipDeckDefinition* Definition = NewObject<UFrontierShipDeckDefinition>(
+            this, MakeUniqueObjectName(this, UFrontierShipDeckDefinition::StaticClass(),
+                FName(*FString::Printf(TEXT("Runtime_%s"), DefaultDeck.Code))));
+        Definition->DeckId = DefaultDeck.Id;
+        Definition->DeckCode = FName(DefaultDeck.Code);
+        Definition->DisplayName = FText::FromString(DefaultDeck.Name);
+        Definition->LegacyThreePosition = DefaultDeck.LegacyPosition;
+        Definition->FloorWidthMeters = DefaultDeck.Width;
+        Definition->FloorLengthMeters = DefaultDeck.Length;
+        Definition->FloorThicknessMeters = 0.42f;
+        Definition->bGenerateDefaultFloor = true;
+        Definition->bKeepHangarExitClear = DefaultDeck.bHangarClear;
+        Definition->bKeepElevatorAccessClear = true;
+        DeckDefinitions.Add(Definition);
+    }
+
     AActor* ShipOwner = GetOwner();
     UWorld* World = GetWorld();
     if (!ShipOwner || !World) return 0;
