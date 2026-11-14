@@ -96,7 +96,7 @@ Earth Core remains the orchestrator of seven established branches:
 Existing runtime modules live under `src/world/earth/modules/runtime/`; definitions and lifecycle are registered through `modules/index.js` and `earthUpdatePipeline.js`.
 
 UE5 mapping:
-- Earth Core → `AFrontierEarth` or a dedicated World Subsystem that owns planet identity, profile, module registration and lifecycle.
+- Earth Core → `AFrontierEarth` owns the Earth instance profiles, seven branch components, dependency-safe initialization and teardown. It consumes shared Planetary and Atmosphere & Climate profile assets; it does not own their scientific state.
 - Each of the seven branches remains independently replaceable.
 - Physical profile → Data Asset/JSON, never embedded in a material or mesh.
 - Earth renderers are UE5 implementations of the branches, not direct ports of Three.js runtime code.
@@ -159,7 +159,7 @@ UE5 mapping:
 
 ## Migration status
 
-Planetary Core, Character Core, Ship Core and the initial Atmosphere & Climate Core now have native UE5 source scaffolds on the migration branch. Ship Core includes its root collision proxy, deck-definition composition, ship-local elevator selection, boost speed scaling, a guarded pilot-exit API and a visual-only Engine FX branch. Atmosphere & Climate includes composition, vertical layers, climate baseline and altitude sampling. These are source-level integrations only; they have not been compiled or tested in Unreal Editor. Ship assets, authored Data Assets, terminal configuration, Enhanced Input/mobile UI bindings and final collision tuning remain Editor-side work. The existing core names and branch boundaries must remain recognizable throughout the port.
+Planetary Core, Character Core, Ship Core, the initial Atmosphere & Climate Core and the Earth Core orchestration scaffold now have native UE5 source on the migration branch. Ship Core includes its root collision proxy, deck-definition composition, ship-local elevator selection, boost speed scaling, a guarded pilot-exit API and a visual-only Engine FX branch. Atmosphere & Climate includes composition, vertical layers, climate baseline and altitude sampling. These are source-level integrations only; they have not been compiled or tested in Unreal Editor. Ship assets, authored Data Assets, terminal configuration, Enhanced Input/mobile UI bindings and final collision tuning remain Editor-side work. The existing core names and branch boundaries must remain recognizable throughout the port.
 
 
 ### Native UE5 Earth Core source slice (14 Nov 2026)
@@ -170,3 +170,6 @@ Planetary Core, Character Core, Ship Core and the initial Atmosphere & Climate C
 - Physical dimensions remain in Planetary Core. The actor exposes a derived visual-units-per-kilometre ratio from the independent visual radius; it does not overwrite physical radius values.
 - Current asset audit: `assets/models` and `assets/textures` contain README placeholders only; no Earth model/texture payloads or native UE5 Earth `.uasset` / `.umap` packages are present in the migration branch. The planetary JSON profile exists, but its native Data Asset and the linked Earth atmosphere profile still need to be authored in Editor.
 - No Three.js runtime code or dependency is introduced into the UE5 module.
+
+
+Earth Core implementation and asset requirements: [EARTH_CORE.md](EARTH_CORE.md).
