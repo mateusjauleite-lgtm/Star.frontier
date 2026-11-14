@@ -12,7 +12,8 @@
     "build": "vite build",
     "test": "node --test",
     "android:add": "npx cap add android",
-    "android:sync": "npx cap sync android"
+    "android:sync": "npx cap sync android",
+    "build:earth:wasm": "bash scripts/build-earth-wasm.sh"
   },
   "dependencies": {
     "@capacitor/core": "^7.4.3",
