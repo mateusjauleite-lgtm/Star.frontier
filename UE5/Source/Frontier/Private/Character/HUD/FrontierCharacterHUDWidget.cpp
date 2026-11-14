@@ -70,11 +70,13 @@ void UFrontierCharacterHUDWidget::BuildNativeLayout()
     if (UButton* Action = AddHUDButton(Canvas, WidgetTree, TEXT("AÇÃO"), FVector2D(-205.0f, -118.0f), FVector2D(82.0f, 58.0f), BottomRight))
         Action->OnClicked.AddDynamic(this, &UFrontierCharacterHUDWidget::OnInteractPressed);
 
-    const FAnchors BottomLeft(0.0f, 1.0f, 0.0f, 1.0f);
-    if (UButton* Up = AddHUDButton(Canvas, WidgetTree, TEXT("↑"), FVector2D(72.0f, -278.0f), FVector2D(58.0f, 48.0f), BottomLeft))
-        Up->OnClicked.AddDynamic(this, &UFrontierCharacterHUDWidget::OnElevatorUpPressed);
-    if (UButton* Down = AddHUDButton(Canvas, WidgetTree, TEXT("↓"), FVector2D(72.0f, -98.0f), FVector2D(58.0f, 48.0f), BottomLeft))
-        Down->OnClicked.AddDynamic(this, &UFrontierCharacterHUDWidget::OnElevatorDownPressed);
+    const FAnchors TopLeft(0.0f, 0.0f, 0.0f, 0.0f);
+    ElevatorUpButton = AddHUDButton(Canvas, WidgetTree, TEXT("DECK ↑"), FVector2D(28.0f, 92.0f), FVector2D(92.0f, 48.0f), TopLeft);
+    ElevatorDownButton = AddHUDButton(Canvas, WidgetTree, TEXT("DECK ↓"), FVector2D(28.0f, 148.0f), FVector2D(92.0f, 48.0f), TopLeft);
+    ElevatorUpButton->SetVisibility(ESlateVisibility::Collapsed);
+    ElevatorDownButton->SetVisibility(ESlateVisibility::Collapsed);
+    ElevatorUpButton->OnClicked.AddDynamic(this, &UFrontierCharacterHUDWidget::OnElevatorUpPressed);
+    ElevatorDownButton->OnClicked.AddDynamic(this, &UFrontierCharacterHUDWidget::OnElevatorDownPressed);
 }
 
 void UFrontierCharacterHUDWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
@@ -90,6 +92,25 @@ void UFrontierCharacterHUDWidget::NativeTick(const FGeometry& MyGeometry, float 
             MoveCharacter(FVector2D(Delta.X / 85.0f, -Delta.Y / 85.0f).GetClampedToMaxSize(1.0f));
         }
     }
+
+    AFrontierCharacter* Character = Cast<AFrontierCharacter>(GetOwningPlayerPawn());
+    bool bNearElevator = false;
+    if (Character)
+    {
+        for (TActorIterator<AFrontierShip> It(Character->GetWorld()); It; ++It)
+        {
+            AFrontierShip* Ship = *It;
+            if (Ship->Interior && Ship->Interior->ElevatorActor &&
+                FVector::DistSquared(Ship->Interior->ElevatorActor->GetActorLocation(), Character->GetActorLocation()) < FMath::Square(1200.0f))
+            {
+                bNearElevator = true;
+                break;
+            }
+        }
+    }
+    const ESlateVisibility ElevatorVisibility = bNearElevator ? ESlateVisibility::Visible : ESlateVisibility::Collapsed;
+    if (ElevatorUpButton) ElevatorUpButton->SetVisibility(ElevatorVisibility);
+    if (ElevatorDownButton) ElevatorDownButton->SetVisibility(ElevatorVisibility);
 }
 
 void UFrontierCharacterHUDWidget::ObserveCharacter(UFrontierCharacterStateComponent* CharacterState)
