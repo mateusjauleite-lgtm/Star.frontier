@@ -122,7 +122,9 @@ export function createStarshipInterior(options = {}) {
     });
     const mesh = new THREE.Mesh(geometry, material);
     mesh.rotation.x = Math.PI / 2;
-    mesh.position.set(0, y + thickness / 2, centerZ);
+    // A face superior permanece na cota de caminhada; reduzir a espessura
+    // remove volume inferior sem criar degrau ou deslocar o personagem.
+    mesh.position.set(0, y + 0.21, centerZ);
     mesh.name = name;
     mesh.castShadow = false;
     mesh.receiveShadow = true;
@@ -136,7 +138,7 @@ export function createStarshipInterior(options = {}) {
       D1: [50, 82], D2: [50, 94], D3: [53, 102], D4: [48, 110, 5.5]
     };
     const [width, length, centerZ = -2] = footprints[deck.id];
-    addDeckPlate(y, width, length, floorMat, label + '-Floor', 0.42, centerZ);
+    addDeckPlate(y, width, length, floorMat, label + '-Floor', 0.12, centerZ);
     // O piso do deck imediatamente superior já funciona como teto deste deck.
     // Não criar placas de teto independentes: elas duplicavam os planos entre
     // os decks e produziam sobreposições visuais no hangar. No D1, o casco
