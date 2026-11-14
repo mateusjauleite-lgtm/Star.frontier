@@ -274,9 +274,17 @@ def link_profiles_to_open_earth_actors(planetary_asset, atmosphere_asset):
         return 0
 
     earth_class_path = "/Script/Frontier.FrontierEarth"
+    earth_base_class = unreal.load_class(None, earth_class_path)
+    if not earth_base_class:
+        raise RuntimeError(
+            "AFrontierEarth class is unavailable: " + earth_class_path
+            + ". Compile the Frontier module and reopen the UE5.8 Editor."
+        )
+
     linked_count = 0
     for actor in editor_level_library.get_all_level_actors():
-        if actor.get_class().get_path_name() != earth_class_path:
+        # IsA includes Blueprint subclasses derived from AFrontierEarth.
+        if not actor.is_a(earth_base_class):
             continue
         actor.set_editor_property("planetary_profile", planetary_asset)
         actor.set_editor_property("atmosphere_profile", atmosphere_asset)
