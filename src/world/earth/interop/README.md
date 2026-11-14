@@ -45,3 +45,13 @@ visual features.
 Do not embed a UE5 desktop-renderer stream in the existing Android app as the
 default production path. Pixel Streaming requires a separately running UE
 application, encoding hardware, network services, and a stable connection.
+
+
+## Physical planetary profile
+
+The active Earth core also exposes `src/world/earth/planetaryProfile.js`. It
+keeps the physical mean radius (6,371.0088 km) separate from the current
+Three.js visual radius (300 units by default) and supplies explicit conversion
+helpers. The profile is scientific metadata, not an Unreal runtime or a
+geophysical simulation. The UE5 Sky Atmosphere value of 6,360 km is recorded
+only as an Epic documentation example; match the atmosphere to the final mesh.
