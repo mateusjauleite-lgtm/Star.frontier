@@ -2,11 +2,17 @@
 #include "Ships/Core/FrontierShip.h"
 #include "Character/Core/FrontierCharacter.h"
 #include "Components/SceneComponent.h"
+#include "Components/SphereComponent.h"
 
 AFrontierPilotStation::AFrontierPilotStation()
 {
     PrimaryActorTick.bCanEverTick = false;
-    SetRootComponent(CreateDefaultSubobject<USceneComponent>(TEXT("StationRoot")));
+    InteractionVolume = CreateDefaultSubobject<USphereComponent>(TEXT("PilotStationInteraction"));
+    SetRootComponent(InteractionVolume);
+    InteractionVolume->InitSphereRadius(145.0f);
+    InteractionVolume->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+    InteractionVolume->SetCollisionResponseToAllChannels(ECR_Ignore);
+    InteractionVolume->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
 }
 
 FText AFrontierPilotStation::GetInteractionLabel_Implementation() const
