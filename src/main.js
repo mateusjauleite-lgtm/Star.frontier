@@ -1183,6 +1183,61 @@ $('character-action-btn')?.addEventListener('click', () => {
   if (nearbyElevator) useShipElevator();
   else enterPilotMode();
 });
+
+function closeInventory() {
+  const modal = $('inventory-modal');
+  modal?.classList.add('hidden');
+  modal?.setAttribute('aria-hidden', 'true');
+}
+function openInventory() {
+  const modal = $('inventory-modal');
+  if (!modal) return;
+  modal.classList.remove('hidden');
+  modal.setAttribute('aria-hidden', 'false');
+  showInventoryTab('items');
+}
+function showInventoryTab(tab) {
+  const items = tab === 'items';
+  $('inventory-items-view')?.classList.toggle('hidden', !items);
+  $('inventory-clothing-view')?.classList.toggle('hidden', items);
+  document.querySelectorAll('[data-inventory-tab]').forEach(button => {
+    button.classList.toggle('active', button.dataset.inventoryTab === tab);
+  });
+}
+function renderInventory() {
+  const grid = $('inventory-grid');
+  if (!grid) return;
+  const items = Array.isArray(state.inventory?.items) ? state.inventory.items : [];
+  $('inventory-count').textContent = `${items.length} / 24`;
+  grid.innerHTML = Array.from({ length: 24 }, (_, index) => {
+    const item = items[index];
+    return `<div class="inventory-cell"><span>${item?.name || 'ESPAÇO LIVRE'}</span></div>`;
+  }).join('');
+  const equipment = state.inventory?.equipment || {};
+  ['weapon', 'tool', 'machine'].forEach(slot => {
+    const el = $('quick-' + slot);
+    if (el) el.textContent = equipment[slot] || 'VAZIO';
+  });
+}
+$('inventory-open-btn')?.addEventListener('click', () => {
+  renderInventory();
+  openInventory();
+});
+$('inventory-close-btn')?.addEventListener('click', closeInventory);
+$('inventory-done-btn')?.addEventListener('click', closeInventory);
+document.querySelectorAll('[data-inventory-tab]').forEach(button => {
+  button.addEventListener('click', () => showInventoryTab(button.dataset.inventoryTab));
+});
+$('inventory-modal')?.addEventListener('click', event => {
+  if (event.target.id === 'inventory-modal') closeInventory();
+});
+document.querySelectorAll('[data-slot]').forEach(button => {
+  button.addEventListener('click', () => {
+    document.querySelectorAll('[data-slot]').forEach(slot => slot.classList.remove('selected'));
+    button.classList.add('selected');
+  });
+});
+renderInventory();
 $('leave-pilot-btn')?.addEventListener('click', exitPilotMode);
 
 if ($('character-action-btn')) $('character-action-btn').disabled = true;
