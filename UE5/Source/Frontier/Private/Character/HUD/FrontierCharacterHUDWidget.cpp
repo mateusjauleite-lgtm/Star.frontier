@@ -64,13 +64,13 @@ void UFrontierCharacterHUDWidget::BuildNativeLayout()
     AddPad(FVector2D(34.0f, -210.0f), FAnchors(0.0f, 1.0f, 0.0f, 1.0f), TEXT("MOVIMENTO"));
     AddPad(FVector2D(-210.0f, -210.0f), FAnchors(1.0f, 1.0f, 1.0f, 1.0f), TEXT("CÂMERA 360°"));
 
-    const FAnchors BottomRight(1.0f, 1.0f);
+    const FAnchors BottomRight(1.0f, 1.0f, 1.0f, 1.0f);
     if (UButton* Jump = AddHUDButton(Canvas, WidgetTree, TEXT("PULO"), FVector2D(-300.0f, -118.0f), FVector2D(82.0f, 58.0f), BottomRight))
         Jump->OnClicked.AddDynamic(this, &UFrontierCharacterHUDWidget::OnJumpPressed);
-    if (UButton* Action = AddHUDButton(Canvas, this, TEXT("AÇÃO"), FVector2D(-205.0f, -118.0f), FVector2D(82.0f, 58.0f), BottomRight))
+    if (UButton* Action = AddHUDButton(Canvas, WidgetTree, TEXT("AÇÃO"), FVector2D(-205.0f, -118.0f), FVector2D(82.0f, 58.0f), BottomRight))
         Action->OnClicked.AddDynamic(this, &UFrontierCharacterHUDWidget::OnInteractPressed);
 
-    const FAnchors BottomLeft(0.0f, 1.0f);
+    const FAnchors BottomLeft(0.0f, 1.0f, 0.0f, 1.0f);
     if (UButton* Up = AddHUDButton(Canvas, this, TEXT("↑"), FVector2D(72.0f, -278.0f), FVector2D(58.0f, 48.0f), BottomLeft))
         Up->OnClicked.AddDynamic(this, &UFrontierCharacterHUDWidget::OnElevatorUpPressed);
     if (UButton* Down = AddHUDButton(Canvas, this, TEXT("↓"), FVector2D(72.0f, -98.0f), FVector2D(58.0f, 48.0f), BottomLeft))
