@@ -112,6 +112,91 @@
 
     <div id="game-root"></div>
 
+    <!-- HUD 1: PERSONAGEM -->
+    <div id="character-hud" class="character-hud">
+      <div class="character-hud-top">
+        <div class="character-identity">
+          <span class="character-kicker">STAR FRONTIER // EXPLORAÇÃO</span>
+          <b id="character-name">EXPLORADOR</b>
+          <small id="character-mode">A PÉ</small>
+          <small id="character-world-context" class="character-world-context">AMBIENTE PLANETÁRIO</small>
+        </div>
+        <div class="character-top-actions">
+          <button id="character-camera-btn" class="character-camera-btn" type="button">CÂMERA: 1ª PESSOA</button>
+          <button id="character-action-btn" class="character-action-btn" type="button" disabled>◎ AÇÃO</button>
+          <button id="elevator-up-btn" class="character-action-btn hidden" type="button" disabled>↑ SUBIR</button>
+          <button id="elevator-down-btn" class="character-action-btn hidden" type="button" disabled>↓ DESCER</button>
+          <button id="inventory-open-btn" class="character-inventory-btn" type="button">INVENTÁRIO</button>
+          <button id="character-menu-btn" class="character-menu-btn" aria-label="Abrir menu">☰</button>
+        </div>
+      </div>
+
+      <div class="character-status">
+        <div class="character-stat">
+          <div class="character-stat-heading"><span>SAÚDE</span><b id="character-health-value">100%</b></div>
+          <div class="character-track"><div id="character-health" class="character-fill health-fill"></div></div>
+        </div>
+        <div class="character-stat">
+          <div class="character-stat-heading"><span>ENERGIA</span><b id="character-stamina-value">100%</b></div>
+          <div class="character-track"><div id="character-stamina" class="character-fill stamina-fill"></div></div>
+        </div>
+      </div>
+
+      <div class="character-quick-equipment" aria-label="Equipamento rápido">
+        <div class="quick-slot"><span>ARMA</span><b id="quick-weapon">VAZIO</b></div>
+        <div class="quick-slot"><span>FERRAMENTA</span><b id="quick-tool">VAZIO</b></div>
+        <div class="quick-slot"><span>MÁQUINA</span><b id="quick-machine">VAZIO</b></div>
+      </div>
+
+      <div class="character-interaction">
+        <span>INTERAÇÃO</span>
+        <b id="character-interaction">SEM ALVO PRÓXIMO</b>
+      </div>
+
+      <!-- CONTROLES DO PERSONAGEM: independentes dos controles da nave -->
+      <div id="character-controls" class="character-controls">
+        <div id="character-aim-area" class="character-aim-area" aria-label="Arraste para olhar ao redor"></div>
+        <div id="character-move-stick" class="character-move-stick" aria-label="Movimentar personagem">
+          <span class="character-move-knob"></span>
+          <small>MOVER</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- INVENTÁRIO E VESTUÁRIO DO PERSONAGEM -->
+    <div id="inventory-modal" class="inventory-modal hidden" aria-hidden="true">
+      <section class="inventory-window" role="dialog" aria-modal="true" aria-labelledby="inventory-title">
+        <header class="inventory-header">
+          <div><span class="inventory-kicker">SISTEMA DO EXPLORADOR</span><h2 id="inventory-title">INVENTÁRIO</h2></div>
+          <button id="inventory-close-btn" class="inventory-close-btn" type="button" aria-label="Fechar inventário">✕</button>
+        </header>
+        <nav class="inventory-tabs" aria-label="Seções do inventário">
+          <button class="inventory-tab active" type="button" data-inventory-tab="items">ITENS</button>
+          <button class="inventory-tab" type="button" data-inventory-tab="clothing">VESTUÁRIO</button>
+        </nav>
+        <div id="inventory-items-view" class="inventory-view">
+          <div class="inventory-section-heading"><b>MOCHILA</b><span id="inventory-count">0 / 24</span></div>
+          <div id="inventory-grid" class="inventory-grid"></div>
+          <p class="inventory-note">Os itens coletados e recursos encontrados aparecerão aqui.</p>
+        </div>
+        <div id="inventory-clothing-view" class="inventory-view hidden">
+          <div class="inventory-section-heading"><b>ROUPAS E PROTEÇÃO</b><span>EQUIPAMENTO DO EXPLORADOR</span></div>
+          <div class="clothing-grid">
+            <button class="inventory-slot suit-slot selected" type="button" data-slot="suit"><span>TRAJE</span><b>Traje de exploração básico</b><small>EQUIPADO</small></button>
+            <button class="inventory-slot" type="button" data-slot="helmet"><span>CABEÇA</span><b>Vazio</b></button>
+            <button class="inventory-slot" type="button" data-slot="torso"><span>PEITORAL</span><b>Vazio</b></button>
+            <button class="inventory-slot" type="button" data-slot="gloves"><span>LUVAS</span><b>Vazio</b></button>
+            <button class="inventory-slot" type="button" data-slot="legs"><span>CALÇAS</span><b>Vazio</b></button>
+            <button class="inventory-slot" type="button" data-slot="boots"><span>BOTAS</span><b>Vazio</b></button>
+          </div>
+        </div>
+        <footer class="inventory-footer">
+          <div class="inventory-equipment-summary"><span>ACESSO RÁPIDO</span><b>Arma · Ferramenta · Máquina</b></div>
+          <button id="inventory-done-btn" class="inventory-done-btn" type="button">CONCLUÍDO</button>
+        </footer>
+      </section>
+    </div>
+
     <!-- TELA DE CARREGAMENTO -->
     <div id="loading-screen" class="loading-screen hidden">
       <div class="loading-card">
@@ -133,7 +218,7 @@
     </div>
 
     <!-- HUD -->
-    <div id="hud">
+    <div id="hud" class="ship-interface hidden">
 
       <div class="hud-card">
         <b id="hud-user">PILOTO</b>
@@ -147,6 +232,7 @@
 
       <div class="hud-card right">
         <span>Créditos: <b id="hud-credits">0</b></span>
+        <button id="leave-pilot-btn" class="hud-menu" type="button">SAIR</button>
         <button id="game-menu-btn" class="hud-menu">
           ☰ MENU
         </button>
@@ -155,7 +241,7 @@
     </div>
 
     <!-- INDICADOR DE NITRO -->
-    <div id="nitro-display" class="nitro-display">
+    <div id="nitro-display" class="nitro-display ship-interface hidden">
 
       <div class="nitro-heading">
         <span>ENERGIA DO NITRO</span>
@@ -173,7 +259,7 @@
     <div id="toast" class="toast hidden"></div>
 
     <!-- CONTROLES DE VOO -->
-    <div id="flight-controls">
+    <div id="flight-controls" class="ship-interface hidden">
 
       <div
         id="aim-touch-area"
