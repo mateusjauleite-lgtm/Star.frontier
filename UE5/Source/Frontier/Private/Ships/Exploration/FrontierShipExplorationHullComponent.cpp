@@ -98,7 +98,7 @@ void UFrontierShipExplorationHullComponent::RebuildHull()
     {
         const FVector NacelleCenter(Side * 12.2f, 0.1f, 61.5f);
         AddPart(Side < 0 ? TEXT("PortNacelleBody") : TEXT("StarboardNacelleBody"),
-            Cylinder, NacelleCenter, FVector(6.7f, 6.7f, 75.0f), FRotator(0.0f, 90.0f, 0.0f));
+            Cylinder, NacelleCenter, FVector(6.7f, 6.7f, 75.0f), FRotator(90.0f, 0.0f, 0.0f));
 
         AddPart(Side < 0 ? TEXT("PortNacelleForwardCap") : TEXT("StarboardNacelleForwardCap"),
             Sphere, FVector(Side * 12.2f, 0.1f, 24.8f), FVector(6.4f, 6.4f, 2.2f));
@@ -108,7 +108,7 @@ void UFrontierShipExplorationHullComponent::RebuildHull()
             Sphere, FVector(Side * 12.2f, 0.1f, 97.6f), FVector(4.9f, 4.9f, 2.4f));
         AddPart(Side < 0 ? TEXT("PortNacelleAftRing") : TEXT("StarboardNacelleAftRing"),
             Cylinder, FVector(Side * 12.2f, 0.1f, 96.8f), FVector(6.1f, 6.1f, 0.8f),
-            FRotator(0.0f, 90.0f, 0.0f));
+            FRotator(90.0f, 0.0f, 0.0f));
 
         // Cyan guide strip along the outer side of each nacelle.
         AddPart(Side < 0 ? TEXT("PortNacelleLightStrip") : TEXT("StarboardNacelleLightStrip"),
