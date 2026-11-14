@@ -25,12 +25,25 @@ enum class EFrontierMainMenuSection : uint8
  * This widget owns presentation and forwards intent only. It does not own
  * authentication, save data, currency, inventory, ship state or world startup.
  */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FFrontierMenuProfileNameSubmitted, const FText&, DisplayName);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FFrontierMenuSectionChanged, EFrontierMainMenuSection, Section);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FFrontierMenuPlayRequested);
+
 UCLASS(Blueprintable)
 class FRONTIER_API UFrontierMainMenuWidget : public UUserWidget
 {
     GENERATED_BODY()
 
 public:
+    UPROPERTY(BlueprintAssignable, Category="Main|Menu|Events")
+    FFrontierMenuProfileNameSubmitted OnProfileNameSubmittedEvent;
+
+    UPROPERTY(BlueprintAssignable, Category="Main|Menu|Events")
+    FFrontierMenuSectionChanged OnSectionChangedEvent;
+
+    UPROPERTY(BlueprintAssignable, Category="Main|Menu|Events")
+    FFrontierMenuPlayRequested OnPlayRequestedEvent;
+
     UFUNCTION(BlueprintCallable, Category="Main|Menu")
     void SelectSection(EFrontierMainMenuSection Section);
 
