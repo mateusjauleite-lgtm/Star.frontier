@@ -84,6 +84,7 @@ Initial native source scaffold committed:
 - [x] Ship controls component exposing throttle, pitch, yaw, brake and boost.
 - [x] Player ship association World Subsystem.
 - [x] Pilot handoff attaches the character to the ship frame, changes view target and restores the character at the bridge exit when piloting ends.
+- [x] Ship Core exposes D1–D4 character placement using the original deck/elevator local positions.
 - [x] Explicit Three.js Y-up/metre-like to UE5 X-forward/Z-up/centimetre position conversion.
 
 Still required before Ship Core is considered migrated:
