@@ -460,45 +460,73 @@ function loadingStep(percent, message) {
 async function startGame() {
   if (launching) return;
 
-  // A chamada ocorre diretamente no clique de DECOLAR para permitir
-  // fullscreen no navegador; no APK o workflow ativa o modo imersivo nativo.
-  const gameScreen = $('game-screen');
-  const requestFullscreen = gameScreen?.requestFullscreen || gameScreen?.webkitRequestFullscreen;
-  if (requestFullscreen) {
-    try {
-      const result = requestFullscreen.call(gameScreen, { navigationUI: 'hide' });
-      result?.catch?.(() => {});
-    } catch (error) {
-      console.info('Fullscreen do navegador indisponível; usando a janela nativa do APK.', error);
-    }
-  }
-  try {
-    window.screen?.orientation?.lock?.('landscape')?.catch?.(() => {});
-  } catch {}
-
-  resetTransientState();
-  characterCore.initialize();
-  characterCore.setMode('on-foot');
-  updateCharacterHUD();
   launching = true;
   active = false;
-  show('game-screen');
 
+  const gameScreen = $('game-screen');
   const loadingScreen = $('loading-screen');
+  let startupStage = 'preparação do personagem';
+
+  // O menu é HTML/CSS; a cena e a gameplay são renderizadas pelo Three.js.
+  // Mostra a tela antes de pedir fullscreen, pois elementos ocultos não
+  // podem entrar em fullscreen em vários navegadores/WebViews.
+  show('game-screen');
   loadingScreen?.classList.remove('hidden');
 
   try {
+    const requestFullscreen = gameScreen?.requestFullscreen || gameScreen?.webkitRequestFullscreen;
+    if (requestFullscreen) {
+      try {
+        const result = requestFullscreen.call(gameScreen, { navigationUI: 'hide' });
+        result?.catch?.(() => {});
+      } catch (error) {
+        console.info('Fullscreen do navegador indisponível; mantendo a janela nativa do APK.', error);
+      }
+    }
+
+    try {
+      window.screen?.orientation?.lock?.('landscape')?.catch?.(() => {});
+    } catch {}
+
+    resetTransientState();
+    characterCore.initialize();
+    characterCore.setMode('on-foot');
+    updateCharacterHUD();
+
+    startupStage = 'inicialização do mundo Three.js';
     await loadingStep(6, 'Iniciando sistemas da missão...');
 
     if (!renderer) {
       await init3D();
     }
+
+    startupStage = 'integração do personagem e HUD';
     updateCharacterHUD();
 
-    // O computador só fica online depois que os três subsistemas estão registrados.
-    registerComputerSubsystems();
-    shipComputer.boot();
+    // O computador da nave é um subsistema. Uma falha nele não deve cancelar
+    // a entrada na gameplay nem desativar os controles básicos do personagem.
+    startupStage = 'registro do computador da nave';
+    if (!shipComputerSystemsRegistered) {
+      try {
+        registerComputerSubsystems();
+        shipComputerSystemsRegistered = true;
+      } catch (error) {
+        // Pode ter havido registro parcial; não repetir os mesmos IDs na próxima
+        // tentativa. Os controles Three.js continuam usando o estado principal.
+        shipComputerSystemsRegistered = true;
+        console.error('Subsistemas auxiliares do computador indisponíveis:', error);
+        toast('Computador auxiliar indisponível; controles básicos mantidos.');
+      }
+    }
 
+    try {
+      shipComputer.boot();
+    } catch (error) {
+      console.error('Não foi possível ativar o computador auxiliar:', error);
+      toast('Computador auxiliar offline; gameplay mantida.');
+    }
+
+    startupStage = 'finalização da gameplay';
     await loadingStep(100, 'Todos os sistemas prontos. Boa viagem, piloto.');
     await new Promise(resolve => setTimeout(resolve, 350));
 
@@ -509,11 +537,8 @@ async function startGame() {
     updateWallet();
     toast('Setor Orion: aproxime-se dos asteroides para minerar.');
   } catch (error) {
-    console.error('Falha ao iniciar Star Frontier:', error);
+    console.error(`Falha ao iniciar Star Frontier na etapa: ${startupStage}`, error);
 
-    // A inicialização pode falhar depois de criar o renderer, mas antes
-    // de concluir os sistemas. Desmonta o estado parcial para permitir
-    // uma nova tentativa real, em vez de reutilizar uma sessão quebrada.
     active = false;
     loadingScreen?.classList.add('hidden');
 
@@ -532,6 +557,12 @@ async function startGame() {
       renderer.dispose();
       renderer.forceContextLoss?.();
       renderer.domElement?.remove();
+    }
+
+    try {
+      shipComputer.shutdown();
+    } catch (shutdownError) {
+      console.warn('Não foi possível desligar o computador auxiliar:', shutdownError);
     }
 
     renderer = null;
@@ -558,8 +589,8 @@ async function startGame() {
     npcReady = false;
 
     show('menu-screen');
-    const detail = error?.message ? `\\n\\nDetalhe: ${error.message}` : '';
-    alert('Não foi possível carregar o jogo. A sessão parcial foi limpa; você pode tentar novamente.' + detail);
+    const detail = error?.message ? ` Detalhe: ${error.message}` : '';
+    alert(`Não foi possível carregar a gameplay Three.js. Etapa: ${startupStage}.${detail} Você pode tentar novamente.`);
   } finally {
     launching = false;
   }
