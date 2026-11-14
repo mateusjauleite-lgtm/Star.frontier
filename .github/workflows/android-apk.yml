@@ -2,21 +2,11 @@ name: Build Star Frontier UE5 Android APK
 
 on:
   workflow_dispatch:
-  pull_request:
-    branches: [ main ]
-    paths:
-      - 'UE5/**'
-      - '.github/workflows/android-apk.yml'
-  push:
-    branches: [ ue5/frontier-migration, main ]
-    paths:
-      - 'UE5/**'
-      - '.github/workflows/android-apk.yml'
 
 permissions:
   contents: read
 
-# Requires a trusted self-hosted Windows runner with licensed UE and Android tooling.
+# Manual-only until a trusted self-hosted Windows runner with UE and Android tooling is available.
 jobs:
   package-android:
     runs-on: [self-hosted, Windows, X64, UnrealEngine5, Android]
