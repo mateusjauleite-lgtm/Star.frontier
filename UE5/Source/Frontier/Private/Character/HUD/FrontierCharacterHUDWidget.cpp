@@ -9,29 +9,11 @@
 #include "Components/Border.h"
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
+#include "Blueprint/WidgetTree.h"
 #include "GameFramework/PlayerController.h"
 #include "Camera/CameraComponent.h"
 #include "EngineUtils.h"
 #include "Math/RotationMatrix.h"
-
-namespace
-{
-    UButton* AddHUDButton(UCanvasPanel* Canvas, UObject* Outer, const TCHAR* Label,
-        FVector2D Position, FVector2D Size, FAnchors Anchors)
-    {
-        UButton* Button = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
-        UTextBlock* Text = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
-        Text->SetText(FText::FromString(Label));
-        Text->SetJustification(ETextJustify::Center);
-        Button->AddChild(Text);
-        UCanvasPanelSlot* Slot = Canvas->AddChildToCanvas(Button);
-        Slot->SetAnchors(Anchors);
-        Slot->SetAlignment(FVector2D(0.0f, 0.0f));
-        Slot->SetPosition(Position);
-        Slot->SetSize(Size);
-        return Button;
-    }
-}
 
 void UFrontierCharacterHUDWidget::NativeConstruct()
 {
@@ -61,11 +43,11 @@ void UFrontierCharacterHUDWidget::BuildNativeLayout()
         Slot->SetPosition(Position);
         Slot->SetSize(FVector2D(176.0f, 176.0f));
     };
-    AddPad(FVector2D(34.0f, -210.0f), FAnchors(0.0f, 1.0f), TEXT("MOVIMENTO"));
-    AddPad(FVector2D(-210.0f, -210.0f), FAnchors(1.0f, 1.0f), TEXT("CÂMERA 360°"));
+    AddPad(FVector2D(34.0f, -210.0f), FAnchors(0.0f, 1.0f, 0.0f, 1.0f), TEXT("MOVIMENTO"));
+    AddPad(FVector2D(-210.0f, -210.0f), FAnchors(1.0f, 1.0f, 1.0f, 1.0f), TEXT("CÂMERA 360°"));
 
     const FAnchors BottomRight(1.0f, 1.0f);
-    if (UButton* Jump = AddHUDButton(Canvas, this, TEXT("PULO"), FVector2D(-300.0f, -118.0f), FVector2D(82.0f, 58.0f), BottomRight))
+    if (UButton* Jump = AddHUDButton(Canvas, TEXT("PULO"), FVector2D(-300.0f, -118.0f), FVector2D(82.0f, 58.0f), BottomRight))
         Jump->OnClicked.AddDynamic(this, &UFrontierCharacterHUDWidget::OnJumpPressed);
     if (UButton* Action = AddHUDButton(Canvas, this, TEXT("AÇÃO"), FVector2D(-205.0f, -118.0f), FVector2D(82.0f, 58.0f), BottomRight))
         Action->OnClicked.AddDynamic(this, &UFrontierCharacterHUDWidget::OnInteractPressed);
@@ -75,6 +57,21 @@ void UFrontierCharacterHUDWidget::BuildNativeLayout()
         Up->OnClicked.AddDynamic(this, &UFrontierCharacterHUDWidget::OnElevatorUpPressed);
     if (UButton* Down = AddHUDButton(Canvas, this, TEXT("↓"), FVector2D(72.0f, -98.0f), FVector2D(58.0f, 48.0f), BottomLeft))
         Down->OnClicked.AddDynamic(this, &UFrontierCharacterHUDWidget::OnElevatorDownPressed);
+}
+
+void UFrontierCharacterHUDWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+{
+    Super::NativeTick(MyGeometry, InDeltaTime);
+    for (int32 Finger : MovementPointers)
+    {
+        const FVector2D* Origin = TouchOrigins.Find(Finger);
+        const FVector2D* Current = CurrentTouchPositions.Find(Finger);
+        if (Origin && Current)
+        {
+            const FVector2D Delta = *Current - *Origin;
+            MoveCharacter(FVector2D(Delta.X / 85.0f, -Delta.Y / 85.0f).GetClampedToMaxSize(1.0f));
+        }
+    }
 }
 
 void UFrontierCharacterHUDWidget::ObserveCharacter(UFrontierCharacterStateComponent* CharacterState)
@@ -184,6 +181,8 @@ FReply UFrontierCharacterHUDWidget::NativeOnTouchStarted(const FGeometry& Geomet
     const FVector2D Local = Geometry.AbsoluteToLocal(Event.GetScreenSpacePosition());
     const int32 Finger = Event.GetPointerIndex();
     TouchOrigins.Add(Finger, Local);
+    CurrentTouchPositions.Add(Finger, Local);
+    LastTouchPositions.Add(Finger, Local);
     if (Local.X < Geometry.GetLocalSize().X * 0.5f) MovementPointers.Add(Finger);
     else LookPointers.Add(Finger);
     return FReply::Handled();
@@ -195,11 +194,11 @@ FReply UFrontierCharacterHUDWidget::NativeOnTouchMoved(const FGeometry& Geometry
     const FVector2D* Origin = TouchOrigins.Find(Finger);
     if (!Origin) return FReply::Unhandled();
     const FVector2D Local = Geometry.AbsoluteToLocal(Event.GetScreenSpacePosition());
-    const FVector2D Delta = Local - *Origin;
-    if (MovementPointers.Contains(Finger))
-        MoveCharacter(FVector2D(Delta.X / 85.0f, -Delta.Y / 85.0f).GetClampedToMaxSize(1.0f));
-    else if (LookPointers.Contains(Finger))
-        LookCharacter(FVector2D(Delta.X, -Delta.Y) * 0.012f);
+    CurrentTouchPositions.Add(Finger, Local);
+    const FVector2D* Previous = LastTouchPositions.Find(Finger);
+    if (LookPointers.Contains(Finger) && Previous)
+        LookCharacter(FVector2D(Local.X - Previous->X, Previous->Y - Local.Y) * 0.012f);
+    LastTouchPositions.Add(Finger, Local);
     return FReply::Handled();
 }
 
@@ -209,6 +208,8 @@ FReply UFrontierCharacterHUDWidget::NativeOnTouchEnded(const FGeometry& Geometry
     if (MovementPointers.Contains(Finger)) StopCharacterMovement();
     if (LookPointers.Contains(Finger)) LookCharacter(FVector2D::ZeroVector);
     TouchOrigins.Remove(Finger);
+    CurrentTouchPositions.Remove(Finger);
+    LastTouchPositions.Remove(Finger);
     MovementPointers.Remove(Finger);
     LookPointers.Remove(Finger);
     return FReply::Handled();
