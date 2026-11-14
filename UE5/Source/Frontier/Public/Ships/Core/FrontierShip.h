@@ -9,6 +9,8 @@ class UFrontierShipControlsComponent;
 class UFrontierShipEngineComponent;
 class UFrontierShipInteriorComponent;
 class UFrontierShipComputerComponent;
+class UFrontierShipCameraBoom;
+class AFrontierCharacter;
 
 USTRUCT(BlueprintType)
 struct FRONTIER_API FFrontierShipIdentity
@@ -84,11 +86,20 @@ public:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Ship|Interior")
     TObjectPtr<UFrontierShipInteriorComponent> Interior;
 
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Ship|Camera")
+    TObjectPtr<UFrontierShipCameraBoom> ShipCamera;
+
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Ship|Computer")
     TObjectPtr<UFrontierShipComputerComponent> Computer;
 
     UFUNCTION(BlueprintCallable, Category="Ship|Identity")
     void AssignCommander(FName NewCommanderId);
+
+    UFUNCTION(BlueprintCallable, Category="Ship|Bridge")
+    void BeginPiloting(AFrontierCharacter* Character, FName NewCommanderId);
+
+    UFUNCTION(BlueprintCallable, Category="Ship|Bridge")
+    void EndPiloting();
 
     UFUNCTION(BlueprintCallable, Category="Ship|Flight")
     void SetFlightInputs(float NewThrottle, float NewPitch, float NewYaw, bool bNewBraking, bool bNewBoosting);
@@ -98,4 +109,14 @@ public:
 
 protected:
     virtual void Tick(float DeltaSeconds) override;
+
+private:
+    TWeakObjectPtr<AFrontierCharacter> ActivePilot;
+    float TravelDirectionSign = 1.0f;
+
+    UPROPERTY(EditDefaultsOnly, Category="Ship|Flight")
+    float YawRateDegrees = 32.0f;
+
+    UPROPERTY(EditDefaultsOnly, Category="Ship|Flight")
+    float PitchRateDegrees = 24.0f;
 };
