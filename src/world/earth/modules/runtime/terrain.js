@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { createEarthLandMask } from './surface.js';
+import { createEarthKernelAdapter, loadEarthKernel } from '../../wasm/earthKernel.js';
 
 const clamp01 = value => THREE.MathUtils.clamp(value, 0, 1);
 const smoothstep = (a, b, value) => {
@@ -31,11 +32,12 @@ export function sampleEarthElevationGrid(grid, longitudeDeg, latitudeDeg) {
   const tx = u - x0, ty = v - y0;
   const at = (x, y) => grid.values[y * grid.width + x];
   const values = [at(x0,y0), at(x1,y0), at(x0,y1), at(x1,y1)];
-  if (values.some(value => !Number.isFinite(value) ||
-      (grid.noDataValue !== undefined && value === grid.noDataValue))) return null;
-  const top = THREE.MathUtils.lerp(values[0], values[1], tx);
-  const bottom = THREE.MathUtils.lerp(values[2], values[3], tx);
-  return THREE.MathUtils.lerp(top, bottom, ty);
+  const weights = [(1 - tx) * (1 - ty), tx * (1 - ty), (1 - tx) * ty, tx * ty];
+  const valid = value => Number.isFinite(value) &&
+    (grid.noDataValue === undefined || value !== grid.noDataValue);
+  if (values.some((value, index) => weights[index] > 0 && !valid(value))) return null;
+  return values.reduce((sum, value, index) =>
+    sum + (weights[index] ? value * weights[index] : 0), 0);
 }
 
 function proceduralFallback(longitude, latitude, radius, land) {
@@ -67,10 +69,15 @@ function proceduralFallback(longitude, latitude, radius, land) {
 export function createTerrainRuntime({ options, layers }) {
   let maskCanvas, maskData;
   let elevationSampler = null;
+  let earthKernel = createEarthKernelAdapter();
   let heightScale = 1;
 
   return {
     initialize() {
+      loadEarthKernel().then(kernel => {
+        earthKernel = kernel;
+        if (layers.terrain) layers.terrain.computeBackend = kernel.backend;
+      });
       const surface = layers.surface;
       if (!surface?.geometry) return;
 
@@ -122,8 +129,10 @@ export function createTerrainRuntime({ options, layers }) {
 
       elevationSampler = (longitudeDeg, latitudeDeg) => {
         if (gridIsReady) {
-          const meters = sampleEarthElevationGrid(grid, longitudeDeg, latitudeDeg);
-          if (meters !== null) return (meters / 1000) * unitsPerKm * exaggeration;
+          const meters = earthKernel.sampleElevation(grid, longitudeDeg, latitudeDeg);
+          if (meters !== null) return earthKernel.elevationMetersToUnits(
+            meters, radius, 6371.0088, exaggeration
+          );
         }
         const lon = THREE.MathUtils.degToRad(longitudeDeg);
         const lat = THREE.MathUtils.degToRad(latitudeDeg);
@@ -142,6 +151,7 @@ export function createTerrainRuntime({ options, layers }) {
         sourceAttribution: grid?.attribution ?? null,
         sourceGridReady: gridIsReady,
         verticalExaggeration: exaggeration,
+        computeBackend: earthKernel.backend,
         unitsPerKm,
         waterGeometry: false,
         sampleHeight: elevationSampler
@@ -152,6 +162,7 @@ export function createTerrainRuntime({ options, layers }) {
       maskCanvas = null;
       maskData = null;
       elevationSampler = null;
+      earthKernel.dispose();
     }
   };
 }
