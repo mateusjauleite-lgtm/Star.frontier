@@ -62,7 +62,8 @@ Still required before Character Core is considered migrated:
 - [ ] Import/retarget the humanoid exploration suit skeletal mesh and skeleton.
 - [ ] Build the Animation Blueprint and map idle/walk/run/sit/stand poses from the legacy animator.
 - [x] Port native UMG HUD state observation and Blueprint-callable mobile movement, camera-look, jump and interaction actions.
-- [ ] Build the compact mobile HUD Widget Blueprint, including joystick/button visuals, anchors and safe zones.
+- [x] Build a native runtime UMG layout with left movement touch zone, right 360° camera zone, compact jump/action buttons and contextual elevator controls.
+- [ ] Tune HUD scale, safe areas and touch response in the UE5 mobile preview.
 - [ ] Connect the pilot-seat interaction to Ship Core possession/camera handoff.
 - [ ] Verify spawn location on Deck 1 bridge after Ship Core migration.
 - [ ] Compile with Unreal Build Tool and validate behavior in a UE5 test map.
@@ -106,8 +107,9 @@ Still required before Ship Core is considered migrated and playable:
 - [ ] Define and verify the actual hangar-exit and elevator-access clearance boxes, with no obstructing meshes or collision.
 - [ ] Replace or fit the temporary box collision proxy to the final hull collision geometry.
 - [ ] Add bridge stations/console meshes and configure terminal permissions per station.
-- [x] Add native ship HUD control endpoints for throttle, yaw/pitch, brake, boost, pilot exit and elevator up/down; create/remove the pilot HUD with the piloting lifecycle.
-- [ ] Build and assign the visual ship HUD Widget Blueprint; bind touch controls to the native endpoints.
+- [x] Add native ship HUD control endpoints for throttle, yaw/pitch, brake, boost and pilot exit; create/remove the pilot HUD with the piloting lifecycle.
+- [x] Build the native pilot HUD layout with left throttle and right steering touch zones, plus impulse, brake and exit buttons.
+- [ ] Tune flight HUD scale and touch response in the UE5 mobile preview.
 - [ ] Verify character starts on Deck 1 and deck/elevator circulation is correct.
 - [ ] Compile with Unreal Build Tool and test ship movement, collision, camera handoff, computer permissions, HUD touch input and deck routing in Editor.
 
