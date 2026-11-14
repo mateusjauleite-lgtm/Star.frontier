@@ -1,5 +1,5 @@
 // Adaptadores entre o computador central e os sistemas reais da nave.
-// Este módulo consulta os sistemas existentes; não duplica física ou estado.
+// Consultam o estado e os objetos já usados pelo jogo; não duplicam física nem recursos.
 
 export function registerShipComputerSystems(computer, {
   state,
@@ -14,13 +14,19 @@ export function registerShipComputerSystems(computer, {
     throw new TypeError('Dependências dos sistemas do computador incompletas.');
   }
 
-  const readNavigation = () => {
+  const readShip = () => {
     const ship = getShip();
+    return ship?.position ? ship : null;
+  };
+
+  const readNavigation = () => {
+    const ship = readShip();
     if (!ship) return { available: false };
-    const position = ship.position;
+
+    const { x, y, z } = ship.position;
     return {
       available: true,
-      position: { x: position.x, y: position.y, z: position.z },
+      position: { x, y, z },
       heading: getShipYaw(),
       pitch: getPitchAngle(),
       speed: state.speed,
@@ -31,25 +37,30 @@ export function registerShipComputerSystems(computer, {
   computer.registerSystem('navigation', {
     name: 'Navegação',
     commands: {
-      telemetry: () => readNavigation()
+      telemetry: readNavigation
     },
-    getStatus: () => getShip() ? 'online' : 'standby'
+    getStatus: () => readShip() ? 'online' : 'standby'
   });
 
   computer.registerSystem('sensors', {
     name: 'Sensores',
     commands: {
       scan: () => {
-        const ship = getShip();
-        if (!ship) return { available: false, contacts: [] };
-        const contacts = getAsteroids()
-          .filter(asteroid => asteroid && asteroid.position)
+        const ship = readShip();
+        if (!ship || typeof ship.position.distanceTo !== 'function') {
+          return { available: false, totalContacts: 0, nearestContact: null, contacts: [] };
+        }
+
+        const asteroids = getAsteroids();
+        const contacts = (Array.isArray(asteroids) ? asteroids : [])
+          .filter(asteroid => asteroid?.position)
           .map((asteroid, index) => ({
             id: asteroid.name || `asteroid-${index + 1}`,
             distance: ship.position.distanceTo(asteroid.position),
             ore: asteroid.userData?.ore ?? null
           }))
           .sort((a, b) => a.distance - b.distance);
+
         return {
           available: true,
           totalContacts: contacts.length,
@@ -58,23 +69,31 @@ export function registerShipComputerSystems(computer, {
         };
       }
     },
-    getStatus: () => getShip() ? 'online' : 'standby'
+    getStatus: () => readShip() ? 'online' : 'standby'
   });
 
   computer.registerSystem('power', {
     name: 'Energia e recursos',
     commands: {
-      status: () => ({
-        fuel: state.fuel,
-        nitro: state.nitro,
-        shields: state.shield,
-        hull: state.hull,
-        propulsion: state.nitroButton && state.nitro > 0
-          ? 'boost'
-          : state.throttle ? 'thrust' : 'idle'
-      })
+      status: () => {
+        if (!readShip()) return { available: false };
+
+        const fuelAvailable = state.fuel > 0;
+        const boosting = state.nitroButton && state.nitro > 0 && fuelAvailable;
+        const thrusting = state.throttle && fuelAvailable;
+
+        return {
+          available: true,
+          fuel: state.fuel,
+          nitro: state.nitro,
+          shields: state.shield,
+          hull: state.hull,
+          braking: Boolean(state.braking),
+          propulsion: boosting ? 'boost' : thrusting ? 'thrust' : 'idle'
+        };
+      }
     },
-    getStatus: () => 'monitoring'
+    getStatus: () => readShip() ? 'monitoring' : 'standby'
   });
 
   return true;

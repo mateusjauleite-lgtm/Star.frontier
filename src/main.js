@@ -433,7 +433,6 @@ function loadingStep(percent, message) {
 }
 
 async function startGame() {
-  shipComputer.boot();
   if (launching) return;
 
   resetTransientState();
@@ -454,7 +453,9 @@ async function startGame() {
       await init3D();
     }
 
+    // O computador só fica online depois que os três subsistemas estão registrados.
     registerComputerSubsystems();
+    shipComputer.boot();
 
     await loadingStep(100, 'Todos os sistemas prontos. Boa viagem, piloto.');
     await new Promise(resolve => setTimeout(resolve, 350));
