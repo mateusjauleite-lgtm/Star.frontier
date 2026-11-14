@@ -101,9 +101,8 @@ void AFrontierShip::BeginPiloting(AFrontierCharacter* Character, FName NewComman
     if (APlayerController* PC = Cast<APlayerController>(Character->GetController()))
     {
         PC->SetViewTarget(this);
-        if (ShipHUDClass)
         {
-            if (!ShipHUD) ShipHUD = CreateWidget<UFrontierShipHUDWidget>(PC, ShipHUDClass);
+            if (!ShipHUD) ShipHUD = CreateWidget<UFrontierShipHUDWidget>(PC, ShipHUDClass ? ShipHUDClass : UFrontierShipHUDWidget::StaticClass());
             if (ShipHUD)
             {
                 ShipHUD->AddToViewport();
