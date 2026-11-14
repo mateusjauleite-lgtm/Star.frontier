@@ -32,7 +32,8 @@ FText AFrontierPilotStation::GetInteractionLabel_Implementation() const
 
 bool AFrontierPilotStation::CanBeInteractedWith_Implementation(AActor* InteractingActor) const
 {
-    return OwningShip && Cast<AFrontierCharacter>(InteractingActor) != nullptr;
+    return OwningShip && !OwningShip->IsPiloted() &&
+        Cast<AFrontierCharacter>(InteractingActor) != nullptr;
 }
 
 void AFrontierPilotStation::Interact_Implementation(AActor* InteractingActor)
