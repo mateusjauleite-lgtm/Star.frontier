@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
-    "test": "node --test",
+    "test": "node --test $(find src -type f -name '*.test.js' -print)",
     "android:add": "npx cap add android",
     "android:sync": "npx cap sync android",
     "build:earth:wasm": "bash scripts/build-earth-wasm.sh"
