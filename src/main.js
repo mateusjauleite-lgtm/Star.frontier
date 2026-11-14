@@ -780,7 +780,28 @@ function updateCharacterCamera() {
   }
 }
 
-function resolveCharacterShipCollisions(position, deckIndex) {
+function isCharacterPositionBlocked(position, deckIndex) {
+  const deck = starshipInterior?.layout?.decks?.[deckIndex];
+  if (!deck) return true;
+
+  const playerRadius = 0.48;
+  const feetY = deck.y + 0.21;
+  for (const wall of starshipInterior.collisionBoxes || []) {
+    if (feetY + 1.8 < wall.y - wall.halfY || feetY > wall.y + wall.halfY) continue;
+
+    const nearestX = THREE.MathUtils.clamp(position.x, wall.x - wall.halfX, wall.x + wall.halfX);
+    const nearestZ = THREE.MathUtils.clamp(position.z, wall.z - wall.halfZ, wall.z + wall.halfZ);
+    const dx = position.x - nearestX;
+    const dz = position.z - nearestZ;
+
+    // Apenas informa o bloqueio. Nunca empurra o personagem para fora da parede:
+    // isso evita deslocamentos bruscos quando o ponto inicial já está sobreposto.
+    if (Math.abs(dx) < playerRadius && Math.abs(dz) < playerRadius) return true;
+  }
+  return false;
+}
+
+function clampCharacterToDeck(position, deckIndex) {
   const deck = starshipInterior?.layout?.decks?.[deckIndex];
   if (!deck) return;
   const footprints = {
@@ -788,7 +809,6 @@ function resolveCharacterShipCollisions(position, deckIndex) {
     D3: [25.6, 50.1], D4: [16.6, 28.6]
   };
   const [radiusX, radiusZ] = footprints[deck.id] || footprints.D1;
-  // Limite acompanha o contorno real do convés, sem o círculo artificial antigo.
   const normalizedX = position.x / radiusX;
   const normalizedZ = (position.z + 2) / radiusZ;
   const radial = Math.hypot(normalizedX, normalizedZ);
@@ -797,27 +817,6 @@ function resolveCharacterShipCollisions(position, deckIndex) {
     position.x = normalizedX * scale * radiusX;
     position.z = -2 + normalizedZ * scale * radiusZ;
   }
-
-  // Colisão retangular simples com as anteparas estruturais da nave.
-  // Resolve cada eixo separadamente para permitir deslizar junto às paredes.
-  const playerRadius = 0.48;
-  const feetY = deck.y + 0.21;
-  for (const wall of starshipInterior.collisionBoxes || []) {
-    if (feetY + 1.8 < wall.y - wall.halfY || feetY > wall.y + wall.halfY) continue;
-    const nearestX = THREE.MathUtils.clamp(position.x, wall.x - wall.halfX, wall.x + wall.halfX);
-    const nearestZ = THREE.MathUtils.clamp(position.z, wall.z - wall.halfZ, wall.z + wall.halfZ);
-    let dx = position.x - nearestX;
-    let dz = position.z - nearestZ;
-    if (Math.abs(dx) < playerRadius && Math.abs(dz) < playerRadius) {
-      const overlapX = playerRadius - Math.abs(dx);
-      const overlapZ = playerRadius - Math.abs(dz);
-      if (overlapX < overlapZ) {
-        position.x += (dx < 0 ? -1 : 1) * overlapX;
-      } else {
-        position.z += (dz < 0 ? -1 : 1) * overlapZ;
-      }
-    }
-  }
 }
 
 function updateCharacterMovement(dt) {
@@ -825,16 +824,28 @@ function updateCharacterMovement(dt) {
   const input = characterMoveInput;
   const magnitude = Math.min(1, Math.hypot(input.x, input.y));
   const deck = characterModel.group.position;
+
   if (magnitude > 0.08) {
     characterYaw -= input.x * dt * 1.9;
     const forward = new THREE.Vector3(Math.sin(characterYaw), 0, -Math.cos(characterYaw));
     const right = new THREE.Vector3(Math.cos(characterYaw), 0, Math.sin(characterYaw));
     const direction = forward.multiplyScalar(-input.y).add(right.multiplyScalar(input.x * 0.18));
     if (direction.lengthSq() > 0) direction.normalize();
+
+    const step = 3.1 * magnitude * dt;
     const previousX = deck.x;
     const previousZ = deck.z;
-    deck.addScaledVector(direction, 3.1 * magnitude * dt);
-    resolveCharacterShipCollisions(deck, activeDeckIndex);
+
+    // Testa cada eixo separadamente: bloqueia somente o avanço contra a parede
+    // e mantém o movimento tangencial, sem correções que causem "empurrões".
+    deck.x = previousX + direction.x * step;
+    clampCharacterToDeck(deck, activeDeckIndex);
+    if (isCharacterPositionBlocked(deck, activeDeckIndex)) deck.x = previousX;
+
+    deck.z = previousZ + direction.z * step;
+    clampCharacterToDeck(deck, activeDeckIndex);
+    if (isCharacterPositionBlocked(deck, activeDeckIndex)) deck.z = previousZ;
+
     deck.y = starshipInterior.layout.decks[activeDeckIndex].y + 0.21;
     characterModel.group.rotation.y = characterYaw;
     characterAnimator?.play(magnitude > 0.72 ? 'run' : 'walk');
