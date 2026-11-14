@@ -63,11 +63,13 @@ Ships/
   PlayerShip/ FrontierPlayerShipSubsystem.h/.cpp
 ```
 
-The Ship Core owns ShipId, CommanderId, flight state and its feature components. The exploration hull is assembled from a profile of independently transformed mesh parts. Decks are separate actors driven by Data Assets; wall pieces have individual transforms and collision flags, with protected hangar/elevator clearance volumes. The elevator routes among the four original deck stops. The bridge pilot station enters Ship Core piloting, attaches the character to the ship's local frame, switches the view target and registers the current player ship. Ship Core also exposes a deck-placement API for starting the character on D1 and moving between the four deck frames. The computer has terminal permissions and navigation telemetry; engines and controls are separate components.
+The Ship Core owns ShipId, CommanderId, flight state and its feature components. Its root now uses a configurable collision box so swept actor movement checks a blocking root shape; this is a temporary proxy and must be fitted to the imported hull or replaced with a dedicated hull collision mesh. The exploration hull is assembled from a profile of independently transformed mesh parts.
+
+Deck definitions are held by the interior branch, which can spawn any missing deck modules at runtime. Decks remain separate actors driven by Data Assets; wall pieces have individual transforms and collision flags, with protected hangar/elevator clearance volumes. The elevator routes among the four original deck stops and determines the current stop in ship-local coordinates. The bridge pilot station enters Ship Core piloting, attaches the character to the ship's local frame, switches the view target and registers the current player ship. Pilot exit is exposed through a requester-checked API for Enhanced Input or a mobile HUD action. Ship Core also exposes a deck-placement API for placing the character on D1–D4. The computer has terminal permissions and navigation telemetry; engines and controls are separate components, with boost affecting the top speed.
 
 The legacy ship used Three.js Y-up coordinates and metre-like source units. The migration helper converts local positions to UE5 X-forward/Z-up centimetres: UE X = -legacy Z, UE Y = legacy X, UE Z = legacy Y, multiplied by 100. Imported hull/deck assets must follow this convention or provide an explicit import transform.
 
-This remains a source scaffold. The actual hull/deck mesh assets, deck Data Assets, terminal permissions, Enhanced Input/UI bindings and editor-side layout still need to be authored and validated.
+The native Ship Core code path is now organized for Editor integration, but it is **not yet a validated playable ship**. Actual hull/deck meshes, four authored deck Data Assets and clearance bounds, terminal permissions, Enhanced Input/mobile UI bindings, final hull collision, and Editor-side layout verification remain. No Unreal compile or Editor test has been performed.
 
 ## Remaining established cores and branches
 
@@ -134,4 +136,4 @@ Interop/
 
 ## Validation status
 
-Planetary Core, the first Character Core slice and the first Ship Core slice are committed but have **not** yet been compiled with Unreal Build Tool or tested in Editor. No runnable `.uproject` or packaged game is claimed to exist.
+Planetary Core, Character Core and Ship Core source scaffolds have not been compiled with Unreal Build Tool or tested in Editor. No runnable `.uproject` or packaged game is claimed to exist.
