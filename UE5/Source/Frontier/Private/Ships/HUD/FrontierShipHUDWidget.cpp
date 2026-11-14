@@ -99,29 +99,30 @@ void UFrontierShipHUDWidget::HandleFlightStateChanged(const FFrontierShipFlightS
 
 void UFrontierShipHUDWidget::SetThrottleInput(float Value)
 {
-    if (ObservedShip && ObservedShip->Controls) ObservedShip->Controls->SetThrottle(Value);
+    if (ObservedShip && ObservedShip->IsPiloted() && ObservedShip->Controls)
+        ObservedShip->Controls->SetThrottle(Value);
 }
 void UFrontierShipHUDWidget::SetSteeringInput(float Yaw, float Pitch)
 {
-    if (!ObservedShip || !ObservedShip->Controls) return;
+    if (!ObservedShip || !ObservedShip->IsPiloted() || !ObservedShip->Controls) return;
     ObservedShip->Controls->SetYaw(Yaw);
     ObservedShip->Controls->SetPitch(Pitch);
 }
 void UFrontierShipHUDWidget::SetBrake(bool bPressed)
 {
-    if (ObservedShip && ObservedShip->Controls) ObservedShip->Controls->SetBraking(bPressed);
+    if (ObservedShip && ObservedShip->IsPiloted() && ObservedShip->Controls) ObservedShip->Controls->SetBraking(bPressed);
 }
 void UFrontierShipHUDWidget::SetBoost(bool bPressed)
 {
-    if (ObservedShip && ObservedShip->Controls) ObservedShip->Controls->SetBoosting(bPressed);
+    if (ObservedShip && ObservedShip->IsPiloted() && ObservedShip->Controls) ObservedShip->Controls->SetBoosting(bPressed);
 }
 void UFrontierShipHUDWidget::ClearFlightInput()
 {
-    if (ObservedShip && ObservedShip->Controls) ObservedShip->Controls->ClearControls();
+    if (ObservedShip && ObservedShip->IsPiloted() && ObservedShip->Controls) ObservedShip->Controls->ClearControls();
 }
 void UFrontierShipHUDWidget::ExitPilotSeat()
 {
-    if (ObservedShip && ObservedCharacter) ObservedShip->RequestPilotExit(ObservedCharacter);
+    if (ObservedShip && ObservedShip->IsPiloted() && ObservedCharacter) ObservedShip->RequestPilotExit(ObservedCharacter);
 }
 void UFrontierShipHUDWidget::OnBoostPressed() { SetBoost(true); }
 void UFrontierShipHUDWidget::OnBoostReleased() { SetBoost(false); }
@@ -131,6 +132,7 @@ void UFrontierShipHUDWidget::OnExitPressed() { ExitPilotSeat(); }
 
 FReply UFrontierShipHUDWidget::NativeOnTouchStarted(const FGeometry& Geometry, const FPointerEvent& Event)
 {
+    if (!ObservedShip || !ObservedShip->IsPiloted()) return FReply::Unhandled();
     const FVector2D Local = Geometry.AbsoluteToLocal(Event.GetScreenSpacePosition());
     const int32 Finger = Event.GetPointerIndex();
     TouchOrigins.Add(Finger, Local);
@@ -153,13 +155,23 @@ FReply UFrontierShipHUDWidget::NativeOnTouchMoved(const FGeometry& Geometry, con
     return FReply::Handled();
 }
 
-FReply UFrontierShipHUDWidget::NativeOnTouchEnded(const FGeometry& Geometry, const FPointerEvent& Event)
+void UFrontierShipHUDWidget::ReleaseTouchPointer(int32 Finger)
 {
-    const int32 Finger = Event.GetPointerIndex();
     if (ThrottlePointers.Contains(Finger)) SetThrottleInput(0.0f);
     if (SteeringPointers.Contains(Finger)) SetSteeringInput(0.0f, 0.0f);
     TouchOrigins.Remove(Finger);
     ThrottlePointers.Remove(Finger);
     SteeringPointers.Remove(Finger);
+}
+
+FReply UFrontierShipHUDWidget::NativeOnTouchEnded(const FGeometry& Geometry, const FPointerEvent& Event)
+{
+    ReleaseTouchPointer(Event.GetPointerIndex());
+    return FReply::Handled();
+}
+
+FReply UFrontierShipHUDWidget::NativeOnTouchCancelled(const FGeometry& Geometry, const FPointerEvent& Event)
+{
+    ReleaseTouchPointer(Event.GetPointerIndex());
     return FReply::Handled();
 }
