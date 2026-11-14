@@ -79,16 +79,18 @@ bool AFrontierShipElevator::CanBeInteractedWith_Implementation(AActor* Interacti
 void AFrontierShipElevator::Interact_Implementation(AActor* InteractingActor)
 {
     AFrontierCharacter* Character = Cast<AFrontierCharacter>(InteractingActor);
-    if (!Character || Stops.Num() < 2) return;
+    if (!OwningShip || !Character || Stops.Num() < 2) return;
+
+    const FVector CharacterShipLocalPosition =
+        OwningShip->GetActorTransform().InverseTransformPosition(Character->GetActorLocation());
 
     int32 CurrentIndex = 0;
-    const FVector CurrentPosition = Character->GetActorRelativeLocation();
     float BestDistance = TNumericLimits<float>::Max();
 
     for (int32 Index = 0; Index < Stops.Num(); ++Index)
     {
         const FVector Candidate = AFrontierShip::ThreeToUnrealLocalPosition(Stops[Index].LegacyThreePosition);
-        const float Distance = FVector::DistSquared(CurrentPosition, Candidate);
+        const float Distance = FVector::DistSquared(CharacterShipLocalPosition, Candidate);
         if (Distance < BestDistance)
         {
             BestDistance = Distance;
