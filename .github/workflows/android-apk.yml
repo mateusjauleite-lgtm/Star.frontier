@@ -58,6 +58,23 @@ jobs:
           fi
           npx cap sync android
 
+      - name: Force landscape orientation
+        run: |
+          python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          path = "android/app/src/main/AndroidManifest.xml"
+          tree = ET.parse(path)
+          root = tree.getroot()
+          android_ns = "{http://schemas.android.com/apk/res/android}"
+          activity = next((node for node in root.iter("activity") if node.get(android_ns + "name", "").endswith("MainActivity")), None)
+          if activity is None:
+              raise SystemExit("MainActivity not found in AndroidManifest.xml")
+          activity.set(android_ns + "screenOrientation", "landscape")
+          ET.register_namespace("android", "http://schemas.android.com/apk/res/android")
+          tree.write(path, encoding="utf-8", xml_declaration=True)
+          print("MainActivity orientation set to landscape")
+          PY
+
       - name: Compile Android APK
         working-directory: android
         run: ./gradlew --no-daemon assembleDebug
