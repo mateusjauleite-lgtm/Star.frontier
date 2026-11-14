@@ -1,21 +1,53 @@
-import { createEarth } from '../earth.js';
+import * as THREE from 'three';
 import { EARTH_REFERENCE_POLICY, EARTH_REFERENCE_SOURCES } from './references/index.js';
 import { EARTH_UPDATE_MODULES } from './modules/index.js';
 import { createEarthUpdatePipeline } from './earthUpdatePipeline.js';
+import { createSurfaceRuntime } from './modules/runtime/surface.js';
+import { createTerrainRuntime } from './modules/runtime/terrain.js';
+import { createOceansRuntime } from './modules/runtime/oceans.js';
+import { createAtmosphereRuntime } from './modules/runtime/atmosphere.js';
+import { createCloudsRuntime } from './modules/runtime/clouds.js';
+import { createLightingRuntime } from './modules/runtime/lighting.js';
+
+const RUNTIME_FACTORIES = Object.freeze({
+  surface: createSurfaceRuntime,
+  terrain: createTerrainRuntime,
+  oceans: createOceansRuntime,
+  atmosphere: createAtmosphereRuntime,
+  clouds: createCloudsRuntime,
+  lighting: createLightingRuntime
+});
 
 /**
- * Stable integration boundary for the planetary scene.
- * The legacy renderer remains the visual baseline; new domains stay dormant
- * until reviewed runtime implementations are explicitly attached.
+ * New-generation Earth core. It owns a clean scene graph and attaches each
+ * independently implemented visual layer through the module lifecycle pipeline.
+ * The previous renderer remains in earth.js only as a comparison baseline.
  */
 export function createEarthCore(options = {}) {
-  const implementation = createEarth(options);
+  const settings = {
+    radius: options.radius ?? 78,
+    position: options.position ?? [0, 0, -240],
+    ...options
+  };
+  const group = new THREE.Group();
+  group.name = 'StarFrontier-Earth-Core';
+  group.position.set(...settings.position);
+
+  const layers = {};
+  const context = { group, options: settings, layers };
   const updatePipeline = createEarthUpdatePipeline(EARTH_UPDATE_MODULES);
   let disposed = false;
 
-  const core = {
-    group: implementation.group,
-    version: '1.1.0',
+  for (const definition of EARTH_UPDATE_MODULES) {
+    const factory = RUNTIME_FACTORIES[definition.id];
+    if (!factory) continue;
+    const attached = updatePipeline.attach(definition.id, factory(context));
+    if (!attached) throw new Error(`Unable to initialize Earth module: ${definition.id}`);
+  }
+
+  return {
+    group,
+    version: '1.2.0',
     referencePolicy: EARTH_REFERENCE_POLICY,
     references: EARTH_REFERENCE_SOURCES,
     updateModules: EARTH_UPDATE_MODULES,
@@ -25,27 +57,22 @@ export function createEarthCore(options = {}) {
     },
     update(delta) {
       if (disposed) return;
-      implementation.update(delta);
-      updatePipeline.update(delta, { group: core.group, options });
+      updatePipeline.update(delta, context);
     },
     dispose() {
       if (disposed) return;
       disposed = true;
       updatePipeline.dispose();
-      implementation.dispose();
     },
     getStatus() {
       return {
         core: 'ready',
-        version: core.version,
-        renderer: 'legacy-earth-adapter',
+        version: '1.2.0',
+        renderer: 'modular-earth-runtime',
         referencesAreAdvisory: true,
         updateModules: updatePipeline.getStatus(),
         disposed
       };
     }
   };
-
-  core.group.name = 'StarFrontier-Earth-Core';
-  return core;
 }
