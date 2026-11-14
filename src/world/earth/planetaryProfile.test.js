@@ -65,3 +65,12 @@ test('Earth kernel fallback converts physical elevation into visual units', () =
   kernel.dispose();
   assert.equal(kernel.elevationMetersToUnits(1000, 300, 6371.0088, 8), null);
 });
+
+test('Earth kernel fallback supports batched elevation samples', () => {
+  const kernel = createEarthKernelAdapter();
+  const grid = { width: 2, height: 2, values: new Float32Array([100, 200, 300, 400]) };
+  const result = kernel.sampleElevationBatch(
+    grid, new Float32Array([-180, 0, 180]), new Float32Array([90, 0, -90])
+  );
+  assert.deepEqual(Array.from(result), [100, 250, 400]);
+});
