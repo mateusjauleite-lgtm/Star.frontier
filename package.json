@@ -1,8 +1,8 @@
 {
-  "name": "star-frontier-legacy-web",
-  "version": "0.1.0",
+  "name": "star-frontier-threejs",
+  "version": "1.0.0",
   "private": true,
-  "description": "Legacy Vite/Three.js and Capacitor tooling retained for migration reference; not used by the Unreal Engine 5 runtime.",
+  "description": "Star Frontier Three.js game runtime and Capacitor Android package",
   "type": "module",
   "engines": {
     "node": ">=22"
@@ -11,14 +11,8 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "test": "node --test",
-    "android:sync": "npx cap sync android",
-    "android:open": "npx cap open android",
-    "legacy:dev": "vite --host 0.0.0.0",
-    "legacy:build": "vite build",
-    "legacy:test": "node --test",
-    "legacy:android:add": "npx cap add android",
-    "legacy:android:sync": "npx cap sync android",
-    "legacy:android:open": "npx cap open android"
+    "android:add": "npx cap add android",
+    "android:sync": "npx cap sync android"
   },
   "dependencies": {
     "@capacitor/core": "^7.4.3",
