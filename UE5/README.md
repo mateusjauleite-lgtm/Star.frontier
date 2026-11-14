@@ -1,6 +1,13 @@
 # Star Frontier — Unreal Engine 5.8
 
-This workspace is the destination for the **complete migration** of Star Frontier to Unreal Engine 5. **UE 5.8 is the pinned engine baseline** and sole target runtime for future development.\n\n## Engine baseline\n\n- Project descriptor `StarFrontier.uproject` is associated with Unreal Engine **5.8**.\n- Android CI preflight rejects any engine major/minor version other than 5.8.\n- Install the official stable UE 5.8 release and use its matching Android SDK/NDK/JDK through Unreal Turnkey.\n- Do not upgrade the engine association or Android toolchain independently; review source compatibility and rerun the full acceptance checks together.
+This workspace is the destination for the **complete migration** of Star Frontier to Unreal Engine 5. **UE 5.8 is the pinned engine baseline** and sole target runtime for future development.
+
+## Engine baseline
+
+- Project descriptor `StarFrontier.uproject` is associated with Unreal Engine **5.8**.
+- Android CI preflight rejects any engine major/minor version other than 5.8.
+- Install the official stable UE 5.8 release and use its matching Android SDK/NDK/JDK through Unreal Turnkey.
+- Do not upgrade the engine association or Android toolchain independently; review source compatibility and rerun the full acceptance checks together.
 
 ## Migration direction
 
