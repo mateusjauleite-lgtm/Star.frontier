@@ -1,62 +1,56 @@
-# Earth structural core
+# Earth modular visual system
 
-The Earth system is organized as a clean architecture for independently built
-visual layers. The existing renderer is retained only as a comparison and
-temporary recovery baseline; it is not a required foundation for new modules.
+The Earth core now initializes six independent preview renderers. Each renderer
+owns its geometry, materials, textures, update behavior, and disposal lifecycle.
+None imports or derives code from the former monolithic renderer in
+`../earth.js`.
 
-## New-layer rule
+## Active preview modules
 
-Every new visual element must be implemented as a complete, independent module.
-Do not extend, inherit from, or reuse legacy element code when that would carry
-old constraints, hidden coupling, geometry assumptions, materials, or behavior
-into the new implementation.
+| Module | First implementation | Current scope |
+| --- | --- | --- |
+| `surface` | Equirectangular canvas texture and independent sphere | Stylized global land/ocean layout |
+| `terrain` | Deterministic procedural vertex relief | Relief prototype; not measured elevation data |
+| `oceans` | Separate physical-material shell | Ocean sheen and water appearance prototype |
+| `atmosphere` | Independent additive rim shader | Atmospheric edge glow prototype |
+| `clouds` | Independent animated transparent texture | Procedural cloud coverage prototype |
+| `lighting` | Independent directional and ambient lights | Sunlit side and night-side fill |
 
-A new module must own its complete implementation and lifecycle: construction,
-resources, update behavior, integration contract, and disposal. Shared utilities
-are allowed only when deliberately designed as neutral, documented services and
-when they do not impose legacy behavior on the new layer.
+These are the first integrated visual test layers, not the final scientific
+Earth. In particular, terrain is currently procedural and must not be presented
+as real-world elevation. Cloud placement is a visual prototype, not observed
+weather. Coastlines and continent shapes are approximations pending replacement
+with reviewed geographic datasets.
 
-## Replacement and retirement
+## Reference-driven next upgrades
 
-1. Build the new element in its own module and branch of responsibility.
-2. Integrate it through the Earth core using an explicit contract.
-3. Validate visual completeness, dependencies, performance, and mobile behavior.
-4. Compare it with the legacy baseline without making the new code depend on it.
-5. Once the replacement is complete and verified, remove the corresponding
-   legacy implementation and obsolete references in a deliberate cleanup.
-6. Do not delete the current baseline prematurely; retain it only until the
-   replacement has passed review and testing.
+- NASA Blue Marble / Visible Earth: use reviewed global imagery for a higher
+  fidelity surface texture. Record the exact asset, credit, resolution, and
+  usage terms before adding it to the app.
+- NASA/USGS elevation products: replace procedural relief with a real elevation
+  source and a suitable level-of-detail strategy.
+- NASA Worldview: compare cloud, sea-ice, and atmospheric layers as research
+  references; do not make live network data a runtime dependency.
+- Google Earth: visual comparison of terrain and coastlines only unless the
+  applicable Google terms permit the intended reuse.
 
-This is a clean replacement strategy, not a permanent parallel stack. Old code
-must not remain as an active dependency merely for compatibility after its
-replacement is accepted.
+## Architecture and replacement rules
 
-## Stable baseline and integration boundary
+Every new visual element must be implemented as a complete independent module.
+Do not inherit legacy geometry, materials, internal functions, or behavior.
+A module owns construction, resources, update behavior, integration contract,
+and disposal. Dependencies between new modules must remain explicit and minimal.
 
-- `../earth.js` is the current visual baseline and temporary fallback only.
-- `earthCore.js` is the scene-facing integration boundary.
-- New modules must not import the legacy renderer or derive their implementation
-  from its geometry, materials, or internal functions.
+The old `../earth.js` file is retained temporarily as a comparison artifact
+only. It is not imported by the active Earth core. Remove it after visual,
+performance, and mobile tests confirm that the new system is accepted.
 
-## Update domains
+## Test sequence
 
-| Module | Responsibility |
-| --- | --- |
-| `surface` | Surface materials, continental meshes, coastlines |
-| `terrain` | Elevation, displacement, mountain ranges |
-| `oceans` | Ocean material, water detail, coastal transitions |
-| `atmosphere` | Atmospheric layers, scattering, horizon glow |
-| `clouds` | Cloud layers, shadows, movement |
-| `lighting` | Day/night boundary, sun angle, night side |
-
-Each module currently defines a contract and roadmap. The update pipeline hosts
-future implementations only when explicitly attached. Reference catalogues
-remain advisory and cannot automatically alter assets or runtime behavior.
-
-## Integration rules
-
-- Each element is new, self-contained, and independently replaceable.
-- Dependencies between new modules must be explicit and minimal.
-- No hidden dependency on legacy code is permitted.
-- Remove superseded legacy code only after the replacement passes review and tests.
-- Validate visual quality, performance, and mobile compatibility before activation.
+1. Confirm Earth appears in the existing scene at the configured position.
+2. Inspect continent orientation, poles, coastlines, and seam at the date line.
+3. Check relief visibility without visible surface flicker or z-fighting.
+4. Check ocean sheen, atmosphere edge, cloud motion, and day/night lighting.
+5. Test frame rate, memory, and thermal behavior on the Galaxy A34.
+6. Only after acceptance, replace procedural preview assets with reviewed
+   geographic data and remove superseded code.
