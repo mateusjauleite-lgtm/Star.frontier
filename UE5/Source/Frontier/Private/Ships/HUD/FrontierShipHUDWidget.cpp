@@ -8,6 +8,7 @@
 #include "Components/Border.h"
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
+#include "Blueprint/WidgetTree.h"
 
 namespace
 {
@@ -54,8 +55,8 @@ void UFrontierShipHUDWidget::BuildNativeLayout()
         Slot->SetPosition(Position);
         Slot->SetSize(FVector2D(176.0f, 176.0f));
     };
-    AddPad(FVector2D(34.0f, -210.0f), FAnchors(0.0f, 1.0f), TEXT("THROTTLE"));
-    AddPad(FVector2D(-210.0f, -210.0f), FAnchors(1.0f, 1.0f), TEXT("DIREÇÃO"));
+    AddPad(FVector2D(34.0f, -210.0f), FAnchors(0.0f, 1.0f, 0.0f, 1.0f), TEXT("THROTTLE"));
+    AddPad(FVector2D(-210.0f, -210.0f), FAnchors(1.0f, 1.0f, 1.0f, 1.0f), TEXT("DIREÇÃO"));
 
     const FAnchors BR(1.0f, 1.0f);
     if (UButton* Boost = AddShipHUDButton(Canvas, WidgetTree, TEXT("IMPULSO"), FVector2D(-310.0f, -126.0f), FVector2D(88.0f, 58.0f), BR))
@@ -71,11 +72,6 @@ void UFrontierShipHUDWidget::BuildNativeLayout()
     if (UButton* Exit = AddShipHUDButton(Canvas, WidgetTree, TEXT("SAIR"), FVector2D(-110.0f, -126.0f), FVector2D(88.0f, 58.0f), BR))
         Exit->OnClicked.AddDynamic(this, &UFrontierShipHUDWidget::OnExitPressed);
 
-    const FAnchors TL(0.0f, 0.0f);
-    if (UButton* Up = AddShipHUDButton(Canvas, WidgetTree, TEXT("DECK ↑"), FVector2D(28.0f, 90.0f), FVector2D(96.0f, 48.0f), TL))
-        Up->OnClicked.AddDynamic(this, &UFrontierShipHUDWidget::OnDeckUpPressed);
-    if (UButton* Down = AddShipHUDButton(Canvas, WidgetTree, TEXT("DECK ↓"), FVector2D(28.0f, 146.0f), FVector2D(96.0f, 48.0f), TL))
-        Down->OnClicked.AddDynamic(this, &UFrontierShipHUDWidget::OnDeckDownPressed);
 }
 
 void UFrontierShipHUDWidget::ObserveShip(AFrontierShip* Ship, AFrontierCharacter* Character)
