@@ -33,6 +33,7 @@ public:
 
 private:
     void Publish();
+    bool CanAcceptInput() const;
     float Throttle = 0.0f;
     float Pitch = 0.0f;
     float Yaw = 0.0f;
