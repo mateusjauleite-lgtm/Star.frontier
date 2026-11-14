@@ -20,3 +20,26 @@ test('invalid visual radius falls back to the documented render default', () => 
   const profile = createEarthPlanetaryProfile({ visualRadiusUnits: 0 });
   assert.equal(profile.render.visualRadiusUnits, 300);
 });
+
+import { sampleEarthElevationGrid } from './modules/runtime/terrain.js';
+
+test('global elevation grid samples bilinearly across a regular grid', () => {
+  const grid = {
+    width: 2, height: 2,
+    values: new Float32Array([100, 200, 300, 400])
+  };
+  assert.equal(sampleEarthElevationGrid(grid, -180, 90), 100);
+  assert.equal(sampleEarthElevationGrid(grid, 180, -90), 400);
+  assert.equal(sampleEarthElevationGrid(grid, 0, 0), 250);
+});
+
+test('global elevation grid rejects invalid and no-data samples', () => {
+  const grid = {
+    width: 2, height: 2,
+    values: new Float32Array([10, -9999, 30, 40]),
+    noDataValue: -9999
+  };
+  assert.equal(sampleEarthElevationGrid(grid, -180, 90), 10);
+  assert.equal(sampleEarthElevationGrid(grid, 180, 90), null);
+  assert.equal(sampleEarthElevationGrid(null, 0, 0), null);
+});
