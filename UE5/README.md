@@ -17,12 +17,12 @@ The first Main Core source slice is present:
 - It uses `AFrontierCharacter` as the default pawn, spawns the configured exploration ship and places the player on D1 by default.
 - `Config/DefaultEngine.ini` registers the GameMode.
 
-The UE5 splash/logo belongs to Unreal's startup presentation; it is not the game's Main menu. A runnable `.uproject`, initial map, authored content and Editor verification are still outstanding.
+The UE5 splash/logo belongs to Unreal's startup presentation; it is not the game's Main menu. The `.uproject` descriptor and an Editor Python map-generation script are now present. The actual `.umap` package, authored Niagara assets, successful project build and Editor verification are still outstanding.
 
 ## Existing core systems to migrate
 
 - Character Core → model, animation, HUD, movement/look, camera and interaction branches.
-- Ship Core → exploration hull, interior/decks, bridge, computer, engines, camera, controls and player-ship association.
+- Ship Core → exploration hull, interior/decks, bridge, computer, engine dynamics, visual Engine FX, camera, controls and player-ship association.
 - Earth Core v1.6.0 → seven branches: interior, surface, terrain, oceans, atmosphere, clouds and lighting.
 - Planetary Core → planetary identity, physical dimensions, gravity, rotation, altitude and coordinate rules.
 - Atmosphere & Climate Core → scientific atmospheric and climate data, separate from rendering effects.
@@ -46,8 +46,8 @@ The authoritative ownership map is [CORE_SYSTEMS_MAP.md](Docs/CORE_SYSTEMS_MAP.m
 - Baseline branch: `feature/character-core` remains preserved and separate.
 - Native Planetary Core source scaffold is committed: profile Data Asset, coordinate/scale subsystem and separate identity, dimensions, gravity, rotation, altitude and coordinate branches.
 - Frontier module rules and module entry point are committed.
-- The C++ has not yet been compiled by Unreal Build Tool or validated in Unreal Editor.
-- A runnable `.uproject`, generated content assets and packaged game have not yet been produced.
+- The `.uproject` descriptor and game/editor targets are present, but the C++ has not yet been compiled by Unreal Build Tool or validated in Unreal Editor.
+- The initial `.umap` must still be generated in Editor; authored Niagara assets and a packaged game have not yet been produced.
 
 ## Workspace
 
