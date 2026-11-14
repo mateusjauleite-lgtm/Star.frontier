@@ -23,22 +23,6 @@ export function createCharacterHUD(root = document) {
     setBar('character-health', snapshot.health ?? 100);
     setBar('character-stamina', snapshot.stamina ?? 100);
 
-    const suit = snapshot.equipment?.suit || 'Traje de exploração básico';
-    const tool = snapshot.equipment?.tool || 'Nenhuma ferramenta equipada';
-    if ($('character-suit')) $('character-suit').textContent = suit;
-    if ($('character-tool')) $('character-tool').textContent = tool;
-    if ($('character-posture')) {
-      $('character-posture').textContent = snapshot.posture === 'seated' ? 'SENTADO' : 'EM PÉ';
-    }
-    if ($('character-grounded')) {
-      $('character-grounded').textContent = snapshot.grounded === false ? 'NO AR' : 'NO CHÃO';
-    }
-    if ($('character-movement')) {
-      const movement = snapshot.movement || { x: 0, y: 0 };
-      const moving = Math.hypot(Number(movement.x) || 0, Number(movement.y) || 0) > 0.08;
-      $('character-movement').textContent = moving ? 'EM MOVIMENTO' : 'PARADO';
-    }
-
     const target = snapshot.interactionTarget;
     if ($('character-interaction')) {
       $('character-interaction').textContent = target
