@@ -1,6 +1,6 @@
 # Earth modular visual system
 
-The Earth core initializes six independent renderers. Each renderer owns its
+The Earth core initializes seven independent renderers. Each renderer owns its
 geometry, materials, textures, update behavior, and disposal lifecycle.
 None imports or derives code from the former monolithic renderer in
 `../earth.js`.
@@ -9,6 +9,7 @@ None imports or derives code from the former monolithic renderer in
 
 | Module | First implementation | Current scope |
 | --- | --- | --- |
+| `interior` | Independent translucent spherical boundaries | Crust, mantle, outer core, inner core; reference radii mapped to game scale |
 | `surface` | Equirectangular canvas texture and independent sphere | Stylized global land/ocean layout |
 | `terrain` | Deterministic procedural vertex relief | Relief prototype; not measured elevation data |
 | `oceans` | Separate physical-material shell | Ocean sheen and water appearance prototype |
@@ -16,9 +17,24 @@ None imports or derives code from the former monolithic renderer in
 | `clouds` | Independent animated transparent texture | Procedural cloud coverage prototype |
 | `lighting` | Independent directional and ambient lights | Sunlit side and night-side fill |
 
+## Planetary interior
+
+The new interior module is independent from the surface and atmosphere
+renderers. It adds translucent internal boundaries using mean Earth reference
+radii: inner core 1,221 km, outer-core boundary 3,480 km, mantle boundary
+6,346 km, and surface/crust reference 6,371 km. Those radii are converted
+proportionally to the configured game radius. The crust boundary receives a
+small visual thickness boost for readability.
+
+This is an initial navigable visualization layer, not a geological cutaway,
+terrain collision system, or subsurface simulation. It deliberately adds only
+four low-complexity spherical meshes; detailed geology, temperature, pressure,
+and material behavior can be layered later without coupling them to the
+surface renderer.
+
 ## Atmospheric reference model
 
-The atmospheric module now defines five primary layers using NASA/NOAA
+The atmospheric module defines five primary layers using NASA/NOAA
 reference boundaries: troposphere 0–12 km, stratosphere 12–50 km,
 mesosphere 50–85 km, thermosphere 85–600 km, and exosphere 600–10,000 km.
 The ionosphere is an overlapping region and is not represented as a separate
@@ -71,11 +87,10 @@ performance, and mobile tests confirm that the new system is accepted.
 ## Test sequence
 
 1. Confirm Earth and all five atmospheric bands appear at the configured position.
-2. Verify that the compact visual envelope does not obstruct the station or
-   exceed the mobile camera framing.
-3. Check the altitude sampler at layer boundaries and confirm continuous
-   pressure/density behavior.
+2. Enter the planet and verify that the interior boundaries render without
+   hiding the atmosphere or disrupting the station camera.
+3. Verify that the compact atmospheric envelope does not exceed mobile framing.
 4. Check relief, ocean sheen, clouds, atmosphere, and day/night lighting.
 5. Test frame rate, memory, and thermal behavior on the Galaxy A34.
 6. Only after acceptance, replace procedural preview assets with reviewed
-   geographic data and remove superseded code.
+   geographic imagery/elevation data and remove superseded code.
