@@ -14,6 +14,21 @@ public:
     UFUNCTION(BlueprintCallable, Category="Character|HUD")
     void ObserveCharacter(UFrontierCharacterStateComponent* CharacterState);
 
+    UFUNCTION(BlueprintCallable, Category="Character|HUD|MobileControls")
+    void MoveCharacter(FVector2D Axis);
+
+    UFUNCTION(BlueprintCallable, Category="Character|HUD|MobileControls")
+    void LookCharacter(FVector2D Axis);
+
+    UFUNCTION(BlueprintCallable, Category="Character|HUD|MobileControls")
+    void StopCharacterMovement();
+
+    UFUNCTION(BlueprintCallable, Category="Character|HUD|MobileControls")
+    void JumpCharacter();
+
+    UFUNCTION(BlueprintCallable, Category="Character|HUD|MobileControls")
+    void InteractCharacter();
+
     UFUNCTION(BlueprintImplementableEvent, Category="Character|HUD")
     void RefreshCharacterHUD(const FFrontierCharacterState& State, bool bVisible);
 
