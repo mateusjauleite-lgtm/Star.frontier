@@ -153,14 +153,18 @@ export function createExplorationShip() {
   addMesh(new THREE.SphereGeometry(1, 36, 24), undersideMaterial,
     [0, -10.2, 18], [11.5, 4.8, 25], 'Engineering-Secondary-Hull');
 
-  // Popa redesenhada: corpo de engenharia afunilado, hangar central
-  // recuado e suportes curvos integrados ao casco, sem travessa retangular.
+  // Popa redesenhada: corpo de engenharia afunilado e hangar central.
   addMesh(new THREE.SphereGeometry(1, 32, 20), undersideMaterial,
     [0, -7.2, 39], [9.2, 4.2, 15], 'Integrated-Aft-Engineering-Pod');
 
-  // Boca do hangar central: abertura escura recuada, sem moldura em caixa.
-  addMesh(new THREE.BoxGeometry(13.5, 4.8, 0.22), undersideMaterial,
-    [0, -7.1, 54.2], [1, 1, 1], 'Central-Aft-Hangar-Recess');
+  // Junção estrutural única da popa: os dois suportes e as naceles
+  // pertencem ao mesmo conjunto de conexão junto ao hangar.
+  const aftNacelleJunction = new THREE.Group();
+  aftNacelleJunction.name = 'Aft-Hangar-Nacelle-Junction';
+  visual.add(aftNacelleJunction);
+
+  // Boca do hangar central: vão livre. Não inserir painel sólido no plano
+  // externo, pois ele fecha visualmente a saída do hangar.
   addMesh(new THREE.BoxGeometry(13.9, 0.32, 0.42), trimMaterial,
     [0, -4.55, 53.95], [1, 1, 1], 'Central-Hangar-Upper-Lip');
   addMesh(new THREE.BoxGeometry(13.9, 0.32, 0.42), trimMaterial,
@@ -178,7 +182,7 @@ export function createExplorationShip() {
       undersideMaterial
     );
     support.name = side < 0 ? 'Port-Integrated-Aft-Support' : 'Starboard-Integrated-Aft-Support';
-    visual.add(support);
+    aftNacelleJunction.add(support);
   }
 
   const engineFlames = [];
@@ -189,7 +193,18 @@ export function createExplorationShip() {
     const nacelle = new THREE.Group();
     nacelle.name = side < 0 ? 'Port-Warp-Nacelle' : 'Starboard-Warp-Nacelle';
     nacelle.position.set(side * 12.2, 0.1, 61);
-    visual.add(nacelle);
+    aftNacelleJunction.add(nacelle);
+
+    // Anel estrutural na raiz da nacelle, encaixado no término do suporte
+    // curvo da junção traseira (Z global aproximado 56).
+    const rootCollar = new THREE.Mesh(
+      new THREE.TorusGeometry(3.3, 0.55, 10, 28),
+      undersideMaterial
+    );
+    rootCollar.name = side < 0 ? 'Port-Nacelle-Root-Collar' : 'Starboard-Nacelle-Root-Collar';
+    rootCollar.rotation.x = Math.PI / 2;
+    rootCollar.position.z = -5;
+    nacelle.add(rootCollar);
 
     // Perfil oval afunilado, com extremidades arredondadas: substitui o antigo cubo/cilindro.
     const nacelleProfile = [
