@@ -1,6 +1,6 @@
 # Earth modular visual system
 
-The Earth core now initializes six independent preview renderers. Each renderer
+The Earth core now initializes six independent renderers. Each renderer
 owns its geometry, materials, textures, update behavior, and disposal lifecycle.
 None imports or derives code from the former monolithic renderer in
 `../earth.js`.
@@ -16,8 +16,7 @@ None imports or derives code from the former monolithic renderer in
 | `clouds` | Independent animated transparent texture | Procedural cloud coverage prototype |
 | `lighting` | Independent directional and ambient lights | Sunlit side and night-side fill |
 
-These are the first integrated visual test layers, not the final scientific
-Earth. In particular, terrain is currently procedural and must not be presented
+The current surface map remains a stylized procedural placeholder and is not accepted as the final NASA-style appearance. The next surface pass must replace it with a reviewed, bundled NASA Blue Marble equirectangular texture; do not use remote runtime loading. The radius is calibrated to 300 game units while the Earth center remains at [0, 0, -850] and the station remains fixed. In particular, terrain is currently procedural and must not be presented
 as real-world elevation. Cloud placement is a visual prototype, not observed
 weather. Coastlines and continent shapes are approximations pending replacement
 with reviewed geographic datasets.
