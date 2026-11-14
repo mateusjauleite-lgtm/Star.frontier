@@ -71,9 +71,9 @@ void UFrontierCharacterHUDWidget::BuildNativeLayout()
         Action->OnClicked.AddDynamic(this, &UFrontierCharacterHUDWidget::OnInteractPressed);
 
     const FAnchors BottomLeft(0.0f, 1.0f, 0.0f, 1.0f);
-    if (UButton* Up = AddHUDButton(Canvas, this, TEXT("↑"), FVector2D(72.0f, -278.0f), FVector2D(58.0f, 48.0f), BottomLeft))
+    if (UButton* Up = AddHUDButton(Canvas, WidgetTree, TEXT("↑"), FVector2D(72.0f, -278.0f), FVector2D(58.0f, 48.0f), BottomLeft))
         Up->OnClicked.AddDynamic(this, &UFrontierCharacterHUDWidget::OnElevatorUpPressed);
-    if (UButton* Down = AddHUDButton(Canvas, this, TEXT("↓"), FVector2D(72.0f, -98.0f), FVector2D(58.0f, 48.0f), BottomLeft))
+    if (UButton* Down = AddHUDButton(Canvas, WidgetTree, TEXT("↓"), FVector2D(72.0f, -98.0f), FVector2D(58.0f, 48.0f), BottomLeft))
         Down->OnClicked.AddDynamic(this, &UFrontierCharacterHUDWidget::OnElevatorDownPressed);
 }
 
