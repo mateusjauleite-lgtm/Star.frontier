@@ -55,6 +55,7 @@ UE5 mapping:
 - Camera → UFrontierShipCameraBoom with its own camera.
 - Controls → UFrontierShipControlsComponent exposes throttle, pitch, yaw, brake and boost inputs.
 - Player/owned ship → UFrontierPlayerShipSubsystem stores the current player ship.
+- Character deck placement → `AFrontierShip::PlaceCharacterOnDeck` attaches the character to the ship frame and places it on D1–D4 using the converted legacy positions.
 - Pilot handoff → Ship Core attaches the character to its local frame, switches the view target and restores the character to the bridge deck exit when piloting ends.
 
 Deck constraints to carry forward:
