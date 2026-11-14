@@ -6,7 +6,7 @@ This registry preserves the existing Star Frontier architecture. UE5 work must u
 
 Each **Core** owns its domain state, contracts and lifecycle. Its **branches** are focused modules that extend that core. In UE5, preserve these boundaries with C++ core classes/subsystems, Actor Components, Blueprint Actors and Data Assets as appropriate. Do not create a monolithic Blueprint that combines unrelated systems.
 
-The current Three.js files remain the source of behavior and data until each corresponding UE5 implementation is validated.
+The current Three.js files remain legacy reference material for behavior, data and geometry recovery. UE5 is the only target runtime; do not add new Three.js features.
 
 ## 1. Character Core
 
@@ -42,19 +42,20 @@ Current branches/modules:
 - Player/owned ship association — `playerShip.js`
 - Engines — `engines.js`
 - Command bridge — `bridge/commandBridge.js`
-- Ship computer — `computer/shipComputer.js` and `shipComputerSystems.js`
+- Ship computer — `computer/shipComputer.js` and `computer/shipComputerSystems.js`
 
 UE5 mapping:
-- Ship Core → AFrontierShip; owns FFrontierShipIdentity (ShipId/CommanderId), flight state and ship lifecycle.
-- Exploration hull → UFrontierShipExplorationHullComponent assembled from UFrontierShipExplorationProfile mesh parts.
-- Interior/decks → UFrontierShipInteriorComponent, AFrontierShipDeckModule and UFrontierShipDeckDefinition; each wall segment has its own transform and collision setting.
-- Elevator → AFrontierShipElevator, with the four original D1–D4 stops and independent deck routing.
-- Bridge → AFrontierPilotStation interaction actor; the legacy pilot-console location is converted to UE5 coordinates.
-- Computer → UFrontierShipComputerComponent with boot/shutdown, one active terminal, terminal system permissions and navigation telemetry.
-- Engines → UFrontierShipEngineComponent for acceleration, speed, boost and braking.
-- Camera → UFrontierShipCameraBoom with its own camera.
-- Controls → UFrontierShipControlsComponent exposes throttle, pitch, yaw, brake and boost inputs.
-- Player/owned ship → UFrontierPlayerShipSubsystem stores the current player ship.
+- Ship Core → `AFrontierShip`; owns `FFrontierShipIdentity` (ShipId/CommanderId), flight state and ship lifecycle.
+- Collision/movement → movable `UBoxComponent` root proxy so actor sweep has a blocking shape; fit or replace it with final hull collision after mesh import.
+- Exploration hull → `UFrontierShipExplorationHullComponent` assembled from `UFrontierShipExplorationProfile` mesh parts.
+- Interior/decks → `UFrontierShipInteriorComponent`, `AFrontierShipDeckModule` and `UFrontierShipDeckDefinition`; interior can spawn missing deck actors from its definition list. Each wall segment has its own transform and collision setting.
+- Elevator → `AFrontierShipElevator`, with the four original D1–D4 stops and ship-local deck selection/routing.
+- Bridge → `AFrontierPilotStation` interaction actor; the legacy pilot-console location is converted to UE5 coordinates.
+- Computer → `UFrontierShipComputerComponent` with boot/shutdown, one active terminal, terminal system permissions and navigation telemetry.
+- Engines → `UFrontierShipEngineComponent` for acceleration, speed, boost and braking; boost scales the maximum speed.
+- Camera → `UFrontierShipCameraBoom` with its own camera.
+- Controls → `UFrontierShipControlsComponent` exposes throttle, pitch, yaw, brake, boost and a requester-checked pilot-exit request.
+- Player/owned ship → `UFrontierPlayerShipSubsystem` stores the current player ship.
 - Character deck placement → `AFrontierShip::PlaceCharacterOnDeck` attaches the character to the ship frame and places it on D1–D4 using the converted legacy positions.
 - Pilot handoff → Ship Core attaches the character to its local frame, switches the view target and restores the character to the bridge deck exit when piloting ends.
 
@@ -143,4 +144,4 @@ UE5 mapping:
 
 ## Migration status
 
-This registry remains the authority for core ownership and branch boundaries. Native UE5 source scaffolds are now committed for Planetary Core, the first Character Core slice and the first Ship Core slice. Character Core includes its state/mode component, ACharacter actor, model presentation Data Asset, animation state base, dedicated camera boom, Enhanced Input configuration Data Asset and bindings, dedicated Character Movement Component subclass, interaction interface and observer-only UMG HUD. These source scaffolds have not yet been compiled or tested in Unreal Editor. Character setup still needs input assets, mesh/rig, Animation Blueprint and HUD Blueprint. Ship setup still needs imported exploration/deck meshes, authored deck Data Assets and clearance bounds, terminal permission configuration, ship input/UI bindings and Editor-side layout verification. The existing core names and branch boundaries must remain recognizable throughout the port.
+Planetary Core, Character Core and Ship Core have native UE5 source scaffolds on the migration branch. Ship Core now includes its root collision proxy, deck-definition composition, ship-local elevator selection, boost speed scaling and a guarded pilot-exit API. These are source-level integrations only; they have not been compiled or tested in Unreal Editor. Ship assets, authored Data Assets, terminal configuration, Enhanced Input/mobile UI bindings and final collision tuning remain Editor-side work. The existing core names and branch boundaries must remain recognizable throughout the port.
