@@ -69,7 +69,8 @@ Still required before Character Core is considered migrated:
 - [x] Port native UMG HUD state observation and Blueprint-callable mobile movement, camera-look, jump and interaction actions.
 - [x] Build a native runtime UMG layout with left movement touch zone, right 360° camera zone, compact jump/action buttons and contextual elevator controls.
 - [ ] Tune HUD scale, safe areas and touch response in the UE5 mobile preview.
-- [ ] Connect the pilot-seat interaction to Ship Core possession/camera handoff.
+- [x] Connect the pilot-seat interaction to Ship Core camera/HUD handoff through the Character interaction trace and Ship Interior station actor.
+- [ ] Verify the station's physical placement, trace reach, camera handoff, seat occupancy and HUD controls in UE5.8 Editor.
 - [ ] Verify spawn location on Deck 1 bridge after Ship Core migration.
 - [ ] Compile with Unreal Build Tool and validate behavior in a UE5 test map.
 
@@ -87,6 +88,7 @@ Native UE5 source structure and first integration pass:
 - [x] Interior branch composes missing deck actors from its deck-definition list.
 - [x] Elevator actor with D1–D4 stops and ship-local deck selection/routing.
 - [x] Bridge pilot station with original local console position and character interaction.
+- [x] Ship Interior creates its pilot station during initialization, assigns the owning ship before station BeginPlay and exposes it for validation.
 - [x] Ship computer boot/shutdown, terminal permissions and navigation telemetry.
 - [x] Engine dynamics component for acceleration, speed, boost and braking; boost now affects the speed cap.
 - [x] Visual-only Engine FX branch reads throttle/speed/boost/braking telemetry and drives port/starboard exhaust glow lights.
@@ -98,6 +100,7 @@ Native UE5 source structure and first integration pass:
 - [x] Requester-checked pilot exit API for Enhanced Input or mobile HUD integration.
 - [x] Player ship association World Subsystem.
 - [x] Pilot handoff attaches the character to the ship frame, changes view target and restores the character at the bridge exit when piloting ends.
+- [x] Restrict pilot entry to the local PlayerController and prevent interaction with an already occupied pilot station.
 - [x] Ship Core exposes D1–D4 character placement using the original deck/elevator local positions.
 - [x] Explicit Three.js Y-up/metre-like to UE5 X-forward/Z-up/centimetre position conversion.
 - [x] Swept ship movement now has a blocking root collision component; its box is a configurable proxy, not final hull collision.
