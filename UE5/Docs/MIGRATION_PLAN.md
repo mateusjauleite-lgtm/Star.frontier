@@ -18,6 +18,9 @@ The authoritative ownership map is [CORE_SYSTEMS_MAP.md](CORE_SYSTEMS_MAP.md).
 - [x] Register Planetary Core, Atmosphere & Climate Core and Geology & Biomes Core as shared domain cores.
 - [x] Establish the UE5 workspace and engine-neutral Earth profile.
 - [x] Create native Frontier module rules and module entry point.
+- [x] Add the first Main Core GameMode source scaffold and register it as the configured default GameMode.
+- [ ] Create the runnable UE5 project descriptor and the initial startup map in Unreal Editor.
+- [ ] Verify the engine startup splash, map load, Main Core startup, player spawn and D1 placement in Editor.
 
 ## Phase 1 — Planetary Core
 
