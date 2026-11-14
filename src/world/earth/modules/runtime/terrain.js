@@ -1,13 +1,74 @@
 import * as THREE from 'three';
 import { createEarthLandMask } from './surface.js';
 
-const smoothstep = (edge0, edge1, value) => {
-  const t = THREE.MathUtils.clamp((value - edge0) / (edge1 - edge0), 0, 1);
+const clamp01 = value => THREE.MathUtils.clamp(value, 0, 1);
+const smoothstep = (a, b, value) => {
+  const t = clamp01((value - a) / (b - a));
   return t * t * (3 - 2 * t);
 };
 
+/**
+ * Global elevation grid contract:
+ * { width, height, values: Float32Array, noDataValue?, units: 'meters',
+ *   source, attribution, west=-180, east=180, south=-90, north=90 }
+ * Rows are north-to-south; columns west-to-east. ETOPO/GEBCO adapters can
+ * populate this contract without changing the Earth renderer.
+ */
+export function sampleEarthElevationGrid(grid, longitudeDeg, latitudeDeg) {
+  if (!grid || !(grid.values instanceof Float32Array) ||
+      !Number.isInteger(grid.width) || !Number.isInteger(grid.height) ||
+      grid.width < 2 || grid.height < 2 ||
+      grid.values.length < grid.width * grid.height) return null;
+
+  const west = grid.west ?? -180;
+  const east = grid.east ?? 180;
+  const south = grid.south ?? -90;
+  const north = grid.north ?? 90;
+  const u = THREE.MathUtils.clamp((longitudeDeg - west) / (east - west), 0, 1) * (grid.width - 1);
+  const v = THREE.MathUtils.clamp((north - latitudeDeg) / (north - south), 0, 1) * (grid.height - 1);
+  const x0 = Math.floor(u), y0 = Math.floor(v);
+  const x1 = Math.min(grid.width - 1, x0 + 1), y1 = Math.min(grid.height - 1, y0 + 1);
+  const tx = u - x0, ty = v - y0;
+  const at = (x, y) => grid.values[y * grid.width + x];
+  const values = [at(x0,y0), at(x1,y0), at(x0,y1), at(x1,y1)];
+  if (values.some(value => !Number.isFinite(value) ||
+      (grid.noDataValue !== undefined && value === grid.noDataValue))) return null;
+  const top = THREE.MathUtils.lerp(values[0], values[1], tx);
+  const bottom = THREE.MathUtils.lerp(values[2], values[3], tx);
+  return THREE.MathUtils.lerp(top, bottom, ty);
+}
+
+function proceduralFallback(longitude, latitude, radius, land) {
+  const continentalShape =
+    Math.sin(longitude * 2.35 + Math.sin(latitude * 3.7) * .72) *
+    Math.cos(latitude * 5.4 - longitude * .86);
+  const plateau = Math.max(0, continentalShape * .5 + .5);
+  const plainVariation =
+    Math.sin(longitude * 13.1 + Math.sin(latitude * 8.2)) *
+    Math.cos(latitude * 17.3 - longitude * 3.1);
+  const tectonicWave =
+    Math.sin(longitude * 5.1 + Math.sin(latitude * 7.4) * 1.35) *
+    Math.cos(latitude * 9.2 - longitude * 1.8);
+  const mountainBelt = Math.pow(Math.max(0, 1 - Math.abs(tectonicWave)), 3.2);
+  const highland = Math.pow(Math.max(0, plateau - .58), 1.7);
+  const oceanWave =
+    Math.sin(longitude * 4.3 + Math.sin(latitude * 2.8)) *
+    Math.cos(latitude * 6.1 - longitude * 1.4);
+  const oceanBasin = Math.pow(Math.max(0, 1 - Math.abs(oceanWave)), 4);
+
+  const continental = radius * (
+    .0012 + plateau * .0022 + mountainBelt * .014 +
+    highland * .004 + plainVariation * .00035
+  );
+  const oceanic = -radius * (.006 + oceanBasin * .004 + Math.abs(oceanWave) * .001);
+  return THREE.MathUtils.lerp(oceanic, continental, land);
+}
+
 export function createTerrainRuntime({ options, layers }) {
   let maskCanvas, maskData;
+  let elevationSampler = null;
+  let heightScale = 1;
+
   return {
     initialize() {
       const surface = layers.surface;
@@ -17,92 +78,80 @@ export function createTerrainRuntime({ options, layers }) {
       const context = maskCanvas.getContext('2d');
       maskData = context.getImageData(0, 0, maskCanvas.width, maskCanvas.height).data;
 
-      const geometry = surface.geometry;
-      const positions = geometry.attributes.position;
-      const uv = geometry.attributes.uv;
-      const direction = new THREE.Vector3();
+      const grid = options.elevationGrid ?? null;
+      const gridIsReady = grid?.values instanceof Float32Array;
+      const exaggeration = Math.max(1, options.terrainVerticalExaggeration ?? 8);
       const radius = options.radius;
-      const width = maskCanvas.width;
-      const height = maskCanvas.height;
+      const positions = surface.geometry.attributes.position;
+      const uv = surface.geometry.attributes.uv;
+      const direction = new THREE.Vector3();
+      const width = maskCanvas.width, height = maskCanvas.height;
+      const unitsPerKm = radius / 6371.0088;
+      heightScale = exaggeration;
 
       for (let i = 0; i < positions.count; i++) {
-        const u = uv.getX(i);
-        const v = uv.getY(i);
+        const u = uv.getX(i), v = uv.getY(i);
         const px = Math.min(width - 1, Math.max(0, Math.floor(u * (width - 1))));
         const py = Math.min(height - 1, Math.max(0, Math.floor((1 - v) * (height - 1))));
-        const landSample = maskData[(py * width + px) * 4] / 255;
-        const land = smoothstep(.08, .92, landSample);
+        const land = smoothstep(.08, .92, maskData[(py * width + px) * 4] / 255);
 
         direction.fromBufferAttribute(positions, i).normalize();
         const latitude = Math.asin(THREE.MathUtils.clamp(direction.y, -1, 1));
         const longitude = Math.atan2(direction.z, direction.x);
+        const latitudeDeg = THREE.MathUtils.radToDeg(latitude);
+        const longitudeDeg = THREE.MathUtils.radToDeg(longitude);
 
-        // Large-scale plateaus and broad plains.
-        const continentalShape =
-          Math.sin(longitude * 2.35 + Math.sin(latitude * 3.7) * .72) *
-          Math.cos(latitude * 5.4 - longitude * .86);
-        const plateau = Math.max(0, continentalShape * .5 + .5);
-        const plainVariation =
-          Math.sin(longitude * 13.1 + Math.sin(latitude * 8.2)) *
-          Math.cos(latitude * 17.3 - longitude * 3.1);
+        let elevationUnits = null;
+        if (gridIsReady) {
+          const elevationMeters = sampleEarthElevationGrid(grid, longitudeDeg, latitudeDeg);
+          if (elevationMeters !== null) {
+            elevationUnits = (elevationMeters / 1000) * unitsPerKm * exaggeration;
+          }
+        }
+        if (elevationUnits === null) {
+          elevationUnits = proceduralFallback(longitude, latitude, radius, land);
+        }
 
-        // Mountain belts are elongated, not isolated holes or random spikes.
-        const tectonicWave =
-          Math.sin(longitude * 5.1 + Math.sin(latitude * 7.4) * 1.35) *
-          Math.cos(latitude * 9.2 - longitude * 1.8);
-        const mountainBelt = Math.pow(Math.max(0, 1 - Math.abs(tectonicWave)), 3.2);
-        const highland = Math.pow(Math.max(0, plateau - .58), 1.7);
-        const fineRock =
-          Math.sin(longitude * 39 + latitude * 23) *
-          Math.cos(latitude * 47 - longitude * 17);
-
-        const oceanFloorWave =
-          Math.sin(longitude * 4.3 + Math.sin(latitude * 2.8)) *
-          Math.cos(latitude * 6.1 - longitude * 1.4);
-        const oceanTrench = Math.pow(Math.max(0, 1 - Math.abs(oceanFloorWave)), 4);
-
-        const continentalElevation = radius * (
-          .0010 +
-          plateau * .0011 +
-          mountainBelt * .0085 +
-          highland * .0022 +
-          plainVariation * .00022 +
-          fineRock * .00012
-        );
-        const oceanicElevation = -radius * (
-          .0030 +
-          oceanTrench * .0018 +
-          Math.abs(oceanFloorWave) * .00045
-        );
-
-        // A narrow coast transition joins continents and exposed oceanic crust.
-        const elevation = THREE.MathUtils.lerp(oceanicElevation, continentalElevation, land);
-        const finalRadius = radius + elevation;
-        positions.setXYZ(
-          i,
-          direction.x * finalRadius,
-          direction.y * finalRadius,
-          direction.z * finalRadius
-        );
+        const finalRadius = radius + elevationUnits;
+        positions.setXYZ(i, direction.x * finalRadius, direction.y * finalRadius, direction.z * finalRadius);
       }
 
       positions.needsUpdate = true;
-      geometry.computeVertexNormals();
-      geometry.computeBoundingSphere();
-      surface.name = 'Earth-Rock-Mass-Continents-And-Dry-Ocean-Basins';
+      surface.geometry.computeVertexNormals();
+      surface.geometry.computeBoundingSphere();
+
+      elevationSampler = (longitudeDeg, latitudeDeg) => {
+        if (gridIsReady) {
+          const meters = sampleEarthElevationGrid(grid, longitudeDeg, latitudeDeg);
+          if (meters !== null) return (meters / 1000) * unitsPerKm * exaggeration;
+        }
+        const lon = THREE.MathUtils.degToRad(longitudeDeg);
+        const lat = THREE.MathUtils.degToRad(latitudeDeg);
+        const u = (longitudeDeg + 180) / 360;
+        const v = (90 - latitudeDeg) / 180;
+        const px = Math.min(width - 1, Math.max(0, Math.floor(u * (width - 1))));
+        const py = Math.min(height - 1, Math.max(0, Math.floor(v * (height - 1))));
+        const land = smoothstep(.08, .92, maskData[(py * width + px) * 4] / 255);
+        return proceduralFallback(lon, lat, radius, land);
+      };
+
       layers.terrain = {
         integratedWith: 'surface',
-        landMask: true,
         displacedVertices: positions.count,
-        relief: 'continuous-rocky-continents-and-submerged-basin-topography',
+        elevationSource: gridIsReady ? (grid.source ?? 'provided-global-grid') : 'procedural-fallback',
+        sourceAttribution: grid?.attribution ?? null,
+        sourceGridReady: gridIsReady,
+        verticalExaggeration: exaggeration,
+        unitsPerKm,
         waterGeometry: false,
-        landingPlains: 'broad-low-relief-regions'
+        sampleHeight: elevationSampler
       };
     },
     update() {},
     dispose() {
       maskCanvas = null;
       maskData = null;
+      elevationSampler = null;
     }
   };
 }
