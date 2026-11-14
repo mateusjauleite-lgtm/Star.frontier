@@ -125,7 +125,10 @@ export function createStarshipInterior(options = {}) {
       doorwayWallZ(3.8, y, z, 17, 5.25, 0.45, 2.6, 2.9);
     }
     // Fechamentos entre os vãos de porta, preservando a continuidade do corredor.
-    for (const z of [-41, -19.5, 1.5, 22.5, 43.5]) {
+    // A passagem do elevador em D2 ocupa o trecho central ao redor de
+    // (x: 0, z: 25). Os segmentos laterais desse trecho foram removidos
+    // para manter a escotilha e sua área de acesso livres.
+    for (const z of [-41, -19.5, 1.5, 43.5]) {
       addBox(group, [0.45, 5.25, 4], [-3.8, y, z], wallMat, 'D2-Corridor-Port-Wall');
       addBox(group, [0.45, 5.25, 4], [3.8, y, z], wallMat, 'D2-Corridor-Starboard-Wall');
     }
