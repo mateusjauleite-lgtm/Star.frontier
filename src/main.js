@@ -1536,13 +1536,22 @@ $('resume-btn')?.addEventListener('click', () => {
 });
 
 $('return-menu-btn')?.addEventListener('click', () => {
-  active = false;
+  // Nunca abandonar a sessão enquanto o personagem ainda estiver sentado
+  // no console: libera o terminal, devolve o personagem ao convés e
+  // restaura o HUD a pé antes de ocultar a tela do jogo.
+  if (characterCore.snapshot().mode === 'ship-control') {
+    exitPilotMode();
+  } else {
+    // Recupera também uma eventual conexão órfã do computador da nave.
+    shipComputer.disconnectTerminal('pilot-console');
+  }
 
-  state.throttle = false;
-  state.braking = false;
-  state.nitroButton = false;
-  state.move = { x: 0, y: 0 };
-  state.view = { x: 0, y: 0 };
+  active = false;
+  resetTransientState();
+  characterMoveInput = { x: 0, y: 0 };
+
+  const characterStickKnob = $('character-move-stick')?.querySelector('.character-move-knob');
+  if (characterStickKnob) characterStickKnob.style.transform = 'translate(0,0)';
 
   $('game-menu-modal')?.classList.add('hidden');
 
