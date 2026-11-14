@@ -18,13 +18,9 @@ Blueprint-callable touch actions:
 - `JumpCharacter()`: jump action.
 - `InteractCharacter()`: camera-forward interaction trace through the existing interactable interface.
 
-Recommended mobile UMG binding:
-- Left virtual joystick `OnAnalogValueChanged` → `MoveCharacter`; release → `StopCharacterMovement`.
-- Right virtual joystick `OnAnalogValueChanged` → `LookCharacter`; release → `LookCharacter(0,0)`.
-- Jump button press → `JumpCharacter`.
-- Action/interact button press → `InteractCharacter`.
+Native mobile layout is now constructed by the C++ widget at runtime; a separate Widget Blueprint is not required for the first usable pass. It draws left/right touch-pad areas, compact jump/action buttons, and contextual deck up/down buttons. The left touch area drives movement continuously while held; the right touch area applies relative camera yaw/pitch for 360-degree look. Jump and action buttons call their native methods directly. Elevator buttons appear only while the character is near a ship elevator.
 
-The right stick is the camera/mira control; do not bind it to ship steering while on foot. Character HUD remains separate from the seated pilot HUD.
+The right touch area is the camera/mira control; do not bind it to ship steering while on foot. Character HUD remains separate from the seated pilot HUD.
 
 ## Ship/pilot HUD
 
@@ -42,14 +38,9 @@ Blueprint-callable ship actions:
 - `ExitPilotSeat()` → requester-checked pilot exit.
 - `ElevatorUp()` / `ElevatorDown()` → move the character between the four ship decks.
 
-The widget observes `OnFlightStateChanged` and calls `RefreshShipHUD(FlightState, ShipName, bVisible)`.
+The widget observes `OnFlightStateChanged` and calls `RefreshShipHUD(FlightState, ShipName, bVisible)`. Its native runtime layout provides left-side throttle and right-side steering touch zones, plus compact impulse, brake and exit buttons. Elevator navigation is deliberately kept on the on-foot HUD, not shown while seated.
 
-Recommended mobile UMG binding:
-- Throttle slider/joystick → `SetThrottleInput`.
-- Right steering pad → `SetSteeringInput(Yaw, Pitch)`.
-- Brake and boost buttons → press/release bool methods.
-- Exit/leave pilot button → `ExitPilotSeat`.
-- Deck up/down buttons → `ElevatorUp` and `ElevatorDown`.
+The left touch area controls forward/reverse throttle; the right touch area controls yaw and pitch. Impulse and brake are hold buttons; exit returns control to the character. The ship HUD is created automatically when the player enters the pilot station and removed on exit.
 
 ## Deck and elevator behavior
 
@@ -61,6 +52,6 @@ The elevator keeps the existing four-stop order:
 
 Up from D4 and down from D1 are blocked. The current deck is determined in the owning ship's local coordinate frame, not world height.
 
-## Editor work still required
+## Remaining validation
 
-The C++ control endpoints and pilot-HUD lifecycle are in the migration branch. The actual visual UMG Widget Blueprints, touch joystick/button styling, anchors/safe zones, and assigned `CharacterHUDClass` / `ShipHUDClass` still need to be created in Unreal Editor. Enhanced Input assets are still required for keyboard/controller parity. No Unreal compile or touch-device test has been performed yet.
+The native runtime layouts and input handlers are in the migration branch, and both HUD classes are used as defaults when no Blueprint subclass is assigned. Visual tuning against the actual mobile aspect ratio/safe areas, Unreal compilation, multiplayer ownership checks, and touch-device testing remain. Enhanced Input assets are still required for keyboard/controller parity. No Unreal compile or touch-device test has been performed yet.
