@@ -27,9 +27,7 @@ struct FRONTIER_API FAtmosphericComposition
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Atmosphere|Composition")
     TArray<FAtmosphericGasComponent> Components;
 
-    UFUNCTION(BlueprintPure, Category="Atmosphere|Composition")
     double GetMeanMolarMassKgPerMol() const;
 
-    UFUNCTION(BlueprintPure, Category="Atmosphere|Validation")
     bool IsValidComposition() const;
 };
