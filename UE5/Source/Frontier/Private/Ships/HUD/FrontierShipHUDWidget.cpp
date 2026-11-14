@@ -58,7 +58,7 @@ void UFrontierShipHUDWidget::BuildNativeLayout()
     AddPad(FVector2D(34.0f, -210.0f), FAnchors(0.0f, 1.0f, 0.0f, 1.0f), TEXT("THROTTLE"));
     AddPad(FVector2D(-210.0f, -210.0f), FAnchors(1.0f, 1.0f, 1.0f, 1.0f), TEXT("DIREÇÃO"));
 
-    const FAnchors BR(1.0f, 1.0f);
+    const FAnchors BR(1.0f, 1.0f, 1.0f, 1.0f);
     if (UButton* Boost = AddShipHUDButton(Canvas, WidgetTree, TEXT("IMPULSO"), FVector2D(-310.0f, -126.0f), FVector2D(88.0f, 58.0f), BR))
     {
         Boost->OnPressed.AddDynamic(this, &UFrontierShipHUDWidget::OnBoostPressed);
