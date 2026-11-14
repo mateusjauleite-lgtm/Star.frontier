@@ -806,24 +806,6 @@ function isCharacterPositionBlocked(position, deckIndex) {
   return false;
 }
 
-function clampCharacterToDeck(position, deckIndex) {
-  const deck = starshipInterior?.layout?.decks?.[deckIndex];
-  if (!deck) return;
-  const footprints = {
-    D1: [24.1, 40.1], D2: [24.1, 46.1],
-    D3: [25.6, 50.1], D4: [16.6, 28.6]
-  };
-  const [radiusX, radiusZ] = footprints[deck.id] || footprints.D1;
-  const normalizedX = position.x / radiusX;
-  const normalizedZ = (position.z + 2) / radiusZ;
-  const radial = Math.hypot(normalizedX, normalizedZ);
-  if (radial > 1) {
-    const scale = 1 / radial;
-    position.x = normalizedX * scale * radiusX;
-    position.z = -2 + normalizedZ * scale * radiusZ;
-  }
-}
-
 function updateCharacterMovement(dt) {
   if (!characterModel || characterCore.snapshot().mode !== 'on-foot') return;
   const input = characterMoveInput;
@@ -844,11 +826,11 @@ function updateCharacterMovement(dt) {
     // Testa cada eixo separadamente: bloqueia somente o avanço contra a parede
     // e mantém o movimento tangencial, sem correções que causem "empurrões".
     deck.x = previousX + direction.x * step;
-    clampCharacterToDeck(deck, activeDeckIndex);
+
     if (isCharacterPositionBlocked(deck, activeDeckIndex)) deck.x = previousX;
 
     deck.z = previousZ + direction.z * step;
-    clampCharacterToDeck(deck, activeDeckIndex);
+
     if (isCharacterPositionBlocked(deck, activeDeckIndex)) deck.z = previousZ;
 
     deck.y = starshipInterior.layout.decks[activeDeckIndex].y + 0.21;
