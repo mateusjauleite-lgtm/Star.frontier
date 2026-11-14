@@ -39,10 +39,16 @@ void AFrontierShipElevator::BeginPlay()
 {
     Super::BeginPlay();
     if (OwningShip)
-    {
-        AttachToActor(OwningShip, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
-        SetActorRelativeLocation(AFrontierShip::ThreeToUnrealLocalPosition(FVector(0.0f, 0.0f, 25.0f)));
-    }
+        InitializeForShip(OwningShip);
+}
+
+void AFrontierShipElevator::InitializeForShip(AFrontierShip* Ship)
+{
+    if (!IsValid(Ship)) return;
+
+    OwningShip = Ship;
+    AttachToActor(Ship, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+    SetActorRelativeLocation(AFrontierShip::ThreeToUnrealLocalPosition(FVector(0.0f, 0.0f, 25.0f)));
 }
 
 bool AFrontierShipElevator::MoveCharacterToDeck(AActor* Character, FName DeckCode)
@@ -64,9 +70,58 @@ bool AFrontierShipElevator::MoveCharacterToDeck(AActor* Character, FName DeckCod
     return false;
 }
 
+FName AFrontierShipElevator::GetNearestDeckCode(const AActor* Character) const
+{
+    if (!OwningShip || !IsValid(Character) || Stops.Num() == 0) return NAME_None;
+
+    const FVector CharacterShipLocalPosition =
+        OwningShip->GetActorTransform().InverseTransformPosition(Character->GetActorLocation());
+
+    int32 BestIndex = INDEX_NONE;
+    float BestDistance = TNumericLimits<float>::Max();
+
+    for (int32 Index = 0; Index < Stops.Num(); ++Index)
+    {
+        const FVector Candidate = AFrontierShip::ThreeToUnrealLocalPosition(Stops[Index].LegacyThreePosition);
+        const float Distance = FVector::DistSquared(CharacterShipLocalPosition, Candidate);
+        if (Distance < BestDistance)
+        {
+            BestDistance = Distance;
+            BestIndex = Index;
+        }
+    }
+
+    return Stops.IsValidIndex(BestIndex) ? Stops[BestIndex].DeckCode : NAME_None;
+}
+
+bool AFrontierShipElevator::MoveUp(AActor* Character)
+{
+    if (!OwningShip || !IsValid(Character) || Stops.Num() == 0) return false;
+
+    const FName CurrentDeck = GetNearestDeckCode(Character);
+    const int32 CurrentIndex = Stops.IndexOfByPredicate(
+        [&CurrentDeck](const FFrontierShipElevatorStop& Stop) { return Stop.DeckCode == CurrentDeck; });
+
+    // D1 is the uppermost deck: never wrap around from D1 to D4.
+    return CurrentIndex > 0 && MoveCharacterToDeck(Character, Stops[CurrentIndex - 1].DeckCode);
+}
+
+bool AFrontierShipElevator::MoveDown(AActor* Character)
+{
+    if (!OwningShip || !IsValid(Character) || Stops.Num() == 0) return false;
+
+    const FName CurrentDeck = GetNearestDeckCode(Character);
+    const int32 CurrentIndex = Stops.IndexOfByPredicate(
+        [&CurrentDeck](const FFrontierShipElevatorStop& Stop) { return Stop.DeckCode == CurrentDeck; });
+
+    // D4 is the lowest deck: never wrap around from D4 to D1.
+    return CurrentIndex != INDEX_NONE && CurrentIndex < Stops.Num() - 1 &&
+        MoveCharacterToDeck(Character, Stops[CurrentIndex + 1].DeckCode);
+}
+
 FText AFrontierShipElevator::GetInteractionLabel_Implementation() const
 {
-    return FText::FromString(TEXT("Usar elevador"));
+    return FText::FromString(TEXT("Elevador — escolher andar"));
 }
 
 bool AFrontierShipElevator::CanBeInteractedWith_Implementation(AActor* InteractingActor) const
@@ -78,26 +133,7 @@ bool AFrontierShipElevator::CanBeInteractedWith_Implementation(AActor* Interacti
 
 void AFrontierShipElevator::Interact_Implementation(AActor* InteractingActor)
 {
-    AFrontierCharacter* Character = Cast<AFrontierCharacter>(InteractingActor);
-    if (!OwningShip || !Character || Stops.Num() < 2) return;
-
-    const FVector CharacterShipLocalPosition =
-        OwningShip->GetActorTransform().InverseTransformPosition(Character->GetActorLocation());
-
-    int32 CurrentIndex = 0;
-    float BestDistance = TNumericLimits<float>::Max();
-
-    for (int32 Index = 0; Index < Stops.Num(); ++Index)
-    {
-        const FVector Candidate = AFrontierShip::ThreeToUnrealLocalPosition(Stops[Index].LegacyThreePosition);
-        const float Distance = FVector::DistSquared(CharacterShipLocalPosition, Candidate);
-        if (Distance < BestDistance)
-        {
-            BestDistance = Distance;
-            CurrentIndex = Index;
-        }
-    }
-
-    const int32 NextIndex = (CurrentIndex + 1) % Stops.Num();
-    MoveCharacterToDeck(Character, Stops[NextIndex].DeckCode);
+    // Interaction opens/activates the elevator context. Deck selection is explicit
+    // through MoveUp / MoveDown so the player is never moved unexpectedly.
+    (void)InteractingActor;
 }
