@@ -25,9 +25,10 @@ function traceLand(ctx, width, height) {
   }
 }
 
-export function createEarthLandMask(width = 1024, height = 512) {
+export function createEarthLandMask(width = 2048, height = 1024) {
   const canvas = document.createElement('canvas');
-  canvas.width = width; canvas.height = height;
+  canvas.width = width;
+  canvas.height = height;
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, width, height);
@@ -37,26 +38,28 @@ export function createEarthLandMask(width = 1024, height = 512) {
   return canvas;
 }
 
-function makeAlbedo() {
+function makeRockAlbedo() {
   const width = 2048, height = 1024;
   const canvas = document.createElement('canvas');
-  canvas.width = width; canvas.height = height;
+  canvas.width = width;
+  canvas.height = height;
   const ctx = canvas.getContext('2d');
 
-  const ocean = ctx.createLinearGradient(0, 0, 0, height);
-  ocean.addColorStop(0, '#17466b');
-  ocean.addColorStop(.48, '#075078');
-  ocean.addColorStop(1, '#102f50');
-  ctx.fillStyle = ocean;
+  // Ocean basins remain exposed rock: no blue water, transparency or water shader.
+  const basin = ctx.createLinearGradient(0, 0, 0, height);
+  basin.addColorStop(0, '#343b40');
+  basin.addColorStop(.5, '#242b30');
+  basin.addColorStop(1, '#3a3935');
+  ctx.fillStyle = basin;
   ctx.fillRect(0, 0, width, height);
 
-  // Fine, restrained ocean variation: avoids a flat or translucent-glass look.
-  for (let i = 0; i < 5200; i++) {
+  // Subtle geological variation across the dry oceanic crust.
+  for (let i = 0; i < 9000; i++) {
     const x = (i * 7919) % width;
     const y = (i * 3571) % height;
-    ctx.fillStyle = i % 3 ? 'rgba(82,151,177,.055)' : 'rgba(2,20,39,.07)';
+    ctx.fillStyle = i % 3 ? 'rgba(151,137,117,.055)' : 'rgba(5,9,12,.11)';
     ctx.beginPath();
-    ctx.ellipse(x, y, 3 + (i % 17), 1 + (i % 3), 0, 0, Math.PI * 2);
+    ctx.ellipse(x, y, 3 + (i % 23), 1 + (i % 4), (i % 9) * .08, 0, Math.PI * 2);
     ctx.fill();
   }
 
@@ -70,55 +73,52 @@ function makeAlbedo() {
     });
     ctx.closePath();
 
-    const land = ctx.createLinearGradient(0, 80, 0, 950);
-    land.addColorStop(0, '#a6a78b');
-    land.addColorStop(.18, '#687b4e');
-    land.addColorStop(.42, '#527544');
-    land.addColorStop(.7, '#806c48');
-    land.addColorStop(1, '#d0d0c0');
-    ctx.fillStyle = land;
+    const rock = ctx.createLinearGradient(0, 70, 0, 970);
+    rock.addColorStop(0, '#77766e');
+    rock.addColorStop(.18, '#8b806c');
+    rock.addColorStop(.42, '#746b5b');
+    rock.addColorStop(.68, '#625c50');
+    rock.addColorStop(1, '#8a8173');
+    ctx.fillStyle = rock;
     ctx.fill();
     ctx.save();
     ctx.clip();
 
-    // Deterministic geological mottling and rocky highland patches.
-    for (let i = 0; i < 420; i++) {
+    // Mineral bands, weathered plateaus and exposed-rock mottling.
+    for (let i = 0; i < 1250; i++) {
       const x = ((i * 127 + p * 313) % 1000) / 1000 * width;
       const y = ((i * 233 + p * 97) % 1000) / 1000 * height;
-      const r = 2 + ((i * 19) % 15);
-      ctx.fillStyle = i % 4 === 0 ? 'rgba(183,157,111,.16)' :
-        i % 4 === 1 ? 'rgba(27,55,35,.13)' :
-        i % 4 === 2 ? 'rgba(222,211,169,.12)' : 'rgba(95,75,48,.12)';
+      const r = 2 + ((i * 19) % 22);
+      const shade = i % 5;
+      ctx.fillStyle = shade === 0 ? 'rgba(193,169,130,.18)' :
+        shade === 1 ? 'rgba(30,34,34,.16)' :
+        shade === 2 ? 'rgba(220,207,179,.11)' :
+        shade === 3 ? 'rgba(104,77,55,.17)' : 'rgba(151,145,128,.12)';
       ctx.beginPath();
-      ctx.ellipse(x, y, r * 1.8, r, (i % 7) * .2, 0, Math.PI * 2);
+      ctx.ellipse(x, y, r * (1.4 + (i % 4) * .35), r * .65, (i % 7) * .2, 0, Math.PI * 2);
       ctx.fill();
     }
 
-    // Broken, branching strokes suggest ridges and exposed rock without a gas-like haze.
+    // Long, broken ridge marks; restrained enough to keep broad plains readable.
     ctx.lineCap = 'round';
-    for (let i = 0; i < 34; i++) {
+    for (let i = 0; i < 110; i++) {
       const x = ((i * 173 + p * 211) % 1000) / 1000 * width;
       const y = ((i * 317 + p * 149) % 1000) / 1000 * height;
-      ctx.strokeStyle = i % 2 ? 'rgba(54,61,43,.23)' : 'rgba(229,207,159,.2)';
-      ctx.lineWidth = 1 + (i % 3);
+      ctx.strokeStyle = i % 2 ? 'rgba(37,39,37,.28)' : 'rgba(222,204,171,.22)';
+      ctx.lineWidth = 1 + (i % 4);
       ctx.beginPath();
       ctx.moveTo(x, y);
-      ctx.lineTo(x + 12 + (i % 19), y - 5 - (i % 13));
-      ctx.lineTo(x + 22 + (i % 27), y + 3 + (i % 9));
+      ctx.lineTo(x + 12 + (i % 29), y - 5 - (i % 17));
+      ctx.lineTo(x + 25 + (i % 39), y + 4 + (i % 11));
       ctx.stroke();
     }
     ctx.restore();
 
-    ctx.strokeStyle = 'rgba(211,211,181,.72)';
-    ctx.lineWidth = 2.2;
+    ctx.strokeStyle = 'rgba(190,177,151,.58)';
+    ctx.lineWidth = 2;
     ctx.stroke();
   }
 
-  // Polar ice caps are part of the solid surface texture.
-  ctx.fillStyle = 'rgba(226,237,231,.92)';
-  ctx.fillRect(0, 0, width, 12);
-  ctx.fillStyle = 'rgba(215,229,226,.82)';
-  ctx.fillRect(0, height - 30, width, 30);
   return canvas;
 }
 
@@ -126,23 +126,29 @@ export function createSurfaceRuntime({ group, options, layers }) {
   let mesh, texture, geometry, material;
   return {
     initialize() {
-      texture = new THREE.CanvasTexture(makeAlbedo());
+      texture = new THREE.CanvasTexture(makeRockAlbedo());
       texture.colorSpace = THREE.SRGBColorSpace;
       texture.anisotropy = 4;
-      geometry = new THREE.SphereGeometry(options.radius, 192, 128);
+      geometry = new THREE.SphereGeometry(options.radius, 320, 192);
       material = new THREE.MeshStandardMaterial({
-        map: texture, roughness: .86, metalness: .015
+        map: texture,
+        roughness: .96,
+        metalness: .025
       });
       mesh = new THREE.Mesh(geometry, material);
-      mesh.name = 'Earth-New-Solid-Surface';
+      mesh.name = 'Earth-Continuous-Rocky-Globe';
       mesh.rotation.z = THREE.MathUtils.degToRad(11.5);
       group.add(mesh);
       layers.surface = mesh;
     },
-    update(delta) { if (mesh) mesh.rotation.y += Math.min(Math.max(delta || 0, 0), .1) * .012; },
+    update(delta) {
+      if (mesh) mesh.rotation.y += Math.min(Math.max(delta || 0, 0), .1) * .012;
+    },
     dispose() {
       if (mesh) group.remove(mesh);
-      geometry?.dispose(); material?.dispose(); texture?.dispose();
+      geometry?.dispose();
+      material?.dispose();
+      texture?.dispose();
     }
   };
 }
