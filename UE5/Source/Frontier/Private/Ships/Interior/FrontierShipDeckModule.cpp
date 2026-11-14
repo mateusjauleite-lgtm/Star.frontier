@@ -12,6 +12,11 @@ AFrontierShipDeckModule::AFrontierShipDeckModule()
 
 void AFrontierShipDeckModule::RebuildFromDefinition()
 {
+    if (FloorComponent)
+    {
+        FloorComponent->DestroyComponent();
+        FloorComponent = nullptr;
+    }
     for (UStaticMeshComponent* Component : WallComponents)
         if (Component) Component->DestroyComponent();
     WallComponents.Reset();
@@ -20,12 +25,12 @@ void AFrontierShipDeckModule::RebuildFromDefinition()
 
     if (Definition->FloorMesh)
     {
-        UStaticMeshComponent* Floor = NewObject<UStaticMeshComponent>(this, TEXT("DeckFloor"));
-        Floor->SetupAttachment(DeckRoot);
-        Floor->SetStaticMesh(Definition->FloorMesh);
-        Floor->SetRelativeLocation(Definition->LocalOffset);
-        Floor->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-        Floor->RegisterComponent();
+        FloorComponent = NewObject<UStaticMeshComponent>(this, TEXT("DeckFloor"));
+        FloorComponent->SetupAttachment(DeckRoot);
+        FloorComponent->SetStaticMesh(Definition->FloorMesh);
+        FloorComponent->SetRelativeLocation(Definition->LocalOffset);
+        FloorComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+        FloorComponent->RegisterComponent();
     }
 
     for (int32 Index = 0; Index < Definition->WallSegments.Num(); ++Index)
