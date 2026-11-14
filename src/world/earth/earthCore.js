@@ -33,6 +33,9 @@ export function createEarthCore(options = {}) {
     position: options.position ?? [0, 0, -240],
     ...options
   };
+  const planetaryProfile = createEarthPlanetaryProfile({
+    visualRadiusUnits: settings.radius
+  });
   const group = new THREE.Group();
   group.name = 'StarFrontier-Earth-Core';
   group.position.set(...settings.position);
@@ -51,14 +54,12 @@ export function createEarthCore(options = {}) {
 
   return {
     group,
-    version: '1.5.0',
+    version: '1.6.0',
     referencePolicy: EARTH_REFERENCE_POLICY,
     references: EARTH_REFERENCE_SOURCES,
     engineInterop: EARTH_UE5_INTEROP,
     getPlanetaryProfile() {
-      return createEarthPlanetaryProfile({
-        visualRadiusUnits: settings.radius
-      });
+      return planetaryProfile;
     },
     updateModules: EARTH_UPDATE_MODULES,
     attachUpdateModule(id, runtime) {
@@ -77,10 +78,16 @@ export function createEarthCore(options = {}) {
     getStatus() {
       return {
         core: 'ready',
-        version: '1.5.0',
+        version: '1.6.0',
         renderer: 'modular-earth-runtime',
         referencesAreAdvisory: true,
         engineInterop: getEarthEngineInteropStatus(),
+        planetaryProfile: {
+          id: planetaryProfile.id,
+          physicalMeanRadiusKm: planetaryProfile.physical.meanRadiusKm,
+          visualRadiusUnits: planetaryProfile.render.visualRadiusUnits,
+          visualUnitsPerKm: planetaryProfile.render.visualUnitsPerKm
+        },
         updateModules: updatePipeline.getStatus(),
         disposed
       };
