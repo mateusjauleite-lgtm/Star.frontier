@@ -50,6 +50,17 @@ export const EARTH_REFERENCE_SOURCES = Object.freeze([
     catalogue: NASA_CONTINENT_REFERENCES
   },
   {
+    id: 'noaa-etopo-2022',
+    provider: 'NOAA National Centers for Environmental Information',
+    url: 'https://www.ncei.noaa.gov/products/etopo-global-relief-model',
+    scope: ['global-land-elevation', 'ocean-basin-bathymetry', 'shorelines', 'rocky-relief'],
+    usage: 'scientific-topography-and-bathymetry-reference',
+    attributionRequired: 'cite-dataset-when-derived',
+    dataset: 'ETOPO 2022 15 Arc-Second Global Relief Model',
+    doi: '10.25921/fd45-gt74',
+    implementationNote: 'Current runtime uses a procedural approximation; measured elevation grids are not yet imported.'
+  },
+  {
     id: 'google-earth',
     provider: 'Google Earth',
     url: 'https://earth.google.com/',
