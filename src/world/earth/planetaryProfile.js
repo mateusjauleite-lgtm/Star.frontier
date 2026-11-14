@@ -18,10 +18,10 @@ export const EARTH_PLANETARY_PROFILE = Object.freeze({
   })
 });
 
-export function createEarthPlanetaryProfile({ visualRadiusUnits = 300 } = {}) {
+export function createEarthPlanetaryProfile({ visualRadiusUnits = 600 } = {}) {
   const safeVisualRadius = Number.isFinite(visualRadiusUnits) && visualRadiusUnits > 0
     ? visualRadiusUnits
-    : 300;
+    : 600;
   const visualUnitsPerKm = safeVisualRadius / EARTH_PLANETARY_PROFILE.physical.meanRadiusKm;
 
   return Object.freeze({
