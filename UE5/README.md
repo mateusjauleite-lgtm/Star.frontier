@@ -46,7 +46,7 @@ Epic's Android workflow requires an engine-compatible SDK/NDK/JDK toolchain and 
 - Ship Core → exploration hull, interior/decks, bridge, computer, engine dynamics, visual Engine FX, camera, controls and player-ship association.
 - Earth Core v1.6.0 → seven branches: interior, surface, terrain, oceans, atmosphere, clouds and lighting.
 - Planetary Core → planetary identity, physical dimensions, gravity, rotation, altitude and coordinate rules.
-- Atmosphere & Climate Core → scientific atmospheric and climate data, separate from rendering effects.
+- Atmosphere & Climate Core → scientific atmospheric and climate data, separate from rendering effects. Its first native UE5 source slice now includes composition, vertical layers, climate baseline, a Planetary Core profile reference and runtime altitude sampling.
 - Geology & Biomes Core → geological/ecological data and biome rules.
 
 The authoritative ownership map is [CORE_SYSTEMS_MAP.md](Docs/CORE_SYSTEMS_MAP.md).
@@ -66,6 +66,7 @@ The authoritative ownership map is [CORE_SYSTEMS_MAP.md](Docs/CORE_SYSTEMS_MAP.m
 - Migration branch: `ue5/frontier-migration`.
 - Baseline branch: `feature/character-core` remains preserved and separate.
 - Native Planetary Core source scaffold is committed: profile Data Asset, coordinate/scale subsystem and separate identity, dimensions, gravity, rotation, altitude and coordinate branches.
+- Initial Atmosphere & Climate Core source scaffold is committed: gas composition, atmospheric layer definitions, climate baseline, a profile Data Asset linked to Planetary Core, and a World Subsystem for pressure/temperature/density sampling. Its model is a deterministic approximation and has not been compiled or tested.
 - Frontier module rules and module entry point are committed.
 - The UE 5.8 project descriptor and game/editor targets are present, but the C++ has not yet been compiled by Unreal Build Tool or validated in Unreal Editor.
 - The initial `.umap` must still be generated in Editor; authored Niagara assets and a packaged UE5 game have not yet been produced.
@@ -77,4 +78,5 @@ The authoritative ownership map is [CORE_SYSTEMS_MAP.md](Docs/CORE_SYSTEMS_MAP.m
 - `Docs/MIGRATION_PLAN.md` — migration phases and acceptance gates.
 - `Docs/THREE_TO_UE5_MAP.md` — legacy implementation to UE5 mapping.
 - `Data/planetary-profile.json` — engine-neutral Earth reference data.
+- `Docs/ATMOSPHERE_CLIMATE_CORE.md` — Atmosphere & Climate Core architecture, units, current model and validation gates.
 - `Source/Frontier/` — native UE5 C++ module and core implementations.
