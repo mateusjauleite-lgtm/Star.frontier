@@ -70,32 +70,38 @@ Still required before Character Core is considered migrated:
 
 ## Phase 3 — Ship Core and branches
 
-Initial native source scaffold committed:
-- [x] AFrontierShip owns ShipId, CommanderId and ship flight state.
+Native UE5 source structure and first integration pass:
+
+- [x] `AFrontierShip` owns ShipId, CommanderId and ship flight state.
 - [x] Exploration hull profile and modular mesh assembly component.
 - [x] Independent deck module actor and Data Asset with per-wall transform/collision.
 - [x] Four original deck identities: D1 command, D2 operations/science, D3 engineering, D4 hangar/support.
 - [x] Protected hangar-exit and elevator-access clearance volumes in deck definitions.
-- [x] Elevator actor with D1–D4 stops and deck routing.
+- [x] Interior branch composes missing deck actors from its deck-definition list.
+- [x] Elevator actor with D1–D4 stops and ship-local deck selection/routing.
 - [x] Bridge pilot station with original local console position and character interaction.
 - [x] Ship computer boot/shutdown, terminal permissions and navigation telemetry.
-- [x] Engine component for acceleration, speed, boost and braking.
+- [x] Engine component for acceleration, speed, boost and braking; boost now affects the speed cap.
 - [x] Dedicated ship camera boom and camera.
 - [x] Ship controls component exposing throttle, pitch, yaw, brake and boost.
+- [x] Requester-checked pilot exit API for Enhanced Input or mobile HUD integration.
 - [x] Player ship association World Subsystem.
 - [x] Pilot handoff attaches the character to the ship frame, changes view target and restores the character at the bridge exit when piloting ends.
 - [x] Ship Core exposes D1–D4 character placement using the original deck/elevator local positions.
 - [x] Explicit Three.js Y-up/metre-like to UE5 X-forward/Z-up/centimetre position conversion.
+- [x] Swept ship movement now has a blocking root collision component; its box is a configurable proxy, not final hull collision.
+- [x] Elevator stop selection measures the character in the owning ship's local coordinate frame.
 
-Still required before Ship Core is considered migrated:
+Still required before Ship Core is considered migrated and playable:
+
 - [ ] Import/assemble the actual exploration hull, nacelles, engines and interior mesh assets.
-- [ ] Create the four deck Data Assets and set each wall's transform/collision separately.
-- [ ] Define the actual hangar-exit and elevator-access clearance boxes and verify there are no obstructing meshes or collision.
+- [ ] Create and assign the four deck Data Assets; set each wall's transform/collision separately.
+- [ ] Define and verify the actual hangar-exit and elevator-access clearance boxes, with no obstructing meshes or collision.
+- [ ] Replace or fit the temporary box collision proxy to the final hull collision geometry.
 - [ ] Add bridge stations/console meshes and configure terminal permissions per station.
-- [ ] Bind flight controls to Enhanced Input and mobile UMG controls.
-- [ ] Connect pilot exit action to EndPiloting and validate camera/character restoration.
+- [ ] Bind flight controls and the pilot-exit request to Enhanced Input and mobile UMG controls.
 - [ ] Verify character starts on Deck 1 and deck/elevator circulation is correct.
-- [ ] Compile with Unreal Build Tool and test ship movement, collision and deck routing in Editor.
+- [ ] Compile with Unreal Build Tool and test ship movement, collision, camera handoff, computer permissions and deck routing in Editor.
 
 Preserve the existing ship branch ownership: exploration hull, interior/decks, bridge, computer, engines, camera, controls and player-ship association.
 
@@ -106,7 +112,7 @@ Preserve the existing ship branch ownership: exploration hull, interior/decks, b
 - Protect the Deck 4 hangar opening and Deck 2 elevator access from wall/collision overlap.
 - Pilot-seat interaction changes Character Core mode and camera/HUD presentation without moving ship state into Character Core.
 
-**Exit gate:** Deck 1 bridge and other decks load as separate modules; hangar and elevator circulation are unobstructed.
+**Exit gate:** Deck 1 bridge and other decks load as separate modules; hangar and elevator circulation are unobstructed; flight and collision behavior pass a UE5 Editor test.
 
 ## Phase 4 — Atmosphere & Climate and Geology & Biomes Cores
 
