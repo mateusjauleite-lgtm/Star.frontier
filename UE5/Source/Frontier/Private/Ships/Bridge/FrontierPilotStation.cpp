@@ -24,6 +24,5 @@ void AFrontierPilotStation::Interact_Implementation(AActor* InteractingActor)
     AFrontierCharacter* Character = Cast<AFrontierCharacter>(InteractingActor);
     if (!Character || !OwningShip) return;
 
-    OwningShip->AssignCommander(CommanderId);
-    Character->EnterShipControlMode();
+    OwningShip->BeginPiloting(Character, CommanderId);
 }
