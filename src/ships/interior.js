@@ -113,7 +113,7 @@ export function createStarshipInterior(options = {}) {
     addBox(group, [thickness, height - doorHeight, doorWidth], [x, y + doorHeight / 2, z], bulkheadMat, 'Wall-Door-Header');
   };
 
-  const addDeckPlate = (y, width, length, material, name, thickness) => {
+  const addDeckPlate = (y, width, length, material, name, thickness, centerZ = -2) => {
     // Planta elíptica acompanha o casco arredondado, sem criar uma moldura retangular.
     const shape = new THREE.Shape();
     shape.absellipse(0, 0, width / 2, length / 2, 0, Math.PI * 2, false, 0);
@@ -122,7 +122,7 @@ export function createStarshipInterior(options = {}) {
     });
     const mesh = new THREE.Mesh(geometry, material);
     mesh.rotation.x = Math.PI / 2;
-    mesh.position.set(0, y + thickness / 2, -2);
+    mesh.position.set(0, y + thickness / 2, centerZ);
     mesh.name = name;
     mesh.castShadow = false;
     mesh.receiveShadow = true;
@@ -133,10 +133,10 @@ export function createStarshipInterior(options = {}) {
   const deckFloor = (deck, label) => {
     const y = deck.y;
     const footprints = {
-      D1: [50, 82], D2: [50, 94], D3: [53, 102], D4: [35, 58]
+      D1: [50, 82], D2: [50, 94], D3: [53, 102], D4: [48, 110, 5.5]
     };
-    const [width, length] = footprints[deck.id];
-    addDeckPlate(y, width, length, floorMat, label + '-Floor', 0.42);
+    const [width, length, centerZ = -2] = footprints[deck.id];
+    addDeckPlate(y, width, length, floorMat, label + '-Floor', 0.42, centerZ);
     // O piso do deck imediatamente superior já funciona como teto deste deck.
     // Não criar placas de teto independentes: elas duplicavam os planos entre
     // os decks e produziam sobreposições visuais no hangar. No D1, o casco
