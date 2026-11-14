@@ -1,3 +1,5 @@
+import { NASA_CONTINENT_REFERENCES } from './nasa+continentes.js';
+
 /**
  * Research inputs only. Sources cannot alter the stable Earth baseline.
  */
@@ -28,7 +30,8 @@ export const EARTH_REFERENCE_SOURCES = Object.freeze([
     scope: ['global-imagery', 'continents', 'oceans', 'atmosphere'],
     usage: 'research-reference',
     attributionRequired: 'check-per-item',
-    licenseReview: 'required-before-asset-use'
+    licenseReview: 'required-before-asset-use',
+    catalogue: NASA_CONTINENT_REFERENCES
   },
   {
     id: 'google-earth',
