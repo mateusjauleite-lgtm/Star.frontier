@@ -19,6 +19,21 @@ struct FRONTIER_API FFrontierShipComputerSystemStatus
     FName Status = TEXT("standby");
 };
 
+USTRUCT(BlueprintType)
+struct FRONTIER_API FFrontierShipTelemetry
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly)
+    FVector Location = FVector::ZeroVector;
+
+    UPROPERTY(BlueprintReadOnly)
+    FRotator Rotation = FRotator::ZeroRotator;
+
+    UPROPERTY(BlueprintReadOnly)
+    float SpeedCmPerSecond = 0.0f;
+};
+
 UCLASS(ClassGroup=(Frontier), BlueprintType, Blueprintable, meta=(BlueprintSpawnableComponent))
 class FRONTIER_API UFrontierShipComputerComponent : public UActorComponent
 {
@@ -43,6 +58,9 @@ public:
     void Shutdown();
 
     UFUNCTION(BlueprintCallable, Category="Ship|Computer")
+    void RegisterTerminal(FName TerminalId, const TArray<FName>& AllowedSystems);
+
+    UFUNCTION(BlueprintCallable, Category="Ship|Computer")
     bool ConnectTerminal(FName TerminalId, FName OperatorId);
 
     UFUNCTION(BlueprintCallable, Category="Ship|Computer")
@@ -52,5 +70,8 @@ public:
     bool IsTerminalConnected(FName TerminalId) const;
 
     UFUNCTION(BlueprintCallable, Category="Ship|Computer")
-    bool GetNavigationTelemetry(FVector& OutLocation, FRotator& OutRotation, float& OutSpeed) const;
+    bool DispatchNavigationTelemetry(FName TerminalId, FFrontierShipTelemetry& OutTelemetry) const;
+
+private:
+    TMap<FName, TSet<FName>> TerminalPermissions;
 };
