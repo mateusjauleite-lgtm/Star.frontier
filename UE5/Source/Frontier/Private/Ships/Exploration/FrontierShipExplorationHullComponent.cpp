@@ -2,6 +2,7 @@
 #include "Ships/Exploration/FrontierShipExplorationProfile.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
+#include "Math/RotationMatrix.h"
 
 namespace
 {
@@ -113,6 +114,29 @@ void UFrontierShipExplorationHullComponent::RebuildHull()
         // Cyan guide strip along the outer side of each nacelle.
         AddPart(Side < 0 ? TEXT("PortNacelleLightStrip") : TEXT("StarboardNacelleLightStrip"),
             Cube, FVector(Side * 15.05f, 0.45f, 61.0f), FVector(54.0f, 0.42f, 0.5f));
+    }
+
+    // Curved aft supports from the legacy Catmull-Rom path, approximated
+    // by short structural cylinders between the original control points.
+    for (const float Side : {-1.0f, 1.0f})
+    {
+        const FVector SupportPoints[] = {
+            FVector(Side * 7.5f, -8.2f, 37.0f),
+            FVector(Side * 9.5f, -4.2f, 43.0f),
+            FVector(Side * 11.5f, -0.8f, 51.0f),
+            FVector(Side * 12.2f, 0.1f, 56.0f)
+        };
+
+        for (int32 Segment = 0; Segment < 3; ++Segment)
+        {
+            const FVector Start = ToUnrealPosition(SupportPoints[Segment]);
+            const FVector End = ToUnrealPosition(SupportPoints[Segment + 1]);
+            const FVector Direction = End - Start;
+            const FVector Midpoint = (SupportPoints[Segment] + SupportPoints[Segment + 1]) * 0.5f;
+            AddPart(Side < 0 ? TEXT("PortAftSupportSegment") : TEXT("StarboardAftSupportSegment"),
+                Cylinder, Midpoint, FVector(4.0f, 4.0f, Direction.Size() / 100.0f),
+                FRotationMatrix::MakeFromZ(Direction.GetSafeNormal()).Rotator());
+        }
     }
 
     // Hangar lips frame the opening without placing a panel across the exit.
