@@ -7,7 +7,7 @@
  */
 export const EARTH_UE5_INTEROP = Object.freeze({
   id: 'star-frontier-earth-ue5-interop',
-  contractVersion: '1.0.0',
+  contractVersion: '1.1.0',
   status: 'contract-only',
   sourceRuntime: 'three.js',
   targetRuntime: 'unreal-engine-5',
@@ -22,7 +22,11 @@ export const EARTH_UE5_INTEROP = Object.freeze({
     animation: 'not-required-for-first-earth-prototype',
     metadata: 'versioned-json-sidecar',
     scientificUnits: 'SI-with-kilometres-for-planetary-altitudes',
-    visualScale: 'explicit-project-config-not-implicit-physical-scale'
+    visualScale: 'explicit-project-config-not-implicit-physical-scale',
+    planetaryProfile: 'src/world/earth/planetaryProfile.js',
+    physicalMeanRadiusKm: 6371.0088,
+    physicalRadiusIndependentFromRenderScale: true,
+    largeWorldCoordinates: 'use-for-global-coordinate-precision-with-local-tile-and-camera-relative-rendering'
   }),
   coordinatePolicy: Object.freeze({
     source: 'three.js-world-coordinate-system',
