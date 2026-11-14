@@ -73,9 +73,13 @@ function updateCharacterCameraButton() {
 }
 
 function updateCharacterHUD() {
+  const planetaryProfile = earthSystem?.getPlanetaryProfile?.();
   characterHUD.update({
     ...characterCore.snapshot(),
-    name: state.user || state.character || 'EXPLORADOR'
+    name: state.user || state.character || 'EXPLORADOR',
+    environment: planetaryProfile ? {
+      label: `${planetaryProfile.displayName} • R MÉDIO ${Math.round(planetaryProfile.physical.meanRadiusKm).toLocaleString('pt-BR')} KM`
+    } : null
   });
 }
 
@@ -452,6 +456,7 @@ async function startGame() {
     if (!renderer) {
       await init3D();
     }
+    updateCharacterHUD();
 
     // O computador só fica online depois que os três subsistemas estão registrados.
     registerComputerSubsystems();
