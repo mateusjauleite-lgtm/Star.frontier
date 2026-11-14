@@ -47,7 +47,7 @@ export function createEarthCore(options = {}) {
 
   return {
     group,
-    version: '1.3.0',
+    version: '1.4.0',
     referencePolicy: EARTH_REFERENCE_POLICY,
     references: EARTH_REFERENCE_SOURCES,
     updateModules: EARTH_UPDATE_MODULES,
@@ -67,7 +67,7 @@ export function createEarthCore(options = {}) {
     getStatus() {
       return {
         core: 'ready',
-        version: '1.3.0',
+        version: '1.4.0',
         renderer: 'modular-earth-runtime',
         referencesAreAdvisory: true,
         updateModules: updatePipeline.getStatus(),
