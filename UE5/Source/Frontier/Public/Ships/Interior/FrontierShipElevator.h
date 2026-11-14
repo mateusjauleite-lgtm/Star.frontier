@@ -37,6 +37,10 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Ship|Elevator")
     TArray<FFrontierShipElevatorStop> Stops;
 
+protected:
+    virtual void BeginPlay() override;
+
+public:
     UFUNCTION(BlueprintCallable, Category="Ship|Elevator")
     bool MoveCharacterToDeck(AActor* Character, FName DeckCode);
 
