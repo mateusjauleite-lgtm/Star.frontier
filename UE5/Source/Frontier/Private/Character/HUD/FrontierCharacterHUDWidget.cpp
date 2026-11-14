@@ -1,4 +1,35 @@
-undefined
+#include "Character/HUD/FrontierCharacterHUDWidget.h"
+#include "Character/Core/FrontierCharacter.h"
+#include "Character/Interaction/FrontierInteractable.h"
+#include "GameFramework/Character.h"
+#include "GameFramework/PlayerController.h"
+#include "Camera/CameraComponent.h"
+#include "Math/RotationMatrix.h"
+
+void UFrontierCharacterHUDWidget::ObserveCharacter(UFrontierCharacterStateComponent* CharacterState)
+{
+    if (ObservedState)
+    {
+        ObservedState->OnStateChanged.RemoveDynamic(
+            this, &UFrontierCharacterHUDWidget::HandleCharacterStateChanged);
+    }
+
+    ObservedState = CharacterState;
+    if (!ObservedState) return;
+
+    ObservedState->OnStateChanged.AddDynamic(
+        this, &UFrontierCharacterHUDWidget::HandleCharacterStateChanged);
+
+    HandleCharacterStateChanged(ObservedState->State);
+}
+
+void UFrontierCharacterHUDWidget::HandleCharacterStateChanged(
+    const FFrontierCharacterState& State)
+{
+    const bool bOnFoot = State.Mode == EFrontierCharacterMode::OnFoot;
+    RefreshCharacterHUD(State, bOnFoot);
+}
+
 void UFrontierCharacterHUDWidget::MoveCharacter(FVector2D Axis)
 {
     AFrontierCharacter* Character = Cast<AFrontierCharacter>(GetOwningPlayerPawn());
