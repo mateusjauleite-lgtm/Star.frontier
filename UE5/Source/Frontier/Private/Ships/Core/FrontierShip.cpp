@@ -8,14 +8,28 @@
 #include "Ships/PlayerShip/FrontierPlayerShipSubsystem.h"
 #include "Character/Core/FrontierCharacter.h"
 #include "GameFramework/PlayerController.h"
+#include "Components/BoxComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SceneComponent.h"
 
 AFrontierShip::AFrontierShip()
 {
     PrimaryActorTick.bCanEverTick = true;
+
+    CollisionRoot = CreateDefaultSubobject<UBoxComponent>(TEXT("ShipCollisionRoot"));
+    SetRootComponent(CollisionRoot);
+    CollisionRoot->SetBoxExtent(CollisionHalfExtent);
+    CollisionRoot->SetMobility(EComponentMobility::Movable);
+    CollisionRoot->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+    CollisionRoot->SetCollisionObjectType(ECC_WorldDynamic);
+    CollisionRoot->SetCollisionResponseToAllChannels(ECR_Block);
+    // Interior characters and interaction traces must remain usable while inside the ship.
+    CollisionRoot->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+    CollisionRoot->SetCollisionResponseToChannel(ECC_Visibility, ECR_Ignore);
+    CollisionRoot->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+
     ShipRoot = CreateDefaultSubobject<USceneComponent>(TEXT("ShipRoot"));
-    SetRootComponent(ShipRoot);
+    ShipRoot->SetupAttachment(CollisionRoot);
 
     Controls = CreateDefaultSubobject<UFrontierShipControlsComponent>(TEXT("ShipControls"));
     Engines = CreateDefaultSubobject<UFrontierShipEngineComponent>(TEXT("ShipEngines"));
@@ -59,20 +73,28 @@ bool AFrontierShip::PlaceCharacterOnDeck(AFrontierCharacter* Character, FName De
 
 void AFrontierShip::BeginPiloting(AFrontierCharacter* Character, FName NewCommanderId)
 {
-    if (!Character) return;
+    if (!Character || (ActivePilot.IsValid() && ActivePilot.Get() != Character)) return;
+
     ActivePilot = Character;
     AssignCommander(NewCommanderId);
     Character->EnterShipControlMode();
     Character->AttachToActor(this, FAttachmentTransformRules::KeepWorldTransform);
     Character->SetActorRelativeLocation(ThreeToUnrealLocalPosition(FVector(0.0f, 8.91f, -29.5f)));
     Character->GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
     if (UWorld* World = GetWorld())
         if (UFrontierPlayerShipSubsystem* PlayerShip = World->GetSubsystem<UFrontierPlayerShipSubsystem>())
             PlayerShip->SetPlayerShip(this);
+
     if (APlayerController* PC = Cast<APlayerController>(Character->GetController()))
-    {
         PC->SetViewTarget(this);
-    }
+}
+
+bool AFrontierShip::RequestPilotExit(AActor* RequestingActor)
+{
+    if (!RequestingActor || ActivePilot.Get() != RequestingActor) return false;
+    EndPiloting();
+    return true;
 }
 
 void AFrontierShip::EndPiloting()
@@ -81,17 +103,18 @@ void AFrontierShip::EndPiloting()
     if (Character)
     {
         if (APlayerController* PC = Cast<APlayerController>(Character->GetController()))
-        {
             PC->SetViewTarget(Character);
-        }
+
         Character->SetActorRelativeLocation(ThreeToUnrealLocalPosition(FVector(0.0f, 8.91f, -25.5f)));
         Character->GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
         Character->LeaveShipControlMode();
     }
+
     ActivePilot.Reset();
     if (UWorld* World = GetWorld())
         if (UFrontierPlayerShipSubsystem* PlayerShip = World->GetSubsystem<UFrontierPlayerShipSubsystem>())
             if (PlayerShip->GetPlayerShip() == this) PlayerShip->ClearPlayerShip();
+
     ClearFlightInputs();
 }
 
@@ -114,6 +137,7 @@ void AFrontierShip::ClearFlightInputs()
 void AFrontierShip::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
+
     if (FMath::Abs(FlightState.Throttle) > KINDA_SMALL_NUMBER)
         TravelDirectionSign = FMath::Sign(FlightState.Throttle);
 
@@ -121,7 +145,7 @@ void AFrontierShip::Tick(float DeltaSeconds)
         FlightState.PitchInput * PitchRateDegrees * DeltaSeconds,
         FlightState.YawInput * YawRateDegrees * DeltaSeconds,
         0.0f);
-    AddActorLocalRotation(RotationDelta);
+    AddActorLocalRotation(RotationDelta, true);
 
     if (Engines)
     {
