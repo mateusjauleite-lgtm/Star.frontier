@@ -5,6 +5,7 @@
 #include "FrontierShipInteriorComponent.generated.h"
 
 class AFrontierShipDeckModule;
+class AFrontierShipElevator;
 class UFrontierShipDeckDefinition;
 
 UCLASS(ClassGroup=(Frontier), BlueprintType, Blueprintable, meta=(BlueprintSpawnableComponent))
@@ -19,6 +20,9 @@ public:
     UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category="Ship|Interior")
     TArray<TObjectPtr<AFrontierShipDeckModule>> DeckModules;
 
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Ship|Interior")
+    TObjectPtr<AFrontierShipElevator> ElevatorActor;
+
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Ship|Interior")
     bool bBuildMissingDeckModulesOnBeginPlay = true;
 
@@ -27,6 +31,9 @@ public:
 
     UFUNCTION(BlueprintCallable, Category="Ship|Interior")
     int32 BuildMissingDeckModules();
+
+    UFUNCTION(BlueprintCallable, Category="Ship|Interior")
+    AFrontierShipElevator* EnsureElevator();
 
 protected:
     virtual void BeginPlay() override;
