@@ -9,6 +9,7 @@ import { createOceansRuntime } from './modules/runtime/oceans.js';
 import { createAtmosphereRuntime } from './modules/runtime/atmosphere.js';
 import { createCloudsRuntime } from './modules/runtime/clouds.js';
 import { createLightingRuntime } from './modules/runtime/lighting.js';
+import { EARTH_UE5_INTEROP, getEarthEngineInteropStatus } from './interop/ue5Contract.js';
 
 const RUNTIME_FACTORIES = Object.freeze({
   interior: createInteriorRuntime,
@@ -52,6 +53,7 @@ export function createEarthCore(options = {}) {
     version: '1.5.0',
     referencePolicy: EARTH_REFERENCE_POLICY,
     references: EARTH_REFERENCE_SOURCES,
+    engineInterop: EARTH_UE5_INTEROP,
     updateModules: EARTH_UPDATE_MODULES,
     attachUpdateModule(id, runtime) {
       if (disposed) return false;
@@ -72,6 +74,7 @@ export function createEarthCore(options = {}) {
         version: '1.5.0',
         renderer: 'modular-earth-runtime',
         referencesAreAdvisory: true,
+        engineInterop: getEarthEngineInteropStatus(),
         updateModules: updatePipeline.getStatus(),
         disposed
       };
