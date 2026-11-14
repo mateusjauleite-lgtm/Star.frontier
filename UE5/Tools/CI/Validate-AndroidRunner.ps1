@@ -1,5 +1,8 @@
 $ErrorActionPreference = "Stop"
 
+$expectedEngineMajor = 5
+$expectedEngineMinor = 8
+
 function Require-Directory([string]$Name, [string]$Path) {
     if ([string]::IsNullOrWhiteSpace($Path)) {
         throw "Required environment variable $Name is empty."
@@ -11,7 +14,7 @@ function Require-Directory([string]$Name, [string]$Path) {
 }
 
 if ([string]::IsNullOrWhiteSpace($env:UE_ROOT)) {
-    throw "Set UE_ROOT to the root directory of the installed Unreal Engine version."
+    throw "Set UE_ROOT to the root directory of Unreal Engine 5.8."
 }
 
 $uat = Join-Path $env:UE_ROOT "Engine/Build/BatchFiles/RunUAT.bat"
@@ -29,7 +32,13 @@ if (!(Test-Path -LiteralPath $buildVersion -PathType Leaf)) {
 }
 
 $version = Get-Content -LiteralPath $buildVersion -Raw | ConvertFrom-Json
-Write-Host "Unreal Engine version: $($version.MajorVersion).$($version.MinorVersion)-CL-$($version.Changelist)"
+$engineMajor = [int]$version.MajorVersion
+$engineMinor = [int]$version.MinorVersion
+Write-Host "Unreal Engine version: $engineMajor.$engineMinor-CL-$($version.Changelist)"
+
+if ($engineMajor -ne $expectedEngineMajor -or $engineMinor -ne $expectedEngineMinor) {
+    throw "Star Frontier is pinned to Unreal Engine $expectedEngineMajor.$expectedEngineMinor; found $engineMajor.$engineMinor at UE_ROOT."
+}
 
 Require-Directory "ANDROID_HOME" $env:ANDROID_HOME
 Require-Directory "NDKROOT" $env:NDKROOT
@@ -72,4 +81,4 @@ if (!(Test-Path -LiteralPath $startupMap -PathType Leaf)) {
     throw "Startup map is missing. Generate and save it with UE5/Tools/EditorPython/create_main_startup_map.py before packaging."
 }
 
-Write-Host "Runner prerequisites passed. Confirm the SDK/NDK/JDK revisions against the exact UE version in Unreal Turnkey before running BuildCookRun."
+Write-Host "UE 5.8 runner prerequisites passed. Confirm the Android SDK/NDK/JDK revisions with UE 5.8 Turnkey before running BuildCookRun."
