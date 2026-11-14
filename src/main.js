@@ -377,6 +377,8 @@ let orbitSystem;
 let asteroidSystem;
 let lightingSystem;
 let starshipInterior;
+let nearbyElevator = false;
+let activeDeckIndex = 0;
 let shipYaw;
 let shipPitch;
 let shipVisual;
@@ -550,6 +552,8 @@ async function init3D() {
   await loadingStep(90, 'Integrando os quatro decks ao casco da nave...');
   starshipInterior = createStarshipInterior({ position: [0, 0, 0] });
   shipVisual.add(starshipInterior.group);
+  activeDeckIndex = 0;
+  nearbyElevator = false;
 
   // Spawn inicial no Deck 1 — ponte de comando, dentro do casco.
   characterModel = createCharacterModel({ suitColor: 0x263b50, accentColor: 0x36c9df });
@@ -776,36 +780,62 @@ function updateCharacterCamera() {
   }
 }
 
+function resolveCharacterShipCollisions(position, deckIndex) {
+  const deck = starshipInterior?.layout?.decks?.[deckIndex];
+  if (!deck) return;
+  const footprints = {
+    D1: [24.1, 40.1], D2: [24.1, 46.1],
+    D3: [25.6, 50.1], D4: [16.6, 28.6]
+  };
+  const [radiusX, radiusZ] = footprints[deck.id] || footprints.D1;
+  // Limite acompanha o contorno real do convés, sem o círculo artificial antigo.
+  const normalizedX = position.x / radiusX;
+  const normalizedZ = (position.z + 2) / radiusZ;
+  const radial = Math.hypot(normalizedX, normalizedZ);
+  if (radial > 1) {
+    const scale = 1 / radial;
+    position.x = normalizedX * scale * radiusX;
+    position.z = -2 + normalizedZ * scale * radiusZ;
+  }
+
+  // Colisão retangular simples com as anteparas estruturais da nave.
+  // Resolve cada eixo separadamente para permitir deslizar junto às paredes.
+  const playerRadius = 0.48;
+  const feetY = deck.y + 0.21;
+  for (const wall of starshipInterior.collisionBoxes || []) {
+    if (feetY + 1.8 < wall.y - wall.halfY || feetY > wall.y + wall.halfY) continue;
+    const nearestX = THREE.MathUtils.clamp(position.x, wall.x - wall.halfX, wall.x + wall.halfX);
+    const nearestZ = THREE.MathUtils.clamp(position.z, wall.z - wall.halfZ, wall.z + wall.halfZ);
+    let dx = position.x - nearestX;
+    let dz = position.z - nearestZ;
+    if (Math.abs(dx) < playerRadius && Math.abs(dz) < playerRadius) {
+      const overlapX = playerRadius - Math.abs(dx);
+      const overlapZ = playerRadius - Math.abs(dz);
+      if (overlapX < overlapZ) {
+        position.x += (dx < 0 ? -1 : 1) * overlapX;
+      } else {
+        position.z += (dz < 0 ? -1 : 1) * overlapZ;
+      }
+    }
+  }
+}
+
 function updateCharacterMovement(dt) {
   if (!characterModel || characterCore.snapshot().mode !== 'on-foot') return;
   const input = characterMoveInput;
   const magnitude = Math.min(1, Math.hypot(input.x, input.y));
+  const deck = characterModel.group.position;
   if (magnitude > 0.08) {
     characterYaw -= input.x * dt * 1.9;
     const forward = new THREE.Vector3(Math.sin(characterYaw), 0, -Math.cos(characterYaw));
     const right = new THREE.Vector3(Math.cos(characterYaw), 0, Math.sin(characterYaw));
     const direction = forward.multiplyScalar(-input.y).add(right.multiplyScalar(input.x * 0.18));
     if (direction.lengthSq() > 0) direction.normalize();
-    characterModel.group.position.addScaledVector(direction, 3.1 * magnitude * dt);
-
-    // Limite conservador do Deck 1, calculado pelo contorno interno do casco.
-    // A plataforma visual é mais larga que o casco na altura da ponte; por isso
-    // o personagem fica dentro de uma elipse menor, no referencial da nave.
-    const deck = characterModel.group.position;
-    const deckCenterZ = -2;
-    // Limite acompanha a área útil real do convés, sem a barreira artificial
-    // que antes impedia o acesso à região frontal da ponte.
-    const deckRadiusX = 21.8;
-    const deckRadiusZ = 39.0;
-    const normalizedX = deck.x / deckRadiusX;
-    const normalizedZ = (deck.z - deckCenterZ) / deckRadiusZ;
-    const radial = Math.hypot(normalizedX, normalizedZ);
-    if (radial > 1) {
-      deck.x = (normalizedX / radial) * deckRadiusX;
-      deck.z = deckCenterZ + (normalizedZ / radial) * deckRadiusZ;
-    }
-    // Mantém os pés no plano superior do piso D1.
-    deck.y = 8.91;
+    const previousX = deck.x;
+    const previousZ = deck.z;
+    deck.addScaledVector(direction, 3.1 * magnitude * dt);
+    resolveCharacterShipCollisions(deck, activeDeckIndex);
+    deck.y = starshipInterior.layout.decks[activeDeckIndex].y + 0.21;
     characterModel.group.rotation.y = characterYaw;
     characterAnimator?.play(magnitude > 0.72 ? 'run' : 'walk');
   } else {
@@ -814,12 +844,52 @@ function updateCharacterMovement(dt) {
   characterAnimator?.update(dt);
 }
 
+function updateElevatorInteraction() {
+  if (!characterModel || characterCore.snapshot().mode !== 'on-foot') return;
+  const p = characterModel.group.position;
+  const inLift = Math.abs(p.x) <= 2.9 && p.z >= 22.1 && p.z <= 27.9;
+  const changed = inLift !== nearbyElevator;
+  nearbyElevator = inLift;
+  if (changed) {
+    const button = $('character-action-btn');
+    if (button && inLift) {
+      button.disabled = false;
+      button.textContent = activeDeckIndex === 0 ? '⇅ DESCER' : (activeDeckIndex === 3 ? '⇅ SUBIR' : '⇅ ELEVADOR');
+      characterCore.setInteractionTarget('ELEVADOR INTERNO');
+      updateCharacterHUD();
+    } else if (button && !inLift) {
+      pilotInteractionAvailable = false;
+      button.disabled = true;
+      button.textContent = '◎ AÇÃO';
+      characterCore.setInteractionTarget(null);
+      updateCharacterHUD();
+      updatePilotInteraction();
+    }
+  }
+}
+
+function useShipElevator() {
+  if (!nearbyElevator || !characterModel || characterCore.snapshot().mode !== 'on-foot') return false;
+  const nextIndex = activeDeckIndex === 0 ? 1 : activeDeckIndex === 3 ? 2 : activeDeckIndex + 1;
+  activeDeckIndex = nextIndex;
+  const deck = starshipInterior.layout.decks[activeDeckIndex];
+  characterModel.group.position.set(0, deck.y + 0.21, 25);
+  resolveCharacterShipCollisions(characterModel.group.position, activeDeckIndex);
+  nearbyElevator = true;
+  const button = $('character-action-btn');
+  if (button) button.textContent = activeDeckIndex === 3 ? '⇅ SUBIR' : '⇅ ELEVADOR';
+  characterCore.setInteractionTarget('ELEVADOR INTERNO');
+  updateCharacterHUD();
+  toast('Acesso ao ' + deck.name + ' liberado.');
+  return true;
+}
+
 function updatePilotInteraction() {
   if (!characterModel || !shipVisual || characterCore.snapshot().mode !== 'on-foot') return;
 
   characterModel.group.getWorldPosition(pilotPlayerWorldPosition);
   const available = isPilotConsoleInRange(pilotPlayerWorldPosition, shipVisual);
-
+  if (nearbyElevator) return;
   if (available === pilotInteractionAvailable) return;
 
   pilotInteractionAvailable = available;
@@ -943,6 +1013,7 @@ function loop(now) {
 
   if (characterCore.snapshot().mode === 'on-foot') {
     updateCharacterMovement(dt);
+    updateElevatorInteraction();
     updatePilotInteraction();
     updateCharacterCamera();
   } else {
@@ -1109,7 +1180,10 @@ if (characterAim) {
   );
 }
 
-$('character-action-btn')?.addEventListener('click', enterPilotMode);
+$('character-action-btn')?.addEventListener('click', () => {
+  if (nearbyElevator) useShipElevator();
+  else enterPilotMode();
+});
 $('leave-pilot-btn')?.addEventListener('click', exitPilotMode);
 
 if ($('character-action-btn')) $('character-action-btn').disabled = true;
