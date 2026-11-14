@@ -23,6 +23,9 @@ public:
     TObjectPtr<UFrontierShipDeckDefinition> Definition;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Ship|Deck")
+    TObjectPtr<UStaticMeshComponent> FloorComponent;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Ship|Deck")
     TArray<TObjectPtr<UStaticMeshComponent>> WallComponents;
 
     UFUNCTION(BlueprintCallable, Category="Ship|Deck")
