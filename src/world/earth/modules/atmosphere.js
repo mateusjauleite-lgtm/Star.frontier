@@ -1,13 +1,9 @@
-/** Structural contract for atmospheric shells and scattering. */
+/** Contract for the independent atmospheric shell renderer. */
 export const EARTH_ATMOSPHERE_MODULE = Object.freeze({
-  id: 'atmosphere',
-  label: 'Atmosfera em camadas',
-  domain: 'atmosphere',
-  status: 'planned',
-  enabledByDefault: false,
-  dependsOn: [],
+  id: 'atmosphere', label: 'Atmosfera em camadas', domain: 'atmosphere',
+  status: 'preview', enabledByDefault: true, dependsOn: [],
   referenceScopes: ['atmosphere', 'earth-science'],
-  baselineTarget: 'legacy-atmosphere-shell',
-  responsibilities: ['atmospheric-layers', 'scattering', 'horizon-glow'],
-  implementation: 'pending'
+  baselineTarget: 'modular-earth-atmosphere',
+  responsibilities: ['atmospheric-layers', 'rim-scattering-preview', 'horizon-glow'],
+  implementation: './runtime/atmosphere.js'
 });
