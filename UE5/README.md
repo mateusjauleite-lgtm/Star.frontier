@@ -1,6 +1,6 @@
-# Star Frontier — Unreal Engine 5
+# Star Frontier — Unreal Engine 5.8
 
-This workspace is the destination for the **complete migration** of Star Frontier to Unreal Engine 5. UE5 is the sole target engine for future development.
+This workspace is the destination for the **complete migration** of Star Frontier to Unreal Engine 5. **UE 5.8 is the pinned engine baseline** and sole target runtime for future development.\n\n## Engine baseline\n\n- Project descriptor `StarFrontier.uproject` is associated with Unreal Engine **5.8**.\n- Android CI preflight rejects any engine major/minor version other than 5.8.\n- Install the official stable UE 5.8 release and use its matching Android SDK/NDK/JDK through Unreal Turnkey.\n- Do not upgrade the engine association or Android toolchain independently; review source compatibility and rerun the full acceptance checks together.
 
 ## Migration direction
 
@@ -25,8 +25,8 @@ Runner setup and the reusable Windows preflight are documented in [ANDROID_BUILD
 
 
 - `.github/workflows/android-apk.yml` is now the native UE5 Android packaging workflow. It invokes Unreal Automation Tool (`BuildCookRun`) and does not use Node, Vite, Three.js or Capacitor.
-- The UE5 workflow requires a trusted **self-hosted Windows runner** with the licensed Unreal Engine installation and the matching Android SDK, NDK and JDK already configured.
-- Configure repository Actions variables `UE_ROOT`, `ANDROID_HOME`, `NDKROOT` and `JAVA_HOME` for that runner. The Android toolchain should be installed/validated with Unreal Turnkey for the exact engine version.
+- The UE5 workflow requires a trusted **self-hosted Windows runner** with the licensed Unreal Engine 5.8 installation and the matching Android SDK, NDK and JDK already configured.
+- Configure repository Actions variables `UE_ROOT`, `ANDROID_HOME`, `NDKROOT` and `JAVA_HOME` for that runner. The Android toolchain should be installed/validated with Unreal Turnkey for UE 5.8.
 - The workflow deliberately stops before packaging if the startup map is missing. Run `Tools/EditorPython/create_main_startup_map.py` in Unreal Editor, save the generated map and commit `Content/StarFrontier/Maps/L_StarFrontier_Main.umap`.
 - `.github/workflows/legacy-android-apk.yml` preserves the old Vite/Three.js + Capacitor APK pipeline for historical testing. Its output is **not** a UE5 build.
 - Root `package.json` is explicitly marked as legacy web/Capacitor tooling. Its Three.js and Capacitor dependencies remain only to support the legacy source and workflow; UE5 compilation and packaging do not use npm.
@@ -60,7 +60,7 @@ The authoritative ownership map is [CORE_SYSTEMS_MAP.md](Docs/CORE_SYSTEMS_MAP.m
 - Baseline branch: `feature/character-core` remains preserved and separate.
 - Native Planetary Core source scaffold is committed: profile Data Asset, coordinate/scale subsystem and separate identity, dimensions, gravity, rotation, altitude and coordinate branches.
 - Frontier module rules and module entry point are committed.
-- The `.uproject` descriptor and game/editor targets are present, but the C++ has not yet been compiled by Unreal Build Tool or validated in Unreal Editor.
+- The UE 5.8 project descriptor and game/editor targets are present, but the C++ has not yet been compiled by Unreal Build Tool or validated in Unreal Editor.
 - The initial `.umap` must still be generated in Editor; authored Niagara assets and a packaged UE5 game have not yet been produced.
 - The UE5 Android workflow is authored but has not been run; no self-hosted runner or Android APK build has been verified.
 
