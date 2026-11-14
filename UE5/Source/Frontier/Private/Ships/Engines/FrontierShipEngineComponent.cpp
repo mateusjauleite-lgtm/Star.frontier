@@ -26,8 +26,8 @@ void UFrontierShipEngineComponent::TickComponent(
         return;
     }
 
-    const float Boost = Flight.bBoosting ? BoostMultiplier : 1.0f;
-    const float TargetSpeed = MaximumSpeedCmPerSecond * FMath::Abs(Flight.Throttle);
+    const float Boost = Flight.bBoosting ? FMath::Max(1.0f, BoostMultiplier) : 1.0f;
+    const float TargetSpeed = MaximumSpeedCmPerSecond * Boost * FMath::Abs(Flight.Throttle);
     const float AccelerationRate = AccelerationCmPerSecondSquared * Boost;
     CurrentSpeedCmPerSecond = FMath::FInterpConstantTo(
         CurrentSpeedCmPerSecond, TargetSpeed, DeltaSeconds, AccelerationRate);
