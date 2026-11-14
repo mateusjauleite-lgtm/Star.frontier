@@ -843,6 +843,19 @@ function updateCharacterMovement(dt) {
   characterAnimator?.update(dt);
 }
 
+function updateElevatorButtons() {
+  const up = $('elevator-up-btn');
+  const down = $('elevator-down-btn');
+  const action = $('character-action-btn');
+  if (!up || !down || !action) return;
+
+  up.classList.toggle('hidden', !nearbyElevator || activeDeckIndex === 0);
+  down.classList.toggle('hidden', !nearbyElevator || activeDeckIndex === 3);
+  up.disabled = !nearbyElevator || activeDeckIndex === 0;
+  down.disabled = !nearbyElevator || activeDeckIndex === 3;
+  action.classList.toggle('hidden', nearbyElevator);
+}
+
 function updateElevatorInteraction() {
   if (!characterModel || characterCore.snapshot().mode !== 'on-foot') return;
   const p = characterModel.group.position;
@@ -850,34 +863,31 @@ function updateElevatorInteraction() {
   const changed = inLift !== nearbyElevator;
   nearbyElevator = inLift;
   if (changed) {
-    const button = $('character-action-btn');
-    if (button && inLift) {
-      button.disabled = false;
-      button.textContent = activeDeckIndex === 0 ? '⇅ DESCER' : (activeDeckIndex === 3 ? '⇅ SUBIR' : '⇅ ELEVADOR');
+    if (inLift) {
       characterCore.setInteractionTarget('ELEVADOR INTERNO');
       updateCharacterHUD();
-    } else if (button && !inLift) {
+    } else {
       pilotInteractionAvailable = false;
-      button.disabled = true;
-      button.textContent = '◎ AÇÃO';
       characterCore.setInteractionTarget(null);
       updateCharacterHUD();
       updatePilotInteraction();
     }
+    updateElevatorButtons();
   }
 }
 
-function useShipElevator() {
+function moveElevator(direction) {
   if (!nearbyElevator || !characterModel || characterCore.snapshot().mode !== 'on-foot') return false;
-  const nextIndex = activeDeckIndex === 0 ? 1 : activeDeckIndex === 3 ? 2 : activeDeckIndex + 1;
+  const nextIndex = activeDeckIndex + direction;
+  if (nextIndex < 0 || nextIndex > 3) return false;
+
   activeDeckIndex = nextIndex;
   const deck = starshipInterior.layout.decks[activeDeckIndex];
   characterModel.group.position.set(0, deck.y + 0.21, 25);
   resolveCharacterShipCollisions(characterModel.group.position, activeDeckIndex);
   nearbyElevator = true;
-  const button = $('character-action-btn');
-  if (button) button.textContent = activeDeckIndex === 3 ? '⇅ SUBIR' : '⇅ ELEVADOR';
   characterCore.setInteractionTarget('ELEVADOR INTERNO');
+  updateElevatorButtons();
   updateCharacterHUD();
   toast('Acesso ao ' + deck.name + ' liberado.');
   return true;
@@ -1179,10 +1189,9 @@ if (characterAim) {
   );
 }
 
-$('character-action-btn')?.addEventListener('click', () => {
-  if (nearbyElevator) useShipElevator();
-  else enterPilotMode();
-});
+$('character-action-btn')?.addEventListener('click', enterPilotMode);
+$('elevator-up-btn')?.addEventListener('click', () => moveElevator(-1));
+$('elevator-down-btn')?.addEventListener('click', () => moveElevator(1));
 
 function closeInventory() {
   const modal = $('inventory-modal');
