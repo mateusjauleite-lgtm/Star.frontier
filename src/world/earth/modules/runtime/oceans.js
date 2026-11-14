@@ -16,7 +16,7 @@ export function createOceansRuntime({ group, options, layers }) {
       group.add(mesh);
       layers.oceans = mesh;
     },
-    update(delta) { if (mesh) mesh.rotation.y = layers.surface.rotation.y; },
+    update() { if (mesh && layers.surface) mesh.rotation.copy(layers.surface.rotation); }
     dispose() { if (mesh) group.remove(mesh); geometry?.dispose(); material?.dispose(); }
   };
 }
