@@ -490,7 +490,7 @@ async function init3D() {
   scene.fog = new THREE.FogExp2(0x020817, 0.00055);
 
   // Terra em posição distante, visível à frente da nave.
-  earthSystem = createEarthCore({ radius: 78, position: [0, 0, -850] });
+  earthSystem = createEarthCore({ radius: 300, position: [0, 0, -850] });
   scene.add(earthSystem.group);
 
   camera = new THREE.PerspectiveCamera(
