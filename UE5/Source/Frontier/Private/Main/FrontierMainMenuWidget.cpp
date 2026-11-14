@@ -10,6 +10,7 @@
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/SizeBox.h"
+#include "Components/SafeZone.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
@@ -71,8 +72,11 @@ void UFrontierMainMenuWidget::BuildNativeLayout()
     BackgroundSlot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
     BackgroundSlot->SetOffsets(FMargin(0.0f));
 
+    USafeZone* SafeZone = WidgetTree->ConstructWidget<USafeZone>();
+    Background->SetContent(SafeZone);
+
     UVerticalBox* MainColumn = WidgetTree->ConstructWidget<UVerticalBox>();
-    Background->SetContent(MainColumn);
+    SafeZone->SetContent(MainColumn);
     Background->SetPadding(FMargin(28.0f, 22.0f));
 
     UTextBlock* Brand = MakeMenuText(
