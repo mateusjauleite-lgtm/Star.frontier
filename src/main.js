@@ -460,6 +460,22 @@ function loadingStep(percent, message) {
 async function startGame() {
   if (launching) return;
 
+  // A chamada ocorre diretamente no clique de DECOLAR para permitir
+  // fullscreen no navegador; no APK o workflow ativa o modo imersivo nativo.
+  const gameScreen = $('game-screen');
+  const requestFullscreen = gameScreen?.requestFullscreen || gameScreen?.webkitRequestFullscreen;
+  if (requestFullscreen) {
+    try {
+      const result = requestFullscreen.call(gameScreen, { navigationUI: 'hide' });
+      result?.catch?.(() => {});
+    } catch (error) {
+      console.info('Fullscreen do navegador indisponível; usando a janela nativa do APK.', error);
+    }
+  }
+  try {
+    window.screen?.orientation?.lock?.('landscape')?.catch?.(() => {});
+  } catch {}
+
   resetTransientState();
   characterCore.initialize();
   characterCore.setMode('on-foot');
@@ -824,11 +840,12 @@ function isCharacterInsideDeck(position, deckIndex) {
 
   // Reserva uma margem para o raio do personagem, evitando que os pés
   // atravessem a borda mesmo quando o centro ainda está sobre o piso.
+  const [width, length, centerZ = -2] = footprint;
   const playerRadius = 0.62;
-  const radiusX = footprint[0] * 0.5 - playerRadius;
-  const radiusZ = footprint[1] * 0.5 - playerRadius;
+  const radiusX = width * 0.5 - playerRadius;
+  const radiusZ = length * 0.5 - playerRadius;
   const normalizedX = position.x / radiusX;
-  const normalizedZ = (position.z + 2) / radiusZ;
+  const normalizedZ = (position.z - centerZ) / radiusZ;
   return normalizedX * normalizedX + normalizedZ * normalizedZ <= 1;
 }
 
@@ -836,8 +853,10 @@ function isCharacterPositionBlocked(position, deckIndex) {
   const deck = starshipInterior?.layout?.decks?.[deckIndex];
   if (!deck || !isCharacterInsideDeck(position, deckIndex)) return true;
 
-  // A ponte D1 não possui anteparas internas; seu limite é o contorno do piso.
+  // D1 e o corredor central do hangar D4 são áreas abertas.
+  // O corredor traseiro não herda colisores antigos de paredes/anteparas.
   if (deck.id === 'D1') return false;
+  if (deck.id === 'D4' && position.z >= 27 && Math.abs(position.x) <= 10.4) return false;
 
   const playerRadius = 0.48;
   const feetY = deck.y + 0.21;
