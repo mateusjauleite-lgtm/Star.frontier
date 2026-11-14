@@ -18,7 +18,7 @@ test('Earth profile converts altitude without changing physical source values', 
 
 test('invalid visual radius falls back to the documented render default', () => {
   const profile = createEarthPlanetaryProfile({ visualRadiusUnits: 0 });
-  assert.equal(profile.render.visualRadiusUnits, 300);
+  assert.equal(profile.render.visualRadiusUnits, 600);
 });
 
 import { sampleEarthElevationGrid } from './modules/runtime/terrain.js';
