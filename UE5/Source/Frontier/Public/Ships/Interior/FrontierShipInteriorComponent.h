@@ -6,6 +6,7 @@
 
 class AFrontierShipDeckModule;
 class AFrontierShipElevator;
+class AFrontierPilotStation;
 class UFrontierShipDeckDefinition;
 
 UCLASS(ClassGroup=(Frontier), BlueprintType, Blueprintable, meta=(BlueprintSpawnableComponent))
@@ -23,6 +24,9 @@ public:
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Ship|Interior")
     TObjectPtr<AFrontierShipElevator> ElevatorActor;
 
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Ship|Bridge")
+    TObjectPtr<AFrontierPilotStation> PilotStationActor;
+
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Ship|Interior")
     bool bBuildMissingDeckModulesOnBeginPlay = true;
 
@@ -34,6 +38,9 @@ public:
 
     UFUNCTION(BlueprintCallable, Category="Ship|Interior")
     AFrontierShipElevator* EnsureElevator();
+
+    UFUNCTION(BlueprintCallable, Category="Ship|Bridge")
+    AFrontierPilotStation* EnsurePilotStation();
 
 protected:
     virtual void BeginPlay() override;
