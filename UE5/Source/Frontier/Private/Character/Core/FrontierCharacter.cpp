@@ -1,6 +1,8 @@
 #include "Character/Core/FrontierCharacter.h"
 #include "Character/Core/FrontierCharacterStateComponent.h"
 #include "Character/Camera/FrontierCharacterCameraBoom.h"
+#include "Character/Input/FrontierCharacterInputConfig.h"
+#include "Character/Movement/FrontierCharacterMovementComponent.h"
 #include "Character/Model/FrontierCharacterPresentationData.h"
 #include "Character/HUD/FrontierCharacterHUDWidget.h"
 #include "Character/Interaction/FrontierInteractable.h"
@@ -13,7 +15,8 @@
 #include "InputActionValue.h"
 #include "Engine/LocalPlayer.h"
 
-AFrontierCharacter::AFrontierCharacter()
+AFrontierCharacter::AFrontierCharacter(const FObjectInitializer& ObjectInitializer)
+    : Super(ObjectInitializer.SetDefaultSubobjectClass<UFrontierCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
 {
     PrimaryActorTick.bCanEverTick = false;
 
@@ -30,14 +33,7 @@ AFrontierCharacter::AFrontierCharacter()
     bUseControllerRotationYaw = false;
     bUseControllerRotationRoll = false;
 
-    if (UCharacterMovementComponent* Movement = GetCharacterMovement())
-    {
-        Movement->bOrientRotationToMovement = true;
-        Movement->RotationRate = FRotator(0.0f, 540.0f, 0.0f);
-        Movement->MaxWalkSpeed = 420.0f;
-        Movement->JumpZVelocity = 460.0f;
-        Movement->AirControl = 0.35f;
-    }
+    CharacterMovementBranch = Cast<UFrontierCharacterMovementComponent>(GetCharacterMovement());
 }
 
 void AFrontierCharacter::BeginPlay()
@@ -62,9 +58,9 @@ void AFrontierCharacter::BeginPlay()
             if (UEnhancedInputLocalPlayerSubsystem* InputSubsystem =
                 LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
             {
-                if (DefaultMappingContext)
+                if (InputConfig && InputConfig->MappingContext)
                 {
-                    InputSubsystem->AddMappingContext(DefaultMappingContext, 0);
+                    InputSubsystem->AddMappingContext(InputConfig->MappingContext, 0);
                 }
             }
         }
@@ -97,17 +93,17 @@ void AFrontierCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
     UEnhancedInputComponent* EnhancedInput = Cast<UEnhancedInputComponent>(PlayerInputComponent);
     if (!EnhancedInput) return;
 
-    if (MoveAction)
-        EnhancedInput->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AFrontierCharacter::Move);
-    if (LookAction)
-        EnhancedInput->BindAction(LookAction, ETriggerEvent::Triggered, this, &AFrontierCharacter::Look);
-    if (JumpAction)
+    if (InputConfig && InputConfig->Move)
+        EnhancedInput->BindAction(InputConfig->Move, ETriggerEvent::Triggered, this, &AFrontierCharacter::Move);
+    if (InputConfig && InputConfig->Look)
+        EnhancedInput->BindAction(InputConfig->Look, ETriggerEvent::Triggered, this, &AFrontierCharacter::Look);
+    if (InputConfig && InputConfig->Jump)
     {
-        EnhancedInput->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
+        EnhancedInput->BindAction(InputConfig->Jump, ETriggerEvent::Started, this, &ACharacter::Jump);
         EnhancedInput->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
     }
-    if (InteractAction)
-        EnhancedInput->BindAction(InteractAction, ETriggerEvent::Started, this, &AFrontierCharacter::Interact);
+    if (InputConfig && InputConfig->Interact)
+        EnhancedInput->BindAction(InputConfig->Interact, ETriggerEvent::Started, this, &AFrontierCharacter::Interact);
 }
 
 void AFrontierCharacter::Move(const FInputActionValue& Value)
