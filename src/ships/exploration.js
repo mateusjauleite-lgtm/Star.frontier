@@ -190,9 +190,11 @@ export function createExplorationShip() {
   addMesh(new THREE.SphereGeometry(1, 36, 24), undersideMaterial,
     [0, -10.2, 18], [11.5, 4.8, 25], 'Engineering-Secondary-Hull');
 
-  // Popa redesenhada: corpo de engenharia afunilado e hangar central.
+  // Corpo externo da popa mantido abaixo do piso do Deck 4.
+  // Reduzimos apenas a projeção vertical e longitudinal que avançava
+  // para dentro do hangar, preservando a largura e a ligação externa.
   addMesh(new THREE.SphereGeometry(1, 32, 20), undersideMaterial,
-    [0, -7.2, 39], [9.2, 4.2, 15], 'Integrated-Aft-Engineering-Pod');
+    [0, -11.0, 39], [9.2, 1.8, 12], 'Integrated-Aft-Engineering-Pod');
 
   // Junção estrutural única da popa: os dois suportes e as naceles
   // pertencem ao mesmo conjunto de conexão junto ao hangar.
