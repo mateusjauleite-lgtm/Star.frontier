@@ -1,5 +1,6 @@
 #include "Character/Core/FrontierCharacter.h"
 #include "Character/Core/FrontierCharacterStateComponent.h"
+#include "Character/Camera/FrontierCharacterCameraBoom.h"
 #include "Character/Model/FrontierCharacterPresentationData.h"
 #include "Character/HUD/FrontierCharacterHUDWidget.h"
 #include "Character/Interaction/FrontierInteractable.h"
@@ -18,14 +19,8 @@ AFrontierCharacter::AFrontierCharacter()
 
     CharacterState = CreateDefaultSubobject<UFrontierCharacterStateComponent>(TEXT("CharacterState"));
 
-    CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CharacterCameraBoom"));
+    CameraBoom = CreateDefaultSubobject<UFrontierCharacterCameraBoom>(TEXT("CharacterCameraBoom"));
     CameraBoom->SetupAttachment(RootComponent);
-    CameraBoom->TargetArmLength = 320.0f;
-    CameraBoom->SocketOffset = FVector(0.0f, 48.0f, 62.0f);
-    CameraBoom->bUsePawnControlRotation = true;
-    CameraBoom->bEnableCameraLag = true;
-    CameraBoom->CameraLagSpeed = 12.0f;
-    CameraBoom->bDoCollisionTest = true;
 
     FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("CharacterFollowCamera"));
     FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
@@ -176,4 +171,14 @@ void AFrontierCharacter::LeaveShipControlMode()
     CharacterState->SetMode(EFrontierCharacterMode::OnFoot);
     GetCharacterMovement()->SetMovementMode(MOVE_Walking);
     CameraBoom->TargetArmLength = 320.0f;
+}
+
+void AFrontierCharacter::OnMovementModeChanged(
+    EMovementMode PrevMovementMode, uint8 PreviousCustomMode)
+{
+    Super::OnMovementModeChanged(PrevMovementMode, PreviousCustomMode);
+    if (CharacterState)
+    {
+        CharacterState->SetGrounded(GetCharacterMovement()->IsMovingOnGround());
+    }
 }
