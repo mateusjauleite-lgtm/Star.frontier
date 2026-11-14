@@ -7,6 +7,7 @@
 #include "Ships/Exploration/FrontierShipExplorationHullComponent.h"
 #include "Ships/PlayerShip/FrontierPlayerShipSubsystem.h"
 #include "Character/Core/FrontierCharacter.h"
+#include "Character/Core/FrontierCharacterStateComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "Components/BoxComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -18,6 +19,7 @@ AFrontierShip::AFrontierShip()
 
     CollisionRoot = CreateDefaultSubobject<UBoxComponent>(TEXT("ShipCollisionRoot"));
     SetRootComponent(CollisionRoot);
+    bFindCameraComponentWhenViewTarget = true;
     CollisionRoot->SetBoxExtent(CollisionHalfExtent);
     CollisionRoot->SetMobility(EComponentMobility::Movable);
     CollisionRoot->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
@@ -39,6 +41,13 @@ AFrontierShip::AFrontierShip()
     ShipCamera->SetupAttachment(ShipRoot);
     ExplorationHull = CreateDefaultSubobject<UFrontierShipExplorationHullComponent>(TEXT("ExplorationHull"));
     ExplorationHull->SetupAttachment(ShipRoot);
+}
+
+void AFrontierShip::OnConstruction(const FTransform& Transform)
+{
+    Super::OnConstruction(Transform);
+    if (CollisionRoot)
+        CollisionRoot->SetBoxExtent(CollisionHalfExtent.GetAbs());
 }
 
 FVector AFrontierShip::ThreeToUnrealLocalPosition(const FVector& ThreePosition)
@@ -73,7 +82,9 @@ bool AFrontierShip::PlaceCharacterOnDeck(AFrontierCharacter* Character, FName De
 
 void AFrontierShip::BeginPiloting(AFrontierCharacter* Character, FName NewCommanderId)
 {
-    if (!Character || (ActivePilot.IsValid() && ActivePilot.Get() != Character)) return;
+    if (!Character || !Character->CharacterState ||
+        Character->CharacterState->State.Mode != EFrontierCharacterMode::OnFoot ||
+        (ActivePilot.IsValid() && ActivePilot.Get() != Character)) return;
 
     ActivePilot = Character;
     AssignCommander(NewCommanderId);
