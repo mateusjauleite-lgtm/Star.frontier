@@ -16,6 +16,7 @@ public:
     static const FLinearColor& Background();
     static const FLinearColor& Panel();
     static const FLinearColor& PanelEmphasis();
+    static const FLinearColor& ControlSurface();
     static const FLinearColor& Primary();
     static const FLinearColor& Secondary();
     static const FLinearColor& Text();
