@@ -244,3 +244,26 @@ Still required before the UI shell is considered integrated:
 - [ ] Compile and run the map to verify the actual engine lifecycle, menu/HUD z-order, D1 placement and input handoff.
 
 **Initialization contract:** the map owns only entry-level actors and lighting. `FrontierGameMode` owns the starting ship and D1 placement. `FrontierPlayerController` owns the local main-menu overlay and input mode. `AFrontierCharacter` owns its on-foot HUD after possession. `AFrontierShip` owns ship/deck state; deck placement offsets the capsule centre by its scaled half-height and does not enter pilot mode.
+
+
+## Phase 5 — Earth Core and seven branches
+
+Native UE5 orchestration source scaffold added:
+- [x] Add `AFrontierEarth` as the Earth-specific composition root.
+- [x] Add seven independent branch component instances: Interior, Surface, Terrain, Oceans, Atmosphere, Clouds and Lighting.
+- [x] Preserve dependency order from the legacy registry: Terrain/Oceans require Surface; Clouds/Lighting require Atmosphere; other branches have no declared branch dependency.
+- [x] Require a valid Earth Planetary Profile Data Asset and an Atmosphere & Climate profile linked to the same planetary asset.
+- [x] Keep physical planetary dimensions separate from the configurable visual radius and expose the derived visual-units-per-kilometre conversion.
+- [x] Deinitialize branches in reverse dependency order when the Earth actor ends play.
+
+Still required before Earth Core is considered migrated:
+- [ ] Author the native Earth Planetary Profile Data Asset from `UE5/Data/planetary-profile.json` and author the linked Earth Atmosphere & Climate profile Data Asset in Unreal Editor.
+- [ ] Import reviewed Earth geometry, surface imagery, elevation/terrain, ocean data and texture assets; current legacy asset folders are placeholders, not usable payloads.
+- [ ] Implement the actual seven UE5 renderer/logic branches; current branch components only establish identity, dependencies and lifecycle.
+- [ ] Implement and integrate Geology & Biomes Core for Interior, Surface, Terrain and Oceans data ownership.
+- [ ] Add UE5 renderer adapters for Sky Atmosphere, volumetric clouds, directional sunlight, ambient night fill and day/night terminator.
+- [ ] Add tests for profile identity, dependency validation, visual/physical scale separation and branch teardown.
+- [ ] Validate GLB import axis/handedness/scale, visual parity, large-world precision and Android memory/thermal performance.
+- [ ] Compile and validate the actor and authored assets in Unreal Engine 5.8.
+
+**Exit gate:** Earth actor loads with authored scientific profiles, all seven branch implementations initialize in dependency order, and the visual radius remains independent from physical planetary values.
