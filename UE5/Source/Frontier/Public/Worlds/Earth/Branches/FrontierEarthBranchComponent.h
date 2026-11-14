@@ -33,7 +33,6 @@ public:
     UFUNCTION(BlueprintPure, Category="Earth|Branch")
     bool IsEnabledByDefault() const { return bEnabledByDefault; }
 
-    UFUNCTION(BlueprintPure, Category="Earth|Branch")
     const TArray<FName>& GetDependencies() const { return Dependencies; }
 
 private:
