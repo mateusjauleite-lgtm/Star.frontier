@@ -170,8 +170,13 @@ FReply UFrontierShipHUDWidget::NativeOnTouchEnded(const FGeometry& Geometry, con
     return FReply::Handled();
 }
 
-FReply UFrontierShipHUDWidget::NativeOnTouchCancelled(const FGeometry& Geometry, const FPointerEvent& Event)
+void UFrontierShipHUDWidget::NativeDestruct()
 {
-    ReleaseTouchPointer(Event.GetPointerIndex());
-    return FReply::Handled();
+    // If the HUD is torn down unexpectedly while piloting, do not leave
+    // throttle, steering, brake or boost latched in the ship controls.
+    ClearFlightInput();
+    TouchOrigins.Empty();
+    ThrottlePointers.Empty();
+    SteeringPointers.Empty();
+    Super::NativeDestruct();
 }
