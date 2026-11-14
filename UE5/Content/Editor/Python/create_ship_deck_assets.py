@@ -64,13 +64,24 @@ def create_or_update_deck(deck):
     if not asset:
         raise RuntimeError("Falha ao criar/carregar " + asset_path)
 
-    deck_enum = getattr(unreal.EFrontierShipDeckId, deck["enum"])
-    asset.set_editor_property("deck_id", deck_enum)
+    enum_type = unreal.EFrontierShipDeckId
+    wanted = "".join(ch for ch in deck["enum"].upper() if ch.isalnum())
+    enum_member = next(
+        (
+            getattr(enum_type, candidate)
+            for candidate in dir(enum_type)
+            if "".join(ch for ch in candidate.upper() if ch.isalnum()) == wanted
+        ),
+        None,
+    )
+    if enum_member is None:
+        raise RuntimeError("Valor de DeckId não encontrado: " + deck["enum"])
+    asset.set_editor_property("deck_id", enum_member)
     asset.set_editor_property("deck_code", deck["code"])
     asset.set_editor_property("display_name", unreal.Text(deck["name"]))
     asset.set_editor_property("local_offset", unreal.Vector(0.0, 0.0, 0.0))
-    asset.set_editor_property("b_keep_hangar_exit_clear", deck["hangar_clear"])
-    asset.set_editor_property("b_keep_elevator_access_clear", True)
+    asset.set_editor_property("keep_hangar_exit_clear", deck["hangar_clear"])
+    asset.set_editor_property("keep_elevator_access_clear", True)
 
     # Meshes and clearance boxes stay unassigned until the imported geometry
     # is measured. This avoids fabricated bounds that could hide real walls.
