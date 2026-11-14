@@ -10,6 +10,7 @@ import { createAtmosphereRuntime } from './modules/runtime/atmosphere.js';
 import { createCloudsRuntime } from './modules/runtime/clouds.js';
 import { createLightingRuntime } from './modules/runtime/lighting.js';
 import { EARTH_UE5_INTEROP, getEarthEngineInteropStatus } from './interop/ue5Contract.js';
+import { createEarthPlanetaryProfile } from './planetaryProfile.js';
 
 const RUNTIME_FACTORIES = Object.freeze({
   interior: createInteriorRuntime,
@@ -54,6 +55,11 @@ export function createEarthCore(options = {}) {
     referencePolicy: EARTH_REFERENCE_POLICY,
     references: EARTH_REFERENCE_SOURCES,
     engineInterop: EARTH_UE5_INTEROP,
+    getPlanetaryProfile() {
+      return createEarthPlanetaryProfile({
+        visualRadiusUnits: settings.radius
+      });
+    },
     updateModules: EARTH_UPDATE_MODULES,
     attachUpdateModule(id, runtime) {
       if (disposed) return false;
