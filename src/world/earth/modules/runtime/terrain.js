@@ -74,10 +74,6 @@ export function createTerrainRuntime({ options, layers }) {
 
   return {
     initialize() {
-      loadEarthKernel().then(kernel => {
-        earthKernel = kernel;
-        if (layers.terrain) layers.terrain.computeBackend = kernel.backend;
-      });
       const surface = layers.surface;
       if (!surface?.geometry) return;
 
@@ -156,6 +152,51 @@ export function createTerrainRuntime({ options, layers }) {
         waterGeometry: false,
         sampleHeight: elevationSampler
       };
+
+      // Re-run the vertex elevation pass through the compiled C++ kernel once
+      // WebAssembly is ready. The first pass above remains a safe JS fallback.
+      loadEarthKernel().then(kernel => {
+        earthKernel = kernel;
+        if (layers.terrain) layers.terrain.computeBackend = kernel.backend;
+        if (!gridIsReady || kernel.backend !== 'wasm-c++') return;
+
+        const longitudes = new Float32Array(positions.count);
+        const latitudes = new Float32Array(positions.count);
+        const vertexDirection = new THREE.Vector3();
+        for (let i = 0; i < positions.count; i++) {
+          vertexDirection.fromBufferAttribute(positions, i).normalize();
+          latitudes[i] = THREE.MathUtils.radToDeg(Math.asin(
+            THREE.MathUtils.clamp(vertexDirection.y, -1, 1)
+          ));
+          longitudes[i] = THREE.MathUtils.radToDeg(Math.atan2(
+            vertexDirection.z, vertexDirection.x
+          ));
+        }
+
+        const elevations = kernel.sampleElevationBatch(grid, longitudes, latitudes);
+        if (!elevations) return;
+        for (let i = 0; i < positions.count; i++) {
+          const meters = elevations[i];
+          if (!Number.isFinite(meters)) continue;
+          vertexDirection.fromBufferAttribute(positions, i).normalize();
+          const elevation = kernel.elevationMetersToUnits(
+            meters, radius, 6371.0088, exaggeration
+          );
+          if (elevation === null) continue;
+          const finalRadius = radius + elevation;
+          positions.setXYZ(
+            i,
+            vertexDirection.x * finalRadius,
+            vertexDirection.y * finalRadius,
+            vertexDirection.z * finalRadius
+          );
+        }
+        positions.needsUpdate = true;
+        surface.geometry.computeVertexNormals();
+        surface.geometry.computeBoundingSphere();
+      }).catch(() => {
+        // Keep the already-generated JS terrain if WASM loading fails.
+      });
     },
     update() {},
     dispose() {
