@@ -81,6 +81,12 @@ A shared native palette helper, `FFrontierUIStyle`, now centralizes the legacy c
 6. **Gameplay systems:** port mining, station trade, economy, fuel and upgrades into gameplay systems before exposing them through menu buttons.
 7. **Acceptance:** compile in UE 5.8, inspect every widget in UMG/Editor, test touch input and safe areas, then package and test on Android.
 
+### Main menu controller wiring
+
+`AFrontierPlayerController` now creates the native menu for the local player, binds its profile/section/play delegates, applies UI-only input while open, and restores game-only input when the player chooses Explore. The Main GameMode selects this controller while retaining the existing Character pawn, starting ship and D1 placement behavior. The initial Explore action only closes the overlay; the world is already running behind it.
+
+Profile-name and section events are forwarded as Blueprint integration events. The controller does not persist profile data, authenticate accounts, own inventory/currency or alter Ship/Character Core state. A separate profile/save service and real loading transition remain future work.
+
 ## Initial native UMG implementation (source only)
 
 Committed native source files:
