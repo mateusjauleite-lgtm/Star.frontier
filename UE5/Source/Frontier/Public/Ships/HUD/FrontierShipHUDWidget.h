@@ -30,10 +30,6 @@ public:
     void ClearFlightInput();
     UFUNCTION(BlueprintCallable, Category="Ship|HUD|Controls")
     void ExitPilotSeat();
-    UFUNCTION(BlueprintCallable, Category="Ship|HUD|Elevator")
-    bool ElevatorUp();
-    UFUNCTION(BlueprintCallable, Category="Ship|HUD|Elevator")
-    bool ElevatorDown();
 
     UFUNCTION(BlueprintImplementableEvent, Category="Ship|HUD")
     void RefreshShipHUD(const FFrontierShipFlightState& FlightState, FText ShipName, bool bVisible);
@@ -61,10 +57,6 @@ protected:
     void OnBrakeReleased();
     UFUNCTION()
     void OnExitPressed();
-    UFUNCTION()
-    void OnDeckUpPressed();
-    UFUNCTION()
-    void OnDeckDownPressed();
 
 private:
     void BuildNativeLayout();
