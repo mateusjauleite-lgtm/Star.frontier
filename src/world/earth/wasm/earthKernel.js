@@ -54,6 +54,55 @@ export function createEarthKernelAdapter(module = null) {
         module._free(pointer);
       }
     },
+
+    sampleElevationBatch(grid, longitudes, latitudes) {
+      if (disposed) return null;
+      if (!module) {
+        if (!longitudes || !latitudes || longitudes.length !== latitudes.length) return null;
+        const result = new Float32Array(longitudes.length);
+        for (let i = 0; i < result.length; i++) {
+          const value = sampleInJavaScript(grid, longitudes[i], latitudes[i]);
+          result[i] = value === null ? NaN : value;
+        }
+        return result;
+      }
+      if (!grid || !(grid.values instanceof Float32Array) ||
+          !Number.isInteger(grid.width) || !Number.isInteger(grid.height) ||
+          grid.width < 2 || grid.height < 2 ||
+          grid.values.length < grid.width * grid.height ||
+          !longitudes || !latitudes || longitudes.length !== latitudes.length) return null;
+
+      const count = longitudes.length;
+      const gridBytes = grid.width * grid.height * 4;
+      const coordBytes = count * 4;
+      const gridPtr = module._malloc(gridBytes);
+      const lonPtr = module._malloc(coordBytes);
+      const latPtr = module._malloc(coordBytes);
+      const outPtr = module._malloc(coordBytes);
+      if (!gridPtr || !lonPtr || !latPtr || !outPtr) {
+        if (gridPtr) module._free(gridPtr);
+        if (lonPtr) module._free(lonPtr);
+        if (latPtr) module._free(latPtr);
+        if (outPtr) module._free(outPtr);
+        return null;
+      }
+      try {
+        module.HEAPF32.set(grid.values.subarray(0, grid.width * grid.height), gridPtr / 4);
+        module.HEAPF32.set(longitudes, lonPtr / 4);
+        module.HEAPF32.set(latitudes, latPtr / 4);
+        module._earth_sample_bilinear_batch(
+          gridPtr, grid.width, grid.height, lonPtr, latPtr, outPtr, count,
+          grid.west ?? -180, grid.east ?? 180, grid.south ?? -90, grid.north ?? 90,
+          grid.noDataValue ?? NaN
+        );
+        return new Float32Array(module.HEAPF32.subarray(outPtr / 4, outPtr / 4 + count));
+      } finally {
+        module._free(gridPtr);
+        module._free(lonPtr);
+        module._free(latPtr);
+        module._free(outPtr);
+      }
+    },
     elevationMetersToUnits(meters, radius, meanRadiusKm, exaggeration) {
       if (disposed) return null;
       if (!module) return finiteOrNull((meters / 1000) * (radius / meanRadiusKm) * exaggeration);
