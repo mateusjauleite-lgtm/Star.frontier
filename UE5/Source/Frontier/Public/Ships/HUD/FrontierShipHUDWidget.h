@@ -39,6 +39,7 @@ protected:
     virtual FReply NativeOnTouchStarted(const FGeometry& Geometry, const FPointerEvent& Event) override;
     virtual FReply NativeOnTouchMoved(const FGeometry& Geometry, const FPointerEvent& Event) override;
     virtual FReply NativeOnTouchEnded(const FGeometry& Geometry, const FPointerEvent& Event) override;
+    virtual FReply NativeOnTouchCancelled(const FGeometry& Geometry, const FPointerEvent& Event) override;
 
     UPROPERTY(BlueprintReadOnly, Category="Ship|HUD")
     TObjectPtr<AFrontierShip> ObservedShip;
@@ -60,6 +61,7 @@ protected:
 
 private:
     void BuildNativeLayout();
+    void ReleaseTouchPointer(int32 Finger);
     TMap<int32, FVector2D> TouchOrigins;
     TSet<int32> ThrottlePointers;
     TSet<int32> SteeringPointers;
