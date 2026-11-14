@@ -16,10 +16,10 @@ AFrontierShipElevator::AFrontierShipElevator()
     InteractionVolume->SetCollisionResponseToAllChannels(ECR_Ignore);
     InteractionVolume->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
 
-    Stops.Add({ FName(TEXT("D1")), FVector(0.0f, 8.93f, 25.0f) });
-    Stops.Add({ FName(TEXT("D2")), FVector(0.0f, 3.13f, 25.0f) });
-    Stops.Add({ FName(TEXT("D3")), FVector(0.0f, -2.67f, 25.0f) });
-    Stops.Add({ FName(TEXT("D4")), FVector(0.0f, -8.47f, 25.0f) });
+    FFrontierShipElevatorStop D1; D1.DeckCode = TEXT("D1"); D1.LegacyThreePosition = FVector(0.0f, 8.93f, 25.0f); Stops.Add(D1);
+    FFrontierShipElevatorStop D2; D2.DeckCode = TEXT("D2"); D2.LegacyThreePosition = FVector(0.0f, 3.13f, 25.0f); Stops.Add(D2);
+    FFrontierShipElevatorStop D3; D3.DeckCode = TEXT("D3"); D3.LegacyThreePosition = FVector(0.0f, -2.67f, 25.0f); Stops.Add(D3);
+    FFrontierShipElevatorStop D4; D4.DeckCode = TEXT("D4"); D4.LegacyThreePosition = FVector(0.0f, -8.47f, 25.0f); Stops.Add(D4);
 }
 
 void AFrontierShipElevator::BeginPlay()
