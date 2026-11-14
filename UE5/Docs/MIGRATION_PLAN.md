@@ -121,7 +121,11 @@ Still required before Ship Core is considered migrated and playable:
 - [ ] Add bridge stations/console meshes and configure terminal permissions per station.
 - [x] Add native ship HUD control endpoints for throttle, yaw/pitch, brake, boost and pilot exit; create/remove the pilot HUD with the piloting lifecycle.
 - [x] Build the native pilot HUD layout with left throttle and right steering touch zones, plus impulse, brake and exit buttons.
+- [x] Gate HUD and Ship Controls component inputs while no pilot is active.
+- [x] Release per-finger throttle/steering values on both touch end and touch cancellation.
+- [x] Clear component-owned control values before pilot ownership is released, preventing stale throttle/steering/brake/boost on the next pilot session.
 - [ ] Tune flight HUD scale and touch response in the UE5 mobile preview.
+- [ ] Verify simultaneous left/right multi-touch, touch cancellation, button press/release and exit/re-entry on Android device.
 - [ ] Verify character starts on Deck 1 and deck/elevator circulation is correct.
 - [ ] Compile with Unreal Build Tool and test ship movement, collision, camera handoff, computer permissions, HUD touch input and deck routing in Editor.
 
