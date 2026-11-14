@@ -4,6 +4,8 @@
 #include "Ships/Interior/FrontierShipInteriorComponent.h"
 #include "Ships/Computer/FrontierShipComputerComponent.h"
 #include "Ships/Camera/FrontierShipCameraBoom.h"
+#include "Ships/Exploration/FrontierShipExplorationHullComponent.h"
+#include "Ships/PlayerShip/FrontierPlayerShipSubsystem.h"
 #include "Character/Core/FrontierCharacter.h"
 #include "GameFramework/PlayerController.h"
 #include "Components/SceneComponent.h"
@@ -20,6 +22,8 @@ AFrontierShip::AFrontierShip()
     Computer = CreateDefaultSubobject<UFrontierShipComputerComponent>(TEXT("ShipComputer"));
     ShipCamera = CreateDefaultSubobject<UFrontierShipCameraBoom>(TEXT("ShipCameraBoom"));
     ShipCamera->SetupAttachment(ShipRoot);
+    ExplorationHull = CreateDefaultSubobject<UFrontierShipExplorationHullComponent>(TEXT("ExplorationHull"));
+    ExplorationHull->SetupAttachment(ShipRoot);
 }
 
 void AFrontierShip::AssignCommander(FName NewCommanderId)
@@ -34,6 +38,9 @@ void AFrontierShip::BeginPiloting(AFrontierCharacter* Character, FName NewComman
     ActivePilot = Character;
     AssignCommander(NewCommanderId);
     Character->EnterShipControlMode();
+    if (UWorld* World = GetWorld())
+        if (UFrontierPlayerShipSubsystem* PlayerShip = World->GetSubsystem<UFrontierPlayerShipSubsystem>())
+            PlayerShip->SetPlayerShip(this);
     if (APlayerController* PC = Cast<APlayerController>(Character->GetController()))
     {
         PC->SetViewTarget(this);
@@ -52,6 +59,9 @@ void AFrontierShip::EndPiloting()
         Character->LeaveShipControlMode();
     }
     ActivePilot.Reset();
+    if (UWorld* World = GetWorld())
+        if (UFrontierPlayerShipSubsystem* PlayerShip = World->GetSubsystem<UFrontierPlayerShipSubsystem>())
+            if (PlayerShip->GetPlayerShip() == this) PlayerShip->ClearPlayerShip();
     ClearFlightInputs();
 }
 
