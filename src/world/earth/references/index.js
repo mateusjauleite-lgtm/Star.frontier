@@ -1,5 +1,6 @@
 import { NASA_CONTINENT_REFERENCES } from './nasa+continentes.js';
 import { GOOGLE_EARTH_REFERENCES, GOOGLE_EARTH_REFERENCE_POLICY } from './google-earth.js';
+import { PLANETARY_SCIENCE_BASELINE } from '../../planetary/planetaryScience.js';
 
 /**
  * Research inputs only. Sources cannot alter the stable Earth baseline.
@@ -15,6 +16,20 @@ export const EARTH_REFERENCE_POLICY = Object.freeze({
 });
 
 export const EARTH_REFERENCE_SOURCES = Object.freeze([
+  {
+    id: 'planetary-science-baseline',
+    provider: 'Star Frontier Planetary Science',
+    scope: ['mass', 'radius', 'gravity', 'interior', 'geology', 'tectonics', 'atmosphere', 'climate', 'hydrology', 'planet-scale-rendering'],
+    usage: 'shared-scientific-design-reference',
+    catalogue: PLANETARY_SCIENCE_BASELINE
+  },
+  {
+    id: 'planetary-science-reference',
+    provider: 'Planetary Science Reference',
+    url: './planetary-science.md',
+    scope: ['scientific-consistency', 'geodynamics', 'climate', 'erosion', 'rendering-pipeline'],
+    usage: 'research-and-validation-guidance'
+  },
   {
     id: 'nasa-earth-observatory',
     provider: 'NASA Earth Observatory',
