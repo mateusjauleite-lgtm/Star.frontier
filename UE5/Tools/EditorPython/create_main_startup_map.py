@@ -10,6 +10,8 @@ import unreal
 
 MAP_PATH = "/Game/StarFrontier/Maps/L_StarFrontier_Main"
 
+unreal.EditorAssetLibrary.make_directory("/Game/StarFrontier/Maps")
+
 if unreal.EditorAssetLibrary.does_asset_exist(MAP_PATH):
     world = unreal.EditorLevelLibrary.load_level(MAP_PATH)
     unreal.log_warning("Opening the existing Star Frontier startup map.")
