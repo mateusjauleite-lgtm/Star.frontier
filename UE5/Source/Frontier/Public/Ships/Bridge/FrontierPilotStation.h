@@ -25,7 +25,6 @@ public:
     UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category="Ship|Bridge")
     FName CommanderId = TEXT("player-commander");
 
-    virtual void BeginPlay() override;
     virtual FText GetInteractionLabel_Implementation() const override;
     virtual bool CanBeInteractedWith_Implementation(AActor* InteractingActor) const override;
     virtual void Interact_Implementation(AActor* InteractingActor) override;
