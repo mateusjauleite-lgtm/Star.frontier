@@ -188,6 +188,7 @@ void UFrontierMainMenuWidget::SelectSection(EFrontierMainMenuSection Section)
 {
     ActiveSection = Section;
     RefreshSectionContent();
+    OnSectionChangedEvent.Broadcast(ActiveSection);
     OnSectionChanged(ActiveSection);
 }
 
@@ -279,10 +280,13 @@ void UFrontierMainMenuWidget::HandleProfileContinueClicked()
         FText::FromString(TEXT("Identificação local pronta. A autenticação de conta ainda não está implementada.")));
     ProfileStatusText->SetColorAndOpacity(
         FSlateColor(FFrontierUIStyle::Positive()));
-    OnProfileNameSubmitted(FText::FromString(DisplayName));
+    const FText SubmittedName = FText::FromString(DisplayName);
+    OnProfileNameSubmittedEvent.Broadcast(SubmittedName);
+    OnProfileNameSubmitted(SubmittedName);
 }
 
 void UFrontierMainMenuWidget::HandlePlayClicked()
 {
+    OnPlayRequestedEvent.Broadcast();
     OnPlayRequested();
 }
