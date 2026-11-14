@@ -5,6 +5,7 @@
 #include "FrontierShip.generated.h"
 
 class USceneComponent;
+class UBoxComponent;
 class UFrontierShipControlsComponent;
 class UFrontierShipEngineComponent;
 class UFrontierShipInteriorComponent;
@@ -63,6 +64,12 @@ class FRONTIER_API AFrontierShip : public AActor
 public:
     AFrontierShip();
 
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Ship|Collision")
+    TObjectPtr<UBoxComponent> CollisionRoot;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Ship|Collision")
+    FVector CollisionHalfExtent = FVector(3000.0f, 1000.0f, 1000.0f);
+
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Ship|Core")
     TObjectPtr<USceneComponent> ShipRoot;
 
@@ -110,6 +117,12 @@ public:
 
     UFUNCTION(BlueprintCallable, Category="Ship|Bridge")
     void EndPiloting();
+
+    UFUNCTION(BlueprintCallable, Category="Ship|Bridge")
+    bool RequestPilotExit(AActor* RequestingActor);
+
+    UFUNCTION(BlueprintPure, Category="Ship|Bridge")
+    bool IsPiloted() const { return ActivePilot.IsValid(); }
 
     UFUNCTION(BlueprintCallable, Category="Ship|Flight")
     void SetFlightInputs(float NewThrottle, float NewPitch, float NewYaw, bool bNewBraking, bool bNewBoosting);
