@@ -28,7 +28,7 @@ const RUNTIME_FACTORIES = Object.freeze({
  */
 export function createEarthCore(options = {}) {
   const settings = {
-    radius: options.radius ?? 300,
+    radius: options.radius ?? 600,
     position: options.position ?? [0, 0, -240],
     ...options
   };
