@@ -780,13 +780,35 @@ function updateCharacterCamera() {
   }
 }
 
+function isCharacterInsideDeck(position, deckIndex) {
+  const deck = starshipInterior?.layout?.decks?.[deckIndex];
+  if (!deck) return false;
+
+  // Medidas reais dos pisos elípticos (largura, comprimento), centrados em Z=-2.
+  const footprints = {
+    D1: [50, 82],
+    D2: [50, 94],
+    D3: [53, 102],
+    D4: [35, 58]
+  };
+  const footprint = footprints[deck.id];
+  if (!footprint) return false;
+
+  // Reserva uma margem para o raio do personagem, evitando que os pés
+  // atravessem a borda mesmo quando o centro ainda está sobre o piso.
+  const playerRadius = 0.62;
+  const radiusX = footprint[0] * 0.5 - playerRadius;
+  const radiusZ = footprint[1] * 0.5 - playerRadius;
+  const normalizedX = position.x / radiusX;
+  const normalizedZ = (position.z + 2) / radiusZ;
+  return normalizedX * normalizedX + normalizedZ * normalizedZ <= 1;
+}
+
 function isCharacterPositionBlocked(position, deckIndex) {
   const deck = starshipInterior?.layout?.decks?.[deckIndex];
-  if (!deck) return true;
+  if (!deck || !isCharacterInsideDeck(position, deckIndex)) return true;
 
-  // A ponte D1 é uma área de circulação aberta. Seu perímetro já é
-  // controlado pelo limite elíptico do convés; as caixas das anteparas
-  // antigas estavam gerando bloqueios falsos no caminho até o console.
+  // A ponte D1 não possui anteparas internas; seu limite é o contorno do piso.
   if (deck.id === 'D1') return false;
 
   const playerRadius = 0.48;
@@ -799,8 +821,6 @@ function isCharacterPositionBlocked(position, deckIndex) {
     const dx = position.x - nearestX;
     const dz = position.z - nearestZ;
 
-    // Apenas informa o bloqueio. Nunca empurra o personagem para fora da parede:
-    // isso evita deslocamentos bruscos quando o ponto inicial já está sobreposto.
     if (Math.abs(dx) < playerRadius && Math.abs(dz) < playerRadius) return true;
   }
   return false;
@@ -813,29 +833,30 @@ function updateCharacterMovement(dt) {
   const deck = characterModel.group.position;
 
   if (magnitude > 0.08) {
-    // A mira controla a orientação. O joystick apenas desloca o personagem,
-    // sem girá-lo junto com o eixo horizontal.
-    const forward = new THREE.Vector3(Math.sin(characterYaw), 0, -Math.cos(characterYaw));
-    const right = new THREE.Vector3(Math.cos(characterYaw), 0, Math.sin(characterYaw));
-    const direction = forward.multiplyScalar(-input.y).add(right.multiplyScalar(input.x));
-    if (direction.lengthSq() > 0) direction.normalize();
+    // Usa a mesma rotação local aplicada ao modelo. O joystick e a posição
+    // estão no referencial do convés, portanto os eixos não dependem da
+    // rotação global, arfagem ou inclinação visual da nave.
+    const yaw = characterModel.group.rotation.y;
+    characterForward.set(0, 0, -1).applyAxisAngle(THREE.Object3D.DEFAULT_UP, yaw);
+    characterRight.set(1, 0, 0).applyAxisAngle(THREE.Object3D.DEFAULT_UP, yaw);
+    characterMove.copy(characterForward).multiplyScalar(-input.y)
+      .addScaledVector(characterRight, input.x);
+
+    if (characterMove.lengthSq() > 0) characterMove.normalize();
 
     const step = 3.1 * magnitude * dt;
     const previousX = deck.x;
     const previousZ = deck.z;
 
-    // Testa cada eixo separadamente: bloqueia somente o avanço contra a parede
-    // e mantém o movimento tangencial, sem correções que causem "empurrões".
-    deck.x = previousX + direction.x * step;
-
+    // Cada eixo é validado separadamente. Ao atingir a borda do piso ou uma
+    // parede, só esse componente é cancelado; o movimento tangencial continua.
+    deck.x = previousX + characterMove.x * step;
     if (isCharacterPositionBlocked(deck, activeDeckIndex)) deck.x = previousX;
 
-    deck.z = previousZ + direction.z * step;
-
+    deck.z = previousZ + characterMove.z * step;
     if (isCharacterPositionBlocked(deck, activeDeckIndex)) deck.z = previousZ;
 
     deck.y = starshipInterior.layout.decks[activeDeckIndex].y + 0.21;
-    characterModel.group.rotation.y = characterYaw;
     characterAnimator?.play(magnitude > 0.72 ? 'run' : 'walk');
   } else {
     characterAnimator?.play('idle');
