@@ -44,6 +44,7 @@ public:
 
 protected:
     virtual void NativeConstruct() override;
+    virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
     virtual FReply NativeOnTouchStarted(const FGeometry& Geometry, const FPointerEvent& Event) override;
     virtual FReply NativeOnTouchMoved(const FGeometry& Geometry, const FPointerEvent& Event) override;
     virtual FReply NativeOnTouchEnded(const FGeometry& Geometry, const FPointerEvent& Event) override;
@@ -69,6 +70,8 @@ protected:
 private:
     void BuildNativeLayout();
     TMap<int32, FVector2D> TouchOrigins;
+    TMap<int32, FVector2D> CurrentTouchPositions;
+    TMap<int32, FVector2D> LastTouchPositions;
     TSet<int32> MovementPointers;
     TSet<int32> LookPointers;
 };
