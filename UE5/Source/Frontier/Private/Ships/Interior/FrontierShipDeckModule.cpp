@@ -32,6 +32,12 @@ void AFrontierShipDeckModule::RebuildFromDefinition()
     {
         const FFrontierShipDeckPiece& Piece = Definition->WallSegments[Index];
         if (!Piece.Mesh) continue;
+
+        const FBox PieceBounds = Piece.Mesh->GetBoundingBox().TransformBy(Piece.RelativeTransform);
+        if (Definition->bKeepHangarExitClear && Definition->HangarExitClearance.IsValid() &&
+            PieceBounds.Intersect(Definition->HangarExitClearance)) continue;
+        if (Definition->bKeepElevatorAccessClear && Definition->ElevatorAccessClearance.IsValid() &&
+            PieceBounds.Intersect(Definition->ElevatorAccessClearance)) continue;
         UStaticMeshComponent* Wall = NewObject<UStaticMeshComponent>(
             this, FName(*FString::Printf(TEXT("WallSegment_%02d"), Index)));
         Wall->SetupAttachment(DeckRoot);
