@@ -4,6 +4,7 @@
 #include "Worlds/Earth/Branches/FrontierEarthBranchComponent.h"
 #include "Worlds/Planetary/Core/PlanetaryProfileDataAsset.h"
 #include "Worlds/Atmosphere/Core/AtmosphereClimateProfileDataAsset.h"
+#include "Worlds/Atmosphere/Core/AtmosphereClimateSubsystem.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogFrontierEarth, Log, All);
 
@@ -93,6 +94,18 @@ bool AFrontierEarth::InitializeEarth()
     {
         UE_LOG(LogFrontierEarth, Error,
             TEXT("Earth and atmosphere profiles must reference the same planetary profile asset."));
+        return false;
+    }
+
+    // The current Atmosphere & Climate runtime is world-scoped. Earth supplies
+    // its validated profile here; multi-planet worlds will need per-body runtime state.
+    UAtmosphereClimateSubsystem* AtmosphereSubsystem =
+        GetWorld() ? GetWorld()->GetSubsystem<UAtmosphereClimateSubsystem>() : nullptr;
+    if (!IsValid(AtmosphereSubsystem)
+        || !AtmosphereSubsystem->SetActiveProfile(AtmosphereProfile))
+    {
+        UE_LOG(LogFrontierEarth, Error,
+            TEXT("Earth could not activate its linked Atmosphere & Climate profile."));
         return false;
     }
 
