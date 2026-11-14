@@ -31,6 +31,7 @@ void UFrontierShipComputerComponent::Boot()
 void UFrontierShipComputerComponent::Shutdown()
 {
     ActiveTerminalId = NAME_None;
+    ActiveOperatorId = NAME_None;
     bOnline = false;
     for (FFrontierShipComputerSystemStatus& System : Systems)
         System.Status = TEXT("standby");
@@ -51,12 +52,17 @@ bool UFrontierShipComputerComponent::ConnectTerminal(FName TerminalId, FName Ope
         !TerminalPermissions.Contains(TerminalId)) return false;
     if (!ActiveTerminalId.IsNone() && ActiveTerminalId != TerminalId) return false;
     ActiveTerminalId = TerminalId;
+    ActiveOperatorId = OperatorId;
     return true;
 }
 
 void UFrontierShipComputerComponent::DisconnectTerminal(FName TerminalId)
 {
-    if (ActiveTerminalId == TerminalId) ActiveTerminalId = NAME_None;
+    if (ActiveTerminalId == TerminalId)
+    {
+        ActiveTerminalId = NAME_None;
+        ActiveOperatorId = NAME_None;
+    }
 }
 
 bool UFrontierShipComputerComponent::IsTerminalConnected(FName TerminalId) const
