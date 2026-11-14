@@ -93,7 +93,7 @@ void AFrontierPlayerController::HandleProfileNameSubmitted(const FText& DisplayN
     OnProfileDisplayNameSubmitted(DisplayName);
 }
 
-void AFrontierPlayerController::HandleMenuSectionChanged(uint8 Section)
+void AFrontierPlayerController::HandleMenuSectionChanged(EFrontierMainMenuSection Section)
 {
     OnMenuSectionSelected(Section);
 }
