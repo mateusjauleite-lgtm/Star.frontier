@@ -6,6 +6,7 @@
 #include "Ships/Camera/FrontierShipCameraBoom.h"
 #include "Ships/Exploration/FrontierShipExplorationHullComponent.h"
 #include "Ships/PlayerShip/FrontierPlayerShipSubsystem.h"
+#include "Ships/HUD/FrontierShipHUDWidget.h"
 #include "Character/Core/FrontierCharacter.h"
 #include "Character/Core/FrontierCharacterStateComponent.h"
 #include "GameFramework/PlayerController.h"
@@ -98,7 +99,18 @@ void AFrontierShip::BeginPiloting(AFrontierCharacter* Character, FName NewComman
             PlayerShip->SetPlayerShip(this);
 
     if (APlayerController* PC = Cast<APlayerController>(Character->GetController()))
+    {
         PC->SetViewTarget(this);
+        if (ShipHUDClass)
+        {
+            if (!ShipHUD) ShipHUD = CreateWidget<UFrontierShipHUDWidget>(PC, ShipHUDClass);
+            if (ShipHUD)
+            {
+                ShipHUD->AddToViewport();
+                ShipHUD->ObserveShip(this, Character);
+            }
+        }
+    }
 }
 
 bool AFrontierShip::RequestPilotExit(AActor* RequestingActor)
@@ -122,6 +134,11 @@ void AFrontierShip::EndPiloting()
     }
 
     ActivePilot.Reset();
+    if (ShipHUD)
+    {
+        ShipHUD->RemoveFromParent();
+        ShipHUD = nullptr;
+    }
     if (UWorld* World = GetWorld())
         if (UFrontierPlayerShipSubsystem* PlayerShip = World->GetSubsystem<UFrontierPlayerShipSubsystem>())
             if (PlayerShip->GetPlayerShip() == this) PlayerShip->ClearPlayerShip();
