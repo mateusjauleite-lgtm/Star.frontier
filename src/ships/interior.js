@@ -1,0 +1,190 @@
+import * as THREE from 'three';
+
+// Estrutura física inicial da nave exploradora.
+// Escala de trabalho: 120 x 64 x 32 m. Sem consoles, máquinas ou mobiliário.
+export const STARSHIP_LAYOUT = Object.freeze({
+  length: 120,
+  width: 64,
+  height: 32,
+  deckHeight: 5.8,
+  decks: [
+    { id: 'D1', name: 'Ponte de comando', y: 8.7 },
+    { id: 'D2', name: 'Operações e ciência', y: 2.9 },
+    { id: 'D3', name: 'Engenharia', y: -2.9 },
+    { id: 'D4', name: 'Hangar e apoio', y: -8.7 }
+  ]
+});
+
+export function createStarshipInterior(options = {}) {
+  const group = new THREE.Group();
+  group.name = 'StarFrontier-ExplorationShip-Interior';
+  const position = options.position || [0, 0, 0];
+  group.position.set(...position);
+
+  const floorMat = new THREE.MeshStandardMaterial({
+    color: 0x34495b, metalness: 0.72, roughness: 0.48
+  });
+  const wallMat = new THREE.MeshStandardMaterial({
+    color: 0x8fa4b5, metalness: 0.68, roughness: 0.42
+  });
+  const bulkheadMat = new THREE.MeshStandardMaterial({
+    color: 0x1b3043, metalness: 0.82, roughness: 0.38
+  });
+  const trimMat = new THREE.MeshBasicMaterial({ color: 0x39bce8 });
+  const shaftMat = new THREE.MeshStandardMaterial({
+    color: 0x172737, metalness: 0.7, roughness: 0.55
+  });
+  const collisionBoxes = [];
+
+  const addBox = (parent, size, at, material, name = '') => {
+    const isHullFitted = /Wall|Partition|Bulkhead|Frame/.test(name);
+    if (!isHullFitted) {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(...size), material);
+      mesh.position.set(...at);
+      if (name) mesh.name = name;
+      mesh.castShadow = false;
+      mesh.receiveShadow = true;
+      parent.add(mesh);
+      return mesh;
+    }
+
+    // Paredes e anteparas acompanham o volume elipsoidal do casco.
+    // Dividimos cada peça em lâminas curtas e recortamos topo/base pela
+    // superfície real do casco; a mesma geometria recortada gera a colisão.
+    const [width, height, depth] = size;
+    const alongX = width >= depth;
+    const run = alongX ? width : depth;
+    const thickness = alongX ? depth : width;
+    const slices = Math.max(1, Math.ceil(run / 0.5));
+    const sliceRun = run / slices;
+    const meshes = [];
+
+    for (let i = 0; i < slices; i++) {
+      const offset = -run / 2 + (i + 0.5) * sliceRun;
+      const x = at[0] + (alongX ? offset : 0);
+      const z = at[2] + (alongX ? 0 : offset);
+      const hullTerm = 1 - (x * x) / (27.2 * 27.2) - (z * z) / (50 * 50);
+      if (hullTerm <= 0) continue;
+
+      const hullY = 15.2 * Math.sqrt(hullTerm);
+      const wallBottom = Math.max(at[1] - height / 2, -hullY);
+      const wallTop = Math.min(at[1] + height / 2, hullY);
+      if (wallTop - wallBottom < 0.08) continue;
+
+      const segmentSize = alongX
+        ? [sliceRun + 0.015, wallTop - wallBottom, thickness]
+        : [thickness, wallTop - wallBottom, sliceRun + 0.015];
+      const segmentPosition = [
+        x,
+        (wallTop + wallBottom) / 2,
+        z
+      ];
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(...segmentSize), material);
+      mesh.position.set(...segmentPosition);
+      if (name) mesh.name = name;
+      mesh.castShadow = false;
+      mesh.receiveShadow = true;
+      parent.add(mesh);
+      meshes.push(mesh);
+
+      collisionBoxes.push({
+        x, y: segmentPosition[1], z,
+        halfX: segmentSize[0] / 2,
+        halfY: segmentSize[1] / 2,
+        halfZ: segmentSize[2] / 2
+      });
+    }
+
+    return meshes[0] || null;
+  };
+
+  // Parede com vão central para futura instalação de porta.
+  const doorwayWallX = (x, y, z, length, height, thickness, doorWidth = 2.4, doorHeight = 2.8) => {
+    const side = (length - doorWidth) / 2;
+    addBox(group, [side, height, thickness], [x - doorWidth / 2 - side / 2, y, z], wallMat, 'Wall-Door-Left');
+    addBox(group, [side, height, thickness], [x + doorWidth / 2 + side / 2, y, z], wallMat, 'Wall-Door-Right');
+    addBox(group, [doorWidth, height - doorHeight, thickness], [x, y + doorHeight / 2, z], bulkheadMat, 'Wall-Door-Header');
+  };
+
+  const doorwayWallZ = (x, y, z, length, height, thickness, doorWidth = 2.4, doorHeight = 2.8) => {
+    const side = (length - doorWidth) / 2;
+    addBox(group, [thickness, height, side], [x, y, z - doorWidth / 2 - side / 2], wallMat, 'Wall-Door-Left');
+    addBox(group, [thickness, height, side], [x, y, z + doorWidth / 2 + side / 2], wallMat, 'Wall-Door-Right');
+    addBox(group, [thickness, height - doorHeight, doorWidth], [x, y + doorHeight / 2, z], bulkheadMat, 'Wall-Door-Header');
+  };
+
+  const addDeckPlate = (y, width, length, material, name, thickness, centerZ = -2) => {
+    // Planta elíptica acompanha o casco arredondado, sem criar uma moldura retangular.
+    const shape = new THREE.Shape();
+    shape.absellipse(0, 0, width / 2, length / 2, 0, Math.PI * 2, false, 0);
+    const geometry = new THREE.ExtrudeGeometry(shape, {
+      depth: thickness, bevelEnabled: false, curveSegments: 48
+    });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.rotation.x = Math.PI / 2;
+    // A superfície do piso fica ligeiramente abaixo da origem do personagem,
+    // deixando as solas acima do plano sem alterar a altura lógica de caminhada.
+    mesh.position.set(0, y + 0.18, centerZ);
+    mesh.name = name;
+    mesh.castShadow = false;
+    mesh.receiveShadow = true;
+    group.add(mesh);
+    return mesh;
+  };
+
+  const deckFloor = (deck, label) => {
+    const y = deck.y;
+    const footprints = {
+      D1: [50, 82], D2: [50, 94], D3: [53, 102], D4: [48, 110, 5.5]
+    };
+    const [width, length, centerZ = -2] = footprints[deck.id];
+    addDeckPlate(y, width, length, floorMat, label + '-Floor', 0.04, centerZ);
+    // O piso do deck imediatamente superior já funciona como teto deste deck.
+    // Não criar placas de teto independentes: elas duplicavam os planos entre
+    // os decks e produziam sobreposições visuais no hangar. No D1, o casco
+    // superior fecha o ambiente.
+    // Acesso técnico permanece marcado no piso, dentro da área útil.
+    addBox(group, [5.8, 0.035, 5.8], [0, y + 0.23, 25], shaftMat, label + '-Reserved-Vertical-Access');
+  };
+
+  for (const deck of STARSHIP_LAYOUT.decks) {
+    deckFloor(deck, deck.id);
+  }
+
+  // D1 — ponte ampla, ocupando praticamente todo o primeiro deck.
+  // A área central permanece livre para a única cadeira de comando,
+  // que será adicionada em uma etapa posterior.
+  {
+    const y = STARSHIP_LAYOUT.decks[0].y + 2.65;
+    // Laterais abertas: o contorno do casco passa a definir os limites da ponte.
+    // Sem divisórias na ponte: o limite lateral é definido pelo casco.
+    // Pequena antecâmara de acesso na popa, sem dividir a área principal.
+    // Filete de soleira assentado no mesmo plano do piso, sem ressalto flutuante.
+    addBox(group, [16, 0.035, 0.35], [0, STARSHIP_LAYOUT.decks[0].y + 0.2275, 40], trimMat, 'D1-Aft-Threshold');
+  }
+
+  // D2 — convés aberto. Piso, teto, casco e acesso técnico permanecem; divisórias removidas.
+
+  // D3 — convés aberto. Sem paredes ou anteparas internas.
+
+  // D4 — hangar totalmente livre até a abertura externa.
+  // Não criar molduras, travessas ou soleiras no corredor de saída:
+  // as peças anteriores geravam caixas de colisão no acesso ao hangar.
+
+  // Removidas as seis colunas externas: elas formavam a gaiola retangular ao redor do casco.
+
+  return {
+    group,
+    layout: STARSHIP_LAYOUT,
+    collisionBoxes,
+    dispose() {
+      group.traverse(object => {
+        if (!object.isMesh) return;
+        object.geometry?.dispose();
+        if (Array.isArray(object.material)) object.material.forEach(m => m.dispose());
+        else object.material?.dispose();
+      });
+      [floorMat, wallMat, bulkheadMat, trimMat, shaftMat].forEach(m => m.dispose());
+    }
+  };
+}
