@@ -1,15 +1,90 @@
 import * as THREE from 'three';
-import { createEarth } from './world/earth.js';
+import { createEarthCore } from './world/earth/earthCore.js';
 import { createStation } from './world/station.js';
 import { createOrbitSystem } from './world/orbits.js';
 import { createAsteroidField } from './world/asteroids.js';
 import { createSpaceLighting } from './world/lighting.js';
-import { state } from './core/state.js';
+import { createStarshipInterior } from './ships/interior.js';
+import { createExplorationShip } from './ships/exploration.js';
+import { state, resetTransientState } from './core/state.js';
+import { createCharacterCore } from './character/characterCore.js';
+import { createCharacterHUD } from './character/characterHUD.js';
+import { createCharacterModel } from './character/characterModel.js';
+import { createCharacterAnimator } from './character/characterAnimator.js';
+import { isPilotConsoleInRange, attachCharacterToPilotConsole, returnCharacterToDeck } from './ships/bridge/commandBridge.js';
 import { saveState as save, loadState as load } from './core/storage.js';
+import { createShipComputer } from './ships/computer/shipComputer.js';
+import { registerShipComputerSystems } from './ships/computer/shipComputerSystems.js';
 
 const $ = id => document.getElementById(id);
 
+const characterCore = createCharacterCore();
+const shipComputer = createShipComputer();
+shipComputer.registerSystem('flight', {
+  name: 'Controle de voo',
+  commands: {
+    throttle: value => { state.throttle = Boolean(value); return state.throttle; },
+    brake: value => { state.braking = Boolean(value); return state.braking; },
+    nitro: value => { state.nitroButton = Boolean(value); return state.nitroButton; },
+    movement: value => {
+      if (!value || !Number.isFinite(value.x) || !Number.isFinite(value.y)) return false;
+      state.move.x = THREE.MathUtils.clamp(value.x, -1, 1);
+      state.move.y = THREE.MathUtils.clamp(value.y, -1, 1);
+      return true;
+    },
+    look: value => {
+      if (!value || !Number.isFinite(value.x) || !Number.isFinite(value.y)) return false;
+      state.view.x = THREE.MathUtils.clamp(value.x, -1.15, 1.15);
+      state.view.y = THREE.MathUtils.euclideanModulo(value.y + Math.PI, Math.PI * 2) - Math.PI;
+      return true;
+    }
+  },
+  getStatus: () => characterCore.snapshot().mode === 'ship-control' ? 'active' : 'standby'
+});
+shipComputer.registerTerminal({
+  id: 'pilot-console',
+  name: 'Console de pilotagem',
+  systems: ['flight', 'navigation', 'sensors', 'power']
+});
+const characterHUD = createCharacterHUD(document);
+let characterCameraMode = 'third-person';
+let characterModel = null;
+let characterAnimator = null;
+let characterYaw = 0;
+let characterPitch = 0;
+const characterForward = new THREE.Vector3();
+const characterRight = new THREE.Vector3();
+const characterMove = new THREE.Vector3();
+const characterLookEuler = new THREE.Euler(0, 0, 0, 'YXZ');
+let characterMoveInput = { x: 0, y: 0 };
+let pilotInteractionAvailable = false;
+const pilotPlayerWorldPosition = new THREE.Vector3();
+const characterCameraWorldPosition = new THREE.Vector3();
+const characterCameraWorldQuaternion = new THREE.Quaternion();
+const characterCameraForward = new THREE.Vector3();
+const characterCameraOffset = new THREE.Vector3();
+
+function updateCharacterCameraButton() {
+  const button = $('character-camera-btn');
+  if (!button) return;
+  button.textContent = characterCameraMode === 'first-person'
+    ? 'CÂMERA: 1ª PESSOA'
+    : 'CÂMERA: 3ª PESSOA';
+}
+
+function updateCharacterHUD() {
+  const planetaryProfile = earthSystem?.getPlanetaryProfile?.();
+  characterHUD.update({
+    ...characterCore.snapshot(),
+    name: state.user || state.character || 'EXPLORADOR',
+    environment: planetaryProfile ? {
+      label: `${planetaryProfile.displayName} • R MÉDIO ${Math.round(planetaryProfile.physical.meanRadiusKm).toLocaleString('pt-BR')} KM`
+    } : null
+  });
+}
+
 load();
+state.ship = 'Nave exploradora';
 
 /* UTILITÁRIOS */
 
@@ -161,7 +236,7 @@ function renderPanel(key) {
   if (key === 'ships') {
     add(`
       <div class="option-card">
-        <b>Aurora-7</b>
+        <b>Nave exploradora — quatro decks</b>
         <small>Nave exploradora: equilíbrio entre velocidade e capacidade de carga.</small>
       </div>
       <div class="option-card">
@@ -305,6 +380,35 @@ let stationSystem;
 let orbitSystem;
 let asteroidSystem;
 let lightingSystem;
+let starshipInterior;
+let nearbyElevator = false;
+let activeDeckIndex = 0;
+let shipYaw;
+let shipPitch;
+let shipVisual;
+
+// Estruturas externas da popa que invadem visualmente o espaço útil do Deck 4.
+// São ocultadas somente enquanto o personagem está no D4 e restauradas nos demais decks.
+const deck4ClearanceNames = new Set([
+  'Engineering-Secondary-Hull',
+  'Integrated-Aft-Engineering-Pod',
+  'Aft-Hangar-Nacelle-Junction',
+  'Central-Hangar-Upper-Lip',
+  'Central-Hangar-Lower-Lip'
+]);
+
+function updateDeck4Clearance() {
+  if (!shipVisual) return;
+  const deck4Active = activeDeckIndex === 3;
+  shipVisual.traverse(object => {
+    if (deck4ClearanceNames.has(object.name)) {
+      object.visible = !deck4Active;
+    }
+  });
+}
+
+const flightQuaternion = new THREE.Quaternion();
+let pitchAngle = 0;
 
 let asteroids = [];
 let engineFlames = [];
@@ -325,6 +429,19 @@ const cameraViewQuaternion = new THREE.Quaternion();
 const forwardVector = new THREE.Vector3();
 
 let launching = false;
+let shipComputerSystemsRegistered = false;
+
+function registerComputerSubsystems() {
+  if (shipComputerSystemsRegistered) return;
+  registerShipComputerSystems(shipComputer, {
+    state,
+    getShip: () => ship,
+    getShipYaw: () => shipYaw?.rotation.y ?? 0,
+    getPitchAngle: () => pitchAngle,
+    getAsteroids: () => asteroids
+  });
+  shipComputerSystemsRegistered = true;
+}
 
 function loadingStep(percent, message) {
   const fill = $('loading-progress-fill');
@@ -343,6 +460,10 @@ function loadingStep(percent, message) {
 async function startGame() {
   if (launching) return;
 
+  resetTransientState();
+  characterCore.initialize();
+  characterCore.setMode('on-foot');
+  updateCharacterHUD();
   launching = true;
   active = false;
   show('game-screen');
@@ -356,6 +477,11 @@ async function startGame() {
     if (!renderer) {
       await init3D();
     }
+    updateCharacterHUD();
+
+    // O computador só fica online depois que os três subsistemas estão registrados.
+    registerComputerSubsystems();
+    shipComputer.boot();
 
     await loadingStep(100, 'Todos os sistemas prontos. Boa viagem, piloto.');
     await new Promise(resolve => setTimeout(resolve, 350));
@@ -388,10 +514,10 @@ function addShipBox(parent, geometry, material, position, rotation = { x: 0, y: 
 async function init3D() {
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x020817);
-  scene.fog = new THREE.FogExp2(0x020817, 0.0011);
+  scene.fog = new THREE.FogExp2(0x020817, 0.00055);
 
   // Terra em posição distante, visível à frente da nave.
-  earthSystem = createEarth({ radius: 78, position: [0, 0, -240] });
+  earthSystem = createEarthCore({ radius: 300, position: [0, 0, -850] });
   scene.add(earthSystem.group);
 
   camera = new THREE.PerspectiveCamera(
@@ -423,260 +549,25 @@ async function init3D() {
   lightingSystem = createSpaceLighting(scene);
   stars = lightingSystem.stars;
 
-  await loadingStep(42, 'Montando a nave Aurora-7...');
+  await loadingStep(42, 'Montando a nave exploradora de quatro decks...');
 
-  /* AURORA-7 */
+  /* NAVE PRINCIPAL — CASCO, NACELLES E ESTRUTURA DE VOO */
 
-  ship = new THREE.Group();
+  const explorationShip = createExplorationShip();
+  ship = explorationShip.group;
+  shipYaw = explorationShip.yaw;
+  shipPitch = explorationShip.pitch;
+  shipVisual = explorationShip.visual;
+  updateDeck4Clearance();
+  engineFlames = explorationShip.engineFlames;
+  engineLights = explorationShip.engineLights;
   scene.add(ship);
-
-  const hullMat = new THREE.MeshStandardMaterial({
-    color: 0xaec5d8,
-    metalness: 0.78,
-    roughness: 0.27
-  });
-
-  const darkMat = new THREE.MeshStandardMaterial({
-    color: 0x263e55,
-    metalness: 0.8,
-    roughness: 0.3
-  });
-
-  const blueMat = new THREE.MeshStandardMaterial({
-    color: 0x357cae,
-    metalness: 0.65,
-    roughness: 0.25
-  });
-
-  const glassMat = new THREE.MeshStandardMaterial({
-    color: 0x43baff,
-    metalness: 0.5,
-    roughness: 0.12,
-    emissive: 0x07518b,
-    emissiveIntensity: 0.65
-  });
-
-  const goldMat = new THREE.MeshStandardMaterial({
-    color: 0xc18b42,
-    metalness: 0.75,
-    roughness: 0.3
-  });
-
-  const engineMat = new THREE.MeshBasicMaterial({
-    color: 0x29cfff
-  });
-
-  /* CASCO */
-
-  const core = new THREE.Mesh(
-    new THREE.CapsuleGeometry(0.9, 3.5, 6, 12),
-    hullMat
-  );
-
-  core.rotation.x = Math.PI / 2;
-  ship.add(core);
-
-  const nose = new THREE.Mesh(
-    new THREE.ConeGeometry(0.9, 2.5, 10),
-    blueMat
-  );
-
-  nose.rotation.x = -Math.PI / 2;
-  nose.position.z = -3;
-  ship.add(nose);
-
-  addShipBox(
-    ship,
-    new THREE.BoxGeometry(0.9, 0.16, 0.75),
-    glassMat,
-    { x: 0, y: 0.65, z: -1.65 }
-  );
-
-  const cockpit = new THREE.Mesh(
-    new THREE.SphereGeometry(0.72, 20, 12),
-    glassMat
-  );
-
-  cockpit.scale.set(1.05, 0.48, 1.3);
-  cockpit.position.set(0, 0.78, -0.85);
-  ship.add(cockpit);
-
-  addShipBox(
-    ship,
-    new THREE.BoxGeometry(1.2, 0.2, 2.1),
-    darkMat,
-    { x: 0, y: 1.02, z: 0.65 }
-  );
-
-  addShipBox(
-    ship,
-    new THREE.BoxGeometry(1.1, 0.3, 2.3),
-    blueMat,
-    { x: 0, y: -0.72, z: 0.7 }
-  );
-
-  /* ASAS E NACELLES */
-
-  for (const side of [-1, 1]) {
-    const wing = new THREE.Mesh(
-      new THREE.BoxGeometry(2.5, 0.18, 2.3),
-      hullMat
-    );
-
-    wing.position.set(side * 1.75, -0.08, 0.05);
-    wing.rotation.y = side * 0.12;
-    ship.add(wing);
-
-    const wingTip = new THREE.Mesh(
-      new THREE.BoxGeometry(0.38, 0.24, 1.6),
-      blueMat
-    );
-
-    wingTip.position.set(side * 2.85, -0.02, 0.15);
-    ship.add(wingTip);
-
-    const pylon = new THREE.Mesh(
-      new THREE.BoxGeometry(0.3, 0.45, 1.5),
-      darkMat
-    );
-
-    pylon.position.set(side * 1.45, 0.05, 0.55);
-    ship.add(pylon);
-
-    const nacelle = new THREE.Group();
-    nacelle.position.set(side * 2.45, 0.12, 0.75);
-    ship.add(nacelle);
-
-    const nacBody = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.34, 0.43, 3.4, 16),
-      darkMat
-    );
-
-    nacBody.rotation.x = Math.PI / 2;
-    nacelle.add(nacBody);
-
-    const nacTop = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.38, 0.38, 0.18, 16),
-      goldMat
-    );
-
-    nacTop.rotation.x = Math.PI / 2;
-    nacTop.position.z = -1.55;
-    nacelle.add(nacTop);
-
-    const engineRing = new THREE.Mesh(
-      new THREE.TorusGeometry(0.34, 0.09, 8, 20),
-      blueMat
-    );
-
-    engineRing.position.z = 1.72;
-    nacelle.add(engineRing);
-
-    const engineCore = new THREE.Mesh(
-      new THREE.SphereGeometry(0.27, 16, 12),
-      engineMat
-    );
-
-    engineCore.position.z = 1.77;
-    engineCore.scale.z = 0.55;
-    nacelle.add(engineCore);
-
-    const flameMaterial = new THREE.MeshBasicMaterial({
-      color: 0x29cfff,
-      transparent: true,
-      opacity: 0.4
-    });
-
-    const flame = new THREE.Mesh(
-      new THREE.ConeGeometry(0.28, 1.5, 12),
-      flameMaterial
-    );
-
-    flame.rotation.x = Math.PI / 2;
-    flame.position.z = 2.45;
-    nacelle.add(flame);
-    engineFlames.push(flame);
-
-    const engineLight = new THREE.PointLight(0x21bfff, 1.5, 15);
-    engineLight.position.set(0, 0, 2.1);
-    nacelle.add(engineLight);
-    engineLights.push(engineLight);
-  }
-
-  /* DETALHES */
-
-  for (const side of [-1, 1]) {
-    for (let i = 0; i < 3; i++) {
-      const windowMesh = new THREE.Mesh(
-        new THREE.BoxGeometry(0.13, 0.09, 0.3),
-        glassMat
-      );
-
-      windowMesh.position.set(side * 0.62, 0.63, -0.3 + i * 0.55);
-      ship.add(windowMesh);
-    }
-
-    const sidePanel = new THREE.Mesh(
-      new THREE.BoxGeometry(0.13, 0.4, 1.4),
-      blueMat
-    );
-
-    sidePanel.position.set(side * 0.92, -0.05, 0.8);
-    ship.add(sidePanel);
-  }
-
-  /* CARGA */
-
-  const cargoBay = new THREE.Mesh(
-    new THREE.BoxGeometry(1.25, 0.55, 1.45),
-    darkMat
-  );
-
-  cargoBay.position.set(0, -0.55, 1.5);
-  ship.add(cargoBay);
-
-  const hangarDoor = new THREE.Mesh(
-    new THREE.BoxGeometry(0.9, 0.08, 0.9),
-    goldMat
-  );
-
-  hangarDoor.position.set(0, -0.86, 1.5);
-  ship.add(hangarDoor);
-
-  /* LUZES DE POSIÇÃO */
-
-  for (const side of [-1, 1]) {
-    const navLight = new THREE.Mesh(
-      new THREE.SphereGeometry(0.13, 10, 8),
-      new THREE.MeshBasicMaterial({
-        color: side === -1 ? 0xff4545 : 0x35ff9a
-      })
-    );
-
-    navLight.position.set(side * 2.8, 0.2, -0.6);
-    ship.add(navLight);
-  }
-
-  /* ESCUDO */
-
-  const shieldMesh = new THREE.Mesh(
-    new THREE.SphereGeometry(4.5, 32, 20),
-    new THREE.MeshBasicMaterial({
-      color: 0x168bff,
-      wireframe: true,
-      transparent: true,
-      opacity: 0.055
-    })
-  );
-
-  shieldMesh.scale.set(1.05, 0.62, 1.45);
-  ship.add(shieldMesh);
 
   await loadingStep(70, 'Carregando campo de asteroides...');
 
   /* CAMPO DE ASTEROIDES */
 
-  asteroidSystem = createAsteroidField(scene, { count: 32 });
+  asteroidSystem = createAsteroidField(scene, { count: 24, center: [310, 0, -300], spread: [190, 100, 160] });
   asteroids = asteroidSystem.asteroids;
 
   await loadingStep(84, 'Carregando estação orbital e observatório...');
@@ -685,6 +576,22 @@ async function init3D() {
 
   stationSystem = createStation({ position: [24, 3, -65] });
   scene.add(stationSystem.group);
+
+  await loadingStep(90, 'Integrando os quatro decks ao casco da nave...');
+  starshipInterior = createStarshipInterior({ position: [0, 0, 0] });
+  shipVisual.add(starshipInterior.group);
+  activeDeckIndex = 0;
+  nearbyElevator = false;
+
+  // Spawn inicial no Deck 1 — ponte de comando, dentro do casco.
+  characterModel = createCharacterModel({ suitColor: 0x263b50, accentColor: 0x36c9df });
+  // O personagem pertence ao referencial da nave: acompanha translação e rotação
+  // sem ficar para trás no espaço quando a Aurora-7 se movimenta.
+  characterModel.group.position.set(0, 8.91, -18);
+  characterModel.group.rotation.y = characterYaw;
+  shipVisual.add(characterModel.group);
+  characterAnimator = createCharacterAnimator(characterModel);
+  characterAnimator.play('idle');
 
   const npc = new THREE.Mesh(
     new THREE.SphereGeometry(1.3, 16, 12),
@@ -697,7 +604,7 @@ async function init3D() {
   npc.position.set(24, 3, -77);
   scene.add(npc);
 
-  orbitSystem = createOrbitSystem({ center: [0, 0, -240], radius: 177 });
+  orbitSystem = createOrbitSystem({ center: [0, 0, -850], radius: 177 });
   scene.add(orbitSystem.group);
 
   await loadingStep(96, 'Finalizando cenário e sistemas de voo...');
@@ -720,35 +627,38 @@ function resize3D() {
 /* MOVIMENTO */
 
 function updateFlight(dt) {
-  if (!ship) return;
+  if (!ship || !shipYaw || !shipPitch || !shipVisual) return;
 
+  // Protege a simulação contra saltos de tempo quando o Android pausa ou atrasa um frame.
+  const safeDt = THREE.MathUtils.clamp(Number.isFinite(dt) ? dt : 0, 0, 0.04);
   const sensitivity = Number(state.settings.sensitivity) || 1;
 
-  ship.rotation.y -= state.move.x * 1.25 * dt * sensitivity;
+  // Guinada sempre no eixo vertical global; arfagem sempre no eixo lateral local.
+  // No joystick: puxar para cima (Y negativo) sobe; puxar para baixo (Y positivo) desce.
+  shipYaw.rotation.y -= state.move.x * 1.25 * safeDt * sensitivity;
 
-  // Mantém o eixo vertical no sentido intuitivo e impede capotamento acumulado.
-  // No joystick, y negativo = puxar para cima; y positivo = puxar para baixo.
-  const pitchInput = state.move.y * 1.0 * dt * sensitivity;
+  const pitchInput = state.move.y * safeDt * sensitivity;
   const maxPitch = THREE.MathUtils.degToRad(65);
-  ship.rotation.x = THREE.MathUtils.clamp(
-    ship.rotation.x - pitchInput,
+  pitchAngle = THREE.MathUtils.clamp(
+    pitchAngle - pitchInput,
     -maxPitch,
     maxPitch
   );
+  shipPitch.rotation.x = pitchAngle;
 
+  // A inclinação visual é isolada da orientação usada para navegar.
   const targetRoll = -state.move.x * 0.25;
-
-  ship.rotation.z = THREE.MathUtils.lerp(
-    ship.rotation.z,
+  shipVisual.rotation.z = THREE.MathUtils.lerp(
+    shipVisual.rotation.z,
     targetRoll,
-    Math.min(1, dt * 3)
+    Math.min(1, safeDt * 3)
   );
 
   /* ACELERAÇÃO */
 
   if (state.throttle && state.fuel > 0) {
-    state.speed = Math.min(75, state.speed + 18 * dt);
-    state.fuel = Math.max(0, state.fuel - 0.28 * dt);
+    state.speed = Math.min(75, state.speed + 18 * safeDt);
+    state.fuel = Math.max(0, state.fuel - 0.28 * safeDt);
   }
 
   /* NITRO */
@@ -759,33 +669,34 @@ function updateFlight(dt) {
     state.fuel > 0;
 
   if (boosting) {
-    state.speed = Math.min(115, state.speed + 55 * dt);
-    state.nitro = Math.max(0, state.nitro - 28 * dt);
-    state.fuel = Math.max(0, state.fuel - 0.55 * dt);
+    state.speed = Math.min(115, state.speed + 55 * safeDt);
+    state.nitro = Math.max(0, state.nitro - 28 * safeDt);
+    state.fuel = Math.max(0, state.fuel - 0.55 * safeDt);
   } else {
-    state.nitro = Math.min(100, state.nitro + 12 * dt);
+    state.nitro = Math.min(100, state.nitro + 12 * safeDt);
   }
 
   /* FREIO */
 
   if (state.braking) {
-    state.speed = Math.max(0, state.speed - 30 * dt);
+    state.speed = Math.max(0, state.speed - 30 * safeDt);
   }
 
   if (!state.throttle && !boosting) {
-    state.speed = Math.max(0, state.speed - 1.4 * dt);
+    state.speed = Math.max(0, state.speed - 1.4 * safeDt);
   }
 
   /* DESLOCAMENTO */
 
+  shipPitch.getWorldQuaternion(flightQuaternion);
   forwardVector
     .set(0, 0, -1)
-    .applyQuaternion(ship.quaternion)
+    .applyQuaternion(flightQuaternion)
     .normalize();
 
-  ship.position.addScaledVector(forwardVector, state.speed * dt * 0.45);
+  ship.position.addScaledVector(forwardVector, state.speed * safeDt * 0.45);
 
-  // Colisão da plataforma e do observatório para a Aurora-7.
+  // Colisão da plataforma e do observatório para a nave exploradora.
   // A abertura e a escadaria continuam livres para o personagem,
   // mas são tratadas como piso sólido para a nave.
   const stationCenter = new THREE.Vector3(24, 3, -65);
@@ -867,10 +778,252 @@ function updateFlight(dt) {
   $('nitro-btn')?.classList.toggle('active', boosting);
 }
 
+/* CÂMERA DO PERSONAGEM — sempre dentro da nave */
+
+function updateCharacterCamera() {
+  if (!camera || !characterModel) return;
+  const player = characterModel.group;
+  player.getWorldPosition(characterCameraWorldPosition);
+  player.getWorldQuaternion(characterCameraWorldQuaternion);
+  characterCameraForward.set(0, 0, -1).applyQuaternion(characterCameraWorldQuaternion).normalize();
+
+  const target = characterCameraWorldPosition.clone().add(new THREE.Vector3(0, 1.25, 0));
+
+  if (characterCameraMode === 'first-person') {
+    characterCameraOffset.set(0, 1.62, 0).applyQuaternion(characterCameraWorldQuaternion);
+    camera.position.copy(characterCameraWorldPosition).add(characterCameraOffset);
+    characterLookEuler.set(characterPitch, 0, 0, 'YXZ');
+    camera.quaternion.copy(characterCameraWorldQuaternion).multiply(
+      new THREE.Quaternion().setFromEuler(characterLookEuler)
+    );
+  } else {
+    // Ombro/costas calculado no referencial mundial, acompanhando a nave.
+    characterCameraOffset.set(0, 2.35, 5.2).applyQuaternion(characterCameraWorldQuaternion);
+    const desired = characterCameraWorldPosition.clone().add(characterCameraOffset);
+    camera.position.lerp(desired, 0.22);
+    const lookTarget = target.addScaledVector(characterCameraForward, 1.4);
+    // O arrasto vertical da mira também inclina o ponto observado em terceira pessoa.
+    lookTarget.y += Math.sin(characterPitch) * 4.2;
+    camera.lookAt(lookTarget);
+  }
+}
+
+function isCharacterInsideDeck(position, deckIndex) {
+  const deck = starshipInterior?.layout?.decks?.[deckIndex];
+  if (!deck) return false;
+
+  // Medidas reais dos pisos elípticos (largura, comprimento), centrados em Z=-2.
+  const footprints = {
+    D1: [50, 82],
+    D2: [50, 94],
+    D3: [53, 102],
+    D4: [35, 58]
+  };
+  const footprint = footprints[deck.id];
+  if (!footprint) return false;
+
+  // Reserva uma margem para o raio do personagem, evitando que os pés
+  // atravessem a borda mesmo quando o centro ainda está sobre o piso.
+  const playerRadius = 0.62;
+  const radiusX = footprint[0] * 0.5 - playerRadius;
+  const radiusZ = footprint[1] * 0.5 - playerRadius;
+  const normalizedX = position.x / radiusX;
+  const normalizedZ = (position.z + 2) / radiusZ;
+  return normalizedX * normalizedX + normalizedZ * normalizedZ <= 1;
+}
+
+function isCharacterPositionBlocked(position, deckIndex) {
+  const deck = starshipInterior?.layout?.decks?.[deckIndex];
+  if (!deck || !isCharacterInsideDeck(position, deckIndex)) return true;
+
+  // A ponte D1 não possui anteparas internas; seu limite é o contorno do piso.
+  if (deck.id === 'D1') return false;
+
+  const playerRadius = 0.48;
+  const feetY = deck.y + 0.21;
+  for (const wall of starshipInterior.collisionBoxes || []) {
+    if (feetY + 1.8 < wall.y - wall.halfY || feetY > wall.y + wall.halfY) continue;
+
+    const nearestX = THREE.MathUtils.clamp(position.x, wall.x - wall.halfX, wall.x + wall.halfX);
+    const nearestZ = THREE.MathUtils.clamp(position.z, wall.z - wall.halfZ, wall.z + wall.halfZ);
+    const dx = position.x - nearestX;
+    const dz = position.z - nearestZ;
+
+    if (Math.abs(dx) < playerRadius && Math.abs(dz) < playerRadius) return true;
+  }
+  return false;
+}
+
+function updateCharacterMovement(dt) {
+  if (!characterModel || characterCore.snapshot().mode !== 'on-foot') return;
+  const input = characterMoveInput;
+  const magnitude = Math.min(1, Math.hypot(input.x, input.y));
+  const deck = characterModel.group.position;
+
+  if (magnitude > 0.08) {
+    // Usa a mesma rotação local aplicada ao modelo. O joystick e a posição
+    // estão no referencial do convés, portanto os eixos não dependem da
+    // rotação global, arfagem ou inclinação visual da nave.
+    const yaw = characterModel.group.rotation.y;
+    characterForward.set(0, 0, -1).applyAxisAngle(THREE.Object3D.DEFAULT_UP, yaw);
+    characterRight.set(1, 0, 0).applyAxisAngle(THREE.Object3D.DEFAULT_UP, yaw);
+    characterMove.copy(characterForward).multiplyScalar(-input.y)
+      .addScaledVector(characterRight, input.x);
+
+    if (characterMove.lengthSq() > 0) characterMove.normalize();
+
+    const step = 3.1 * magnitude * dt;
+    const previousX = deck.x;
+    const previousZ = deck.z;
+
+    // Cada eixo é validado separadamente. Ao atingir a borda do piso ou uma
+    // parede, só esse componente é cancelado; o movimento tangencial continua.
+    deck.x = previousX + characterMove.x * step;
+    if (isCharacterPositionBlocked(deck, activeDeckIndex)) deck.x = previousX;
+
+    deck.z = previousZ + characterMove.z * step;
+    if (isCharacterPositionBlocked(deck, activeDeckIndex)) deck.z = previousZ;
+
+    deck.y = starshipInterior.layout.decks[activeDeckIndex].y + 0.21;
+    characterAnimator?.play(magnitude > 0.72 ? 'run' : 'walk');
+  } else {
+    characterAnimator?.play('idle');
+  }
+  characterAnimator?.update(dt);
+}
+
+function updateElevatorButtons() {
+  const up = $('elevator-up-btn');
+  const down = $('elevator-down-btn');
+  const action = $('character-action-btn');
+  if (!up || !down || !action) return;
+
+  up.classList.toggle('hidden', !nearbyElevator || activeDeckIndex === 0);
+  down.classList.toggle('hidden', !nearbyElevator || activeDeckIndex === 3);
+  up.disabled = !nearbyElevator || activeDeckIndex === 0;
+  down.disabled = !nearbyElevator || activeDeckIndex === 3;
+  action.classList.toggle('hidden', nearbyElevator);
+}
+
+function updateElevatorInteraction() {
+  if (!characterModel || characterCore.snapshot().mode !== 'on-foot') return;
+  const p = characterModel.group.position;
+  const inLift = Math.abs(p.x) <= 2.9 && p.z >= 22.1 && p.z <= 27.9;
+  const changed = inLift !== nearbyElevator;
+  nearbyElevator = inLift;
+  if (changed) {
+    if (inLift) {
+      characterCore.setInteractionTarget('ELEVADOR INTERNO');
+      updateCharacterHUD();
+    } else {
+      pilotInteractionAvailable = false;
+      characterCore.setInteractionTarget(null);
+      updateCharacterHUD();
+      updatePilotInteraction();
+    }
+    updateElevatorButtons();
+  }
+}
+
+function moveElevator(direction) {
+  if (!nearbyElevator || !characterModel || characterCore.snapshot().mode !== 'on-foot') return false;
+  const nextIndex = activeDeckIndex + direction;
+  if (nextIndex < 0 || nextIndex > 3) return false;
+
+  activeDeckIndex = nextIndex;
+  updateDeck4Clearance();
+  const deck = starshipInterior.layout.decks[activeDeckIndex];
+  characterModel.group.position.set(0, deck.y + 0.21, 25);
+  // O centro do elevador fica dentro da área livre dos quatro decks.
+  // Não chamar resolveCharacterShipCollisions: essa função não existe no runtime.
+  nearbyElevator = true;
+  characterCore.setInteractionTarget('ELEVADOR INTERNO');
+  updateElevatorButtons();
+  updateCharacterHUD();
+  toast('Acesso ao ' + deck.name + ' liberado.');
+  return true;
+}
+
+function updatePilotInteraction() {
+  if (!characterModel || !shipVisual || characterCore.snapshot().mode !== 'on-foot') return;
+
+  characterModel.group.getWorldPosition(pilotPlayerWorldPosition);
+  const available = isPilotConsoleInRange(pilotPlayerWorldPosition, shipVisual);
+  if (nearbyElevator) return;
+  if (available === pilotInteractionAvailable) return;
+
+  pilotInteractionAvailable = available;
+  const button = $('character-action-btn');
+  if (button) {
+    button.disabled = !available;
+    button.textContent = available ? '◎ PILOTAR' : 'AÇÃO';
+    button.classList.toggle('available', available);
+  }
+
+  characterCore.setInteractionTarget(available ? 'PILOTAGEM DISPONÍVEL' : null);
+  updateCharacterHUD();
+}
+
+function setPilotInterface(activePilot) {
+  characterHUD.show(!activePilot);
+  ['hud', 'nitro-display', 'flight-controls'].forEach(id => {
+    $(id)?.classList.toggle('hidden', !activePilot);
+  });
+}
+
+function enterPilotMode() {
+  if (!pilotInteractionAvailable || characterCore.snapshot().mode !== 'on-foot') {
+    toast('Aproxime-se do ponto de pilotagem na ponte.');
+    return;
+  }
+
+  if (!shipComputer.connectTerminal('pilot-console', state.user || 'PILOTO')) {
+    toast('Computador da nave indisponível ou console ocupado.');
+    return;
+  }
+  if (!attachCharacterToPilotConsole(characterModel, shipVisual)) {
+    shipComputer.disconnectTerminal('pilot-console');
+    return;
+  }
+
+  characterMoveInput = { x: 0, y: 0 };
+  characterCore.enterShipSeat();
+  pilotInteractionAvailable = false;
+  state.camera = 0;
+  state.view.x = 0;
+  state.view.y = 0;
+  setPilotInterface(true);
+  toast('Comando da Aurora-7 assumido.');
+}
+
+function exitPilotMode() {
+  if (characterCore.snapshot().mode !== 'ship-control') return;
+
+  shipComputer.disconnectTerminal('pilot-console');
+  characterYaw = returnCharacterToDeck(characterModel, shipVisual, scene);
+  characterPitch = 0;
+  characterCore.leaveShipSeat();
+
+  characterMoveInput = { x: 0, y: 0 };
+  state.move.x = 0;
+  state.move.y = 0;
+  state.throttle = false;
+  state.braking = false;
+  state.nitroButton = false;
+
+  const flightStick = $('move-stick')?.querySelector('.knob');
+  if (flightStick) flightStick.style.transform = 'translate(0,0)';
+
+  setPilotInterface(false);
+  updateCharacterHUD();
+  updatePilotInteraction();
+  toast('Você deixou o comando da nave.');
+}
+
 /* CÂMERA */
 
 function updateCamera() {
-  if (!camera || !ship) return;
+  if (!camera || !ship || !shipVisual) return;
 
   viewEuler.set(
     state.view.x,
@@ -880,30 +1033,31 @@ function updateCamera() {
   );
 
   cameraViewQuaternion.setFromEuler(viewEuler);
-
-  const finalQuaternion = ship.quaternion.clone()
-    .multiply(cameraViewQuaternion);
+  shipVisual.getWorldQuaternion(flightQuaternion);
+  const finalQuaternion = flightQuaternion.clone().multiply(cameraViewQuaternion);
 
   if (state.camera === 0) {
-    const offset = new THREE.Vector3(0, 0.45, -0.65)
-      .applyQuaternion(ship.quaternion);
+    // Ponto de visão dentro da ponte, no deck superior.
+    const offset = new THREE.Vector3(0, 11.1, -30)
+      .applyQuaternion(flightQuaternion);
 
     camera.position.copy(ship.position).add(offset);
     camera.quaternion.copy(finalQuaternion);
   } else if (state.camera === 1) {
-    const offset = new THREE.Vector3(0, 0.45, 0.25)
-      .applyQuaternion(ship.quaternion);
+    const offset = new THREE.Vector3(0, 10.8, -20)
+      .applyQuaternion(flightQuaternion);
 
     camera.position.copy(ship.position).add(offset);
     camera.quaternion.copy(finalQuaternion);
   } else {
-    const offset = new THREE.Vector3(0, 4.5, 13)
-      .applyQuaternion(ship.quaternion);
+    // Câmera externa mais próxima, orbitando a nave com o arrasto da mira.
+    const offset = new THREE.Vector3(0, 28, 112)
+      .applyQuaternion(flightQuaternion)
+      .applyQuaternion(cameraViewQuaternion);
 
     const desiredPosition = ship.position.clone().add(offset);
-
-    camera.position.lerp(desiredPosition, 0.09);
-    camera.quaternion.copy(finalQuaternion);
+    camera.position.lerp(desiredPosition, 0.12);
+    camera.lookAt(ship.position);
   }
 }
 
@@ -917,8 +1071,15 @@ function loop(now) {
   const dt = Math.min((now - last) / 1000, 0.04);
   last = now;
 
-  updateFlight(dt);
-  updateCamera();
+  if (characterCore.snapshot().mode === 'on-foot') {
+    updateCharacterMovement(dt);
+    updateElevatorInteraction();
+    updatePilotInteraction();
+    updateCharacterCamera();
+  } else {
+    updateFlight(dt);
+    updateCamera();
+  }
   earthSystem?.update(dt);
   orbitSystem?.update(dt);
   asteroidSystem?.update(dt);
@@ -960,8 +1121,14 @@ function bindStick(id, key) {
       y *= max / length;
     }
 
-    state[key].x = x / max;
-    state[key].y = y / max;
+    const nextX = x / max;
+    const nextY = y / max;
+    if (key === 'move' && shipComputer.isTerminalConnected('pilot-console')) {
+      shipComputer.dispatch('pilot-console', 'flight', 'movement', { x: nextX, y: nextY });
+    } else {
+      state[key].x = nextX;
+      state[key].y = nextY;
+    }
 
     if (knob) {
       knob.style.transform = `translate(${x}px, ${y}px)`;
@@ -987,8 +1154,12 @@ function bindStick(id, key) {
     if (pointer !== event.pointerId) return;
 
     pointer = null;
-    state[key].x = 0;
-    state[key].y = 0;
+    if (key === 'move' && shipComputer.isTerminalConnected('pilot-console')) {
+      shipComputer.dispatch('pilot-console', 'flight', 'movement', { x: 0, y: 0 });
+    } else {
+      state[key].x = 0;
+      state[key].y = 0;
+    }
 
     if (knob) knob.style.transform = 'translate(0,0)';
   };
@@ -999,6 +1170,142 @@ function bindStick(id, key) {
 }
 
 bindStick('move-stick', 'move');
+
+// Joystick exclusivo do personagem; não altera os comandos de voo.
+const characterStick = $('character-move-stick');
+if (characterStick) {
+  const knob = characterStick.querySelector('.character-move-knob');
+  let pointer = null;
+  const moveCharacterStick = event => {
+    const rect = characterStick.getBoundingClientRect();
+    let x = event.clientX - rect.left - rect.width / 2;
+    let y = event.clientY - rect.top - rect.height / 2;
+    const max = rect.width * 0.31;
+    const length = Math.hypot(x, y);
+    if (length > max) { x *= max / length; y *= max / length; }
+    characterMoveInput = { x: x / max, y: y / max };
+    if (knob) knob.style.transform = `translate(${x}px, ${y}px)`;
+  };
+  characterStick.addEventListener('pointerdown', event => {
+    event.preventDefault();
+    pointer = event.pointerId;
+    characterStick.setPointerCapture(pointer);
+    moveCharacterStick(event);
+  });
+  characterStick.addEventListener('pointermove', event => {
+    if (pointer !== event.pointerId) return;
+    event.preventDefault();
+    moveCharacterStick(event);
+  });
+  const endCharacterMove = event => {
+    if (pointer !== event.pointerId) return;
+    pointer = null;
+    characterMoveInput = { x: 0, y: 0 };
+    if (knob) knob.style.transform = 'translate(0,0)';
+  };
+  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type =>
+    characterStick.addEventListener(type, endCharacterMove)
+  );
+}
+
+const characterAim = $('character-aim-area');
+let characterAimPointer = null;
+let characterPreviousX = 0;
+let characterPreviousY = 0;
+if (characterAim) {
+  characterAim.addEventListener('pointerdown', event => {
+    event.preventDefault();
+    characterAimPointer = event.pointerId;
+    characterPreviousX = event.clientX;
+    characterPreviousY = event.clientY;
+    characterAim.setPointerCapture(characterAimPointer);
+  });
+  characterAim.addEventListener('pointermove', event => {
+    if (characterAimPointer !== event.pointerId) return;
+    event.preventDefault();
+    const dx = event.clientX - characterPreviousX;
+    const dy = event.clientY - characterPreviousY;
+    characterPreviousX = event.clientX;
+    characterPreviousY = event.clientY;
+    characterYaw -= dx * 0.005;
+    characterPitch = THREE.MathUtils.clamp(characterPitch - dy * 0.004, -0.65, 0.65);
+    // Atualiza a orientação imediatamente, mesmo quando o personagem está parado.
+    if (characterModel?.group) characterModel.group.rotation.y = characterYaw;
+  });
+  const endCharacterAim = event => {
+    if (characterAimPointer === event.pointerId) characterAimPointer = null;
+  };
+  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type =>
+    characterAim.addEventListener(type, endCharacterAim)
+  );
+}
+
+$('character-action-btn')?.addEventListener('click', enterPilotMode);
+$('elevator-up-btn')?.addEventListener('click', () => moveElevator(-1));
+$('elevator-down-btn')?.addEventListener('click', () => moveElevator(1));
+
+function closeInventory() {
+  const modal = $('inventory-modal');
+  modal?.classList.add('hidden');
+  modal?.setAttribute('aria-hidden', 'true');
+}
+function openInventory() {
+  const modal = $('inventory-modal');
+  if (!modal) return;
+  modal.classList.remove('hidden');
+  modal.setAttribute('aria-hidden', 'false');
+  showInventoryTab('items');
+}
+function showInventoryTab(tab) {
+  const items = tab === 'items';
+  $('inventory-items-view')?.classList.toggle('hidden', !items);
+  $('inventory-clothing-view')?.classList.toggle('hidden', items);
+  document.querySelectorAll('[data-inventory-tab]').forEach(button => {
+    button.classList.toggle('active', button.dataset.inventoryTab === tab);
+  });
+}
+function renderInventory() {
+  const grid = $('inventory-grid');
+  if (!grid) return;
+  const items = Array.isArray(state.inventory?.items) ? state.inventory.items : [];
+  $('inventory-count').textContent = `${items.length} / 24`;
+  grid.innerHTML = Array.from({ length: 24 }, (_, index) => {
+    const item = items[index];
+    return `<div class="inventory-cell"><span>${item?.name || 'ESPAÇO LIVRE'}</span></div>`;
+  }).join('');
+  const equipment = state.inventory?.equipment || {};
+  ['weapon', 'tool', 'machine'].forEach(slot => {
+    const el = $('quick-' + slot);
+    if (el) el.textContent = equipment[slot] || 'VAZIO';
+  });
+}
+$('inventory-open-btn')?.addEventListener('click', () => {
+  renderInventory();
+  openInventory();
+});
+$('inventory-close-btn')?.addEventListener('click', closeInventory);
+$('inventory-done-btn')?.addEventListener('click', closeInventory);
+document.querySelectorAll('[data-inventory-tab]').forEach(button => {
+  button.addEventListener('click', () => showInventoryTab(button.dataset.inventoryTab));
+});
+$('inventory-modal')?.addEventListener('click', event => {
+  if (event.target.id === 'inventory-modal') closeInventory();
+});
+document.querySelectorAll('[data-slot]').forEach(button => {
+  button.addEventListener('click', () => {
+    document.querySelectorAll('[data-slot]').forEach(slot => slot.classList.remove('selected'));
+    button.classList.add('selected');
+  });
+});
+renderInventory();
+$('leave-pilot-btn')?.addEventListener('click', exitPilotMode);
+
+if ($('character-action-btn')) $('character-action-btn').disabled = true;
+
+// Ao perder foco no Android, zera entradas para impedir joystick ou aceleração presos.
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) resetTransientState();
+});
 
 /* MIRA POR ARRASTO */
 
@@ -1030,11 +1337,20 @@ if (aimArea) {
     previousTouchX = event.clientX;
     previousTouchY = event.clientY;
 
-    state.view.x -= dy * 0.004;
-    state.view.y -= dx * 0.004;
-
-    state.view.x = THREE.MathUtils.clamp(state.view.x, -1.15, 1.15);
-    state.view.y = THREE.MathUtils.clamp(state.view.y, -1.15, 1.15);
+    const nextView = {
+      x: THREE.MathUtils.clamp(state.view.x - dy * 0.004, -1.15, 1.15),
+      // A rotação horizontal é contínua: permite completar voltas de 360°.
+      y: THREE.MathUtils.euclideanModulo(
+        state.view.y - dx * 0.004 + Math.PI,
+        Math.PI * 2
+      ) - Math.PI
+    };
+    if (shipComputer.isTerminalConnected('pilot-console')) {
+      shipComputer.dispatch('pilot-console', 'flight', 'look', nextView);
+    } else {
+      state.view.x = nextView.x;
+      state.view.y = nextView.y;
+    }
   });
 
   const endAim = event => {
@@ -1057,7 +1373,12 @@ function holdButton(id, key) {
   button.addEventListener('pointerdown', event => {
     event.preventDefault();
 
-    state[key] = true;
+    const flightCommand = { throttle: 'throttle', braking: 'brake', nitroButton: 'nitro' }[key];
+    if (flightCommand && shipComputer.isTerminalConnected('pilot-console')) {
+      shipComputer.dispatch('pilot-console', 'flight', flightCommand, true);
+    } else {
+      state[key] = true;
+    }
 
     try {
       button.setPointerCapture(event.pointerId);
@@ -1067,7 +1388,12 @@ function holdButton(id, key) {
   });
 
   const stop = () => {
-    state[key] = false;
+    const flightCommand = { throttle: 'throttle', braking: 'brake', nitroButton: 'nitro' }[key];
+    if (flightCommand && shipComputer.isTerminalConnected('pilot-console')) {
+      shipComputer.dispatch('pilot-console', 'flight', flightCommand, false);
+    } else {
+      state[key] = false;
+    }
   };
 
   ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type => {
@@ -1213,6 +1539,19 @@ $('interact-btn')?.addEventListener('click', () => {
 
 /* MENU DE PAUSA */
 
+$('character-camera-btn')?.addEventListener('click', () => {
+  characterCameraMode = characterCameraMode === 'first-person'
+    ? 'third-person'
+    : 'first-person';
+  updateCharacterCameraButton();
+  if (camera && characterModel) updateCharacterCamera();
+});
+updateCharacterCameraButton();
+
+$('character-menu-btn')?.addEventListener('click', () => {
+  $('game-menu-modal')?.classList.remove('hidden');
+});
+
 $('game-menu-btn')?.addEventListener('click', () => {
   state.throttle = false;
   state.braking = false;
@@ -1227,13 +1566,22 @@ $('resume-btn')?.addEventListener('click', () => {
 });
 
 $('return-menu-btn')?.addEventListener('click', () => {
-  active = false;
+  // Nunca abandonar a sessão enquanto o personagem ainda estiver sentado
+  // no console: libera o terminal, devolve o personagem ao convés e
+  // restaura o HUD a pé antes de ocultar a tela do jogo.
+  if (characterCore.snapshot().mode === 'ship-control') {
+    exitPilotMode();
+  } else {
+    // Recupera também uma eventual conexão órfã do computador da nave.
+    shipComputer.disconnectTerminal('pilot-console');
+  }
 
-  state.throttle = false;
-  state.braking = false;
-  state.nitroButton = false;
-  state.move = { x: 0, y: 0 };
-  state.view = { x: 0, y: 0 };
+  active = false;
+  resetTransientState();
+  characterMoveInput = { x: 0, y: 0 };
+
+  const characterStickKnob = $('character-move-stick')?.querySelector('.character-move-knob');
+  if (characterStickKnob) characterStickKnob.style.transform = 'translate(0,0)';
 
   $('game-menu-modal')?.classList.add('hidden');
 
