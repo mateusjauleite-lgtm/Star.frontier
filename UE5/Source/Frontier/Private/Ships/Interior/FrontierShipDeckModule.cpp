@@ -1,5 +1,6 @@
 #include "Ships/Interior/FrontierShipDeckModule.h"
 #include "Ships/Interior/FrontierShipDeckDefinition.h"
+#include "UObject/ConstructorHelpers.h"
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
 
@@ -23,14 +24,40 @@ void AFrontierShipDeckModule::RebuildFromDefinition()
 
     if (!Definition) return;
 
-    if (Definition->FloorMesh)
+    if (Definition->FloorMesh || Definition->bGenerateDefaultFloor)
     {
         FloorComponent = NewObject<UStaticMeshComponent>(this, TEXT("DeckFloor"));
         FloorComponent->SetupAttachment(DeckRoot);
-        FloorComponent->SetStaticMesh(Definition->FloorMesh);
-        FloorComponent->SetRelativeLocation(Definition->LocalOffset);
-        FloorComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-        FloorComponent->RegisterComponent();
+
+        UStaticMesh* FloorMesh = Definition->FloorMesh;
+        if (!FloorMesh && Definition->bGenerateDefaultFloor)
+            FloorMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
+
+        if (FloorMesh)
+        {
+            FloorComponent->SetStaticMesh(FloorMesh);
+            const FVector LegacyPosition = Definition->LegacyThreePosition;
+            const FVector ConvertedPosition(-LegacyPosition.Z, LegacyPosition.X, LegacyPosition.Y);
+            const FVector FinalLocation = ConvertedPosition * 100.0f + Definition->LocalOffset;
+            FloorComponent->SetRelativeLocation(FinalLocation);
+
+            if (Definition->FloorMesh)
+            {
+                FloorComponent->SetRelativeScale3D(FVector::OneVector);
+            }
+            else
+            {
+                // UE basic cylinder is 100 cm across and 100 cm high.
+                // Scale maps the legacy elliptical deck footprints to UE axes.
+                FloorComponent->SetRelativeScale3D(FVector(
+                    Definition->FloorLengthMeters,
+                    Definition->FloorWidthMeters,
+                    Definition->FloorThicknessMeters));
+            }
+            FloorComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+            FloorComponent->SetCollisionProfileName(TEXT("BlockAll"));
+            FloorComponent->RegisterComponent();
+        }
     }
 
     for (int32 Index = 0; Index < Definition->WallSegments.Num(); ++Index)
