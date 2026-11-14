@@ -57,6 +57,31 @@ EARTH_EXPORT float earth_sample_bilinear(
     return (1.0f - ty) * top + ty * bottom;
 }
 
+
+EARTH_EXPORT void earth_sample_bilinear_batch(
+    const float* values,
+    int width,
+    int height,
+    const float* longitudes,
+    const float* latitudes,
+    float* output,
+    int count,
+    float west,
+    float east,
+    float south,
+    float north,
+    float no_data
+) {
+    if (!values || !longitudes || !latitudes || !output || count < 0 ||
+        width < 2 || height < 2 || !(east > west) || !(north > south)) return;
+    for (int i = 0; i < count; ++i) {
+        output[i] = earth_sample_bilinear(
+            values, width, height, longitudes[i], latitudes[i],
+            west, east, south, north, no_data
+        );
+    }
+}
+
 EARTH_EXPORT float earth_elevation_meters_to_units(
     float elevation_meters,
     float visual_radius_units,
