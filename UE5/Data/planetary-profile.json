@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "1.0.0",
+  "source": "src/world/earth/planetaryProfile.js",
+  "units": {
+    "distance": "kilometres",
+    "gravity": "metres_per_second_squared",
+    "renderScale": "unreal_units_configured_separately"
+  },
+  "earth": {
+    "meanRadiusKm": 6371.0088,
+    "equatorialRadiusKm": 6378.137,
+    "polarRadiusKm": 6356.7523142,
+    "standardGravityMps2": 9.80665
+  },
+  "atmosphereReference": {
+    "referenceHeightKm": 100,
+    "rayleighScaleHeightKm": 8
+  },
+  "rendering": {
+    "visualRadius": 300,
+    "visualRadiusIsPhysical": false,
+    "conversionMustBeExplicit": true
+  },
+  "notes": [
+    "Reference profile for migration; not a complete geophysical simulation.",
+    "Do not replace physical radii with the visual render radius.",
+    "Validate coordinate axes, handedness and GLB scale during import."
+  ]
+}
