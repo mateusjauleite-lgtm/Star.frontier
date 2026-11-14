@@ -1,6 +1,6 @@
 # Legacy Web UI → Unreal Engine 5 migration
 
-Status: **audited; migration specification committed; UI runtime conversion not yet complete**.
+Status: **audited; initial native UMG shell and PlayerController integration committed; Editor/runtime validation pending**.
 
 This document records the actual legacy interface in `index.html`, `style.css`, `src/main.js`, `vite.config.js` and `capacitor.config.json`. The root web files are preserved as reference material. They are not loaded by the UE5 game.
 
@@ -31,7 +31,7 @@ UE5's `Config/DefaultEngine.ini` already sets the Android package name to `com.m
 | Legacy screen / HTML IDs | UE5 destination | Status |
 |---|---|---|
 | Login/profile entry: `login-screen`, `login-name`, `login-pass`, `login-email`, `country`, `login-btn`, `forgot-btn` | `UFrontierMainMenuWidget` profile-name row; future profile/account service remains separate | Initial display-name-only UMG input and handoff event scaffold committed. No password field, authentication, account creation or persistence is implemented. The legacy password field is **not real authentication** and must not be ported as secure login. |
-| Main menu: `menu-screen`, `menu-credits`, `panel-content`, `data-panel` | `UFrontierMainMenuWidget` (native UMG) + future PlayerController/GameInstance navigation | Initial native menu shell and section navigation scaffold committed; not yet spawned by a controller or connected to world startup/profile persistence. |
+| Main menu: `menu-screen`, `menu-credits`, `panel-content`, `data-panel` | `UFrontierMainMenuWidget` (native UMG) + future PlayerController/GameInstance navigation | Initial native menu shell and section navigation scaffold committed; instantiated by `AFrontierPlayerController`. Profile persistence remains outstanding. |
 | Menu panels: play, story, character, ships, shop, settings | Separate UMG panel widgets or data-driven menu entries; gameplay/economy logic stays in its owning systems | Content inventory captured; panel widgets and backend systems remain outstanding. |
 | Character HUD: `character-hud`, movement/look/action/elevator controls | `UFrontierCharacterHUDWidget` | Native UMG C++ scaffold already exists. Preserve the independent left movement and right 360° look zones. |
 | Character inventory: `inventory-modal`, `inventory-grid`, `inventory-clothing-view`, quick equipment slots | `WBP_FrontierInventory` (UMG) + Character inventory/equipment component | Not implemented as a dedicated UE widget. |
@@ -73,8 +73,9 @@ A shared native palette helper, `FFrontierUIStyle`, now centralizes the legacy c
 
 ## Conversion order
 
-1. **Shared UI theme and shell:** [x] add reusable colour/style helpers and a SafeZone-wrapped native menu shell. [ ] verify typography, responsive layout and touch targets in Editor/device; [ ] establish one screen-navigation owner.
-2. **Main menu/profile entry:** [x] add a native UMG menu scaffold with Explore/Story/Character/Ships/Store/Settings navigation and a display-name-only profile input. [ ] connect the widget to PlayerController/GameInstance navigation and a real profile/save layer; [ ] implement each panel; [ ] keep authentication out until a real account service exists.
+1. **Shared UI theme and shell:** [x] add reusable colour/style helpers and a SafeZone-wrapped native menu shell. [ ] verify typography, responsive layout and touch targets in Editor/device.
+2. **Main menu/profile entry:** [x] add native UMG menu scaffold and display-name-only profile input. [x] connect menu lifecycle and section/play delegates to `AFrontierPlayerController`; [ ] add profile persistence, implement each panel and keep authentication out until a real account service exists.
+
 3. **Loading and pause:** bind loading to real UE level/asset progress; preserve the safe pilot-exit sequence.
 4. **Inventory:** move item/equipment data into a Character-owned component and build a separate UMG view.
 5. **Integration:** bind the existing character and ship HUDs to the same shared theme; do not merge their ownership.
@@ -94,7 +95,7 @@ Committed native source files:
 - `Source/Frontier/Public/Main/FrontierMainMenuWidget.h` and `Private/Main/FrontierMainMenuWidget.cpp` — native main-menu shell, SafeZone wrapper, section navigation, display-name input and Blueprint handoff events.
 - Character and ship HUD button/touch-surface colours now use the shared style helper; their input and gameplay ownership remain unchanged.
 
-The menu widget is not yet instantiated by a PlayerController, GameMode or startup flow. Its Blueprint events are extension points, not connected game actions. The profile name is only forwarded to the event; it is not saved or authenticated. The Play event does not yet load a map or alter GameMode. No `.uasset` or Blueprint asset was fabricated.
+The menu widget is instantiated by `AFrontierPlayerController`; the controller binds profile/section/play delegates and is selected by the Main GameMode. Explore closes the overlay and restores gameplay input; it does not load a second map. Profile name remains an event-only value, not saved or authenticated. No `.uasset` or Blueprint asset was fabricated.
 
 ## Explicit non-goals
 
