@@ -6,6 +6,7 @@
 #include "FrontierPilotStation.generated.h"
 
 class AFrontierShip;
+class USphereComponent;
 
 UCLASS(Blueprintable)
 class FRONTIER_API AFrontierPilotStation : public AActor, public IFrontierInteractable
@@ -17,6 +18,9 @@ public:
 
     UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category="Ship|Bridge")
     TObjectPtr<AFrontierShip> OwningShip;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Ship|Bridge")
+    TObjectPtr<USphereComponent> InteractionVolume;
 
     UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category="Ship|Bridge")
     FName CommanderId = TEXT("player-commander");
