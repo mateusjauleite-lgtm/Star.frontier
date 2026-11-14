@@ -784,6 +784,11 @@ function isCharacterPositionBlocked(position, deckIndex) {
   const deck = starshipInterior?.layout?.decks?.[deckIndex];
   if (!deck) return true;
 
+  // A ponte D1 é uma área de circulação aberta. Seu perímetro já é
+  // controlado pelo limite elíptico do convés; as caixas das anteparas
+  // antigas estavam gerando bloqueios falsos no caminho até o console.
+  if (deck.id === 'D1') return false;
+
   const playerRadius = 0.48;
   const feetY = deck.y + 0.21;
   for (const wall of starshipInterior.collisionBoxes || []) {
