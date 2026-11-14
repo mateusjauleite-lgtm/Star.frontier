@@ -13,6 +13,21 @@ AFrontierShipElevator::AFrontierShipElevator()
     InteractionVolume->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
     InteractionVolume->SetCollisionResponseToAllChannels(ECR_Ignore);
     InteractionVolume->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+
+    Stops.Add({ TEXT("D1"), FVector(0.0f, 8.93f, 25.0f) });
+    Stops.Add({ TEXT("D2"), FVector(0.0f, 3.13f, 25.0f) });
+    Stops.Add({ TEXT("D3"), FVector(0.0f, -2.67f, 25.0f) });
+    Stops.Add({ TEXT("D4"), FVector(0.0f, -8.47f, 25.0f) });
+}
+
+void AFrontierShipElevator::BeginPlay()
+{
+    Super::BeginPlay();
+    if (OwningShip)
+    {
+        AttachToActor(OwningShip, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+        SetActorRelativeLocation(AFrontierShip::ThreeToUnrealLocalPosition(FVector(0.0f, 0.0f, 25.0f)));
+    }
 }
 
 bool AFrontierShipElevator::MoveCharacterToDeck(AActor* Character, FName DeckCode)
