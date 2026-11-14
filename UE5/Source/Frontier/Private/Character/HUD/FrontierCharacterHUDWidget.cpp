@@ -15,6 +15,24 @@
 #include "EngineUtils.h"
 #include "Math/RotationMatrix.h"
 
+namespace
+{
+    UButton* AddHUDButton(UCanvasPanel* Canvas, UWidgetTree* Tree, const TCHAR* Label,
+        FVector2D Position, FVector2D Size, FAnchors Anchors)
+    {
+        UButton* Button = Tree->ConstructWidget<UButton>(UButton::StaticClass());
+        UTextBlock* Text = Tree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+        Text->SetText(FText::FromString(Label));
+        Text->SetJustification(ETextJustify::Center);
+        Button->AddChild(Text);
+        UCanvasPanelSlot* Slot = Canvas->AddChildToCanvas(Button);
+        Slot->SetAnchors(Anchors);
+        Slot->SetPosition(Position);
+        Slot->SetSize(Size);
+        return Button;
+    }
+}
+
 void UFrontierCharacterHUDWidget::NativeConstruct()
 {
     Super::NativeConstruct();
@@ -47,7 +65,7 @@ void UFrontierCharacterHUDWidget::BuildNativeLayout()
     AddPad(FVector2D(-210.0f, -210.0f), FAnchors(1.0f, 1.0f, 1.0f, 1.0f), TEXT("CÂMERA 360°"));
 
     const FAnchors BottomRight(1.0f, 1.0f);
-    if (UButton* Jump = AddHUDButton(Canvas, TEXT("PULO"), FVector2D(-300.0f, -118.0f), FVector2D(82.0f, 58.0f), BottomRight))
+    if (UButton* Jump = AddHUDButton(Canvas, WidgetTree, TEXT("PULO"), FVector2D(-300.0f, -118.0f), FVector2D(82.0f, 58.0f), BottomRight))
         Jump->OnClicked.AddDynamic(this, &UFrontierCharacterHUDWidget::OnJumpPressed);
     if (UButton* Action = AddHUDButton(Canvas, this, TEXT("AÇÃO"), FVector2D(-205.0f, -118.0f), FVector2D(82.0f, 58.0f), BottomRight))
         Action->OnClicked.AddDynamic(this, &UFrontierCharacterHUDWidget::OnInteractPressed);
