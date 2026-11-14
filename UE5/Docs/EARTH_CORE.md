@@ -57,3 +57,18 @@ Initialization rejects missing/invalid profiles and mismatched planetary referen
 5. Add automated tests and verify in UE 5.8 Editor and Android device profile.
 
 The legacy Three.js modules remain reference material only. Do not add Three.js runtime dependencies to the UE5 module.
+
+## Canonical Earth Data Asset paths
+
+The UE5.8 Editor authoring script is `UE5/Content/Editor/Python/create_earth_profile_assets.py`. Run it only after compiling/loading the Frontier module.
+
+It reuses these canonical paths and updates an existing asset in place; it creates only if the path is absent:
+
+- `/Game/StarFrontier/Worlds/Earth/DA_Earth_PlanetaryProfile`
+- `/Game/StarFrontier/Worlds/Earth/DA_Earth_AtmosphereClimate`
+
+The Planetary asset reads its radii and gravity from the existing `UE5/Data/planetary-profile.json`. The Atmosphere asset ports the vertical layer boundaries and standard-atmosphere reference calculation from `src/world/earth/modules/runtime/atmosphereModel.js`, with the pressure scale-height approximation required by the existing UE5 subsystem. Gas composition is a dry-air baseline; the climate values are an initial baseline, not a weather simulation.
+
+The four existing ship-deck Data Asset definitions (D1–D4) are a separate Ship Core concern. Their idempotent authoring script remains `UE5/Content/Editor/Python/create_ship_deck_assets.py`; do not recreate or rename those assets as part of Earth Core.
+
+No binary `.uasset` files are committed in the migration branch. The scripts author the assets inside the local Unreal project Content folder when run in the UE5.8 Editor. After running, assign the two Earth assets to the corresponding properties on the `AFrontierEarth` actor instance/Blueprint and save the project assets.
