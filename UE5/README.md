@@ -68,6 +68,7 @@ The authoritative ownership map is [CORE_SYSTEMS_MAP.md](Docs/CORE_SYSTEMS_MAP.m
 - Initial Atmosphere & Climate Core source scaffold is committed: gas composition, atmospheric layer definitions, climate baseline, a profile Data Asset linked to Planetary Core, and a World Subsystem for pressure/temperature/density sampling. Its model is a deterministic approximation and has not been compiled or tested.
 - Frontier module rules and module entry point are committed.
 - The UE 5.8 project descriptor and game/editor targets are present, but the C++ has not yet been compiled by Unreal Build Tool or validated in Unreal Editor.
+- Initial native UMG UI source is committed: shared `FFrontierUIStyle`, `UFrontierMainMenuWidget` with six navigation sections and display-name-only entry, and shared palette use in the existing character/ship HUDs. The menu is not yet wired into a PlayerController or startup flow; no profile persistence or authentication is implemented.
 - The initial `.umap` must still be generated in Editor; authored Niagara assets and a packaged UE5 game have not yet been produced.
 - The UE5 Android workflow is authored but has not been run; no self-hosted runner or Android APK build has been verified.
 
@@ -77,10 +78,12 @@ The authoritative ownership map is [CORE_SYSTEMS_MAP.md](Docs/CORE_SYSTEMS_MAP.m
 - `Docs/MIGRATION_PLAN.md` — migration phases and acceptance gates.
 - `Docs/THREE_TO_UE5_MAP.md` — legacy implementation to UE5 mapping.
 - `Docs/LEGACY_UI_MIGRATION.md` — audit of the legacy HTML/CSS/JS screens and the native UMG conversion map.
+- `Source/Frontier/Public/UI/FrontierUIStyle.h` — shared UMG palette/style helpers.
+- `Source/Frontier/Public/Main/FrontierMainMenuWidget.h` — native main-menu shell and UI-to-gameplay events.
 - `Data/planetary-profile.json` — engine-neutral Earth reference data.
 - `Docs/ATMOSPHERE_CLIMATE_CORE.md` — Atmosphere & Climate Core architecture, units, current model and validation gates.
 - `Source/Frontier/` — native UE5 C++ module and core implementations.
 
 ## UI migration status
 
-The legacy `index.html`, `style.css`, `src/main.js`, Vite and Capacitor files have been audited. They remain preserved as reference material; they are not UE5 runtime dependencies. Character and ship HUD native UMG C++ scaffolds already exist. Login/profile entry, main menu panels, inventory, loading, pause and notifications still require dedicated UMG implementation. See [LEGACY_UI_MIGRATION.md](Docs/LEGACY_UI_MIGRATION.md). The legacy password field is only a local demo check, not secure account authentication.
+The legacy `index.html`, `style.css`, `src/main.js`, Vite and Capacitor files have been audited. They remain preserved as reference material; they are not UE5 runtime dependencies. Character and ship HUD native UMG C++ scaffolds already exist. The first native main-menu/profile-name shell is now committed but not yet integrated into startup; profile persistence/authentication, the individual menu panels, inventory, loading, pause and notifications still require implementation. See [LEGACY_UI_MIGRATION.md](Docs/LEGACY_UI_MIGRATION.md). The legacy password field is only a local demo check, not secure account authentication.
