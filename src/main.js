@@ -828,12 +828,13 @@ function isCharacterInsideDeck(position, deckIndex) {
   const deck = starshipInterior?.layout?.decks?.[deckIndex];
   if (!deck) return false;
 
-  // Medidas reais dos pisos elípticos (largura, comprimento), centrados em Z=-2.
+  // Medidas dos pisos elípticos (largura, comprimento e centro longitudinal).
   const footprints = {
-    D1: [50, 82],
-    D2: [50, 94],
-    D3: [53, 102],
-    D4: [35, 58]
+    D1: [50, 82, -2],
+    D2: [50, 94, -2],
+    D3: [53, 102, -2],
+    // D4 acompanha a pista de hangar até a abertura traseira.
+    D4: [48, 110, 5.5]
   };
   const footprint = footprints[deck.id];
   if (!footprint) return false;
