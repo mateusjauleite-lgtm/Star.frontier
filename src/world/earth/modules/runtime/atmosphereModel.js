@@ -12,9 +12,9 @@ export const EARTH_ATMOSPHERE_TOP_KM = 10000;
 
 // Logarithmic display mapping keeps the 300-unit Earth playable while
 // preserving exact physical altitude in the simulation data.
-export function atmosphereAltitudeToVisualKm(altitudeKm) {
+export function atmosphereAltitudeToVisualKm(altitudeKm, visualRadiusUnits = 300) {
   const altitude = Math.max(0, Math.min(EARTH_ATMOSPHERE_TOP_KM, altitudeKm));
-  const visualExtent = 160;
+  const visualExtent = visualRadiusUnits * (160 / 300);
   return visualExtent * Math.log1p(altitude / 12) /
     Math.log1p(EARTH_ATMOSPHERE_TOP_KM / 12);
 }
