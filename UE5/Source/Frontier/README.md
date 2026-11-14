@@ -48,6 +48,27 @@ The native character actor uses a dedicated Character Movement Component subclas
 
 This is a source scaffold, not a finished playable character. Input assets, skeletal mesh/rig, Animation Blueprint, HUD Blueprint and ship-seat handoff still need Editor-side setup and validation.
 
+## Implemented source scaffold: Ship Core
+
+```text
+Ships/
+  Core/ FrontierShip.h/.cpp
+  Exploration/ FrontierShipExplorationProfile.h; FrontierShipExplorationHullComponent.h/.cpp
+  Interior/ FrontierShipDeckDefinition.h; FrontierShipDeckModule.h/.cpp; FrontierShipInteriorComponent.h/.cpp; FrontierShipElevator.h/.cpp
+  Bridge/ FrontierPilotStation.h/.cpp
+  Computer/ FrontierShipComputerComponent.h/.cpp
+  Engines/ FrontierShipEngineComponent.h/.cpp
+  Camera/ FrontierShipCameraBoom.h/.cpp
+  Controls/ FrontierShipControlsComponent.h/.cpp
+  PlayerShip/ FrontierPlayerShipSubsystem.h/.cpp
+```
+
+The Ship Core owns ShipId, CommanderId, flight state and its feature components. The exploration hull is assembled from a profile of independently transformed mesh parts. Decks are separate actors driven by Data Assets; wall pieces have individual transforms and collision flags, with protected hangar/elevator clearance volumes. The elevator routes among the four original deck stops. The bridge pilot station enters Ship Core piloting, attaches the character to the ship's local frame, switches the view target and registers the current player ship. The computer has terminal permissions and navigation telemetry; engines and controls are separate components.
+
+The legacy ship used Three.js Y-up coordinates and metre-like source units. The migration helper converts local positions to UE5 X-forward/Z-up centimetres: UE X = -legacy Z, UE Y = legacy X, UE Z = legacy Y, multiplied by 100. Imported hull/deck assets must follow this convention or provide an explicit import transform.
+
+This remains a source scaffold. The actual hull/deck mesh assets, deck Data Assets, terminal permissions, Enhanced Input/UI bindings and editor-side layout still need to be authored and validated.
+
 ## Remaining established cores and branches
 
 ```text
@@ -64,7 +85,6 @@ Ships/
   Core/
   Exploration/
   Interior/
-  Decks/
   Bridge/
   Computer/
   Engines/
@@ -114,4 +134,4 @@ Interop/
 
 ## Validation status
 
-Planetary Core and the first Character Core source scaffold are committed but have **not** yet been compiled with Unreal Build Tool or tested in Editor. No runnable `.uproject` or packaged game is claimed to exist.
+Planetary Core, the first Character Core slice and the first Ship Core slice are committed but have **not** yet been compiled with Unreal Build Tool or tested in Editor. No runnable `.uproject` or packaged game is claimed to exist.
