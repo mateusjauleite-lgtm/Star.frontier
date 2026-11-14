@@ -10,7 +10,21 @@
     "meanRadiusKm": 6371.0088,
     "equatorialRadiusKm": 6378.137,
     "polarRadiusKm": 6356.7523142,
-    "standardGravityMps2": 9.80665
+    "standardGravityMps2": 9.80665,
+    "rotation": {
+      "siderealRotationPeriodSeconds": 86164.0905,
+      "axialTiltDegrees": 23.4392811,
+      "direction": "Prograde"
+    },
+    "altitudeReference": {
+      "referenceAltitudeKm": 0,
+      "referenceDatum": "MeanSurface"
+    },
+    "coordinates": {
+      "convention": "LatitudeLongitudeAltitude",
+      "bodyFixedFrame": "BodyFixed",
+      "longitudeEastPositive": true
+    }
   },
   "atmosphereReference": {
     "referenceHeightKm": 100,
