@@ -2,84 +2,86 @@
 
 ## Goal
 
-Create a parallel Unreal Engine 5 implementation while preserving the current Three.js game as the behavioral and visual reference. The migration is incremental, testable and reversible.
+Migrate the existing Star Frontier cores and their branches into Unreal Engine 5 while preserving the Three.js implementation as the reference baseline. This is a parallel, incremental and reversible port—not a redesign of the game's architecture.
 
-## Phase 0 — Baseline and contract
+The authoritative ownership map is [CORE_SYSTEMS_MAP.md](CORE_SYSTEMS_MAP.md).
+
+## Phase 0 — Core and branch alignment
 
 - [x] Create a dedicated migration branch from `feature/character-core`.
-- [x] Preserve the current Three.js implementation.
-- [x] Reuse the engine-neutral planetary profile and UE5 interchange contract.
-- [ ] Inventory existing ship, character, Earth and HUD behavior from the current implementation.
-- [ ] Confirm the installed UE5 version and target device/toolchain before generating engine project files.
+- [x] Preserve the existing Three.js implementation.
+- [x] Reuse the planetary profile and UE5 interchange contract.
+- [x] Inventory Character Core, Ship Core, Earth Core and their existing branches.
+- [x] Register Planetary Core, Atmosphere & Climate Core and Geology & Biomes Core as shared domain cores.
+- [ ] Validate remaining system branches against the registry as they are migrated.
 
-## Phase 1 — UE5 project foundation
+## Phase 1 — Planetary Core
 
-- Create a UE5 Games project with C++ support and Blueprint authoring.
-- Start with a mobile renderer profile; do not assume desktop Lumen/Nanite settings are suitable for Android.
-- Configure Android SDK/NDK, packaging and device deployment only after checking the local UE5 version requirements.
-- Establish content folders and naming conventions before importing assets.
-- Keep project configuration and platform-specific settings under source control.
+- Port the engine-neutral planetary profile first.
+- Preserve physical units independently from Unreal visual scale.
+- Separate body identity, dimensions, gravity, rotation/orientation and coordinate rules.
+- Make Earth one profile using the existing measured reference values; future planets receive their own profiles.
+- Add a UE5 Data Asset or subsystem adapter only after the data contract is stable.
 
-**Exit gate:** empty project opens, builds and launches on the target device with a stable frame-time baseline.
+**Exit gate:** Earth profile loads in UE5 without changing its physical values; visual scale conversion is explicit and tested.
 
-## Phase 2 — Character vertical slice
+## Phase 2 — Character Core and branches
 
-Implement and validate:
+Existing branches: model, animation and HUD; core state is in `src/character/characterCore.js`.
+
+Port:
+- Character state/mode contract.
 - Third-person camera above and behind the character.
-- 360-degree camera/aim control with separate movement and look input.
-- Compact character HUD with movement, action and aim controls.
-- Interaction target and world-context labels.
-- Character HUD hidden while seated in the ship pilot seat.
-- Input mapping separated from HUD presentation.
+- 360-degree look/aim, independent movement and look input.
+- Compact HUD with movement, action, aim and interaction feedback.
+- Hide the on-foot HUD while seated at a ship pilot station.
 
-**Exit gate:** movement, camera, aim and HUD behave consistently in a small test room on the target device.
+**Exit gate:** character behavior matches the existing core contract in a small UE5 test map.
 
-## Phase 3 — Modular ship
+## Phase 3 — Ship Core and branches
 
-Proposed actor/component boundaries:
-- `BP_ShipRoot`: ship identity, commander identity and shared systems.
-- `BP_ShipHull`: exterior hull and collision shell.
-- `BP_ShipDeck`: one actor/level instance per deck.
-- `BP_ShipWallModule`: independent wall segments and openings.
-- `BP_ShipDoor`: door animation and access state.
-- `BP_ShipElevator`: elevator movement and deck routing.
-- `BP_Hangar`: hangar volume, clearance and access boundaries.
-- `BP_Bridge`: bridge stations and pilot interaction.
-- `BP_PilotSeat`: enter/exit state, pilot camera and HUD switching.
+Preserve the existing ship branch ownership: exploration hull, interior/decks, bridge, computer, engines, camera, controls and player-ship association.
 
-Walls must not be baked into a single deck mesh where they block the hangar or elevator. Keep wall segments, doorways and collision independently selectable and testable. Use Level Instances or reusable Blueprint actors for repeated modules.
+- Keep ShipId and CommanderId owned by Ship Core.
+- Keep each deck independently loadable/editable.
+- Keep walls, openings, doors, elevator and collision as independent modules.
+- Deck 1 remains the command bridge; Deck 2 operations/science; Deck 3 engineering; Deck 4 hangar/support.
+- Protect the Deck 4 hangar opening and Deck 2 elevator access from wall/collision overlap.
+- Pilot-seat interaction changes Character Core mode and camera/HUD presentation without moving ship state into Character Core.
 
-**Exit gate:** Deck 1 bridge and one additional deck load independently; hangar/elevator openings remain clear; collision and navigation paths are verified.
+**Exit gate:** Deck 1 bridge and other decks load as separate modules; hangar and elevator circulation are unobstructed.
 
-## Phase 4 — Earth prototype
+## Phase 4 — Earth Core and domain branches
 
-- Import `Data/planetary-profile.json` as engine-neutral reference data.
-- Keep physical radius in kilometres separate from visual render scale.
-- Begin with a low-detail cube-sphere or equivalent spherical mesh and local coordinate frame.
-- Add surface imagery and terrain only after the sphere, scale and camera precision are validated.
-- Rebuild atmosphere, clouds and lighting with UE5-native rendering systems.
-- Stream regional detail; do not load a full-resolution planet at once.
+Earth Core v1.6.0 remains the orchestrator of seven branches: interior, surface, terrain, oceans, atmosphere, clouds and lighting.
 
-**Exit gate:** stable orbit/approach camera, consistent scale conversion and acceptable device memory/frame time.
+- Planetary Core supplies physical body data and coordinate rules.
+- Atmosphere & Climate Core owns scientific atmosphere/climate data; Sky Atmosphere and cloud rendering are replaceable UE5 branches.
+- Geology & Biomes Core owns geological/ecological domain data; terrain, surface and oceans remain distinct Earth branches.
+- Keep the seven Earth branches independently testable and replaceable.
+- Prototype spherical geometry and local tile coordinates before regional detail/streaming.
 
-## Phase 5 — Integration and migration
+**Exit gate:** Earth Core composes the seven branches using the shared domain cores; scale and module lifecycle are validated.
 
-- Compare behavior against the Three.js baseline.
+## Phase 5 — Integration and target-device validation
+
+- Compare each UE5 core against its Three.js baseline and behavior contract.
 - Validate asset rights and GLB round-trip fidelity.
 - Profile CPU, GPU, memory, thermal behavior and battery on the target Android device.
-- Keep a fallback quality tier and a route back to the existing implementation.
-- Only then decide whether UE5 becomes the primary runtime.
+- Keep rendering quality tiers and the existing Three.js baseline until the UE5 build is proven.
 
-## Non-goals for the first prototype
+**Exit gate:** core-level tests pass and the integrated build meets agreed target-device performance.
+
+## Non-goals for the first port
 
 - Full Earth geophysics or climate simulation.
-- Full ship interior art pass.
-- High-end desktop rendering features before mobile profiling.
-- Automatic conversion of Three.js JavaScript into Unreal C++/Blueprints.
+- Full ship interior art pass before modular geometry is stable.
+- High-end desktop rendering features before Android profiling.
+- Automatic conversion of JavaScript into Unreal C++/Blueprints.
 
-## Current known risks
+## Current risks
 
-1. UE5 editor and Android packaging requirements may exceed the available development machine/device workflow.
-2. A global spherical world needs a planetary coordinate/streaming design; World Partition alone does not make a spherical planet.
-3. High-end rendering features can exceed the Galaxy A34 budget.
-4. Asset scale, axes and material conversion must be validated in a small test scene before bulk import.
+1. UE5 editor and Android packaging requirements depend on the installed engine/toolchain.
+2. Planet-scale spherical streaming needs a dedicated coordinate/tile design; World Partition alone does not solve a spherical planet.
+3. High-end rendering features can exceed the target Android budget.
+4. Asset scale, axes and materials must be validated before bulk import.
