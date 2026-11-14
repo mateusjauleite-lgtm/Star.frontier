@@ -22,6 +22,7 @@ export function createTerrainRuntime({ group, options, layers }) {
         positions.setXYZ(i, vertex.x * (options.radius + elevation), vertex.y * (options.radius + elevation), vertex.z * (options.radius + elevation));
       }
       geometry.computeVertexNormals();
+      geometry.computeBoundingSphere();
       material = new THREE.MeshStandardMaterial({
         color: 0xffffff, transparent: true, opacity: .075,
         roughness: 1, metalness: 0, depthWrite: false,
@@ -33,7 +34,7 @@ export function createTerrainRuntime({ group, options, layers }) {
       group.add(mesh);
       layers.terrain = mesh;
     },
-    update() { if (mesh && layers.surface) mesh.rotation.copy(layers.surface.rotation); }
+    update() { if (mesh && layers.surface) mesh.rotation.copy(layers.surface.rotation); },
     dispose() { if (mesh) group.remove(mesh); geometry?.dispose(); material?.dispose(); }
   };
 }
