@@ -9,7 +9,9 @@ public class Frontier : ModuleRules
         {
             "Core",
             "CoreUObject",
-            "Engine"
+            "Engine",
+            "EnhancedInput",
+            "UMG"
         });
     }
 }
