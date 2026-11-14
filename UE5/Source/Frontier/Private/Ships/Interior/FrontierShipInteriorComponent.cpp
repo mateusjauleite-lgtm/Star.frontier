@@ -1,5 +1,7 @@
 #include "Ships/Interior/FrontierShipInteriorComponent.h"
 #include "Ships/Interior/FrontierShipDeckModule.h"
+#include "Ships/Interior/FrontierShipElevator.h"
+#include "Ships/Core/FrontierShip.h"
 #include "Ships/Interior/FrontierShipDeckDefinition.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
@@ -9,6 +11,8 @@ void UFrontierShipInteriorComponent::BeginPlay()
     Super::BeginPlay();
     if (bBuildMissingDeckModulesOnBeginPlay)
         BuildMissingDeckModules();
+
+    EnsureElevator();
 }
 
 AFrontierShipDeckModule* UFrontierShipInteriorComponent::FindDeck(FName DeckCode) const
@@ -49,4 +53,29 @@ int32 UFrontierShipInteriorComponent::BuildMissingDeckModules()
     }
 
     return CreatedCount;
+}
+
+AFrontierShipElevator* UFrontierShipInteriorComponent::EnsureElevator()
+{
+    AFrontierShip* ShipOwner = Cast<AFrontierShip>(GetOwner());
+    UWorld* World = GetWorld();
+    if (!ShipOwner || !World) return nullptr;
+
+    if (IsValid(ElevatorActor))
+    {
+        ElevatorActor->InitializeForShip(ShipOwner);
+        return ElevatorActor;
+    }
+
+    FActorSpawnParameters SpawnParameters;
+    SpawnParameters.Owner = ShipOwner;
+    SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+    ElevatorActor = World->SpawnActor<AFrontierShipElevator>(
+        AFrontierShipElevator::StaticClass(), ShipOwner->GetActorTransform(), SpawnParameters);
+
+    if (ElevatorActor)
+        ElevatorActor->InitializeForShip(ShipOwner);
+
+    return ElevatorActor;
 }
