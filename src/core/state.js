@@ -22,6 +22,20 @@ export const state = {
   move: { x: 0, y: 0 },
   view: { x: 0, y: 0 },
   miningDrill: 'Broca básica',
+  inventory: {
+    items: [],
+    equipment: {
+      suit: 'Traje de exploração básico',
+      helmet: null,
+      torso: null,
+      gloves: null,
+      legs: null,
+      boots: null,
+      weapon: null,
+      tool: null,
+      machine: null
+    }
+  },
   settings: {
     quality: 'Média',
     music: 40,
