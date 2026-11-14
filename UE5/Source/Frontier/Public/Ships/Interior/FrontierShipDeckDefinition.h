@@ -54,6 +54,23 @@ public:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Ship|Deck")
     FVector LocalOffset = FVector::ZeroVector;
 
+    // Source layout is retained in legacy Three.js coordinates (metres).
+    // Deck modules convert it to UE5 X-forward, Z-up centimetres at runtime.
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Ship|Deck|Layout")
+    FVector LegacyThreePosition = FVector(0.0f, 8.7f, -2.0f);
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Ship|Deck|Layout")
+    float FloorWidthMeters = 50.0f;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Ship|Deck|Layout")
+    float FloorLengthMeters = 82.0f;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Ship|Deck|Layout")
+    float FloorThicknessMeters = 0.42f;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Ship|Deck|Layout")
+    bool bGenerateDefaultFloor = true;
+
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Ship|Deck")
     bool bKeepHangarExitClear = false;
 
