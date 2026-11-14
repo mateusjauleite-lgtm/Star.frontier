@@ -1,0 +1,179 @@
+#include "Character/Core/FrontierCharacter.h"
+#include "Character/Core/FrontierCharacterStateComponent.h"
+#include "Character/Model/FrontierCharacterPresentationData.h"
+#include "Character/HUD/FrontierCharacterHUDWidget.h"
+#include "Character/Interaction/FrontierInteractable.h"
+#include "Camera/CameraComponent.h"
+#include "GameFramework/SpringArmComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "Components/CapsuleComponent.h"
+#include "EnhancedInputComponent.h"
+#include "EnhancedInputSubsystems.h"
+#include "InputActionValue.h"
+#include "Engine/LocalPlayer.h"
+
+AFrontierCharacter::AFrontierCharacter()
+{
+    PrimaryActorTick.bCanEverTick = false;
+
+    CharacterState = CreateDefaultSubobject<UFrontierCharacterStateComponent>(TEXT("CharacterState"));
+
+    CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CharacterCameraBoom"));
+    CameraBoom->SetupAttachment(RootComponent);
+    CameraBoom->TargetArmLength = 320.0f;
+    CameraBoom->SocketOffset = FVector(0.0f, 48.0f, 62.0f);
+    CameraBoom->bUsePawnControlRotation = true;
+    CameraBoom->bEnableCameraLag = true;
+    CameraBoom->CameraLagSpeed = 12.0f;
+    CameraBoom->bDoCollisionTest = true;
+
+    FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("CharacterFollowCamera"));
+    FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
+    FollowCamera->bUsePawnControlRotation = false;
+
+    bUseControllerRotationPitch = false;
+    bUseControllerRotationYaw = false;
+    bUseControllerRotationRoll = false;
+
+    if (UCharacterMovementComponent* Movement = GetCharacterMovement())
+    {
+        Movement->bOrientRotationToMovement = true;
+        Movement->RotationRate = FRotator(0.0f, 540.0f, 0.0f);
+        Movement->MaxWalkSpeed = 420.0f;
+        Movement->JumpZVelocity = 460.0f;
+        Movement->AirControl = 0.35f;
+    }
+}
+
+void AFrontierCharacter::BeginPlay()
+{
+    Super::BeginPlay();
+    ApplyPresentation();
+
+    if (CharacterHUDClass)
+    {
+        CharacterHUD = CreateWidget<UFrontierCharacterHUDWidget>(GetWorld(), CharacterHUDClass);
+        if (CharacterHUD)
+        {
+            CharacterHUD->AddToViewport();
+            CharacterHUD->ObserveCharacter(CharacterState);
+        }
+    }
+
+    if (APlayerController* PC = Cast<APlayerController>(GetController()))
+    {
+        if (ULocalPlayer* LocalPlayer = PC->GetLocalPlayer())
+        {
+            if (UEnhancedInputLocalPlayerSubsystem* InputSubsystem =
+                LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
+            {
+                if (DefaultMappingContext)
+                {
+                    InputSubsystem->AddMappingContext(DefaultMappingContext, 0);
+                }
+            }
+        }
+    }
+}
+
+void AFrontierCharacter::ApplyPresentation()
+{
+    if (!PresentationData) return;
+
+    if (PresentationData->ExplorationSuitMesh)
+    {
+        GetMesh()->SetSkeletalMesh(PresentationData->ExplorationSuitMesh);
+    }
+    if (PresentationData->AnimationClass)
+    {
+        GetMesh()->SetAnimInstanceClass(PresentationData->AnimationClass);
+    }
+    for (int32 Index = 0; Index < PresentationData->SuitMaterials.Num(); ++Index)
+    {
+        GetMesh()->SetMaterial(Index, PresentationData->SuitMaterials[Index]);
+    }
+    GetCapsuleComponent()->SetCapsuleHalfHeight(PresentationData->CapsuleHalfHeightCm);
+}
+
+void AFrontierCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
+{
+    Super::SetupPlayerInputComponent(PlayerInputComponent);
+
+    UEnhancedInputComponent* EnhancedInput = Cast<UEnhancedInputComponent>(PlayerInputComponent);
+    if (!EnhancedInput) return;
+
+    if (MoveAction)
+        EnhancedInput->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AFrontierCharacter::Move);
+    if (LookAction)
+        EnhancedInput->BindAction(LookAction, ETriggerEvent::Triggered, this, &AFrontierCharacter::Look);
+    if (JumpAction)
+    {
+        EnhancedInput->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
+        EnhancedInput->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
+    }
+    if (InteractAction)
+        EnhancedInput->BindAction(InteractAction, ETriggerEvent::Started, this, &AFrontierCharacter::Interact);
+}
+
+void AFrontierCharacter::Move(const FInputActionValue& Value)
+{
+    if (!CharacterState || CharacterState->State.Mode != EFrontierCharacterMode::OnFoot) return;
+
+    const FVector2D Input = Value.Get<FVector2D>();
+    CharacterState->SetMovementInput(Input);
+
+    if (!Controller) return;
+    const FRotator YawRotation(0.0f, Controller->GetControlRotation().Yaw, 0.0f);
+    AddMovementInput(FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X), Input.Y);
+    AddMovementInput(FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y), Input.X);
+}
+
+void AFrontierCharacter::Look(const FInputActionValue& Value)
+{
+    if (!CharacterState || CharacterState->State.Mode != EFrontierCharacterMode::OnFoot) return;
+
+    const FVector2D Input = Value.Get<FVector2D>();
+    CharacterState->SetLookInput(Input);
+    AddControllerYawInput(Input.X);
+    AddControllerPitchInput(Input.Y);
+}
+
+void AFrontierCharacter::Interact()
+{
+    if (!CharacterState || CharacterState->State.Mode != EFrontierCharacterMode::OnFoot) return;
+
+    FHitResult Hit;
+    const FVector Start = FollowCamera->GetComponentLocation();
+    const FVector End = Start + FollowCamera->GetForwardVector() * 350.0f;
+    FCollisionQueryParams Params(SCENE_QUERY_STAT(CharacterInteract), false, this);
+
+    if (GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Params))
+    {
+        AActor* Target = Hit.GetActor();
+        if (Target && Target->GetClass()->ImplementsInterface(UFrontierInteractable::StaticClass()))
+        {
+            if (IFrontierInteractable::Execute_CanBeInteractedWith(Target, this))
+            {
+                CharacterState->SetInteractionTarget(Target->GetFName());
+                IFrontierInteractable::Execute_Interact(Target, this);
+            }
+        }
+    }
+}
+
+void AFrontierCharacter::EnterShipControlMode()
+{
+    if (!CharacterState) return;
+    CharacterState->SetMode(EFrontierCharacterMode::ShipControl);
+    GetCharacterMovement()->StopMovementImmediately();
+    GetCharacterMovement()->DisableMovement();
+    CameraBoom->TargetArmLength = 0.0f;
+}
+
+void AFrontierCharacter::LeaveShipControlMode()
+{
+    if (!CharacterState) return;
+    CharacterState->SetMode(EFrontierCharacterMode::OnFoot);
+    GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+    CameraBoom->TargetArmLength = 320.0f;
+}
