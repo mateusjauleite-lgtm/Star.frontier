@@ -13,8 +13,8 @@ export function createAtmosphereRuntime({ group, options, layers }) {
     initialize() {
       const radius = options.radius;
       for (const layer of EARTH_ATMOSPHERE_LAYERS) {
-        const innerOffset = atmosphereAltitudeToVisualKm(layer.lowerKm);
-        const outerOffset = atmosphereAltitudeToVisualKm(layer.upperKm);
+        const innerOffset = atmosphereAltitudeToVisualKm(layer.lowerKm, radius);
+        const outerOffset = atmosphereAltitudeToVisualKm(layer.upperKm, radius);
         const geometry = new THREE.SphereGeometry(radius + outerOffset, 96, 64);
         const material = new THREE.ShaderMaterial({
           uniforms: {
