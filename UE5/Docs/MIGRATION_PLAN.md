@@ -46,12 +46,25 @@ Still required before this core is considered migrated:
 
 Existing branches: model, animation, HUD, movement/look, camera and interaction.
 
-Port:
-- Character state/mode contract.
-- Third-person camera above and behind the character.
-- 360-degree look/aim, independent movement and look input.
-- Compact HUD with movement, action, aim and interaction feedback.
-- Hide the on-foot HUD while seated at a ship pilot station.
+Initial native source scaffold committed:
+- [x] Character state/mode contract with the existing on-foot/ship-control, standing/seated, health, stamina, grounded, movement, look, interaction-target and equipment fields.
+- [x] Native `AFrontierCharacter` actor using Unreal Character Movement.
+- [x] Dedicated third-person camera boom, elevated rear offset and full yaw orbit.
+- [x] Independent movement and look bindings through Enhanced Input.
+- [x] Model presentation Data Asset for skeletal mesh, animation class, materials and capsule height.
+- [x] Animation instance base exposing movement, grounded and seated state.
+- [x] Interaction interface and camera-forward interaction trace.
+- [x] UMG HUD observer; it receives state and is hidden logically outside on-foot mode.
+- [x] Ship-control mode transition stops on-foot movement without transferring ship state into Character Core.
+
+Still required before Character Core is considered migrated:
+- [ ] Create and assign Enhanced Input actions and mapping context in Editor.
+- [ ] Import/retarget the humanoid exploration suit skeletal mesh and skeleton.
+- [ ] Build the Animation Blueprint and map idle/walk/run/sit/stand poses from the legacy animator.
+- [ ] Build the compact mobile HUD Blueprint, including movement, action, aim and interaction controls.
+- [ ] Connect the pilot-seat interaction to Ship Core possession/camera handoff.
+- [ ] Verify spawn location on Deck 1 bridge after Ship Core migration.
+- [ ] Compile with Unreal Build Tool and validate behavior in a UE5 test map.
 
 **Exit gate:** character behavior matches the established core contract in a UE5 test map.
 
@@ -101,7 +114,7 @@ Earth Core v1.6.0 remains the orchestrator of seven branches: interior, surface,
 
 ## Current limitations and risks
 
-1. The native Planetary Core scaffold has not been compiled; Unreal Editor/Build Tool validation is still required.
+1. The native Planetary and Character Core source scaffolds have not been compiled; Unreal Editor/Build Tool validation is still required.
 2. A runnable `.uproject` and generated UE assets are not yet present.
 3. Planet-scale spherical streaming needs a dedicated coordinate/tile design; World Partition alone does not solve a spherical planet.
 4. High-end rendering features can exceed the target Android budget.
