@@ -13,6 +13,7 @@ class UFrontierShipComputerComponent;
 class UFrontierShipCameraBoom;
 class UFrontierShipExplorationHullComponent;
 class AFrontierCharacter;
+class UFrontierShipHUDWidget;
 
 USTRUCT(BlueprintType)
 struct FRONTIER_API FFrontierShipIdentity
@@ -102,6 +103,12 @@ public:
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Ship|Computer")
     TObjectPtr<UFrontierShipComputerComponent> Computer;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Ship|HUD")
+    TSubclassOf<UFrontierShipHUDWidget> ShipHUDClass;
+
+    UPROPERTY(Transient, BlueprintReadOnly, Category="Ship|HUD")
+    TObjectPtr<UFrontierShipHUDWidget> ShipHUD;
 
     UFUNCTION(BlueprintPure, Category="Ship|Coordinates")
     static FVector ThreeToUnrealLocalPosition(const FVector& ThreePosition);
