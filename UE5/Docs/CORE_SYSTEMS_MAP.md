@@ -129,6 +129,8 @@ UE5 mapping:
 - Sky Atmosphere, Volumetric Clouds, fog and lighting are renderer branches/adapters.
 - Climate/atmosphere data must not be conflated with the visual scattering settings.
 - Future weather, pressure, density, temperature and circulation branches attach here without bloating Earth Core.
+- Initial UE5 source slice: `FAtmosphericComposition`, `FAtmosphericLayerDefinition`, `FAtmosphericClimateBaseline`, `UAtmosphereClimateProfileDataAsset` and `UAtmosphereClimateSubsystem`. The profile references `UPlanetaryProfileDataAsset`; the runtime subsystem exposes deterministic pressure, temperature and ideal-gas density samples by altitude.
+- The current model is a baseline approximation only. Earth-specific profile assets, rendering adapters, automated tests and UE5 compilation remain outstanding.
 
 ## 6. Geology & Biomes Core
 
@@ -157,4 +159,4 @@ UE5 mapping:
 
 ## Migration status
 
-Planetary Core, Character Core and Ship Core have native UE5 source scaffolds on the migration branch. Ship Core now includes its root collision proxy, deck-definition composition, ship-local elevator selection, boost speed scaling, a guarded pilot-exit API and a visual-only Engine FX branch. These are source-level integrations only; they have not been compiled or tested in Unreal Editor. Ship assets, authored Data Assets, terminal configuration, Enhanced Input/mobile UI bindings and final collision tuning remain Editor-side work. The existing core names and branch boundaries must remain recognizable throughout the port.
+Planetary Core, Character Core, Ship Core and the initial Atmosphere & Climate Core now have native UE5 source scaffolds on the migration branch. Ship Core includes its root collision proxy, deck-definition composition, ship-local elevator selection, boost speed scaling, a guarded pilot-exit API and a visual-only Engine FX branch. Atmosphere & Climate includes composition, vertical layers, climate baseline and altitude sampling. These are source-level integrations only; they have not been compiled or tested in Unreal Editor. Ship assets, authored Data Assets, terminal configuration, Enhanced Input/mobile UI bindings and final collision tuning remain Editor-side work. The existing core names and branch boundaries must remain recognizable throughout the port.
