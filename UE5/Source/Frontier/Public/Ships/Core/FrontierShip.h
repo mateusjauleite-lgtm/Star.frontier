@@ -8,6 +8,7 @@ class USceneComponent;
 class UBoxComponent;
 class UFrontierShipControlsComponent;
 class UFrontierShipEngineComponent;
+class UFrontierShipEngineFXComponent;
 class UFrontierShipInteriorComponent;
 class UFrontierShipComputerComponent;
 class UFrontierShipCameraBoom;
@@ -91,6 +92,9 @@ public:
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Ship|Engines")
     TObjectPtr<UFrontierShipEngineComponent> Engines;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Ship|Engine FX")
+    TObjectPtr<UFrontierShipEngineFXComponent> EnginesFX;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Ship|Interior")
     TObjectPtr<UFrontierShipInteriorComponent> Interior;
