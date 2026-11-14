@@ -48,6 +48,7 @@ The authoritative ownership map is [CORE_SYSTEMS_MAP.md](Docs/CORE_SYSTEMS_MAP.m
 - Frontier module rules and module entry point are committed.
 - The `.uproject` descriptor and game/editor targets are present, but the C++ has not yet been compiled by Unreal Build Tool or validated in Unreal Editor.
 - The initial `.umap` must still be generated in Editor; authored Niagara assets and a packaged game have not yet been produced.
+- The existing `.github/workflows/android-apk.yml` remains a Vite/Three.js + Capacitor APK workflow and does not build this UE5 project. It also does not currently trigger on `ue5/frontier-migration`; do not treat its APK as a UE5 build.
 
 ## Workspace
 
