@@ -39,6 +39,11 @@ void AFrontierGameMode::EnsureStartingShip()
         ShipClass,
         StartingShipTransform,
         SpawnParameters);
+
+    if (!StartingShip)
+    {
+        UE_LOG(LogTemp, Error, TEXT("Star Frontier startup: failed to spawn the starting ship."));
+    }
 }
 
 void AFrontierGameMode::HandleStartingNewPlayer_Implementation(
@@ -66,5 +71,10 @@ void AFrontierGameMode::PlacePlayerOnStartingDeck(APlayerController* NewPlayer)
         return;
     }
 
-    StartingShip->PlaceCharacterOnDeck(Character, StartingDeckCode);
+    if (!StartingShip->PlaceCharacterOnDeck(Character, StartingDeckCode))
+    {
+        UE_LOG(LogTemp, Error,
+            TEXT("Star Frontier startup: failed to place player on deck %s."),
+            *StartingDeckCode.ToString());
+    }
 }
