@@ -131,6 +131,7 @@ public:
     void ClearFlightInputs();
 
 protected:
+    virtual void OnConstruction(const FTransform& Transform) override;
     virtual void Tick(float DeltaSeconds) override;
 
 private:
