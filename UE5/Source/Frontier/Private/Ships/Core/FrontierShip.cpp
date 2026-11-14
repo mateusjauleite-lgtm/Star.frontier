@@ -105,6 +105,7 @@ void AFrontierShip::BeginPiloting(AFrontierCharacter* Character, FName NewComman
         Character->CharacterState->State.Mode != EFrontierCharacterMode::OnFoot ||
         (ActivePilot.IsValid() && ActivePilot.Get() != Character)) return;
 
+    if (Controls) Controls->ClearControls();
     ActivePilot = Character;
     AssignCommander(NewCommanderId);
     Character->EnterShipControlMode();
@@ -139,6 +140,8 @@ bool AFrontierShip::RequestPilotExit(AActor* RequestingActor)
 
 void AFrontierShip::EndPiloting()
 {
+    // Clear component-owned touch/button values while the pilot is still valid.
+    if (Controls) Controls->ClearControls();
     AFrontierCharacter* Character = ActivePilot.Get();
     if (Character)
     {
