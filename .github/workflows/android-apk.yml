@@ -36,33 +36,7 @@ jobs:
 
       - name: Validate Unreal and Android toolchains
         shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-
-          if ([string]::IsNullOrWhiteSpace($env:UE_ROOT)) {
-            throw "Configure the repository variable UE_ROOT on the self-hosted runner."
-          }
-
-          $uat = Join-Path $env:UE_ROOT "Engine/Build/BatchFiles/RunUAT.bat"
-          if (!(Test-Path $uat)) {
-            throw "RunUAT.bat not found. UE_ROOT must point to the installed Unreal Engine root."
-          }
-
-          foreach ($name in @("ANDROID_HOME", "NDKROOT", "JAVA_HOME")) {
-            $value = [Environment]::GetEnvironmentVariable($name)
-            if ([string]::IsNullOrWhiteSpace($value) -or !(Test-Path $value)) {
-              throw "$name is missing or invalid. Configure Android SDK/NDK/JDK with Unreal Turnkey for this engine version."
-            }
-          }
-
-          if (!(Test-Path $env:UE_PROJECT)) {
-            throw "UE5 project descriptor not found: $env:UE_PROJECT"
-          }
-
-          $map = "UE5/Content/StarFrontier/Maps/L_StarFrontier_Main.umap"
-          if (!(Test-Path $map)) {
-            throw "Startup map is not generated yet. Run UE5/Tools/EditorPython/create_main_startup_map.py in Unreal Editor, save the map, and commit the .umap before packaging."
-          }
+        run: ./UE5/Tools/CI/Validate-AndroidRunner.ps1
 
       - name: Build, cook and package Android
         shell: pwsh
