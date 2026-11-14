@@ -1,75 +1,69 @@
-name: Build Star Frontier UE5 Android APK
+name: Build Star Frontier Three.js Android APK
 
 on:
+  push:
+    branches:
+      - threejs/android-restoration
+  pull_request:
+    branches:
+      - threejs/android-restoration
   workflow_dispatch:
 
 permissions:
   contents: read
 
-# Manual-only until a trusted self-hosted Windows runner with UE and Android tooling is available.
 jobs:
-  package-android:
-    runs-on: [self-hosted, Windows, X64, UnrealEngine5, Android]
-    timeout-minutes: 180
-
-    env:
-      UE_PROJECT: UE5/StarFrontier.uproject
-      UE_ROOT: ${{ vars.UE_ROOT }}
-      ANDROID_HOME: ${{ vars.ANDROID_HOME }}
-      NDKROOT: ${{ vars.NDKROOT }}
-      JAVA_HOME: ${{ vars.JAVA_HOME }}
-      ARCHIVE_DIR: UE5/Saved/Artifacts/Android
+  build-android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Validate Unreal and Android toolchains
-        shell: pwsh
-        run: ./UE5/Tools/CI/Validate-AndroidRunner.ps1
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
 
-      - name: Build, cook and package Android
-        shell: pwsh
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
         run: |
-          $ErrorActionPreference = "Stop"
-          $uat = Join-Path $env:UE_ROOT "Engine/Build/BatchFiles/RunUAT.bat"
+          yes | sdkmanager --licenses
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
-          if (Test-Path $env:ARCHIVE_DIR) {
-            Remove-Item $env:ARCHIVE_DIR -Recurse -Force
-          }
-          New-Item -ItemType Directory -Force -Path $env:ARCHIVE_DIR | Out-Null
+      - name: Install JavaScript dependencies
+        run: npm install --no-audit --no-fund
 
-          $projectPath = (Resolve-Path $env:UE_PROJECT).Path
-          $archivePath = (Resolve-Path $env:ARCHIVE_DIR).Path
-          $arguments = @(
-            "BuildCookRun",
-            "-project=$projectPath",
-            "-noP4",
-            "-platform=Android",
-            "-clientconfig=Development",
-            "-build",
-            "-cook",
-            "-stage",
-            "-pak",
-            "-archive",
-            "-archivedirectory=$archivePath",
-            "-utf8output"
-          )
+      - name: Run project tests
+        run: npm test
 
-          & $uat @arguments
-          if ($LASTEXITCODE -ne 0) {
-            throw "Unreal BuildCookRun failed with exit code $LASTEXITCODE."
-          }
+      - name: Build Three.js web runtime
+        run: npm run build
 
-          $apk = Get-ChildItem -Path $env:ARCHIVE_DIR -Filter "*.apk" -Recurse
-          if (!$apk) {
-            throw "BuildCookRun completed but no APK was found in the archive directory."
-          }
+      - name: Generate native Android project
+        run: |
+          if [ ! -d android ]; then
+            npx cap add android
+          fi
+          npx cap sync android
 
-      - name: Upload UE5 Android package
+      - name: Compile Android APK
+        working-directory: android
+        run: ./gradlew --no-daemon assembleDebug
+
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: star-frontier-ue5-android-development
-          path: UE5/Saved/Artifacts/Android/**
+          name: star-frontier-threejs-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
