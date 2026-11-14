@@ -46,6 +46,7 @@ void UFrontierShipEngineFXComponent::CreateEngineVisuals()
             Glow->SetLightColor(FLinearColor(0.12f, 0.78f, 1.0f));
             Glow->SetAttenuationRadius(GlowAttenuationRadius);
             Glow->SetSourceRadius(90.0f);
+            Glow->SetCastShadows(false);
             Glow->SetVisibility(true);
             Glow->RegisterComponent();
             ExhaustGlows.Add(Glow);
