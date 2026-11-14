@@ -1,40 +1,47 @@
 import * as THREE from 'three';
+import { createEarthLandMask } from './surface.js';
 
-function ridge(lat, lon) {
-  const bands = Math.sin(lon * 8.7 + Math.sin(lat * 5.1) * 1.7) *
-    Math.cos(lat * 13.2 - lon * 2.4);
-  const detail = Math.sin(lon * 27.0 + lat * 19.0) * .22;
-  return Math.max(0, bands + detail) ** 3;
-}
-
-export function createTerrainRuntime({ group, options, layers }) {
-  let mesh, geometry, material;
+export function createTerrainRuntime({ options, layers }) {
+  let maskCanvas, maskData;
   return {
     initialize() {
-      geometry = new THREE.SphereGeometry(options.radius * 1.0008, 192, 128);
+      const surface = layers.surface;
+      if (!surface?.geometry) return;
+      maskCanvas = createEarthLandMask(1024, 512);
+      const context = maskCanvas.getContext('2d');
+      maskData = context.getImageData(0, 0, maskCanvas.width, maskCanvas.height).data;
+
+      const geometry = surface.geometry;
       const positions = geometry.attributes.position;
+      const uv = geometry.attributes.uv;
       const vertex = new THREE.Vector3();
+      const radius = options.radius;
+
       for (let i = 0; i < positions.count; i++) {
+        const u = uv.getX(i);
+        const v = uv.getY(i);
+        const px = Math.min(maskCanvas.width - 1, Math.max(0, Math.floor(u * (maskCanvas.width - 1))));
+        const py = Math.min(maskCanvas.height - 1, Math.max(0, Math.floor((1 - v) * (maskCanvas.height - 1))));
+        const land = maskData[(py * maskCanvas.width + px) * 4] / 255;
         vertex.fromBufferAttribute(positions, i).normalize();
         const lat = Math.asin(vertex.y);
         const lon = Math.atan2(vertex.z, vertex.x);
-        const elevation = ridge(lat, lon) * (options.radius * 0.0012);
-        positions.setXYZ(i, vertex.x * (options.radius + elevation), vertex.y * (options.radius + elevation), vertex.z * (options.radius + elevation));
+        const ridge = Math.max(0,
+          Math.sin(lon * 8.7 + Math.sin(lat * 5.1) * 1.7) *
+          Math.cos(lat * 13.2 - lon * 2.4) +
+          Math.sin(lon * 27 + lat * 19) * .22
+        ) ** 3;
+        const elevation = land * (radius * (.0011 + ridge * .0032));
+        positions.setXYZ(i, vertex.x * (radius + elevation), vertex.y * (radius + elevation), vertex.z * (radius + elevation));
       }
+
+      positions.needsUpdate = true;
       geometry.computeVertexNormals();
       geometry.computeBoundingSphere();
-      material = new THREE.MeshStandardMaterial({
-        color: 0xffffff, transparent: true, opacity: .12,
-        roughness: 1, metalness: 0, depthWrite: false,
-        polygonOffset: true, polygonOffsetFactor: -1
-      });
-      mesh = new THREE.Mesh(geometry, material);
-      mesh.name = 'Earth-New-Terrain-Relief';
-      mesh.rotation.copy(layers.surface.rotation);
-      group.add(mesh);
-      layers.terrain = mesh;
+      surface.name = 'Earth-Solid-Surface-With-Rocky-Relief';
+      layers.terrain = { integratedWith: 'surface', landMask: true, displacedVertices: positions.count };
     },
-    update() { if (mesh && layers.surface) mesh.rotation.copy(layers.surface.rotation); },
-    dispose() { if (mesh) group.remove(mesh); geometry?.dispose(); material?.dispose(); }
+    update() {},
+    dispose() { maskCanvas = null; maskData = null; }
   };
 }
