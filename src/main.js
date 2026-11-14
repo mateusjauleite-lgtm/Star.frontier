@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { createEarth } from './world/earth.js';
+import { createEarthCore } from './world/earth/earthCore.js';
 import { createStation } from './world/station.js';
 import { createOrbitSystem } from './world/orbits.js';
 import { createAsteroidField } from './world/asteroids.js';
@@ -490,7 +490,7 @@ async function init3D() {
   scene.fog = new THREE.FogExp2(0x020817, 0.00055);
 
   // Terra em posição distante, visível à frente da nave.
-  earthSystem = createEarth({ radius: 78, position: [0, 0, -850] });
+  earthSystem = createEarthCore({ radius: 78, position: [0, 0, -850] });
   scene.add(earthSystem.group);
 
   camera = new THREE.PerspectiveCamera(
