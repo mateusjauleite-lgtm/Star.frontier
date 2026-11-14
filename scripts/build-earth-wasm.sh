@@ -10,5 +10,5 @@ em++ src/world/earth/wasm/earthKernel.cpp \
   -s EXPORT_NAME=createEarthKernelModule \
   -s ENVIRONMENT=web,worker \
   -s ALLOW_MEMORY_GROWTH=1 \
-  -s EXPORTED_FUNCTIONS='["_malloc","_free","_earth_sample_bilinear","_earth_elevation_meters_to_units"]' \
+  -s EXPORTED_FUNCTIONS='["_malloc","_free","_earth_sample_bilinear","_earth_sample_bilinear_batch","_earth_elevation_meters_to_units"]' \
   -o public/earth/earthKernel.js
