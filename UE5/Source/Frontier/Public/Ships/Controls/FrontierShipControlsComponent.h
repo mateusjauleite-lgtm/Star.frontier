@@ -28,6 +28,9 @@ public:
     UFUNCTION(BlueprintCallable, Category="Ship|Controls")
     void ClearControls();
 
+    UFUNCTION(BlueprintCallable, Category="Ship|Controls")
+    bool RequestPilotExit(AActor* RequestingActor);
+
 private:
     void Publish();
     float Throttle = 0.0f;
