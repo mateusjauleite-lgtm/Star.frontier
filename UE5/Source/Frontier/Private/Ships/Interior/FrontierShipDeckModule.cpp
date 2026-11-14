@@ -30,13 +30,14 @@ void AFrontierShipDeckModule::RebuildFromDefinition()
 
     for (int32 Index = 0; Index < Definition->WallSegments.Num(); ++Index)
     {
-        UStaticMesh* Mesh = Definition->WallSegments[Index];
-        if (!Mesh) continue;
+        const FFrontierShipDeckPiece& Piece = Definition->WallSegments[Index];
+        if (!Piece.Mesh) continue;
         UStaticMeshComponent* Wall = NewObject<UStaticMeshComponent>(
             this, FName(*FString::Printf(TEXT("WallSegment_%02d"), Index)));
         Wall->SetupAttachment(DeckRoot);
-        Wall->SetStaticMesh(Mesh);
-        Wall->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+        Wall->SetStaticMesh(Piece.Mesh);
+        Wall->SetRelativeTransform(Piece.RelativeTransform);
+        Wall->SetCollisionEnabled(Piece.bCollisionEnabled ? ECollisionEnabled::QueryAndPhysics : ECollisionEnabled::NoCollision);
         Wall->RegisterComponent();
         WallComponents.Add(Wall);
     }
