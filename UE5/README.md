@@ -21,6 +21,9 @@ The UE5 splash/logo belongs to Unreal's startup presentation; it is not the game
 
 ## Android build separation
 
+Runner setup and the reusable Windows preflight are documented in [ANDROID_BUILD_RUNNER.md](Docs/ANDROID_BUILD_RUNNER.md). The validation script is `Tools/CI/Validate-AndroidRunner.ps1` and is called by the UE5 Android workflow before packaging.
+
+
 - `.github/workflows/android-apk.yml` is now the native UE5 Android packaging workflow. It invokes Unreal Automation Tool (`BuildCookRun`) and does not use Node, Vite, Three.js or Capacitor.
 - The UE5 workflow requires a trusted **self-hosted Windows runner** with the licensed Unreal Engine installation and the matching Android SDK, NDK and JDK already configured.
 - Configure repository Actions variables `UE_ROOT`, `ANDROID_HOME`, `NDKROOT` and `JAVA_HOME` for that runner. The Android toolchain should be installed/validated with Unreal Turnkey for the exact engine version.
