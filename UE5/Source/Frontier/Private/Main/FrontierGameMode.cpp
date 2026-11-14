@@ -1,4 +1,5 @@
 #include "Main/FrontierGameMode.h"
+#include "Main/FrontierPlayerController.h"
 
 #include "Character/Core/FrontierCharacter.h"
 #include "Ships/Core/FrontierShip.h"
@@ -7,6 +8,7 @@
 
 AFrontierGameMode::AFrontierGameMode()
 {
+    PlayerControllerClass = AFrontierPlayerController::StaticClass();
     DefaultPawnClass = AFrontierCharacter::StaticClass();
     StartingShipClass = AFrontierShip::StaticClass();
     StartingDeckCode = TEXT("D1");
