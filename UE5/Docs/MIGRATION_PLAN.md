@@ -186,8 +186,8 @@ Initial native source scaffold committed:
 
 Still required before the UI shell is considered integrated:
 
-- [ ] Add a dedicated PlayerController/UI navigation owner that creates and removes the main menu without changing the current Main Core spawn behavior unexpectedly.
-- [ ] Define the transition from menu to world entry; do not start gameplay merely by selecting a visual panel.
+- [x] Add a dedicated PlayerController/UI navigation owner that creates and removes the main menu without changing the current Main Core spawn behavior unexpectedly.
+- [x] Define the transition from menu to world entry; Explore closes the overlay and returns gameplay input without loading a second map.
 - [ ] Implement profile persistence with SaveGame/GameInstance or an agreed profile service; do not persist passwords or treat the display-name event as authentication.
 - [ ] Implement story, character, ships, store and settings panels against their owning systems.
 - [ ] Integrate inventory, loading, pause and notification widgets.
@@ -204,7 +204,7 @@ Still required before the UI shell is considered integrated:
 - [x] Use UI-only input mode and cursor while the menu is open; restore game-only input when it closes.
 - [x] Forward display-name and section intent through Blueprint integration events without storing profile data in the controller.
 - [x] Set the controller as the Main GameMode's default PlayerController class.
-- [ ] Verify controller lifecycle ordering against pawn spawn, Character HUD and starting-ship placement in Unreal Editor.
+- [x] Review source lifecycle ordering: GameMode ensures the ship before player start; `Super::HandleStartingNewPlayer_Implementation` spawns/possesses the pawn; D1 placement follows; the local PlayerController owns the menu overlay; Character HUD is created after possession. Runtime ordering still requires Editor verification.
 - [ ] Verify touch interaction, keyboard/gamepad focus, menu dismissal and return to gameplay in a UE5.8 test map.
 
 ## Phase 6 — Integration and target-device validation
@@ -224,3 +224,14 @@ Still required before the UI shell is considered integrated:
 3. Planet-scale spherical streaming needs a dedicated coordinate/tile design; World Partition alone does not solve a spherical planet.
 4. High-end rendering features can exceed the target Android budget.
 5. Asset scale, axes and materials must be validated before bulk import.
+
+
+### Startup map preparation and initialization review
+
+- [x] Harden the Editor Python map script to refresh actor queries after each spawn and validate required entry actors.
+- [x] Set the map's World Settings GameMode explicitly to `/Script/Frontier.FrontierGameMode` after the Frontier module is compiled.
+- [x] Move the temporary `PlayerStart` above the ship's large collision proxy; the GameMode still relocates the character to D1 after possession.
+- [ ] Execute the script in Unreal Editor 5.8, save and commit `Content/StarFrontier/Maps/L_StarFrontier_Main.umap`.
+- [ ] Compile and run the map to verify the actual engine lifecycle, menu/HUD z-order, D1 placement and input handoff.
+
+**Initialization contract:** the map owns only entry-level actors and lighting. `FrontierGameMode` owns the starting ship and D1 placement. `FrontierPlayerController` owns the local main-menu overlay and input mode. `AFrontierCharacter` owns its on-foot HUD after possession. `AFrontierShip` owns ship/deck state; merely placing the character on D1 does not enter pilot mode.
