@@ -8,6 +8,18 @@ Each **Core** owns its domain state, contracts and lifecycle. Its **branches** a
 
 The current Three.js files remain legacy reference material for behavior, data and geometry recovery. UE5 is the only target runtime; do not add new Three.js features.
 
+## 0. Main Core
+
+Main Core owns the world-entry sequence after Unreal Engine has initialized and loaded the selected map. It coordinates startup; it does not absorb the responsibilities of Character Core or Ship Core.
+
+UE5 mapping:
+- World startup and default player class → `AFrontierGameMode`.
+- Initial exploration ship creation → configurable `StartingShipClass` and `StartingShipTransform`.
+- Initial player placement → `StartingDeckCode`, defaulting to D1, delegated to `AFrontierShip::PlaceCharacterOnDeck`.
+- Global default GameMode registration → `Config/DefaultEngine.ini`.
+- Unreal Engine's own startup splash/logo remains an engine/project presentation setting, not a gameplay screen owned by Main Core.
+- A default map, project descriptor, startup menu and packaged splash configuration are not yet present; do not claim the project is launchable until those are created and validated in Unreal Editor.
+
 ## 1. Character Core
 
 Existing source: `src/character/characterCore.js`
