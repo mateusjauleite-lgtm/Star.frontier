@@ -74,4 +74,10 @@ private:
     TMap<int32, FVector2D> LastTouchPositions;
     TSet<int32> MovementPointers;
     TSet<int32> LookPointers;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UButton> ElevatorUpButton;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UButton> ElevatorDownButton;
 };
