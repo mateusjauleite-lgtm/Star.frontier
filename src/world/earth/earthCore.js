@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { EARTH_REFERENCE_POLICY, EARTH_REFERENCE_SOURCES } from './references/index.js';
 import { EARTH_UPDATE_MODULES } from './modules/index.js';
 import { createEarthUpdatePipeline } from './earthUpdatePipeline.js';
+import { createInteriorRuntime } from './modules/runtime/interior.js';
 import { createSurfaceRuntime } from './modules/runtime/surface.js';
 import { createTerrainRuntime } from './modules/runtime/terrain.js';
 import { createOceansRuntime } from './modules/runtime/oceans.js';
@@ -10,6 +11,7 @@ import { createCloudsRuntime } from './modules/runtime/clouds.js';
 import { createLightingRuntime } from './modules/runtime/lighting.js';
 
 const RUNTIME_FACTORIES = Object.freeze({
+  interior: createInteriorRuntime,
   surface: createSurfaceRuntime,
   terrain: createTerrainRuntime,
   oceans: createOceansRuntime,
@@ -47,7 +49,7 @@ export function createEarthCore(options = {}) {
 
   return {
     group,
-    version: '1.4.0',
+    version: '1.5.0',
     referencePolicy: EARTH_REFERENCE_POLICY,
     references: EARTH_REFERENCE_SOURCES,
     updateModules: EARTH_UPDATE_MODULES,
@@ -67,7 +69,7 @@ export function createEarthCore(options = {}) {
     getStatus() {
       return {
         core: 'ready',
-        version: '1.4.0',
+        version: '1.5.0',
         renderer: 'modular-earth-runtime',
         referencesAreAdvisory: true,
         updateModules: updatePipeline.getStatus(),
