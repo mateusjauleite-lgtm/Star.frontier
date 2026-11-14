@@ -151,7 +151,36 @@ export function createTerrainRuntime({ options, layers }) {
         computeBackend: earthKernel.backend,
         unitsPerKm,
         waterGeometry: false,
-        sampleHeight: elevationSampler
+        sampleHeight: elevationSampler,
+        // Stage 1 of planetary collision: query the exact same displaced
+        // elevation source used by the visible terrain. Coordinates are in
+        // Earth-local space; the caller applies the Earth group's world transform.
+        collisionSurface: {
+          source: gridIsReady ? (grid.source ?? 'provided-global-grid') : 'procedural-fallback',
+          sharesVisualElevation: true,
+          sample(longitudeDeg, latitudeDeg) {
+            if (disposed || !elevationSampler ||
+                !Number.isFinite(longitudeDeg) || !Number.isFinite(latitudeDeg) ||
+                latitudeDeg < -90 || latitudeDeg > 90) return null;
+            const elevationUnits = elevationSampler(longitudeDeg, latitudeDeg);
+            if (!Number.isFinite(elevationUnits)) return null;
+            const latitude = THREE.MathUtils.degToRad(latitudeDeg);
+            const longitude = THREE.MathUtils.degToRad(longitudeDeg);
+            const radiusAtPoint = radius + elevationUnits;
+            const cosLatitude = Math.cos(latitude);
+            return {
+              longitudeDeg,
+              latitudeDeg,
+              elevationUnits,
+              radiusUnits: radiusAtPoint,
+              localPosition: new THREE.Vector3(
+                Math.cos(longitude) * cosLatitude * radiusAtPoint,
+                Math.sin(latitude) * radiusAtPoint,
+                Math.sin(longitude) * cosLatitude * radiusAtPoint
+              )
+            };
+          }
+        }
       };
 
       // Re-run the vertex elevation pass through the compiled C++ kernel once
