@@ -9,6 +9,7 @@ namespace
     const FLinearColor ColorBackground(0.008f, 0.020f, 0.055f, 1.0f);
     const FLinearColor ColorPanel(0.018f, 0.045f, 0.090f, 0.94f);
     const FLinearColor ColorPanelEmphasis(0.025f, 0.105f, 0.155f, 0.96f);
+    const FLinearColor ColorControlSurface(0.025f, 0.105f, 0.155f, 0.38f);
     const FLinearColor ColorPrimary(0.263f, 0.851f, 1.0f, 1.0f);
     const FLinearColor ColorSecondary(0.086f, 0.545f, 1.0f, 1.0f);
     const FLinearColor ColorText(0.918f, 0.965f, 1.0f, 1.0f);
@@ -21,6 +22,7 @@ namespace
 const FLinearColor& FFrontierUIStyle::Background() { return ColorBackground; }
 const FLinearColor& FFrontierUIStyle::Panel() { return ColorPanel; }
 const FLinearColor& FFrontierUIStyle::PanelEmphasis() { return ColorPanelEmphasis; }
+const FLinearColor& FFrontierUIStyle::ControlSurface() { return ColorControlSurface; }
 const FLinearColor& FFrontierUIStyle::Primary() { return ColorPrimary; }
 const FLinearColor& FFrontierUIStyle::Secondary() { return ColorSecondary; }
 const FLinearColor& FFrontierUIStyle::Text() { return ColorText; }
