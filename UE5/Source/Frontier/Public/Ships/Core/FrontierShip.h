@@ -96,6 +96,9 @@ public:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Ship|Computer")
     TObjectPtr<UFrontierShipComputerComponent> Computer;
 
+    UFUNCTION(BlueprintPure, Category="Ship|Coordinates")
+    static FVector ThreeToUnrealLocalPosition(const FVector& ThreePosition);
+
     UFUNCTION(BlueprintCallable, Category="Ship|Identity")
     void AssignCommander(FName NewCommanderId);
 
