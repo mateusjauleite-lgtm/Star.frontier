@@ -5,7 +5,7 @@
 #include "FrontierCharacter.generated.h"
 
 class UCameraComponent;
-class USpringArmComponent;
+class UFrontierCharacterCameraBoom;
 class UInputMappingContext;
 class UInputAction;
 class UFrontierCharacterStateComponent;
@@ -25,7 +25,7 @@ public:
     TObjectPtr<UFrontierCharacterStateComponent> CharacterState;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Character|Camera")
-    TObjectPtr<USpringArmComponent> CameraBoom;
+    TObjectPtr<UFrontierCharacterCameraBoom> CameraBoom;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Character|Camera")
     TObjectPtr<UCameraComponent> FollowCamera;
@@ -60,6 +60,7 @@ public:
 protected:
     virtual void BeginPlay() override;
     virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
+    virtual void OnMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode = 0) override;
 
 private:
     UPROPERTY()
