@@ -60,6 +60,13 @@ void AFrontierEarth::EndPlay(const EEndPlayReason::Type EndPlayReason)
 bool AFrontierEarth::InitializeEarth()
 {
     bEarthReady = false;
+    for (UFrontierEarthBranchComponent* Branch : BranchesInDependencyOrder)
+    {
+        if (IsValid(Branch))
+        {
+            Branch->DeinitializeBranch();
+        }
+    }
 
     if (!IsValid(PlanetaryProfile) || !PlanetaryProfile->IsProfileValid())
     {
@@ -108,6 +115,13 @@ bool AFrontierEarth::InitializeEarth()
             UE_LOG(LogFrontierEarth, Error,
                 TEXT("Earth branch '%s' could not initialize; check its declared dependencies."),
                 *Branch->GetBranchId().ToString());
+            for (UFrontierEarthBranchComponent* InitializedBranch : BranchesInDependencyOrder)
+            {
+                if (IsValid(InitializedBranch))
+                {
+                    InitializedBranch->DeinitializeBranch();
+                }
+            }
             return false;
         }
 
