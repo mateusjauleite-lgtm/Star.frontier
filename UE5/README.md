@@ -10,6 +10,15 @@ This workspace is the destination for the **complete migration** of Star Frontie
 - Existing cores and their branches must be migrated with their ownership boundaries intact. Do not replace them with a generic hierarchy or merge unrelated responsibilities.
 - As each UE5 core passes its acceptance checks, its Three.js counterpart becomes obsolete for active development.
 
+## Main Core startup
+
+The first Main Core source slice is present:
+- `AFrontierGameMode` is the world-entry coordinator after the Unreal Engine splash and map load.
+- It uses `AFrontierCharacter` as the default pawn, spawns the configured exploration ship and places the player on D1 by default.
+- `Config/DefaultEngine.ini` registers the GameMode.
+
+The UE5 splash/logo belongs to Unreal's startup presentation; it is not the game's Main menu. A runnable `.uproject`, initial map, authored content and Editor verification are still outstanding.
+
 ## Existing core systems to migrate
 
 - Character Core → model, animation, HUD, movement/look, camera and interaction branches.
