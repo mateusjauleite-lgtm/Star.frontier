@@ -1,12 +1,42 @@
 # Earth structural core
 
-The Earth system is split into a stable baseline and optional update modules.
+The Earth system is organized as a clean architecture for independently built
+visual layers. The existing renderer is retained only as a comparison and
+temporary recovery baseline; it is not a required foundation for new modules.
 
-## Stable baseline
+## New-layer rule
 
-- `../earth.js` remains the current visual renderer.
-- `earthCore.js` is the single integration boundary used by the scene.
-- The core delegates its frame update and disposal to the current renderer.
+Every new visual element must be implemented as a complete, independent module.
+Do not extend, inherit from, or reuse legacy element code when that would carry
+old constraints, hidden coupling, geometry assumptions, materials, or behavior
+into the new implementation.
+
+A new module must own its complete implementation and lifecycle: construction,
+resources, update behavior, integration contract, and disposal. Shared utilities
+are allowed only when deliberately designed as neutral, documented services and
+when they do not impose legacy behavior on the new layer.
+
+## Replacement and retirement
+
+1. Build the new element in its own module and branch of responsibility.
+2. Integrate it through the Earth core using an explicit contract.
+3. Validate visual completeness, dependencies, performance, and mobile behavior.
+4. Compare it with the legacy baseline without making the new code depend on it.
+5. Once the replacement is complete and verified, remove the corresponding
+   legacy implementation and obsolete references in a deliberate cleanup.
+6. Do not delete the current baseline prematurely; retain it only until the
+   replacement has passed review and testing.
+
+This is a clean replacement strategy, not a permanent parallel stack. Old code
+must not remain as an active dependency merely for compatibility after its
+replacement is accepted.
+
+## Stable baseline and integration boundary
+
+- `../earth.js` is the current visual baseline and temporary fallback only.
+- `earthCore.js` is the scene-facing integration boundary.
+- New modules must not import the legacy renderer or derive their implementation
+  from its geometry, materials, or internal functions.
 
 ## Update domains
 
@@ -19,16 +49,14 @@ The Earth system is split into a stable baseline and optional update modules.
 | `clouds` | Cloud layers, shadows, movement |
 | `lighting` | Day/night boundary, sun angle, night side |
 
-Each module file currently defines a contract and a roadmap only. The update
-pipeline can host a reviewed runtime implementation later, but none is attached
-or activated by this structural update. This avoids changing the current Earth
-appearance or adding new rendering cost.
+Each module currently defines a contract and roadmap. The update pipeline hosts
+future implementations only when explicitly attached. Reference catalogues
+remain advisory and cannot automatically alter assets or runtime behavior.
 
 ## Integration rules
 
-1. Keep the current renderer as the fallback baseline.
-2. Implement each domain independently behind its own module contract.
-3. Check declared dependencies before attaching a runtime module.
-4. Compare against the baseline and test on mobile before activation.
-5. Keep reference data advisory; never turn a reference entry into an asset
-   or runtime change automatically.
+- Each element is new, self-contained, and independently replaceable.
+- Dependencies between new modules must be explicit and minimal.
+- No hidden dependency on legacy code is permitted.
+- Remove superseded legacy code only after the replacement passes review and tests.
+- Validate visual quality, performance, and mobile compatibility before activation.
