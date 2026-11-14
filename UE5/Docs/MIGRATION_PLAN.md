@@ -172,6 +172,30 @@ Earth Core v1.6.0 remains the orchestrator of seven branches: interior, surface,
 
 **Exit gate:** Earth Core composes the seven branches using the shared domain cores; scale and module lifecycle are validated.
 
+## UI migration — shared UMG shell and main menu
+
+Initial native source scaffold committed:
+
+- [x] Shared `FFrontierUIStyle` palette helper for the legacy navy/cyan/gold/green/red visual language.
+- [x] Shared panel, heading, body and button styling helpers.
+- [x] Native `UFrontierMainMenuWidget` with Explore, Story, Character, Ships, Store and Settings navigation sections.
+- [x] Display-name-only profile entry with empty-name validation and explicit notice that account authentication is not implemented.
+- [x] Blueprint extension events for profile-name handoff, section changes and play intent; widgets do not own save data, account security, credits, inventory, ship state or world startup.
+- [x] Main menu root uses UE `USafeZone`; existing Character and Ship HUD button/touch-surface styling consumes the shared palette helper.
+- [x] Preserve all legacy HTML/CSS/JS/Vite/Capacitor sources and legacy Android workflow unchanged.
+
+Still required before the UI shell is considered integrated:
+
+- [ ] Add a dedicated PlayerController/UI navigation owner that creates and removes the main menu without changing the current Main Core spawn behavior unexpectedly.
+- [ ] Define the transition from menu to world entry; do not start gameplay merely by selecting a visual panel.
+- [ ] Implement profile persistence with SaveGame/GameInstance or an agreed profile service; do not persist passwords or treat the display-name event as authentication.
+- [ ] Implement story, character, ships, store and settings panels against their owning systems.
+- [ ] Integrate inventory, loading, pause and notification widgets.
+- [ ] Apply the shared theme consistently to every HUD and panel.
+- [ ] Compile with Unreal Build Tool, inspect in UE 5.8 Editor, and test landscape/mobile safe areas and touch response.
+
+**Current gate:** native source scaffold only. No Unreal compile, Editor preview, runtime menu spawn, Blueprint asset or Android package has been verified.
+
 ## Phase 6 — Integration and target-device validation
 
 - Integrate all migrated cores into one UE5 game runtime.
