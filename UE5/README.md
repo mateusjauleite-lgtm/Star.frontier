@@ -24,7 +24,7 @@ The first Main Core source slice is present:
 - It uses `AFrontierCharacter` as the default pawn, spawns the configured exploration ship and places the player on D1 by default.
 - `Config/DefaultEngine.ini` registers the GameMode and sets the Android package identity.
 
-The UE5 splash/logo belongs to Unreal's startup presentation; it is not the game's Main menu. The `.uproject` descriptor and an Editor Python map-generation script are present. The actual `.umap` package, authored Niagara assets, successful project build and Editor verification are still outstanding.
+The UE5 splash/logo belongs to Unreal's startup presentation; it is not the game's Main menu. The `.uproject` descriptor and an Editor Python map-generation script are present. The script now binds the map's World Settings to `FrontierGameMode`, keeps `PlayerStart` clear of the ship collision proxy and validates required entry actors. The actual `.umap` package, authored Niagara assets, successful project build and Editor verification are still outstanding.
 
 ## Android build separation
 
@@ -87,4 +87,4 @@ The authoritative ownership map is [CORE_SYSTEMS_MAP.md](Docs/CORE_SYSTEMS_MAP.m
 
 ## UI migration status
 
-The legacy `index.html`, `style.css`, `src/main.js`, Vite and Capacitor files have been audited. They remain preserved as reference material; they are not UE5 runtime dependencies. Character and ship HUD native UMG C++ scaffolds already exist. The first native main-menu/profile-name shell is now committed but not yet integrated into startup; profile persistence/authentication, the individual menu panels, inventory, loading, pause and notifications still require implementation. See [LEGACY_UI_MIGRATION.md](Docs/LEGACY_UI_MIGRATION.md). The legacy password field is only a local demo check, not secure account authentication.
+The legacy `index.html`, `style.css`, `src/main.js`, Vite and Capacitor files have been audited. They remain preserved as reference material; they are not UE5 runtime dependencies. Character and ship HUD native UMG C++ scaffolds already exist. The native main-menu/profile-name shell is integrated through `AFrontierPlayerController`; it opens as an overlay and returns gameplay input when Explore is selected. Profile persistence/authentication, the individual menu panels, inventory, loading, pause and notifications still require implementation. See [LEGACY_UI_MIGRATION.md](Docs/LEGACY_UI_MIGRATION.md). The legacy password field is only a local demo check, not secure account authentication.
