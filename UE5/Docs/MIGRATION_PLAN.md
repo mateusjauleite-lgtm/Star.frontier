@@ -1,49 +1,53 @@
-# Star Frontier — UE5 Migration Plan
+# Star Frontier — Complete UE5 Migration Plan
 
 ## Goal
 
-Migrate the existing Star Frontier cores and their branches into Unreal Engine 5 while preserving the Three.js implementation as the reference baseline. This is a parallel, incremental and reversible port—not a redesign of the game's architecture.
+Migrate the complete Star Frontier game to Unreal Engine 5. UE5 is the sole target runtime and development engine. This is a full engine migration, not a dual-engine strategy.
+
+The existing Three.js project is legacy source material: it may be inspected to recover behavior, data, geometry and design decisions, but it is not a target for new features. Once a system is ported and validated in UE5, its Three.js implementation is retired from active development.
+
+Preserve the existing **Core → branches/modules** architecture and ownership rules. Do not flatten the systems into a generic hierarchy or combine independent cores.
 
 The authoritative ownership map is [CORE_SYSTEMS_MAP.md](CORE_SYSTEMS_MAP.md).
 
 ## Phase 0 — Core and branch alignment
 
 - [x] Create a dedicated migration branch from `feature/character-core`.
-- [x] Preserve the existing Three.js implementation.
-- [x] Reuse the planetary profile and UE5 interchange contract.
+- [x] Preserve the original baseline branch as a recovery/reference point.
 - [x] Inventory Character Core, Ship Core, Earth Core and their existing branches.
 - [x] Register Planetary Core, Atmosphere & Climate Core and Geology & Biomes Core as shared domain cores.
+- [x] Establish the UE5 workspace and engine-neutral Earth profile.
 - [ ] Validate remaining system branches against the registry as they are migrated.
 
 ## Phase 1 — Planetary Core
 
-- Port the engine-neutral planetary profile first.
+- Port the engine-neutral planetary profile into native UE5 data structures and a UE5 adapter.
 - Preserve physical units independently from Unreal visual scale.
 - Separate body identity, dimensions, gravity, rotation/orientation and coordinate rules.
 - Make Earth one profile using the existing measured reference values; future planets receive their own profiles.
-- Add a UE5 Data Asset or subsystem adapter only after the data contract is stable.
+- Add automated validation for units, scale conversion and profile integrity.
 
 **Exit gate:** Earth profile loads in UE5 without changing its physical values; visual scale conversion is explicit and tested.
 
 ## Phase 2 — Character Core and branches
 
-Existing branches: model, animation and HUD; core state is in `src/character/characterCore.js`.
+Existing branches: model, animation, HUD, movement/look, camera and interaction.
 
 Port:
-- Character state/mode contract.
+- Character state and mode contract.
 - Third-person camera above and behind the character.
 - 360-degree look/aim, independent movement and look input.
 - Compact HUD with movement, action, aim and interaction feedback.
 - Hide the on-foot HUD while seated at a ship pilot station.
 
-**Exit gate:** character behavior matches the existing core contract in a small UE5 test map.
+**Exit gate:** character behavior matches the established core contract in a UE5 test map.
 
 ## Phase 3 — Ship Core and branches
 
 Preserve the existing ship branch ownership: exploration hull, interior/decks, bridge, computer, engines, camera, controls and player-ship association.
 
 - Keep ShipId and CommanderId owned by Ship Core.
-- Keep each deck independently loadable/editable.
+- Keep each deck independently loadable and editable.
 - Keep walls, openings, doors, elevator and collision as independent modules.
 - Deck 1 remains the command bridge; Deck 2 operations/science; Deck 3 engineering; Deck 4 hangar/support.
 - Protect the Deck 4 hangar opening and Deck 2 elevator access from wall/collision overlap.
@@ -56,21 +60,22 @@ Preserve the existing ship branch ownership: exploration hull, interior/decks, b
 Earth Core v1.6.0 remains the orchestrator of seven branches: interior, surface, terrain, oceans, atmosphere, clouds and lighting.
 
 - Planetary Core supplies physical body data and coordinate rules.
-- Atmosphere & Climate Core owns scientific atmosphere/climate data; Sky Atmosphere and cloud rendering are replaceable UE5 branches.
+- Atmosphere & Climate Core owns scientific atmosphere/climate data; Sky Atmosphere and cloud rendering are UE5 implementation branches.
 - Geology & Biomes Core owns geological/ecological domain data; terrain, surface and oceans remain distinct Earth branches.
-- Keep the seven Earth branches independently testable and replaceable.
+- Keep all seven Earth branches independently testable and replaceable.
 - Prototype spherical geometry and local tile coordinates before regional detail/streaming.
 
 **Exit gate:** Earth Core composes the seven branches using the shared domain cores; scale and module lifecycle are validated.
 
 ## Phase 5 — Integration and target-device validation
 
-- Compare each UE5 core against its Three.js baseline and behavior contract.
-- Validate asset rights and GLB round-trip fidelity.
+- Integrate all migrated cores into one UE5 game runtime.
+- Validate asset rights, import scale, axes, materials and GLB/glTF interchange fidelity.
 - Profile CPU, GPU, memory, thermal behavior and battery on the target Android device.
-- Keep rendering quality tiers and the existing Three.js baseline until the UE5 build is proven.
+- Establish mobile rendering tiers before enabling expensive effects.
+- Verify that no gameplay-critical runtime dependency remains on Three.js.
 
-**Exit gate:** core-level tests pass and the integrated build meets agreed target-device performance.
+**Exit gate:** all core-level tests pass, the integrated UE5 build runs on the target device, and Three.js is no longer required at runtime.
 
 ## Non-goals for the first port
 
