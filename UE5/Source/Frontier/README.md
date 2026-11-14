@@ -44,7 +44,7 @@ Character/
     FrontierCharacterHUDWidget.h/.cpp
 ```
 
-The native character actor uses Unreal's Character Movement Component and Enhanced Input. The dedicated camera boom provides the elevated third-person follow view and unrestricted yaw orbit. Model assets are supplied through a Data Asset; animation state is exposed to an Animation Blueprint. The interaction interface keeps target behavior outside the character, and the UMG HUD observes the Character Core state. Entering ship-control mode seats the character, stops on-foot movement and hides the on-foot HUD through the state event; Ship Core remains the owner of ship state.
+The native character actor uses a dedicated Character Movement Component subclass and a Data Asset for Enhanced Input actions/mapping. The dedicated camera boom provides the elevated third-person follow view and unrestricted yaw orbit. Model assets are supplied through a Data Asset; animation state is exposed to an Animation Blueprint. The interaction interface keeps target behavior outside the character, and the UMG HUD observes the Character Core state. Entering ship-control mode seats the character, stops on-foot movement and hides the on-foot HUD through the state event; Ship Core remains the owner of ship state.
 
 This is a source scaffold, not a finished playable character. Input assets, skeletal mesh/rig, Animation Blueprint, HUD Blueprint and ship-seat handoff still need Editor-side setup and validation.
 
