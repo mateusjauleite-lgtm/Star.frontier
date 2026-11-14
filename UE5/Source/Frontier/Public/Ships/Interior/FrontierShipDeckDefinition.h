@@ -6,6 +6,21 @@
 
 class UStaticMesh;
 
+USTRUCT(BlueprintType)
+struct FRONTIER_API FFrontierShipDeckPiece
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+    TObjectPtr<UStaticMesh> Mesh;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+    FTransform RelativeTransform = FTransform::Identity;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+    bool bCollisionEnabled = true;
+};
+
 UENUM(BlueprintType)
 enum class EFrontierShipDeckId : uint8
 {
@@ -34,7 +49,7 @@ public:
     TObjectPtr<UStaticMesh> FloorMesh;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Ship|Deck")
-    TArray<TObjectPtr<UStaticMesh>> WallSegments;
+    TArray<FFrontierShipDeckPiece> WallSegments;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Ship|Deck")
     FVector LocalOffset = FVector::ZeroVector;
