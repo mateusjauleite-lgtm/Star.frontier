@@ -15,6 +15,16 @@ AFrontierPilotStation::AFrontierPilotStation()
     InteractionVolume->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
 }
 
+void AFrontierPilotStation::BeginPlay()
+{
+    Super::BeginPlay();
+    if (OwningShip)
+    {
+        AttachToActor(OwningShip, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+        SetActorRelativeLocation(FVector(0.0f, 8.91f, -29.5f));
+    }
+}
+
 FText AFrontierPilotStation::GetInteractionLabel_Implementation() const
 {
     return FText::FromString(TEXT("Assumir comando da nave"));
