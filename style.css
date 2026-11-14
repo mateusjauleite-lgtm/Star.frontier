@@ -1528,3 +1528,25 @@ select:focus {
   .inventory-grid, .clothing-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .inventory-window { max-height: 94%; }
 }
+
+
+/* Contexto planetário compacto no HUD do explorador */
+.character-world-context {
+  display: block;
+  max-width: min(42vw, 220px);
+  overflow: hidden;
+  color: rgba(151, 210, 232, 0.9);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.65px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-width: 520px) {
+  .character-world-context {
+    max-width: 42vw;
+    font-size: 7px;
+    letter-spacing: 0.35px;
+  }
+}
