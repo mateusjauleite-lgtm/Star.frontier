@@ -1,4 +1,5 @@
 #include "Character/HUD/FrontierCharacterHUDWidget.h"
+#include "UI/FrontierUIStyle.h"
 #include "Character/Core/FrontierCharacter.h"
 #include "Character/Interaction/FrontierInteractable.h"
 #include "Ships/Core/FrontierShip.h"
@@ -24,7 +25,9 @@ namespace
         UTextBlock* Text = Tree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
         Text->SetText(FText::FromString(Label));
         Text->SetJustification(ETextJustify::Center);
+        Text->SetColorAndOpacity(FSlateColor(FFrontierUIStyle::Text()));
         Button->AddChild(Text);
+        FFrontierUIStyle::ApplyButton(Button);
         UCanvasPanelSlot* Slot = Canvas->AddChildToCanvas(Button);
         Slot->SetAnchors(Anchors);
         Slot->SetPosition(Position);
@@ -48,12 +51,12 @@ void UFrontierCharacterHUDWidget::BuildNativeLayout()
     auto AddPad = [this, Canvas](FVector2D Position, FAnchors Anchors, const TCHAR* Label)
     {
         UBorder* Pad = WidgetTree->ConstructWidget<UBorder>();
-        Pad->SetBrushColor(FLinearColor(0.04f, 0.12f, 0.18f, 0.34f));
+        Pad->SetBrushColor(FFrontierUIStyle::ControlSurface());
         Pad->SetPadding(FMargin(8.0f));
         UTextBlock* Text = WidgetTree->ConstructWidget<UTextBlock>();
         Text->SetText(FText::FromString(Label));
         Text->SetJustification(ETextJustify::Center);
-        Text->SetColorAndOpacity(FSlateColor(FLinearColor(0.65f, 0.88f, 0.96f, 0.9f)));
+        Text->SetColorAndOpacity(FSlateColor(FFrontierUIStyle::Primary()));
         Pad->SetContent(Text);
         Pad->SetVisibility(ESlateVisibility::HitTestInvisible);
         UCanvasPanelSlot* Slot = Canvas->AddChildToCanvas(Pad);
