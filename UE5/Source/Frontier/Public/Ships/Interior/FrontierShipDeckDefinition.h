@@ -59,4 +59,10 @@ public:
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Ship|Deck")
     bool bKeepElevatorAccessClear = false;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Ship|Deck|Clearance")
+    FBox HangarExitClearance = FBox(ForceInit);
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Ship|Deck|Clearance")
+    FBox ElevatorAccessClearance = FBox(ForceInit);
 };
