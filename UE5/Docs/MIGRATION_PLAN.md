@@ -19,7 +19,9 @@ The authoritative ownership map is [CORE_SYSTEMS_MAP.md](CORE_SYSTEMS_MAP.md).
 - [x] Establish the UE5 workspace and engine-neutral Earth profile.
 - [x] Create native Frontier module rules and module entry point.
 - [x] Add the first Main Core GameMode source scaffold and register it as the configured default GameMode.
-- [ ] Create the runnable UE5 project descriptor and the initial startup map in Unreal Editor.
+- [x] Add `StarFrontier.uproject`, game/editor Target.cs files and configure the Main startup map path.
+- [x] Add an Editor Python script to create the initial startup map with PlayerStart and basic sky lighting.
+- [ ] Run the map-generation script, save the `.umap` package and verify project generation/build in Unreal Editor.
 - [ ] Verify the engine startup splash, map load, Main Core startup, player spawn and D1 placement in Editor.
 
 ## Phase 1 — Planetary Core
