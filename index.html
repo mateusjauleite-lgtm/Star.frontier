@@ -123,6 +123,7 @@
         <div class="character-top-actions">
           <button id="character-camera-btn" class="character-camera-btn" type="button">CÂMERA: 1ª PESSOA</button>
           <button id="character-action-btn" class="character-action-btn" type="button" disabled>◎ AÇÃO</button>
+          <button id="inventory-open-btn" class="character-inventory-btn" type="button">INVENTÁRIO</button>
           <button id="character-menu-btn" class="character-menu-btn" aria-label="Abrir menu">☰</button>
         </div>
       </div>
@@ -138,12 +139,10 @@
         </div>
       </div>
 
-      <div class="character-equipment">
-        <div><span>TRAJE</span><b id="character-suit">Traje de exploração básico</b></div>
-        <div><span>EQUIPAMENTO</span><b id="character-tool">Nenhuma ferramenta equipada</b></div>
-        <div><span>POSTURA</span><b id="character-posture">EM PÉ</b></div>
-        <div><span>APOIO</span><b id="character-grounded">NO CHÃO</b></div>
-        <div><span>MOVIMENTO</span><b id="character-movement">PARADO</b></div>
+      <div class="character-quick-equipment" aria-label="Equipamento rápido">
+        <div class="quick-slot"><span>ARMA</span><b id="quick-weapon">VAZIO</b></div>
+        <div class="quick-slot"><span>FERRAMENTA</span><b id="quick-tool">VAZIO</b></div>
+        <div class="quick-slot"><span>MÁQUINA</span><b id="quick-machine">VAZIO</b></div>
       </div>
 
       <div class="character-interaction">
@@ -159,6 +158,40 @@
           <small>MOVER</small>
         </div>
       </div>
+    </div>
+
+    <!-- INVENTÁRIO E VESTUÁRIO DO PERSONAGEM -->
+    <div id="inventory-modal" class="inventory-modal hidden" aria-hidden="true">
+      <section class="inventory-window" role="dialog" aria-modal="true" aria-labelledby="inventory-title">
+        <header class="inventory-header">
+          <div><span class="inventory-kicker">SISTEMA DO EXPLORADOR</span><h2 id="inventory-title">INVENTÁRIO</h2></div>
+          <button id="inventory-close-btn" class="inventory-close-btn" type="button" aria-label="Fechar inventário">✕</button>
+        </header>
+        <nav class="inventory-tabs" aria-label="Seções do inventário">
+          <button class="inventory-tab active" type="button" data-inventory-tab="items">ITENS</button>
+          <button class="inventory-tab" type="button" data-inventory-tab="clothing">VESTUÁRIO</button>
+        </nav>
+        <div id="inventory-items-view" class="inventory-view">
+          <div class="inventory-section-heading"><b>MOCHILA</b><span id="inventory-count">0 / 24</span></div>
+          <div id="inventory-grid" class="inventory-grid"></div>
+          <p class="inventory-note">Os itens coletados e recursos encontrados aparecerão aqui.</p>
+        </div>
+        <div id="inventory-clothing-view" class="inventory-view hidden">
+          <div class="inventory-section-heading"><b>ROUPAS E PROTEÇÃO</b><span>EQUIPAMENTO DO EXPLORADOR</span></div>
+          <div class="clothing-grid">
+            <button class="inventory-slot suit-slot selected" type="button" data-slot="suit"><span>TRAJE</span><b>Traje de exploração básico</b><small>EQUIPADO</small></button>
+            <button class="inventory-slot" type="button" data-slot="helmet"><span>CABEÇA</span><b>Vazio</b></button>
+            <button class="inventory-slot" type="button" data-slot="torso"><span>PEITORAL</span><b>Vazio</b></button>
+            <button class="inventory-slot" type="button" data-slot="gloves"><span>LUVAS</span><b>Vazio</b></button>
+            <button class="inventory-slot" type="button" data-slot="legs"><span>CALÇAS</span><b>Vazio</b></button>
+            <button class="inventory-slot" type="button" data-slot="boots"><span>BOTAS</span><b>Vazio</b></button>
+          </div>
+        </div>
+        <footer class="inventory-footer">
+          <div class="inventory-equipment-summary"><span>ACESSO RÁPIDO</span><b>Arma · Ferramenta · Máquina</b></div>
+          <button id="inventory-done-btn" class="inventory-done-btn" type="button">CONCLUÍDO</button>
+        </footer>
+      </section>
     </div>
 
     <!-- TELA DE CARREGAMENTO -->
