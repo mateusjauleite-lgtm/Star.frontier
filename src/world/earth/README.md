@@ -17,6 +17,27 @@ None imports or derives code from the former monolithic renderer in
 | `clouds` | Independent animated transparent texture | Procedural cloud coverage prototype |
 | `lighting` | Independent directional and ambient lights | Sunlit side and night-side fill |
 
+## Shared planetary science baseline
+
+Earth now consumes the shared reference contract at
+`src/world/planetary/planetaryScience.js` through
+`references/index.js`. This contract is reusable by future real or fictional
+planets and establishes consistency rules for:
+
+- mass, radius, density, rotation, axial tilt, orbit, and surface gravity;
+- internal structure, thermal state, and magnetic-field assumptions;
+- tectonic plates, subduction, rifts, ridges, volcanism, and mineral distribution;
+- atmospheric composition, pressure, density, temperature, and radiative balance;
+- stellar insolation, winds, ocean currents, precipitation, and biomes;
+- watersheds, rivers, sediment, hydraulic erosion, and thermal erosion;
+- spherical continuity, floating origin, coordinate precision, and LOD.
+
+The full research and validation guidance is in
+`references/planetary-science.md`. These additions are reference metadata and
+architecture guidance, not a claim that the current game already runs a
+geophysics or climate simulation. Physical units must remain separate from
+compressed visual scale.
+
 ## Planetary interior
 
 The new interior module is independent from the surface and atmosphere
@@ -92,5 +113,6 @@ performance, and mobile tests confirm that the new system is accepted.
 3. Verify that the compact atmospheric envelope does not exceed mobile framing.
 4. Check relief, ocean sheen, clouds, atmosphere, and day/night lighting.
 5. Test frame rate, memory, and thermal behavior on the Galaxy A34.
-6. Only after acceptance, replace procedural preview assets with reviewed
-   geographic imagery/elevation data and remove superseded code.
+6. Validate scientific parameters and reference provenance before replacing
+   procedural preview assets with measured geographic imagery/elevation data.
+7. Only after acceptance, remove superseded code.
