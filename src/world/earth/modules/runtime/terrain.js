@@ -33,7 +33,7 @@ export function createTerrainRuntime({ group, options, layers }) {
       group.add(mesh);
       layers.terrain = mesh;
     },
-    update() {},
+    update() { if (mesh && layers.surface) mesh.rotation.copy(layers.surface.rotation); }
     dispose() { if (mesh) group.remove(mesh); geometry?.dispose(); material?.dispose(); }
   };
 }
