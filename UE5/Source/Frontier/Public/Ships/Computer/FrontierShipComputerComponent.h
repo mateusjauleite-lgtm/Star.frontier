@@ -49,6 +49,9 @@ public:
     FName ActiveTerminalId = NAME_None;
 
     UPROPERTY(BlueprintReadOnly, Category="Ship|Computer")
+    FName ActiveOperatorId = NAME_None;
+
+    UPROPERTY(BlueprintReadOnly, Category="Ship|Computer")
     TArray<FFrontierShipComputerSystemStatus> Systems;
 
     UFUNCTION(BlueprintCallable, Category="Ship|Computer")
