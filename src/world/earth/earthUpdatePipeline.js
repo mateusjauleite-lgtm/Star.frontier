@@ -18,8 +18,13 @@ export function createEarthUpdatePipeline(definitions = []) {
     attach(id, runtime) {
       if (disposed) return false;
       const entry = entries.get(id);
-      if (!entry || !runtime || typeof runtime !== 'object') return false;
-      if (entry.runtime) return false;
+      if (!entry || !runtime || typeof runtime !== 'object' || entry.runtime) return false;
+
+      const dependenciesReady = entry.definition.dependsOn.every(dependency =>
+        entries.get(dependency)?.runtime
+      );
+      if (!dependenciesReady) return false;
+
       entry.runtime = runtime;
       runtime.initialize?.();
       return true;
