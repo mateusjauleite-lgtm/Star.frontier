@@ -1,35 +1,81 @@
 # Frontier UE5 Source Layout
 
-The source layout preserves the established Star Frontier Core → branches architecture. The full ownership and existing module mapping is maintained in [CORE_SYSTEMS_MAP.md](../../Docs/CORE_SYSTEMS_MAP.md).
+This source tree preserves the established Star Frontier **Core → branches** architecture. The full ownership registry is [CORE_SYSTEMS_MAP.md](../../Docs/CORE_SYSTEMS_MAP.md).
 
-## Planned source modules
+## Native module
+
+- `Frontier.Build.cs` — Core, CoreUObject and Engine dependencies.
+- `Private/Frontier.cpp` — module entry point.
+
+## Implemented first core: Planetary Core
 
 ```text
-Source/Frontier/
-  Core/                  Shared interfaces, events and lifecycle
-  Character/
-    Core/                Character state and mode contract
-    Model/               Character visual integration
-    Animation/           Animation state adapters
-    Camera/              Third-person camera and 360 look
-    Input/               Enhanced Input mappings
-    HUD/                 UMG view models/widgets
-  Ships/
-    Core/                Ship identity, commander and shared state
-    Exploration/          Hull and flight assembly
-    Interior/             Interior composition
-    Decks/                Deck modules and connection graph
-    Bridge/               Bridge and pilot stations
-    Computer/             Ship computer and subsystem interfaces
-    Engines/              Engine subsystem
-    Camera/               Ship camera
-    Controls/             Pilot control mapping
-  Worlds/
-    Earth/Core/           Earth Core and seven branch adapters
-    Planetary/Core/       Shared planetary profile and coordinates
-    AtmosphereClimate/    Scientific atmosphere/climate domain
-    GeologyBiomes/        Geological and ecological domain
-  Interop/                GLB validation and engine-neutral data
+Worlds/Planetary/
+  Core/
+    PlanetaryProfileDataAsset.h/.cpp
+    PlanetaryCoordinateSubsystem.h/.cpp
+  Branches/
+    PlanetaryBodyIdentity.h
+    PlanetaryDimensions.h
+    PlanetaryGravity.h
+    PlanetaryRotation.h
+    PlanetaryAltitude.h
+    PlanetaryCoordinates.h
+```
+
+The profile is a `UPrimaryDataAsset` that composes the six distinct branch data structures. The coordinate subsystem keeps physical kilometres separate from Unreal centimetres and from project-specific visual radius. Earth physical values remain in the engine-neutral reference profile until a native Data Asset is created in Editor.
+
+## Remaining established cores and branches
+
+```text
+Character/
+  Core/
+  Model/
+  Animation/
+  Camera/
+  Input/
+  Movement/
+  Interaction/
+  HUD/
+Ships/
+  Core/
+  Exploration/
+  Interior/
+  Decks/
+  Bridge/
+  Computer/
+  Engines/
+  Camera/
+  Controls/
+  PlayerShip/
+Worlds/
+  Earth/
+    Core/
+    Interior/
+    Surface/
+    Terrain/
+    Oceans/
+    Atmosphere/
+    Clouds/
+    Lighting/
+  AtmosphereClimate/
+    Core/
+    Composition/
+    VerticalStructure/
+    Climate/
+    Weather/
+    Rendering/
+  GeologyBiomes/
+    Core/
+    Interior/
+    Surface/
+    Terrain/
+    Oceans/
+    Biomes/
+Interop/
+  AssetImport/
+  Validation/
+  LegacyReference/
 ```
 
 ## Dependency rules
@@ -43,6 +89,6 @@ Source/Frontier/
 - Use Actor Components for reusable behavior; use independent Actors/Level Instances where placement, loading, collision or replacement must be independent.
 - Avoid per-frame Tick when event-driven updates or explicit update intervals are sufficient.
 
-## Implementation status
+## Validation status
 
-This is the intended C++/Blueprint source boundary. No UE5 C++ classes or runnable project files are claimed to exist until generated and compiled with the selected Unreal Engine toolchain.
+Planetary Core C++ source is committed but has **not** yet been compiled with Unreal Build Tool or tested in Editor. No runnable `.uproject` or packaged game is claimed to exist.
