@@ -30,7 +30,6 @@ The UE5 splash/logo belongs to Unreal's startup presentation; it is not the game
 
 Runner setup and the reusable Windows preflight are documented in [ANDROID_BUILD_RUNNER.md](Docs/ANDROID_BUILD_RUNNER.md). The validation script is `Tools/CI/Validate-AndroidRunner.ps1` and is called by the UE5 Android workflow before packaging.
 
-
 - `.github/workflows/android-apk.yml` is now the native UE5 Android packaging workflow. It invokes Unreal Automation Tool (`BuildCookRun`) and does not use Node, Vite, Three.js or Capacitor.
 - The UE5 workflow requires a trusted **self-hosted Windows runner** with the licensed Unreal Engine 5.8 installation and the matching Android SDK, NDK and JDK already configured.
 - Configure repository Actions variables `UE_ROOT`, `ANDROID_HOME`, `NDKROOT` and `JAVA_HOME` for that runner. The Android toolchain should be installed/validated with Unreal Turnkey for UE 5.8.
@@ -77,6 +76,11 @@ The authoritative ownership map is [CORE_SYSTEMS_MAP.md](Docs/CORE_SYSTEMS_MAP.m
 - `Docs/CORE_SYSTEMS_MAP.md` — authoritative core/branch ownership registry.
 - `Docs/MIGRATION_PLAN.md` — migration phases and acceptance gates.
 - `Docs/THREE_TO_UE5_MAP.md` — legacy implementation to UE5 mapping.
+- `Docs/LEGACY_UI_MIGRATION.md` — audit of the legacy HTML/CSS/JS screens and the native UMG conversion map.
 - `Data/planetary-profile.json` — engine-neutral Earth reference data.
 - `Docs/ATMOSPHERE_CLIMATE_CORE.md` — Atmosphere & Climate Core architecture, units, current model and validation gates.
 - `Source/Frontier/` — native UE5 C++ module and core implementations.
+
+## UI migration status
+
+The legacy `index.html`, `style.css`, `src/main.js`, Vite and Capacitor files have been audited. They remain preserved as reference material; they are not UE5 runtime dependencies. Character and ship HUD native UMG C++ scaffolds already exist. Login/profile entry, main menu panels, inventory, loading, pause and notifications still require dedicated UMG implementation. See [LEGACY_UI_MIGRATION.md](Docs/LEGACY_UI_MIGRATION.md). The legacy password field is only a local demo check, not secure account authentication.
