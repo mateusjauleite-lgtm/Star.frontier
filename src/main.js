@@ -510,8 +510,56 @@ async function startGame() {
     toast('Setor Orion: aproxime-se dos asteroides para minerar.');
   } catch (error) {
     console.error('Falha ao iniciar Star Frontier:', error);
+
+    // A inicialização pode falhar depois de criar o renderer, mas antes
+    // de concluir os sistemas. Desmonta o estado parcial para permitir
+    // uma nova tentativa real, em vez de reutilizar uma sessão quebrada.
+    active = false;
+    loadingScreen?.classList.add('hidden');
+
+    if (scene) {
+      scene.traverse(object => {
+        if (!object.isMesh && !object.isLine && !object.isPoints) return;
+        object.geometry?.dispose?.();
+        const materials = Array.isArray(object.material)
+          ? object.material
+          : object.material ? [object.material] : [];
+        materials.forEach(material => material?.dispose?.());
+      });
+    }
+
+    if (renderer) {
+      renderer.dispose();
+      renderer.forceContextLoss?.();
+      renderer.domElement?.remove();
+    }
+
+    renderer = null;
+    scene = null;
+    camera = null;
+    ship = null;
+    shipYaw = null;
+    shipPitch = null;
+    shipVisual = null;
+    stars = null;
+    earthSystem = null;
+    stationSystem = null;
+    orbitSystem = null;
+    asteroidSystem = null;
+    lightingSystem = null;
+    starshipInterior = null;
+    characterModel = null;
+    characterAnimator = null;
+    asteroids = [];
+    engineFlames = [];
+    engineLights = [];
+    nearbyElevator = false;
+    activeDeckIndex = 0;
+    npcReady = false;
+
     show('menu-screen');
-    alert('Não foi possível carregar o jogo. Tente decolar novamente.');
+    const detail = error?.message ? `\\n\\nDetalhe: ${error.message}` : '';
+    alert('Não foi possível carregar o jogo. A sessão parcial foi limpa; você pode tentar novamente.' + detail);
   } finally {
     launching = false;
   }
