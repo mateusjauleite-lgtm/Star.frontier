@@ -178,8 +178,9 @@ export function createStarshipInterior(options = {}) {
       addBox(group, [0.45, 5.25, 4], [-3.8, y, z], wallMat, 'D2-Corridor-Port-Wall');
       addBox(group, [0.45, 5.25, 4], [3.8, y, z], wallMat, 'D2-Corridor-Starboard-Wall');
     }
-    // Anteparas transversais entre salas; as portas ficam voltadas ao corredor.
-    for (const z of [-19.5, 1.5, 22.5]) {
+    // Anteparas transversais entre salas; a divisória junto ao elevador
+    // (z=22.5) foi removida para liberar a circulação até o hangar.
+    for (const z of [-19.5, 1.5]) {
       addBox(group, [18, 5.25, 0.38], [-15.2, y, z], wallMat, 'D2-Port-Compartment-Partition');
       addBox(group, [18, 5.25, 0.38], [15.2, y, z], wallMat, 'D2-Starboard-Compartment-Partition');
     }
@@ -211,10 +212,8 @@ export function createStarshipInterior(options = {}) {
   // A largura e o formato da abertura externa serão definidos depois.
   {
     const y = STARSHIP_LAYOUT.decks[3].y + 2.65;
-    // Hangar sem paredes laterais externas: mantém o centro amplo e aberto.
-    // Hangar livre de divisórias periféricas que ultrapassavam o novo contorno.
-    // Antepara frontal e moldura traseira dimensionadas para o deck reduzido.
-    addBox(group, [30, 5.25, 0.55], [0, y, -28.5], bulkheadMat, 'D4-Hangar-Forward-Bulkhead');
+    // Hangar sem antepara frontal: mantém livre a entrada do deck.
+    // A moldura traseira continua definindo a abertura de carga.
     const doorWidth = 16;
     const doorHeight = 4.2;
     const sideWidth = (35 - doorWidth) / 2;
