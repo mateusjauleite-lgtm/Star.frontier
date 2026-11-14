@@ -1,6 +1,8 @@
 # Earth reference library
 
-This folder is a research catalogue, separate from game assets.
+This folder is a research catalogue, separate from game assets. It combines
+Earth-specific observations with the shared scientific criteria used by all
+planetary bodies.
 
 ## Non-negotiable boundary
 
@@ -18,8 +20,12 @@ Workflow:
 5. Test visual quality, performance, mobile compatibility, and gameplay.
 6. Integrate only after review. Never auto-apply reference updates.
 
-## Sources
+## Reference catalogue
 
+- `planetary-science.md`: mass/radius/gravity, interior, tectonics, atmosphere,
+  climate, hydrology, planet-scale rendering, and the research toolchain.
+- `../planetary/planetaryScience.js`: shared machine-readable design contract
+  for Earth and future planets.
 - NASA Visible Earth: https://visibleearth.nasa.gov/
 - NASA Earth Observatory: https://earthobservatory.nasa.gov/
 - Google Earth: https://earth.google.com/
@@ -33,6 +39,7 @@ Google terms explicitly permit the intended use.
 
 ## Current implementation
 
-src/world/earth.js remains the existing renderer and visual baseline.
-earthCore.js is the stable integration boundary and currently delegates to that
-renderer without changing its appearance or behavior.
+`src/world/earth.js` remains the existing renderer and visual baseline.
+`earthCore.js` is the modular integration boundary. It exposes the advisory
+reference catalogue through `references`; references do not change rendering
+or simulation automatically.
