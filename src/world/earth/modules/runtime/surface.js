@@ -54,7 +54,7 @@ export function createSurfaceRuntime({ group, options, layers }) {
       group.add(mesh);
       layers.surface = mesh;
     },
-    update() {},
+    update(delta) { if (mesh) mesh.rotation.y += Math.min(Math.max(delta || 0, 0), .1) * .012; },
     dispose() {
       if (mesh) group.remove(mesh);
       geometry?.dispose(); material?.dispose(); texture?.dispose();
