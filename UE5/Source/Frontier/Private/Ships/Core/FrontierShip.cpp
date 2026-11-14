@@ -8,6 +8,7 @@
 #include "Ships/PlayerShip/FrontierPlayerShipSubsystem.h"
 #include "Character/Core/FrontierCharacter.h"
 #include "GameFramework/PlayerController.h"
+#include "Components/CapsuleComponent.h"
 #include "Components/SceneComponent.h"
 
 AFrontierShip::AFrontierShip()
@@ -38,6 +39,9 @@ void AFrontierShip::BeginPiloting(AFrontierCharacter* Character, FName NewComman
     ActivePilot = Character;
     AssignCommander(NewCommanderId);
     Character->EnterShipControlMode();
+    Character->AttachToActor(this, FAttachmentTransformRules::KeepWorldTransform);
+    Character->SetActorRelativeLocation(FVector(0.0f, 8.91f, -29.5f));
+    Character->GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     if (UWorld* World = GetWorld())
         if (UFrontierPlayerShipSubsystem* PlayerShip = World->GetSubsystem<UFrontierPlayerShipSubsystem>())
             PlayerShip->SetPlayerShip(this);
@@ -56,6 +60,8 @@ void AFrontierShip::EndPiloting()
         {
             PC->SetViewTarget(Character);
         }
+        Character->SetActorRelativeLocation(FVector(0.0f, 8.91f, -25.5f));
+        Character->GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
         Character->LeaveShipControlMode();
     }
     ActivePilot.Reset();
