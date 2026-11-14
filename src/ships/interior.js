@@ -42,19 +42,65 @@ export function createStarshipInterior(options = {}) {
   const collisionBoxes = [];
 
   const addBox = (parent, size, at, material, name = '') => {
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(...size), material);
-    mesh.position.set(...at);
-    if (name) mesh.name = name;
-    mesh.castShadow = false;
-    mesh.receiveShadow = true;
-    parent.add(mesh);
-    if (/Wall|Partition|Bulkhead|Frame/.test(name)) {
+    const isHullFitted = /Wall|Partition|Bulkhead|Frame/.test(name);
+    if (!isHullFitted) {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(...size), material);
+      mesh.position.set(...at);
+      if (name) mesh.name = name;
+      mesh.castShadow = false;
+      mesh.receiveShadow = true;
+      parent.add(mesh);
+      return mesh;
+    }
+
+    // Paredes e anteparas acompanham o volume elipsoidal do casco.
+    // Dividimos cada peça em lâminas curtas e recortamos topo/base pela
+    // superfície real do casco; a mesma geometria recortada gera a colisão.
+    const [width, height, depth] = size;
+    const alongX = width >= depth;
+    const run = alongX ? width : depth;
+    const thickness = alongX ? depth : width;
+    const slices = Math.max(1, Math.ceil(run / 0.5));
+    const sliceRun = run / slices;
+    const meshes = [];
+
+    for (let i = 0; i < slices; i++) {
+      const offset = -run / 2 + (i + 0.5) * sliceRun;
+      const x = at[0] + (alongX ? offset : 0);
+      const z = at[2] + (alongX ? 0 : offset);
+      const hullTerm = 1 - (x * x) / (27.2 * 27.2) - (z * z) / (50 * 50);
+      if (hullTerm <= 0) continue;
+
+      const hullY = 15.2 * Math.sqrt(hullTerm);
+      const wallBottom = Math.max(at[1] - height / 2, -hullY);
+      const wallTop = Math.min(at[1] + height / 2, hullY);
+      if (wallTop - wallBottom < 0.08) continue;
+
+      const segmentSize = alongX
+        ? [sliceRun + 0.015, wallTop - wallBottom, thickness]
+        : [thickness, wallTop - wallBottom, sliceRun + 0.015];
+      const segmentPosition = [
+        x,
+        (wallTop + wallBottom) / 2,
+        z
+      ];
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(...segmentSize), material);
+      mesh.position.set(...segmentPosition);
+      if (name) mesh.name = name;
+      mesh.castShadow = false;
+      mesh.receiveShadow = true;
+      parent.add(mesh);
+      meshes.push(mesh);
+
       collisionBoxes.push({
-        x: mesh.position.x, y: mesh.position.y, z: mesh.position.z,
-        halfX: size[0] / 2, halfY: size[1] / 2, halfZ: size[2] / 2
+        x, y: segmentPosition[1], z,
+        halfX: segmentSize[0] / 2,
+        halfY: segmentSize[1] / 2,
+        halfZ: segmentSize[2] / 2
       });
     }
-    return mesh;
+
+    return meshes[0] || null;
   };
 
   // Parede com vão central para futura instalação de porta.
