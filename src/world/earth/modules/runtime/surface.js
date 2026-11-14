@@ -14,8 +14,8 @@ export const EARTH_LAND_POLYGONS = [
 ];
 
 function traceLand(ctx, width, height) {
+  ctx.beginPath();
   for (const polygon of EARTH_LAND_POLYGONS) {
-    ctx.beginPath();
     polygon.forEach(([lon, lat], index) => {
       const x = (lon + 180) / 360 * width;
       const y = (90 - lat) / 180 * height;
