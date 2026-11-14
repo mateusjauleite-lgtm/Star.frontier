@@ -39,6 +39,7 @@ export function createStarshipInterior(options = {}) {
   const shaftMat = new THREE.MeshStandardMaterial({
     color: 0x172737, metalness: 0.7, roughness: 0.55
   });
+  const collisionBoxes = [];
 
   const addBox = (parent, size, at, material, name = '') => {
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(...size), material);
@@ -47,6 +48,12 @@ export function createStarshipInterior(options = {}) {
     mesh.castShadow = false;
     mesh.receiveShadow = true;
     parent.add(mesh);
+    if (/Wall|Partition|Bulkhead|Frame/.test(name)) {
+      collisionBoxes.push({
+        x: mesh.position.x, y: mesh.position.y, z: mesh.position.z,
+        halfX: size[0] / 2, halfY: size[1] / 2, halfZ: size[2] / 2
+      });
+    }
     return mesh;
   };
 
@@ -174,6 +181,7 @@ export function createStarshipInterior(options = {}) {
   return {
     group,
     layout: STARSHIP_LAYOUT,
+    collisionBoxes,
     dispose() {
       group.traverse(object => {
         if (!object.isMesh) return;
