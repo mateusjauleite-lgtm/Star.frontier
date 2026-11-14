@@ -38,7 +38,7 @@ Assign two authored assets to each Earth actor:
 1. `UPlanetaryProfileDataAsset` with `Identity.BodyId = earth`.
 2. `UAtmosphereClimateProfileDataAsset` whose `PlanetaryProfile` points to the exact same planetary profile asset.
 
-Initialization rejects missing/invalid profiles and mismatched planetary references. The actor's `VisualRadiusUnits` is a presentation setting only. `GetVisualUnitsPerKilometre()` derives its ratio from the physical mean radius; it never edits scientific values.
+Initialization rejects missing/invalid profiles and mismatched planetary references, initializes the seven branches, then activates the linked profile in `UAtmosphereClimateSubsystem`. That subsystem is currently world-scoped, so this implementation assumes one active Earth atmosphere profile per `UWorld`; multi-planet worlds will require per-body runtime state. The actor's `VisualRadiusUnits` is a presentation setting only. `GetVisualUnitsPerKilometre()` derives its ratio from the physical mean radius; it never edits scientific values.
 
 ## Asset audit — migration branch
 
