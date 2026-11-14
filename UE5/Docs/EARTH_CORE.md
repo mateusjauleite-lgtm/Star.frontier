@@ -67,7 +67,9 @@ It reuses these canonical paths and updates an existing asset in place; it creat
 - `/Game/StarFrontier/Worlds/Earth/DA_Earth_PlanetaryProfile`
 - `/Game/StarFrontier/Worlds/Earth/DA_Earth_AtmosphereClimate`
 
-The Planetary asset reads its radii and gravity from the existing `UE5/Data/planetary-profile.json`. The Atmosphere asset ports the vertical layer boundaries and standard-atmosphere reference calculation from `src/world/earth/modules/runtime/atmosphereModel.js`, with the pressure scale-height approximation required by the existing UE5 subsystem. Gas composition is a dry-air baseline; the climate values are an initial baseline, not a weather simulation.
+The Planetary asset reads physical radii, gravity, sidereal rotation, axial tilt, altitude datum and coordinate convention from the existing `UE5/Data/planetary-profile.json`. The Atmosphere asset ports the vertical standard-atmosphere reference layers from `src/world/earth/modules/runtime/atmosphereModel.js`, with the pressure scale-height approximation required by the existing UE5 subsystem. Gas composition is a dry-air baseline; the climate values are an initial baseline, not a weather simulation.
+
+When run in UE 5.8 with the Frontier module compiled, the script updates or creates only the two canonical assets, validates both profiles, and automatically assigns them to every `AFrontierEarth` actor in the currently open level. It saves that level when an actor is linked. If the level has no Earth actor, the assets are still created and the script logs that manual assignment is required. The script cannot create native binary `.uasset` files through GitHub; it must be executed inside the Unreal Editor.
 
 The four existing ship-deck Data Asset definitions (D1–D4) are a separate Ship Core concern. Their idempotent authoring script remains `UE5/Content/Editor/Python/create_ship_deck_assets.py`; do not recreate or rename those assets as part of Earth Core.
 
