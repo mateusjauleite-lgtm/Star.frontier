@@ -18,13 +18,13 @@ export function createTerrainRuntime({ group, options, layers }) {
         vertex.fromBufferAttribute(positions, i).normalize();
         const lat = Math.asin(vertex.y);
         const lon = Math.atan2(vertex.z, vertex.x);
-        const elevation = ridge(lat, lon) * .24;
+        const elevation = ridge(lat, lon) * (options.radius * 0.0012);
         positions.setXYZ(i, vertex.x * (options.radius + elevation), vertex.y * (options.radius + elevation), vertex.z * (options.radius + elevation));
       }
       geometry.computeVertexNormals();
       geometry.computeBoundingSphere();
       material = new THREE.MeshStandardMaterial({
-        color: 0xffffff, transparent: true, opacity: .075,
+        color: 0xffffff, transparent: true, opacity: .12,
         roughness: 1, metalness: 0, depthWrite: false,
         polygonOffset: true, polygonOffsetFactor: -1
       });
