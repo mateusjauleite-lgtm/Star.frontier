@@ -5,11 +5,20 @@
 UFrontierShipComputerComponent::UFrontierShipComputerComponent()
 {
     PrimaryComponentTick.bCanEverTick = false;
-    Systems = {
-        { TEXT("navigation"), FText::FromString(TEXT("Navegação")), TEXT("standby") },
-        { TEXT("sensors"), FText::FromString(TEXT("Sensores")), TEXT("standby") },
-        { TEXT("power"), FText::FromString(TEXT("Energia e recursos")), TEXT("standby") }
-    };
+    FFrontierShipComputerSystemStatus Navigation;
+    Navigation.SystemId = TEXT("navigation");
+    Navigation.DisplayName = FText::FromString(TEXT("Navegação"));
+    Systems.Add(Navigation);
+
+    FFrontierShipComputerSystemStatus Sensors;
+    Sensors.SystemId = TEXT("sensors");
+    Sensors.DisplayName = FText::FromString(TEXT("Sensores"));
+    Systems.Add(Sensors);
+
+    FFrontierShipComputerSystemStatus Power;
+    Power.SystemId = TEXT("power");
+    Power.DisplayName = FText::FromString(TEXT("Energia e recursos"));
+    Systems.Add(Power);
 }
 
 void UFrontierShipComputerComponent::Boot()
