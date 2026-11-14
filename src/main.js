@@ -911,7 +911,8 @@ function moveElevator(direction) {
   activeDeckIndex = nextIndex;
   const deck = starshipInterior.layout.decks[activeDeckIndex];
   characterModel.group.position.set(0, deck.y + 0.21, 25);
-  resolveCharacterShipCollisions(characterModel.group.position, activeDeckIndex);
+  // O centro do elevador fica dentro da área livre dos quatro decks.
+  // Não chamar resolveCharacterShipCollisions: essa função não existe no runtime.
   nearbyElevator = true;
   characterCore.setInteractionTarget('ELEVADOR INTERNO');
   updateElevatorButtons();
