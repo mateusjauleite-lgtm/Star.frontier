@@ -106,7 +106,6 @@ export function createExplorationShip() {
   const lowerPositions = lowerHullSource.attributes.position;
   const lowerSourceIndices = lowerHullSource.index.array;
   const lowerHullIndices = [];
-  const aftHangarOpeningIndices = [];
 
   for (let i = 0; i < lowerSourceIndices.length; i += 3) {
     const a = lowerSourceIndices[i];
@@ -123,11 +122,11 @@ export function createExplorationShip() {
     ) / 3;
 
     const isAftHangarOpening =
-      centerZ > 0.70 &&
-      Math.abs(centerX) < 0.255 &&
-      centerY > -0.68 && centerY < -0.28;
+      centerZ > 0.60 &&
+      Math.abs(centerX) < 0.36 &&
+      centerY > -0.76 && centerY < -0.18;
 
-    (isAftHangarOpening ? aftHangarOpeningIndices : lowerHullIndices).push(a, b, c);
+    if (!isAftHangarOpening) lowerHullIndices.push(a, b, c);
   }
 
   const lowerHullGeometry = lowerHullSource.clone();
@@ -203,9 +202,9 @@ export function createExplorationShip() {
 
   // Boca do hangar central: vão livre. Não inserir painel sólido no plano
   // externo, pois ele fecha visualmente a saída do hangar.
-  addMesh(new THREE.BoxGeometry(13.9, 0.32, 0.42), trimMaterial,
+  addMesh(new THREE.BoxGeometry(19.6, 0.32, 0.42), trimMaterial,
     [0, -4.55, 53.95], [1, 1, 1], 'Central-Hangar-Upper-Lip');
-  addMesh(new THREE.BoxGeometry(13.9, 0.32, 0.42), trimMaterial,
+  addMesh(new THREE.BoxGeometry(19.6, 0.32, 0.42), trimMaterial,
     [0, -9.65, 53.95], [1, 1, 1], 'Central-Hangar-Lower-Lip');
 
   for (const side of [-1, 1]) {
