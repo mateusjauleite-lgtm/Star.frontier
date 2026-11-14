@@ -97,8 +97,46 @@ export function createExplorationShip() {
     [27.2, 15.2, 50],
     'Bridge-Panoramic-Window'
   );
-  const lowerHull = addMesh(
-    new THREE.SphereGeometry(1, 48, 24, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2),
+  // Abertura real do hangar na popa: removemos os triângulos da concha
+  // inferior na região central traseira, acompanhando a curvatura do casco.
+  // O recorte usa coordenadas normalizadas da esfera, como a janela frontal.
+  const lowerHullSource = new THREE.SphereGeometry(
+    1, 48, 24, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2
+  );
+  const lowerPositions = lowerHullSource.attributes.position;
+  const lowerSourceIndices = lowerHullSource.index.array;
+  const lowerHullIndices = [];
+  const aftHangarOpeningIndices = [];
+
+  for (let i = 0; i < lowerSourceIndices.length; i += 3) {
+    const a = lowerSourceIndices[i];
+    const b = lowerSourceIndices[i + 1];
+    const c = lowerSourceIndices[i + 2];
+    const centerX = (
+      lowerPositions.getX(a) + lowerPositions.getX(b) + lowerPositions.getX(c)
+    ) / 3;
+    const centerY = (
+      lowerPositions.getY(a) + lowerPositions.getY(b) + lowerPositions.getY(c)
+    ) / 3;
+    const centerZ = (
+      lowerPositions.getZ(a) + lowerPositions.getZ(b) + lowerPositions.getZ(c)
+    ) / 3;
+
+    const isAftHangarOpening =
+      centerZ > 0.70 &&
+      Math.abs(centerX) < 0.255 &&
+      centerY > -0.68 && centerY < -0.28;
+
+    (isAftHangarOpening ? aftHangarOpeningIndices : lowerHullIndices).push(a, b, c);
+  }
+
+  const lowerHullGeometry = lowerHullSource.clone();
+  lowerHullGeometry.setIndex(lowerHullIndices);
+  lowerHullGeometry.computeVertexNormals();
+  lowerHullSource.dispose();
+
+  addMesh(
+    lowerHullGeometry,
     undersideMaterial, [0, 0, 0], [27.2, 15.2, 50], 'Lower-Saucer-Hull'
   );
 
