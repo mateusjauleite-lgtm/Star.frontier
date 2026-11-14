@@ -4,7 +4,7 @@ This source tree preserves the established Star Frontier **Core → branches** a
 
 ## Native module
 
-- `Frontier.Build.cs` — Core, CoreUObject, Engine, EnhancedInput and UMG dependencies.
+- `Frontier.Build.cs` — Core, CoreUObject, Engine, EnhancedInput, UMG and Niagara dependencies.
 - `Private/Frontier.cpp` — module entry point.
 
 ## Initial Main Core source scaffold
@@ -16,9 +16,9 @@ Config/
   DefaultEngine.ini
 ```
 
-`AFrontierGameMode` is the world-entry coordinator after the Unreal Engine startup splash and map load. It selects `AFrontierCharacter` as the default pawn, spawns the configured exploration ship and places the possessed character on the configured starting deck (D1 by default). The default GameMode is registered in `Config/DefaultEngine.ini`.
+`AFrontierGameMode` is the world-entry coordinator after the Unreal Engine startup splash and map load. It selects `AFrontierCharacter` as the default pawn, spawns the configured exploration ship and places the possessed character on the configured starting deck (D1 by default). The default GameMode is registered in `Config/DefaultEngine.ini`. The project descriptor is `UE5/StarFrontier.uproject`; game and Editor targets are provided alongside the module. `Tools/EditorPython/create_main_startup_map.py` creates the initial map package inside Unreal Editor.
 
-This is source/configuration scaffolding only. The UE5 project descriptor, startup map, authored ship Blueprint/assets and Editor validation are still missing. The engine's splash/logo is not implemented as a game menu by this class.
+The `.uproject` descriptor is present, but the generated startup `.umap`, authored ship Blueprint/assets and Editor validation are still outstanding. The engine's splash/logo is not implemented as a game menu by this class.
 
 ## Implemented first core: Planetary Core
 
@@ -70,7 +70,7 @@ Ships/
   Interior/ FrontierShipDeckDefinition.h; FrontierShipDeckModule.h/.cpp; FrontierShipInteriorComponent.h/.cpp; FrontierShipElevator.h/.cpp
   Bridge/ FrontierPilotStation.h/.cpp
   Computer/ FrontierShipComputerComponent.h/.cpp
-  Engines/ FrontierShipEngineComponent.h/.cpp
+  Engines/ FrontierShipEngineComponent.h/.cpp; FrontierShipEngineFXComponent.h/.cpp
   Camera/ FrontierShipCameraBoom.h/.cpp
   Controls/ FrontierShipControlsComponent.h/.cpp
   PlayerShip/ FrontierPlayerShipSubsystem.h/.cpp
@@ -78,11 +78,11 @@ Ships/
 
 The Ship Core owns ShipId, CommanderId, flight state and its feature components. Its root now uses a configurable collision box so swept actor movement checks a blocking root shape; this is a temporary proxy and must be fitted to the imported hull or replaced with a dedicated hull collision mesh. The exploration hull is assembled from a profile of independently transformed mesh parts.
 
-Deck definitions are held by the interior branch, which creates runtime D1–D4 fallback definitions from the legacy layout when no Editor Data Assets are assigned, then spawns any missing deck modules. Each fallback deck receives an elliptical engine-cylinder floor at the original elevation and footprint; final imported floor and wall meshes can replace these primitives through the same Data Asset contract. Decks remain separate actors driven by Data Assets; wall pieces have individual transforms and collision flags, with protected hangar/elevator clearance volumes. The elevator routes among the four original deck stops and determines the current stop in ship-local coordinates. The bridge pilot station enters Ship Core piloting, attaches the character to the ship's local frame, switches the view target and registers the current player ship. Pilot exit is exposed through a requester-checked API for Enhanced Input or a mobile HUD action. Ship Core also exposes a deck-placement API for placing the character on D1–D4. The computer has terminal permissions and navigation telemetry; engines and controls are separate components, with boost affecting the top speed.
+Deck definitions are held by the interior branch, which creates runtime D1–D4 fallback definitions from the legacy layout when no Editor Data Assets are assigned, then spawns any missing deck modules. Each fallback deck receives an elliptical engine-cylinder floor at the original elevation and footprint; final imported floor and wall meshes can replace these primitives through the same Data Asset contract. Decks remain separate actors driven by Data Assets; wall pieces have individual transforms and collision flags, with protected hangar/elevator clearance volumes. The elevator routes among the four original deck stops and determines the current stop in ship-local coordinates. The bridge pilot station enters Ship Core piloting, attaches the character to the ship's local frame, switches the view target and registers the current player ship. Pilot exit is exposed through a requester-checked API for Enhanced Input or a mobile HUD action. Ship Core also exposes a deck-placement API for placing the character on D1–D4. The computer has terminal permissions and navigation telemetry; engine dynamics, visual Engine FX and controls are separate components. The visual FX branch reads throttle/speed/boost/braking telemetry, drives two aft exhaust glow lights and supports optional Niagara systems; it never changes engine physics. Boost affects the top speed.
 
 The legacy ship used Three.js Y-up coordinates and metre-like source units. The migration helper converts local positions to UE5 X-forward/Z-up centimetres: UE X = -legacy Z, UE Y = legacy X, UE Z = legacy Y, multiplied by 100. Imported hull/deck assets must follow this convention or provide an explicit import transform.
 
-The native Ship Core code path is now organized for Editor integration, but it is **not yet a validated playable ship**. A Python Editor creation script is available at `UE5/Content/Editor/Python/create_ship_deck_assets.py`; running it inside Unreal Editor creates or updates these four assets under `/Game/StarFrontier/Ships/Decks`: `DA_Deck01_Command`, `DA_Deck02_OperationsScience`, `DA_Deck03_Engineering` and `DA_Deck04_HangarSupport`. The script sets each deck identity, code, display name and clearance flags. It deliberately leaves floor/wall meshes and clearance boxes unset until the real geometry is imported and measured. The four binary `.uasset` files are generated by Unreal Editor, not by GitHub source commits, so they have not yet been created in the project Content folder. The interior component's `DeckDefinitions` array must then be assigned these assets on the ship Blueprint/instance. Terminal permissions, Enhanced Input/mobile UI bindings, final hull collision and Editor-side layout verification remain. No Unreal compile or Editor test has been performed.
+The native Ship Core code path is now organized for Editor integration, but it is **not yet a validated playable ship**. A Python Editor creation script is available at `UE5/Content/Editor/Python/create_ship_deck_assets.py`; running it inside Unreal Editor creates or updates these four assets under `/Game/StarFrontier/Ships/Decks`: `DA_Deck01_Command`, `DA_Deck02_OperationsScience`, `DA_Deck03_Engineering` and `DA_Deck04_HangarSupport`. The script sets each deck identity, code, display name and clearance flags. It deliberately leaves floor/wall meshes and clearance boxes unset until the real geometry is imported and measured. The four binary `.uasset` files are generated by Unreal Editor, not by GitHub source commits, so they have not yet been created in the project Content folder. The interior component's `DeckDefinitions` array must then be assigned these assets on the ship Blueprint/instance. Terminal permissions, Enhanced Input/mobile UI bindings, final hull collision and Editor-side layout verification remain. No Unreal compile or Editor test has been performed. Niagara emitter assets have not yet been authored or assigned.
 
 ## Remaining established cores and branches
 
@@ -149,4 +149,4 @@ Interop/
 
 ## Validation status
 
-Planetary Core, Character Core and Ship Core source scaffolds have not been compiled with Unreal Build Tool or tested in Editor. No runnable `.uproject` or packaged game is claimed to exist.
+Planetary Core, Character Core and Ship Core source scaffolds have not been compiled with Unreal Build Tool or tested in Editor. The `.uproject` descriptor exists, but the generated startup `.umap`, successful Unreal build and packaged game are not yet available.
