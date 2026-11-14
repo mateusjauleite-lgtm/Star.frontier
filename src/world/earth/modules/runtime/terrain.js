@@ -71,6 +71,7 @@ export function createTerrainRuntime({ options, layers }) {
   let elevationSampler = null;
   let earthKernel = createEarthKernelAdapter();
   let heightScale = 1;
+  let disposed = false;
 
   return {
     initialize() {
@@ -156,6 +157,8 @@ export function createTerrainRuntime({ options, layers }) {
       // Re-run the vertex elevation pass through the compiled C++ kernel once
       // WebAssembly is ready. The first pass above remains a safe JS fallback.
       loadEarthKernel().then(kernel => {
+        if (disposed) { kernel.dispose(); return; }
+        earthKernel.dispose();
         earthKernel = kernel;
         if (layers.terrain) layers.terrain.computeBackend = kernel.backend;
         if (!gridIsReady || kernel.backend !== 'wasm-c++') return;
@@ -200,6 +203,7 @@ export function createTerrainRuntime({ options, layers }) {
     },
     update() {},
     dispose() {
+      disposed = true;
       maskCanvas = null;
       maskData = null;
       elevationSampler = null;
