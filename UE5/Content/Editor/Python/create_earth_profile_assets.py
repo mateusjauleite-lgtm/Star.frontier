@@ -180,9 +180,23 @@ def build_planetary_asset(reference):
         "standard_surface_gravity_mps2": earth["standardGravityMps2"],
         "has_defined_surface": True
     }))
+    asset.set_editor_property("rotation", make_struct("PlanetaryRotation", {
+        "sidereal_rotation_period_seconds": earth["rotation"]["siderealRotationPeriodSeconds"],
+        "axial_tilt_degrees": earth["rotation"]["axialTiltDegrees"],
+        "direction": enum_value("EPlanetaryRotationDirection", earth["rotation"]["direction"])
+    }))
+    asset.set_editor_property("altitude", make_struct("PlanetaryAltitudeReference", {
+        "reference_altitude_km": earth["altitudeReference"]["referenceAltitudeKm"],
+        "reference_datum": earth["altitudeReference"]["referenceDatum"]
+    }))
+    asset.set_editor_property("coordinates", make_struct("PlanetaryCoordinateReference", {
+        "convention": enum_value(
+            "EPlanetaryCoordinateConvention", earth["coordinates"]["convention"]
+        ),
+        "body_fixed_frame": earth["coordinates"]["bodyFixedFrame"],
+        "longitude_east_positive": earth["coordinates"]["longitudeEastPositive"]
+    }))
 
-    # Rotation and coordinate values are not invented from the render scale.
-    # Existing C++ defaults remain available for a separately reviewed update.
     unreal.EditorAssetLibrary.save_loaded_asset(asset)
     if not asset.is_profile_valid():
         raise RuntimeError("Earth Planetary Profile failed IsProfileValid().")
@@ -251,6 +265,37 @@ def build_atmosphere_asset(planetary_asset):
     return asset
 
 
+def link_profiles_to_open_earth_actors(planetary_asset, atmosphere_asset):
+    # Link every AFrontierEarth instance in the currently open level. If no
+    # Earth actor is present, the assets remain ready for manual assignment.
+    editor_level_library = getattr(unreal, "EditorLevelLibrary", None)
+    if editor_level_library is None:
+        unreal.log_warning("EditorLevelLibrary is unavailable; assign the two profiles on AFrontierEarth manually.")
+        return 0
+
+    earth_class_path = "/Script/Frontier.FrontierEarth"
+    linked_count = 0
+    for actor in editor_level_library.get_all_level_actors():
+        if actor.get_class().get_path_name() != earth_class_path:
+            continue
+        actor.set_editor_property("planetary_profile", planetary_asset)
+        actor.set_editor_property("atmosphere_profile", atmosphere_asset)
+        actor.modify()
+        actor.mark_package_dirty()
+        linked_count += 1
+
+    if linked_count:
+        editor_level_library.save_current_level()
+        unreal.log("Linked Earth profiles to " + str(linked_count) + " AFrontierEarth actor(s) in the open level.")
+    else:
+        unreal.log_warning(
+            "No AFrontierEarth actor exists in the open level. Place one, then assign: "
+            + DESTINATION + "/" + PLANETARY_ASSET_NAME + " and "
+            + DESTINATION + "/" + ATMOSPHERE_ASSET_NAME
+        )
+    return linked_count
+
+
 if not os.path.isfile(PLANETARY_REFERENCE):
     raise RuntimeError("Existing planetary reference JSON not found: " + PLANETARY_REFERENCE)
 
@@ -262,7 +307,11 @@ if not unreal.EditorAssetLibrary.does_directory_exist(DESTINATION):
 
 earth_planetary_asset = build_planetary_asset(planetary_reference)
 earth_atmosphere_asset = build_atmosphere_asset(earth_planetary_asset)
+linked_earth_actor_count = link_profiles_to_open_earth_actors(
+    earth_planetary_asset, earth_atmosphere_asset
+)
 
 unreal.log("Earth Data Assets ready (canonical paths, no duplicates):")
 unreal.log(DESTINATION + "/" + PLANETARY_ASSET_NAME)
 unreal.log(DESTINATION + "/" + ATMOSPHERE_ASSET_NAME)
+unreal.log("Linked AFrontierEarth actors: " + str(linked_earth_actor_count))
