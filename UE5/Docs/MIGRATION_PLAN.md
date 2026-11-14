@@ -95,6 +95,7 @@ Native UE5 source structure and first integration pass:
 Still required before Ship Core is considered migrated and playable:
 
 - [x] Port the exploration ship's main saucer hull, engineering pods, twin nacelles, engine cores, hangar lips and observation windows into a native UE5 primitive-mesh fallback based on the legacy Three.js positions and proportions.
+- [x] Expand the elevator interaction volume to cover the vertical span of the four legacy deck stops, since the elevator actor is centered in the shaft.
 - [ ] Import/assemble the final authored exploration hull, nacelles, engines and interior mesh assets; replace the primitive fallback once those assets are ready.
 - [x] Add an Unreal Editor Python creation script for the four named deck Data Assets, including D1–D4 identity, labels and clearance flags.
 - [ ] Run the script in Unreal Editor to generate the four binary `.uasset` files, then assign them to the Ship Interior component's `DeckDefinitions` array.
