@@ -68,7 +68,7 @@ The authoritative ownership map is [CORE_SYSTEMS_MAP.md](Docs/CORE_SYSTEMS_MAP.m
 - Initial Atmosphere & Climate Core source scaffold is committed: gas composition, atmospheric layer definitions, climate baseline, a profile Data Asset linked to Planetary Core, and a World Subsystem for pressure/temperature/density sampling. Its model is a deterministic approximation and has not been compiled or tested.
 - Frontier module rules and module entry point are committed.
 - The UE 5.8 project descriptor and game/editor targets are present, but the C++ has not yet been compiled by Unreal Build Tool or validated in Unreal Editor.
-- Initial native UMG UI source is committed: shared `FFrontierUIStyle`, `UFrontierMainMenuWidget` with six navigation sections and display-name-only entry, and shared palette use in the existing character/ship HUDs. The menu is not yet wired into a PlayerController or startup flow; no profile persistence or authentication is implemented.
+- Initial native UMG UI source is committed: shared `FFrontierUIStyle`, `UFrontierMainMenuWidget` with six navigation sections and display-name-only entry, and shared palette use in the existing character/ship HUDs. `AFrontierPlayerController` now creates the menu, binds its events and switches input modes; `AFrontierGameMode` selects it without changing the existing pawn/ship/D1 startup. Profile persistence/authentication and a separate loading transition are not implemented.
 - The initial `.umap` must still be generated in Editor; authored Niagara assets and a packaged UE5 game have not yet been produced.
 - The UE5 Android workflow is authored but has not been run; no self-hosted runner or Android APK build has been verified.
 
@@ -79,7 +79,8 @@ The authoritative ownership map is [CORE_SYSTEMS_MAP.md](Docs/CORE_SYSTEMS_MAP.m
 - `Docs/THREE_TO_UE5_MAP.md` — legacy implementation to UE5 mapping.
 - `Docs/LEGACY_UI_MIGRATION.md` — audit of the legacy HTML/CSS/JS screens and the native UMG conversion map.
 - `Source/Frontier/Public/UI/FrontierUIStyle.h` — shared UMG palette/style helpers.
-- `Source/Frontier/Public/Main/FrontierMainMenuWidget.h` — native main-menu shell and UI-to-gameplay events.
+- `Source/Frontier/Public/Main/FrontierMainMenuWidget.h` — native main-menu shell and UI action delegates.
+- `Source/Frontier/Public/Main/FrontierPlayerController.h` — menu lifecycle, navigation and input-mode owner.
 - `Data/planetary-profile.json` — engine-neutral Earth reference data.
 - `Docs/ATMOSPHERE_CLIMATE_CORE.md` — Atmosphere & Climate Core architecture, units, current model and validation gates.
 - `Source/Frontier/` — native UE5 C++ module and core implementations.
