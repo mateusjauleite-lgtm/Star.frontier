@@ -68,7 +68,7 @@ public:
     TObjectPtr<UBoxComponent> CollisionRoot;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Ship|Collision")
-    FVector CollisionHalfExtent = FVector(3000.0f, 1000.0f, 1000.0f);
+    FVector CollisionHalfExtent = FVector(10000.0f, 3000.0f, 1600.0f);
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Ship|Core")
     TObjectPtr<USceneComponent> ShipRoot;
