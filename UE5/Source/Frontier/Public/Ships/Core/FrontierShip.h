@@ -1,0 +1,101 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "GameFramework/Actor.h"
+#include "FrontierShip.generated.h"
+
+class USceneComponent;
+class UFrontierShipControlsComponent;
+class UFrontierShipEngineComponent;
+class UFrontierShipInteriorComponent;
+class UFrontierShipComputerComponent;
+
+USTRUCT(BlueprintType)
+struct FRONTIER_API FFrontierShipIdentity
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    FName ShipId = TEXT("aurora-7");
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    FName CommanderId = NAME_None;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    FText DisplayName = FText::FromString(TEXT("Nave de exploração"));
+};
+
+USTRUCT(BlueprintType)
+struct FRONTIER_API FFrontierShipFlightState
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly)
+    float Throttle = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float PitchInput = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float YawInput = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float SpeedCmPerSecond = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    bool bBraking = false;
+
+    UPROPERTY(BlueprintReadOnly)
+    bool bBoosting = false;
+};
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FFrontierShipIdentityChanged, FName, ShipId, FName, CommanderId);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FFrontierShipFlightStateChanged, const FFrontierShipFlightState&, State);
+
+UCLASS(Blueprintable)
+class FRONTIER_API AFrontierShip : public AActor
+{
+    GENERATED_BODY()
+
+public:
+    AFrontierShip();
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Ship|Core")
+    TObjectPtr<USceneComponent> ShipRoot;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Ship|Identity")
+    FFrontierShipIdentity Identity;
+
+    UPROPERTY(BlueprintReadOnly, Category="Ship|Flight")
+    FFrontierShipFlightState FlightState;
+
+    UPROPERTY(BlueprintAssignable, Category="Ship|Identity")
+    FFrontierShipIdentityChanged OnIdentityChanged;
+
+    UPROPERTY(BlueprintAssignable, Category="Ship|Flight")
+    FFrontierShipFlightStateChanged OnFlightStateChanged;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Ship|Controls")
+    TObjectPtr<UFrontierShipControlsComponent> Controls;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Ship|Engines")
+    TObjectPtr<UFrontierShipEngineComponent> Engines;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Ship|Interior")
+    TObjectPtr<UFrontierShipInteriorComponent> Interior;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Ship|Computer")
+    TObjectPtr<UFrontierShipComputerComponent> Computer;
+
+    UFUNCTION(BlueprintCallable, Category="Ship|Identity")
+    void AssignCommander(FName NewCommanderId);
+
+    UFUNCTION(BlueprintCallable, Category="Ship|Flight")
+    void SetFlightInputs(float NewThrottle, float NewPitch, float NewYaw, bool bNewBraking, bool bNewBoosting);
+
+    UFUNCTION(BlueprintCallable, Category="Ship|Flight")
+    void ClearFlightInputs();
+
+protected:
+    virtual void Tick(float DeltaSeconds) override;
+};
