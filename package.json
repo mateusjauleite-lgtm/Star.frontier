@@ -1,14 +1,18 @@
-
 {
-  "name": "star-frontier-android",
-  "version": "0.1.0",
+  "name": "star-frontier-threejs",
+  "version": "1.0.0",
   "private": true,
+  "description": "Star Frontier Three.js game runtime and Capacitor Android package",
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
-    "android:sync": "npx cap sync android",
-    "android:open": "npx cap open android"
+    "test": "node --test",
+    "android:add": "npx cap add android",
+    "android:sync": "npx cap sync android"
   },
   "dependencies": {
     "@capacitor/core": "^7.4.3",
