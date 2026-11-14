@@ -10,6 +10,7 @@ class UFrontierShipEngineComponent;
 class UFrontierShipInteriorComponent;
 class UFrontierShipComputerComponent;
 class UFrontierShipCameraBoom;
+class UFrontierShipExplorationHullComponent;
 class AFrontierCharacter;
 
 USTRUCT(BlueprintType)
@@ -85,6 +86,9 @@ public:
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Ship|Interior")
     TObjectPtr<UFrontierShipInteriorComponent> Interior;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Ship|Exploration")
+    TObjectPtr<UFrontierShipExplorationHullComponent> ExplorationHull;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Ship|Camera")
     TObjectPtr<UFrontierShipCameraBoom> ShipCamera;
