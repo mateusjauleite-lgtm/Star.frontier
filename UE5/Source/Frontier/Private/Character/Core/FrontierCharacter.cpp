@@ -43,9 +43,8 @@ void AFrontierCharacter::BeginPlay()
 
     if (APlayerController* PC = Cast<APlayerController>(GetController()))
     {
-        if (CharacterHUDClass)
         {
-            CharacterHUD = CreateWidget<UFrontierCharacterHUDWidget>(PC, CharacterHUDClass);
+            CharacterHUD = CreateWidget<UFrontierCharacterHUDWidget>(PC, CharacterHUDClass ? CharacterHUDClass : UFrontierCharacterHUDWidget::StaticClass());
             if (CharacterHUD)
             {
                 CharacterHUD->AddToViewport();
@@ -72,9 +71,9 @@ void AFrontierCharacter::PawnClientRestart()
 
     // PawnClientRestart runs after possession, so the widget receives a valid
     // owning PlayerController for mobile touch callbacks.
-    if (PC && CharacterHUDClass && !CharacterHUD)
+    if (PC && !CharacterHUD)
     {
-        CharacterHUD = CreateWidget<UFrontierCharacterHUDWidget>(PC, CharacterHUDClass);
+        CharacterHUD = CreateWidget<UFrontierCharacterHUDWidget>(PC, CharacterHUDClass ? CharacterHUDClass : UFrontierCharacterHUDWidget::StaticClass());
         if (CharacterHUD)
         {
             CharacterHUD->AddToViewport();
