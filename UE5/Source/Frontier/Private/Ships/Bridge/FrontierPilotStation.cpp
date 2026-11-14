@@ -21,7 +21,7 @@ void AFrontierPilotStation::BeginPlay()
     if (OwningShip)
     {
         AttachToActor(OwningShip, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
-        SetActorRelativeLocation(FVector(0.0f, 8.91f, -29.5f));
+        SetActorRelativeLocation(AFrontierShip::ThreeToUnrealLocalPosition(FVector(0.0f, 8.91f, -29.5f)));
     }
 }
 
