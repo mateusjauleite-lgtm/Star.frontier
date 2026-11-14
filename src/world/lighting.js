@@ -5,7 +5,7 @@ export function createSpaceLighting(scene, options = {}) {
   const ambientLight = new THREE.HemisphereLight(0x9acfff, 0x111827, 0.75);
   scene.add(ambientLight);
 
-  const sunPosition = new THREE.Vector3(-120, 65, -220);
+  const sunPosition = new THREE.Vector3(-420, 220, -1250);
   const sunLight = new THREE.PointLight(0xffd6a0, 260, 1800, 1.15);
   sunLight.position.copy(sunPosition);
   scene.add(sunLight);
