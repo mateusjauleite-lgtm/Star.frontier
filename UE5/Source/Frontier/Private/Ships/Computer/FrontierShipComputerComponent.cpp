@@ -27,9 +27,19 @@ void UFrontierShipComputerComponent::Shutdown()
         System.Status = TEXT("standby");
 }
 
+void UFrontierShipComputerComponent::RegisterTerminal(FName TerminalId, const TArray<FName>& AllowedSystems)
+{
+    if (TerminalId.IsNone()) return;
+    TSet<FName>& Permissions = TerminalPermissions.FindOrAdd(TerminalId);
+    Permissions.Reset();
+    for (const FName& SystemId : AllowedSystems)
+        if (!SystemId.IsNone()) Permissions.Add(SystemId);
+}
+
 bool UFrontierShipComputerComponent::ConnectTerminal(FName TerminalId, FName OperatorId)
 {
-    if (!bOnline || TerminalId.IsNone() || OperatorId.IsNone()) return false;
+    if (!bOnline || TerminalId.IsNone() || OperatorId.IsNone() ||
+        !TerminalPermissions.Contains(TerminalId)) return false;
     if (!ActiveTerminalId.IsNone() && ActiveTerminalId != TerminalId) return false;
     ActiveTerminalId = TerminalId;
     return true;
@@ -45,13 +55,16 @@ bool UFrontierShipComputerComponent::IsTerminalConnected(FName TerminalId) const
     return bOnline && ActiveTerminalId == TerminalId;
 }
 
-bool UFrontierShipComputerComponent::GetNavigationTelemetry(
-    FVector& OutLocation, FRotator& OutRotation, float& OutSpeed) const
+bool UFrontierShipComputerComponent::DispatchNavigationTelemetry(
+    FName TerminalId, FFrontierShipTelemetry& OutTelemetry) const
 {
+    const TSet<FName>* Permissions = TerminalPermissions.Find(TerminalId);
     const AFrontierShip* Ship = Cast<AFrontierShip>(GetOwner());
-    if (!bOnline || !Ship || !Ship->Engines) return false;
-    OutLocation = Ship->GetActorLocation();
-    OutRotation = Ship->GetActorRotation();
-    OutSpeed = Ship->Engines->GetCurrentSpeedCmPerSecond();
+    if (!IsTerminalConnected(TerminalId) || !Permissions ||
+        !Permissions->Contains(TEXT("navigation")) || !Ship || !Ship->Engines) return false;
+
+    OutTelemetry.Location = Ship->GetActorLocation();
+    OutTelemetry.Rotation = Ship->GetActorRotation();
+    OutTelemetry.SpeedCmPerSecond = Ship->Engines->GetCurrentSpeedCmPerSecond();
     return true;
 }
