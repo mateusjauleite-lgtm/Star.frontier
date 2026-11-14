@@ -3,6 +3,9 @@
 #include "Ships/Engines/FrontierShipEngineComponent.h"
 #include "Ships/Interior/FrontierShipInteriorComponent.h"
 #include "Ships/Computer/FrontierShipComputerComponent.h"
+#include "Ships/Camera/FrontierShipCameraBoom.h"
+#include "Character/Core/FrontierCharacter.h"
+#include "GameFramework/PlayerController.h"
 #include "Components/SceneComponent.h"
 
 AFrontierShip::AFrontierShip()
@@ -15,12 +18,41 @@ AFrontierShip::AFrontierShip()
     Engines = CreateDefaultSubobject<UFrontierShipEngineComponent>(TEXT("ShipEngines"));
     Interior = CreateDefaultSubobject<UFrontierShipInteriorComponent>(TEXT("ShipInterior"));
     Computer = CreateDefaultSubobject<UFrontierShipComputerComponent>(TEXT("ShipComputer"));
+    ShipCamera = CreateDefaultSubobject<UFrontierShipCameraBoom>(TEXT("ShipCameraBoom"));
+    ShipCamera->SetupAttachment(ShipRoot);
 }
 
 void AFrontierShip::AssignCommander(FName NewCommanderId)
 {
     Identity.CommanderId = NewCommanderId;
     OnIdentityChanged.Broadcast(Identity.ShipId, Identity.CommanderId);
+}
+
+void AFrontierShip::BeginPiloting(AFrontierCharacter* Character, FName NewCommanderId)
+{
+    if (!Character) return;
+    ActivePilot = Character;
+    AssignCommander(NewCommanderId);
+    Character->EnterShipControlMode();
+    if (APlayerController* PC = Cast<APlayerController>(Character->GetController()))
+    {
+        PC->SetViewTarget(this);
+    }
+}
+
+void AFrontierShip::EndPiloting()
+{
+    AFrontierCharacter* Character = ActivePilot.Get();
+    if (Character)
+    {
+        if (APlayerController* PC = Cast<APlayerController>(Character->GetController()))
+        {
+            PC->SetViewTarget(Character);
+        }
+        Character->LeaveShipControlMode();
+    }
+    ActivePilot.Reset();
+    ClearFlightInputs();
 }
 
 void AFrontierShip::SetFlightInputs(
@@ -42,9 +74,20 @@ void AFrontierShip::ClearFlightInputs()
 void AFrontierShip::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
+    if (FMath::Abs(FlightState.Throttle) > KINDA_SMALL_NUMBER)
+        TravelDirectionSign = FMath::Sign(FlightState.Throttle);
+
+    const FRotator RotationDelta(
+        FlightState.PitchInput * PitchRateDegrees * DeltaSeconds,
+        FlightState.YawInput * YawRateDegrees * DeltaSeconds,
+        0.0f);
+    AddActorLocalRotation(RotationDelta);
+
     if (Engines)
     {
         FlightState.SpeedCmPerSecond = Engines->GetCurrentSpeedCmPerSecond();
+        const float TravelDistance = FlightState.SpeedCmPerSecond * TravelDirectionSign * DeltaSeconds;
+        AddActorLocalOffset(FVector(TravelDistance, 0.0f, 0.0f), true);
         OnFlightStateChanged.Broadcast(FlightState);
     }
 }
