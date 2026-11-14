@@ -2,7 +2,9 @@
 
 ## Purpose
 
-The workflow `.github/workflows/android-apk.yml` packages the native Unreal project. It does not use Node, Vite, Three.js or Capacitor.\n\nStar Frontier is pinned to **Unreal Engine 5.8** in `UE5/StarFrontier.uproject`. The Android preflight rejects any other major/minor engine version, preventing a runner from silently packaging with a different UE release.
+The workflow `.github/workflows/android-apk.yml` packages the native Unreal project. It does not use Node, Vite, Three.js or Capacitor.
+
+Star Frontier is pinned to **Unreal Engine 5.8** in `UE5/StarFrontier.uproject`. The Android preflight rejects any other major/minor engine version, preventing a runner from silently packaging with a different UE release.
 
 GitHub-hosted runners do not include the licensed Unreal Engine installation needed by this project. The workflow therefore targets a trusted, self-hosted **Windows x64** runner.
 
