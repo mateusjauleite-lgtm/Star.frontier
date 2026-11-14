@@ -16,6 +16,9 @@ DECKS = [
         "code": "D1",
         "name": "Deck 1 - Ponte de Comando",
         "hangar_clear": False,
+        "legacy_position": (0.0, 8.7, -2.0),
+        "floor_width": 50.0,
+        "floor_length": 82.0,
     },
     {
         "asset": "DA_Deck02_OperationsScience",
@@ -23,6 +26,9 @@ DECKS = [
         "code": "D2",
         "name": "Deck 2 - Operações e Ciências",
         "hangar_clear": False,
+        "legacy_position": (0.0, 2.9, -2.0),
+        "floor_width": 50.0,
+        "floor_length": 94.0,
     },
     {
         "asset": "DA_Deck03_Engineering",
@@ -30,6 +36,9 @@ DECKS = [
         "code": "D3",
         "name": "Deck 3 - Engenharia",
         "hangar_clear": False,
+        "legacy_position": (0.0, -2.9, -2.0),
+        "floor_width": 53.0,
+        "floor_length": 102.0,
     },
     {
         "asset": "DA_Deck04_HangarSupport",
@@ -37,6 +46,9 @@ DECKS = [
         "code": "D4",
         "name": "Deck 4 - Hangar e Suporte",
         "hangar_clear": True,
+        "legacy_position": (0.0, -8.7, -2.0),
+        "floor_width": 35.0,
+        "floor_length": 58.0,
     },
 ]
 
@@ -80,6 +92,11 @@ def create_or_update_deck(deck):
     asset.set_editor_property("deck_code", deck["code"])
     asset.set_editor_property("display_name", unreal.Text(deck["name"]))
     asset.set_editor_property("local_offset", unreal.Vector(0.0, 0.0, 0.0))
+    asset.set_editor_property("legacy_three_position", unreal.Vector(*deck["legacy_position"]))
+    asset.set_editor_property("floor_width_meters", deck["floor_width"])
+    asset.set_editor_property("floor_length_meters", deck["floor_length"])
+    asset.set_editor_property("floor_thickness_meters", 0.42)
+    asset.set_editor_property("generate_default_floor", True)
     asset.set_editor_property("keep_hangar_exit_clear", deck["hangar_clear"])
     asset.set_editor_property("keep_elevator_access_clear", True)
 
