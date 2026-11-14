@@ -1,13 +1,9 @@
-/** Structural contract for future Earth surface and continental rendering. */
+/** Contract for the independent first-generation surface renderer. */
 export const EARTH_SURFACE_MODULE = Object.freeze({
-  id: 'surface',
-  label: 'Superfície e continentes',
-  domain: 'surface',
-  status: 'planned',
-  enabledByDefault: false,
-  dependsOn: [],
+  id: 'surface', label: 'Superfície e continentes', domain: 'surface',
+  status: 'preview', enabledByDefault: true, dependsOn: [],
   referenceScopes: ['continents', 'surface', 'global-imagery'],
-  baselineTarget: 'legacy-surface-texture',
-  responsibilities: ['surface-materials', 'continental-meshes', 'coastlines'],
-  implementation: 'pending'
+  baselineTarget: 'modular-earth-surface',
+  responsibilities: ['surface-materials', 'continental-mapping', 'coastlines'],
+  implementation: './runtime/surface.js'
 });
