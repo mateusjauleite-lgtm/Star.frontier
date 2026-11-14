@@ -19,3 +19,10 @@ void UFrontierShipControlsComponent::ClearControls()
     bBraking = bBoosting = false;
     Publish();
 }
+
+bool UFrontierShipControlsComponent::RequestPilotExit(AActor* RequestingActor)
+{
+    if (AFrontierShip* Ship = Cast<AFrontierShip>(GetOwner()))
+        return Ship->RequestPilotExit(RequestingActor);
+    return false;
+}
