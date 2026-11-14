@@ -1,6 +1,4 @@
 #include "Ships/HUD/FrontierShipHUDWidget.h"
-#include "Ships/Interior/FrontierShipInteriorComponent.h"
-#include "Ships/Interior/FrontierShipElevator.h"
 #include "Ships/Controls/FrontierShipControlsComponent.h"
 #include "Character/Core/FrontierCharacter.h"
 #include "Components/CanvasPanel.h"
@@ -122,24 +120,11 @@ void UFrontierShipHUDWidget::ExitPilotSeat()
 {
     if (ObservedShip && ObservedCharacter) ObservedShip->RequestPilotExit(ObservedCharacter);
 }
-bool UFrontierShipHUDWidget::ElevatorUp()
-{
-    AFrontierShipElevator* Elevator = ObservedShip && ObservedShip->Interior ? ObservedShip->Interior->ElevatorActor.Get() : nullptr;
-    return Elevator && Elevator->MoveUp(ObservedCharacter);
-}
-bool UFrontierShipHUDWidget::ElevatorDown()
-{
-    AFrontierShipElevator* Elevator = ObservedShip && ObservedShip->Interior ? ObservedShip->Interior->ElevatorActor.Get() : nullptr;
-    return Elevator && Elevator->MoveDown(ObservedCharacter);
-}
-
 void UFrontierShipHUDWidget::OnBoostPressed() { SetBoost(true); }
 void UFrontierShipHUDWidget::OnBoostReleased() { SetBoost(false); }
 void UFrontierShipHUDWidget::OnBrakePressed() { SetBrake(true); }
 void UFrontierShipHUDWidget::OnBrakeReleased() { SetBrake(false); }
 void UFrontierShipHUDWidget::OnExitPressed() { ExitPilotSeat(); }
-void UFrontierShipHUDWidget::OnDeckUpPressed() { ElevatorUp(); }
-void UFrontierShipHUDWidget::OnDeckDownPressed() { ElevatorDown(); }
 
 FReply UFrontierShipHUDWidget::NativeOnTouchStarted(const FGeometry& Geometry, const FPointerEvent& Event)
 {
