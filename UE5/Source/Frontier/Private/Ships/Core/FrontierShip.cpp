@@ -11,6 +11,7 @@
 #include "Character/Core/FrontierCharacter.h"
 #include "Character/Core/FrontierCharacterStateComponent.h"
 #include "GameFramework/PlayerController.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "Components/BoxComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SceneComponent.h"
@@ -77,9 +78,23 @@ bool AFrontierShip::PlaceCharacterOnDeck(AFrontierCharacter* Character, FName De
     else if (DeckCode == TEXT("D4")) LegacyPosition = FVector(0.0f, -8.47f, 25.0f);
     else return false;
 
-    Character->AttachToActor(this, FAttachmentTransformRules::KeepWorldTransform);
-    Character->SetActorRelativeLocation(ThreeToUnrealLocalPosition(LegacyPosition));
-    Character->GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+    UCapsuleComponent* Capsule = Character->GetCapsuleComponent();
+    if (!Capsule || !Character->AttachToActor(this, FAttachmentTransformRules::KeepWorldTransform))
+        return false;
+
+    // Legacy character coordinates describe the feet at deck level. UE's
+    // Character root is the capsule centre, so lift it by the scaled half-height.
+    FVector DeckRelativeLocation = ThreeToUnrealLocalPosition(LegacyPosition);
+    DeckRelativeLocation.Z += Capsule->GetScaledCapsuleHalfHeight();
+    Character->SetActorRelativeLocation(DeckRelativeLocation);
+
+    Capsule->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+    Character->SetActorEnableCollision(true);
+    if (UCharacterMovementComponent* Movement = Character->GetCharacterMovement())
+    {
+        Movement->StopMovementImmediately();
+        Movement->SetMovementMode(MOVE_Walking);
+    }
     return true;
 }
 
