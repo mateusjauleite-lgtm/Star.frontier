@@ -22,13 +22,13 @@ AFrontierEarth::AFrontierEarth()
     CloudsBranch = CreateDefaultSubobject<UFrontierEarthBranchComponent>(TEXT("CloudsBranch"));
     LightingBranch = CreateDefaultSubobject<UFrontierEarthBranchComponent>(TEXT("LightingBranch"));
 
-    InteriorBranch->ConfigureBranch(TEXT("interior"), {}, true);
-    SurfaceBranch->ConfigureBranch(TEXT("surface"), {}, true);
-    TerrainBranch->ConfigureBranch(TEXT("terrain"), { TEXT("surface") }, true);
-    OceansBranch->ConfigureBranch(TEXT("oceans"), { TEXT("surface") }, true);
-    AtmosphereBranch->ConfigureBranch(TEXT("atmosphere"), {}, true);
-    CloudsBranch->ConfigureBranch(TEXT("clouds"), { TEXT("atmosphere") }, true);
-    LightingBranch->ConfigureBranch(TEXT("lighting"), { TEXT("atmosphere") }, true);
+    InteriorBranch->ConfigureBranch(FName(TEXT("interior")), {}, true);
+    SurfaceBranch->ConfigureBranch(FName(TEXT("surface")), {}, true);
+    TerrainBranch->ConfigureBranch(FName(TEXT("terrain")), { FName(TEXT("surface")) }, true);
+    OceansBranch->ConfigureBranch(FName(TEXT("oceans")), { FName(TEXT("surface")) }, true);
+    AtmosphereBranch->ConfigureBranch(FName(TEXT("atmosphere")), {}, true);
+    CloudsBranch->ConfigureBranch(FName(TEXT("clouds")), { FName(TEXT("atmosphere")) }, true);
+    LightingBranch->ConfigureBranch(FName(TEXT("lighting")), { FName(TEXT("atmosphere")) }, true);
 
     // Keep the same dependency-safe order as src/world/earth/modules/index.js.
     BranchesInDependencyOrder = {
