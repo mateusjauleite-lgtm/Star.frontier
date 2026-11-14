@@ -25,7 +25,7 @@ const RUNTIME_FACTORIES = Object.freeze({
  */
 export function createEarthCore(options = {}) {
   const settings = {
-    radius: options.radius ?? 78,
+    radius: options.radius ?? 300,
     position: options.position ?? [0, 0, -240],
     ...options
   };
@@ -47,7 +47,7 @@ export function createEarthCore(options = {}) {
 
   return {
     group,
-    version: '1.2.0',
+    version: '1.3.0',
     referencePolicy: EARTH_REFERENCE_POLICY,
     references: EARTH_REFERENCE_SOURCES,
     updateModules: EARTH_UPDATE_MODULES,
@@ -67,7 +67,7 @@ export function createEarthCore(options = {}) {
     getStatus() {
       return {
         core: 'ready',
-        version: '1.2.0',
+        version: '1.3.0',
         renderer: 'modular-earth-runtime',
         referencesAreAdvisory: true,
         updateModules: updatePipeline.getStatus(),
