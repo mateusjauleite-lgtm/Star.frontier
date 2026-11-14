@@ -48,7 +48,7 @@ int32 UFrontierShipInteriorComponent::BuildMissingDeckModules()
     for (const FDefaultDeck& DefaultDeck : DefaultDecks)
     {
         const bool bAlreadyDefined = DeckDefinitions.ContainsByPredicate(
-            [&DefaultDeck](const UFrontierShipDeckDefinition* Existing)
+            [&DefaultDeck](const TObjectPtr<UFrontierShipDeckDefinition>& Existing)
             {
                 return Existing && Existing->DeckCode == FName(DefaultDeck.Code);
             });
