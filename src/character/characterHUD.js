@@ -20,6 +20,10 @@ export function createCharacterHUD(root = document) {
       $('character-mode').textContent =
         snapshot.mode === 'ship-control' ? 'NO COMANDO' : 'A PÉ';
     }
+    if ($('character-world-context')) {
+      $('character-world-context').textContent =
+        snapshot.environment?.label || 'AMBIENTE PLANETÁRIO';
+    }
     setBar('character-health', snapshot.health ?? 100);
     setBar('character-stamina', snapshot.stamina ?? 100);
 
