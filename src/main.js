@@ -474,10 +474,14 @@ async function startGame() {
   loadingScreen?.classList.remove('hidden');
 
   try {
-    const requestFullscreen = gameScreen?.requestFullscreen || gameScreen?.webkitRequestFullscreen;
-    if (requestFullscreen) {
+    // O fullscreen precisa abranger o documento inteiro, não apenas a gameplay.
+    // Assim, ao voltar ao menu principal, os botões continuam dentro da área
+    // fullscreen e não ficam atrás de um elemento fullscreen oculto.
+    const fullscreenRoot = document.documentElement;
+    const requestFullscreen = fullscreenRoot?.requestFullscreen || fullscreenRoot?.webkitRequestFullscreen;
+    if (requestFullscreen && !document.fullscreenElement && !document.webkitFullscreenElement) {
       try {
-        const result = requestFullscreen.call(gameScreen, { navigationUI: 'hide' });
+        const result = requestFullscreen.call(fullscreenRoot, { navigationUI: 'hide' });
         result?.catch?.(() => {});
       } catch (error) {
         console.info('Fullscreen do navegador indisponível; mantendo a janela nativa do APK.', error);
@@ -1683,8 +1687,16 @@ $('return-menu-btn')?.addEventListener('click', () => {
   if (characterStickKnob) characterStickKnob.style.transform = 'translate(0,0)';
 
   $('game-menu-modal')?.classList.add('hidden');
+  $('inventory-modal')?.classList.add('hidden');
+  $('loading-screen')?.classList.add('hidden');
+  $('npc-bubble')?.classList.add('hidden');
+  $('toast')?.classList.add('hidden');
 
   save();
+  // Reconstrói o painel Jogar para garantir que o botão DECOLAR e seus
+  // eventos estejam ativos após qualquer retorno da gameplay.
+  renderPanel('play');
   show('menu-screen');
   updateWallet();
+  last = performance.now();
 });
