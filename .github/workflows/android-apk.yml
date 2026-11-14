@@ -85,7 +85,7 @@ jobs:
           if "import android.view.View;" not in source:
               source = source.replace(
                   "import com.getcapacitor.BridgeActivity;",
-                  "import android.view.View;\\nimport com.getcapacitor.BridgeActivity;"
+                  "import android.view.View;\nimport com.getcapacitor.BridgeActivity;"
               )
           if "SYSTEM_UI_FLAG_IMMERSIVE_STICKY" not in source:
               method = """
