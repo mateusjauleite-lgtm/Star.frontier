@@ -146,6 +146,11 @@ function makeRockAlbedo() {
   return canvas;
 }
 
+export function selectEarthLodLevel(distance, radius) {
+  if (!Number.isFinite(distance) || !Number.isFinite(radius) || radius <= 0) return 2;
+  return distance > radius * 4.2 ? 0 : distance > radius * 2.2 ? 1 : 2;
+}
+
 export function createSurfaceRuntime({ group, options, layers }) {
   let mesh, texture, geometry, material, lodGeometries = [];
   return {
@@ -181,7 +186,7 @@ export function createSurfaceRuntime({ group, options, layers }) {
       const center = mesh.getWorldPosition(new THREE.Vector3());
       const distance = camera.position.distanceTo(center);
       const radius = options.radius;
-      const nextLevel = distance > radius * 4.2 ? 0 : distance > radius * 2.2 ? 1 : 2;
+      const nextLevel = selectEarthLodLevel(distance, radius);
       if (nextLevel !== mesh.userData.earthLodLevel) {
         mesh.geometry = lodGeometries[nextLevel];
         mesh.userData.earthLodLevel = nextLevel;
