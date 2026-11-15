@@ -61,6 +61,8 @@ const characterLookEuler = new THREE.Euler(0, 0, 0, 'YXZ');
 let characterMoveInput = { x: 0, y: 0 };
 let characterSprintHeld = false;
 let characterJumpQueued = false;
+let characterStaminaAccumulator = 0;
+let characterStaminaHudTimer = 0;
 let pilotInteractionAvailable = false;
 const pilotPlayerWorldPosition = new THREE.Vector3();
 const characterCameraWorldPosition = new THREE.Vector3();
@@ -498,6 +500,9 @@ async function startGame() {
 
     resetTransientState();
     characterCore.initialize();
+    characterCore.setStamina(100);
+    characterStaminaAccumulator = 0;
+    characterStaminaHudTimer = 0;
     characterCore.setMode('on-foot');
     updateCharacterHUD();
 
@@ -988,13 +993,25 @@ function updateCharacterMovement(dt) {
   const deck = characterModel.group.position;
   const stamina = characterCore.snapshot().stamina;
   const sprinting = characterSprintHeld && magnitude > 0.08 && stamina > 0;
-  if (sprinting) characterCore.setStamina(Math.max(0, stamina - 22 * dt));
-  else if (stamina < 100) characterCore.setStamina(Math.min(100, stamina + 13 * dt));
-  const staminaNow = characterCore.snapshot().stamina;
-  const staminaFill = $('character-stamina');
-  const staminaLabel = $('character-stamina-value');
-  if (staminaFill) staminaFill.style.width = staminaNow + '%';
-  if (staminaLabel) staminaLabel.textContent = Math.round(staminaNow) + '%';
+  if (sprinting) characterStaminaAccumulator -= 22 * dt;
+  else if (stamina < 100) characterStaminaAccumulator += 13 * dt;
+
+  // Publica energia e atualiza o HUD em intervalos curtos, não a cada frame.
+  // Isso evita disparar eventos globais dezenas de vezes por segundo.
+  characterStaminaHudTimer += dt;
+  if (characterStaminaHudTimer >= 0.1) {
+    const staminaNow = THREE.MathUtils.clamp(
+      stamina + characterStaminaAccumulator, 0, 100
+    );
+    if (Math.abs(staminaNow - stamina) >= 0.05) characterCore.setStamina(staminaNow);
+    characterStaminaAccumulator = 0;
+    characterStaminaHudTimer = 0;
+    const displayedStamina = characterCore.snapshot().stamina;
+    const staminaFill = $('character-stamina');
+    const staminaLabel = $('character-stamina-value');
+    if (staminaFill) staminaFill.style.width = displayedStamina + '%';
+    if (staminaLabel) staminaLabel.textContent = Math.round(displayedStamina) + '%';
+  }
 
   if (magnitude > 0.08) {
     // Movimento horizontal no referencial local da nave; a física vertical
