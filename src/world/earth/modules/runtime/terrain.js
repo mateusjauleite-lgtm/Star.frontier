@@ -86,43 +86,48 @@ export function createTerrainRuntime({ options, layers }) {
       const gridIsReady = grid?.values instanceof Float32Array;
       const exaggeration = Math.max(1, options.terrainVerticalExaggeration ?? 8);
       const radius = options.radius;
-      const positions = surface.geometry.attributes.position;
-      const uv = surface.geometry.attributes.uv;
+      const lodGeometries = surface.userData?.earthLodGeometries ?? [surface.geometry];
       const direction = new THREE.Vector3();
       const width = maskCanvas.width, height = maskCanvas.height;
       const unitsPerKm = radius / 6371.0088;
       heightScale = exaggeration;
 
-      for (let i = 0; i < positions.count; i++) {
-        const u = uv.getX(i), v = uv.getY(i);
-        const px = Math.min(width - 1, Math.max(0, Math.floor(u * (width - 1))));
-        const py = Math.min(height - 1, Math.max(0, Math.floor((1 - v) * (height - 1))));
-        const land = smoothstep(.08, .92, maskData[(py * width + px) * 4] / 255);
+      // Displace every prepared LOD mesh from the same elevation source so
+      // switching detail levels never replaces real terrain with a smooth sphere.
+      for (const geometry of lodGeometries) {
+        const positions = geometry.attributes.position;
+        const uv = geometry.attributes.uv;
+        for (let i = 0; i < positions.count; i++) {
+          const u = uv.getX(i), v = uv.getY(i);
+          const px = Math.min(width - 1, Math.max(0, Math.floor(u * (width - 1))));
+          const py = Math.min(height - 1, Math.max(0, Math.floor((1 - v) * (height - 1))));
+          const land = smoothstep(.08, .92, maskData[(py * width + px) * 4] / 255);
 
-        direction.fromBufferAttribute(positions, i).normalize();
-        const latitude = Math.asin(THREE.MathUtils.clamp(direction.y, -1, 1));
-        const longitude = Math.atan2(direction.z, direction.x);
-        const latitudeDeg = THREE.MathUtils.radToDeg(latitude);
-        const longitudeDeg = THREE.MathUtils.radToDeg(longitude);
+          direction.fromBufferAttribute(positions, i).normalize();
+          const latitude = Math.asin(THREE.MathUtils.clamp(direction.y, -1, 1));
+          const longitude = Math.atan2(direction.z, direction.x);
+          const latitudeDeg = THREE.MathUtils.radToDeg(latitude);
+          const longitudeDeg = THREE.MathUtils.radToDeg(longitude);
 
-        let elevationUnits = null;
-        if (gridIsReady) {
-          const elevationMeters = sampleEarthElevationGrid(grid, longitudeDeg, latitudeDeg);
-          if (elevationMeters !== null) {
-            elevationUnits = (elevationMeters / 1000) * unitsPerKm * exaggeration;
+          let elevationUnits = null;
+          if (gridIsReady) {
+            const elevationMeters = sampleEarthElevationGrid(grid, longitudeDeg, latitudeDeg);
+            if (elevationMeters !== null) {
+              elevationUnits = (elevationMeters / 1000) * unitsPerKm * exaggeration;
+            }
           }
-        }
-        if (elevationUnits === null) {
-          elevationUnits = proceduralFallback(longitude, latitude, radius, land);
-        }
+          if (elevationUnits === null) {
+            elevationUnits = proceduralFallback(longitude, latitude, radius, land);
+          }
 
-        const finalRadius = radius + elevationUnits;
-        positions.setXYZ(i, direction.x * finalRadius, direction.y * finalRadius, direction.z * finalRadius);
+          const finalRadius = radius + elevationUnits;
+          positions.setXYZ(i, direction.x * finalRadius, direction.y * finalRadius, direction.z * finalRadius);
+        }
+        positions.needsUpdate = true;
+        geometry.computeVertexNormals();
+        geometry.computeBoundingSphere();
       }
-
-      positions.needsUpdate = true;
-      surface.geometry.computeVertexNormals();
-      surface.geometry.computeBoundingSphere();
+      const positions = surface.geometry.attributes.position;
 
       elevationSampler = (longitudeDeg, latitudeDeg) => {
         if (gridIsReady) {
