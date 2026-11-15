@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { sampleEarthElevationGrid } from './terrain.js';
+import { createEarthKernelAdapter } from '../../wasm/earthKernel.js';
 
 const grid = (values, extra = {}) => ({
   width: 2,
@@ -59,4 +60,12 @@ test('supports grids with different dimensions and resolutions', () => {
 test('rejects grids with invalid geographic extents', () => {
   const invalidGrid = grid([1, 2, 3, 4], { west: 10, east: 10 });
   assert.equal(sampleEarthElevationGrid(invalidGrid, 10, 0), null);
+});
+
+
+test('converts ETOPO metres to the current 600-unit Earth scale', () => {
+  const kernel = createEarthKernelAdapter();
+  const oneKilometre = kernel.elevationMetersToUnits(1000, 600, 6371.0088, 8);
+  assert.ok(Math.abs(oneKilometre - (600 / 6371.0088) * 8) < 1e-9);
+  kernel.dispose();
 });
