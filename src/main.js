@@ -1618,7 +1618,36 @@ function equipFromInventory(id){const r=characterCore.equipItem(id);pendingInven
 function renderInventory(){const grid=$('inventory-grid');if(!grid)return;const s=characterCore.getInventorySnapshot(),items=s?.items||[],capacity=s?.capacity||24;$('inventory-count').textContent=`${items.length} / ${capacity}`;grid.innerHTML=Array.from({length:capacity},(_,i)=>{const item=items[i],d=item?itemDatabase.get(item.definitionId):null;if(!item)return '<div class="inventory-cell empty"><span>ESPAÇO LIVRE</span></div>';const code=d?.code||'SEM CÓDIGO',qty=item.quantity>1?` ×${item.quantity}`:'';const pending=pendingInventoryEquipId===item.instanceId;return `<button type="button" class="inventory-cell inventory-item${pending?' item-pending-equip':''}" data-instance-id="${item.instanceId}" title="${code} · ${d?.id||item.definitionId} · ${d?.description||''}"><span class="item-code">${code}</span><b>${d?.name||item.definitionId}${qty}</b><small>${pending?'EQUIPAR AGORA':'TOQUE PARA OPÇÕES'}</small>${pending?'<span class="item-action-bubble">EQUIPAR</span>':''}</button>`;}).join('');const equipment=characterCore.snapshot().equipment||{};document.querySelectorAll('[data-slot]').forEach(button=>{const slot=button.dataset.slot,item=equipment[slot],d=item?itemDatabase.get(item.definitionId):null,name=button.querySelector('b'),status=button.querySelector('small');if(name)name.textContent=d?.name||'Vazio';if(status)status.textContent=item?(characterCore.getSelectedActionSlot()===slot?'SELECIONADO PARA USO':`EQUIPADO · ${d?.code||''}`):'VAZIO';button.classList.toggle('selected',Boolean(item));button.classList.toggle('action-selected',characterCore.getSelectedActionSlot()===slot);button.title=item?`${d?.code||''} · ${d?.id||item.definitionId}`:'Slot vazio';});const weight=items.reduce((sum,item)=>sum+(itemDatabase.get(item.definitionId)?.weight||0)*item.quantity,0);$('inventory-count').title=`Peso: ${weight.toFixed(1)} / ${s?.maxWeight??60} kg`;updateCharacterHUD();}
 const inventoryGrid=$('inventory-grid');
 inventoryGrid?.addEventListener('click',event=>{const button=event.target.closest('[data-instance-id]');if(!button)return;const id=button.dataset.instanceId;if(pendingInventoryEquipId===id){equipFromInventory(id);return;}pendingInventoryEquipId=id;renderInventory();});
-document.querySelectorAll('[data-action-slot]').forEach(button=>button.addEventListener('click',()=>{const r=characterCore.selectActionSlot(button.dataset.actionSlot);if(!r.ok){toast('Equipe um item nesse slot antes de selecioná-lo.');return;}updateCharacterHUD();renderInventory();toast(r.slot? 'Item selecionado para uso.':'Seleção de ação removida.');}));
+document.querySelectorAll('[data-action-slot]').forEach(button=>{
+   let holdTimer=null,holdTriggered=false;
+   const cancelHold=()=>{if(holdTimer!==null){clearTimeout(holdTimer);holdTimer=null;}};
+   button.addEventListener('pointerdown',event=>{
+     if(event.button!==0)return;
+     holdTriggered=false;
+     cancelHold();
+     holdTimer=setTimeout(()=>{
+       holdTimer=null;
+       const slot=button.dataset.actionSlot;
+       const equipped=characterCore.getEquippedItem(slot);
+       if(!equipped){return;}
+       holdTriggered=true;
+       const result=characterCore.unequipItem(slot);
+       if(result.ok)toast(`${itemDatabase.get(result.returned.definitionId)?.name||'Item'} guardado na mochila.`);
+       else if(result.reason==='item-selected-for-action')toast('Retire a seleção de uso com um toque antes de guardar.');
+       renderInventory();updateCharacterHUD();
+     },550);
+   });
+   button.addEventListener('pointerup',cancelHold);
+   button.addEventListener('pointercancel',cancelHold);
+   button.addEventListener('pointerleave',cancelHold);
+   button.addEventListener('click',event=>{
+     if(holdTriggered){holdTriggered=false;event.preventDefault();event.stopPropagation();return;}
+     const r=characterCore.selectActionSlot(button.dataset.actionSlot);
+     if(!r.ok){toast('Equipe um item nesse slot antes de selecioná-lo.');return;}
+     updateCharacterHUD();renderInventory();toast(r.slot? 'Item selecionado para uso.':'Seleção de ação removida.');
+   });
+   button.addEventListener('contextmenu',event=>event.preventDefault());
+ });
 document.querySelectorAll('[data-slot]').forEach(button=>button.addEventListener('click',()=>{const r=characterCore.unequipItem(button.dataset.slot);if(r.ok)toast(`${itemDatabase.get(r.returned.definitionId)?.name||'Item'} guardado na mochila.`);else if(r.reason==='slot-empty')toast('Este slot já está vazio.');else if(r.reason==='item-selected-for-action')toast('Retire a seleção de uso antes de desequipar este item.');renderInventory();updateCharacterHUD();}));
 $('inventory-open-btn')?.addEventListener('click', () => {
   renderInventory();
@@ -1743,13 +1772,13 @@ holdButton('nitro-btn', 'nitroButton');
 /* PROTEÇÃO CONTRA SELEÇÃO */
 
 document.addEventListener('contextmenu', event => {
-  if (event.target.closest('#flight-controls')) {
+  if (event.target.closest('#flight-controls, .character-quick-equipment, #character-controls')) {
     event.preventDefault();
   }
 });
 
 document.addEventListener('selectstart', event => {
-  if (event.target.closest('#flight-controls')) {
+  if (event.target.closest('#flight-controls, .character-quick-equipment, #character-controls')) {
     event.preventDefault();
   }
 });
