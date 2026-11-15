@@ -1509,6 +1509,9 @@ const characterEquipment = createCharacterEquipmentSystem(state, {
     renderClothing();
     renderInventory();
     characterCore.setEquipment('suit', characterEquipment.equippedItem('torso')?.itemId || null);
+    for (const slot of ['head', 'torso', 'hands', 'legs', 'feet', 'back']) {
+      characterCore.setEquipment(slot, characterEquipment.equippedItem(slot)?.itemId || null);
+    }
   }
 });
 
