@@ -387,7 +387,7 @@ let shipLandingAutopilot = null;
 const shipLandingTelemetry = createShipLandingMetricTelemetryAdapter({
   modelMetersPerUnit: SHIP_MODEL_METERS_PER_UNIT,
   deckHeightMeters: 0.76,
-  deckRadiusMeters: 108
+  deckRadiusMeters: 146
 });
 let orbitSystem;
 let asteroidSystem;
@@ -1302,7 +1302,7 @@ function loop(now) {
           // Não há um segundo motor físico: escolhemos a superfície mais alta sob a sonda.
           if (pad) {
             const padLocal = pad.worldToLocal(worldPoint.clone());
-            const insidePad = padLocal.x * padLocal.x + padLocal.z * padLocal.z <= 60.5 * 60.5;
+            const insidePad = padLocal.x * padLocal.x + padLocal.z * padLocal.z <= 146 * 146;
             if (insidePad) {
               const padTop = pad.localToWorld(new THREE.Vector3(padLocal.x, 0.76, padLocal.z));
               const padUp = new THREE.Vector3(0, 1, 0).transformDirection(pad.matrixWorld).normalize();
