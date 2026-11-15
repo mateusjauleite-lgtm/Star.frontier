@@ -26,6 +26,8 @@ export function sampleEarthElevationGrid(grid, longitudeDeg, latitudeDeg) {
   const east = grid.east ?? 180;
   const south = grid.south ?? -90;
   const north = grid.north ?? 90;
+  if (![west, east, south, north, longitudeDeg, latitudeDeg].every(Number.isFinite) ||
+      !(east > west) || !(north > south)) return null;
   const u = THREE.MathUtils.clamp((longitudeDeg - west) / (east - west), 0, 1) * (grid.width - 1);
   const v = THREE.MathUtils.clamp((north - latitudeDeg) / (north - south), 0, 1) * (grid.height - 1);
   const x0 = Math.floor(u), y0 = Math.floor(v);
@@ -177,16 +179,30 @@ export function createTerrainRuntime({ options, layers }) {
             const longitude = THREE.MathUtils.degToRad(longitudeDeg);
             const radiusAtPoint = radius + elevationUnits;
             const cosLatitude = Math.cos(latitude);
+            const localPosition = new THREE.Vector3(
+              Math.cos(longitude) * cosLatitude * radiusAtPoint,
+              Math.sin(latitude) * radiusAtPoint,
+              Math.sin(longitude) * cosLatitude * radiusAtPoint
+            );
+
+            // Include the globe mesh rotation (including axial tilt) in the
+            // collision point. The result remains local to the Earth group,
+            // so the caller applies the Earth's world transform only once.
+            surface.updateMatrix();
+            localPosition.applyMatrix4(surface.matrix);
+            const localNormal = new THREE.Vector3(
+              Math.cos(longitude) * cosLatitude,
+              Math.sin(latitude),
+              Math.sin(longitude) * cosLatitude
+            ).transformDirection(surface.matrix);
+
             return {
               longitudeDeg,
               latitudeDeg,
               elevationUnits,
               radiusUnits: radiusAtPoint,
-              localPosition: new THREE.Vector3(
-                Math.cos(longitude) * cosLatitude * radiusAtPoint,
-                Math.sin(latitude) * radiusAtPoint,
-                Math.sin(longitude) * cosLatitude * radiusAtPoint
-              )
+              localPosition,
+              localNormal
             };
           }
         }
@@ -196,7 +212,7 @@ export function createTerrainRuntime({ options, layers }) {
       // applyElevationToMeshes also applies the identical no-data fallback
       // used by point queries from the collision surface.
       if (!gridIsReady && options.loadEtopo !== false) {
-        loadEtopo2022GlobalGrid().then(loadedGrid => {
+        loadEtopo2022GlobalGrid({ url: options.etopoUrl ?? null }).then(loadedGrid => {
           if (disposed || !loadedGrid) return;
           grid = loadedGrid;
           gridIsReady = true;
