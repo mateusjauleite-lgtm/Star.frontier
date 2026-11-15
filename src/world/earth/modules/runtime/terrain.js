@@ -4,6 +4,11 @@ import { createEarthKernelAdapter, loadEarthKernel } from '../../wasm/earthKerne
 import { loadEtopo2022GlobalGrid } from '../../references/etopo2022.js';
 
 const clamp01 = value => THREE.MathUtils.clamp(value, 0, 1);
+const surfacePatchDispose = patch => {
+  patch.parent?.remove(patch);
+  patch.geometry?.dispose();
+  patch.material?.dispose();
+};
 const smoothstep = (a, b, value) => {
   const t = clamp01((value - a) / (b - a));
   return t * t * (3 - 2 * t);
@@ -75,6 +80,7 @@ export function createTerrainRuntime({ options, layers }) {
   let earthKernel = createEarthKernelAdapter();
   let heightScale = 1;
   let disposed = false;
+  const highResolutionPatches = new Set();
 
   return {
     initialize() {
@@ -169,6 +175,84 @@ export function createTerrainRuntime({ options, layers }) {
         collisionSurface: {
           source: gridIsReady ? (grid.source ?? 'provided-global-grid') : 'procedural-fallback',
           sharesVisualElevation: true,
+          // Build a local, high-resolution render patch from the same authoritative
+          // sampler used by the global LOD mesh and physical point queries.
+          // The patch is attached to the globe mesh, so axial tilt and rotation
+          // are inherited without a second transform path.
+          createHighResolutionPatch({
+            longitudeDeg,
+            latitudeDeg,
+            radiusKm = 25,
+            segments = 32
+          } = {}) {
+            if (disposed || !elevationSampler ||
+                !Number.isFinite(longitudeDeg) || !Number.isFinite(latitudeDeg) ||
+                latitudeDeg < -89.5 || latitudeDeg > 89.5) return null;
+            const safeRadiusKm = THREE.MathUtils.clamp(radiusKm, 1, 1000);
+            const divisions = Math.round(THREE.MathUtils.clamp(segments, 8, 128));
+            const latSpan = safeRadiusKm / 111.195;
+            const cosLatitude = Math.max(0.1, Math.cos(THREE.MathUtils.degToRad(latitudeDeg)));
+            const lonSpan = safeRadiusKm / (111.195 * cosLatitude);
+            const positions = [];
+            const uvs = [];
+            const indices = [];
+            const point = new THREE.Vector3();
+
+            for (let y = 0; y <= divisions; y++) {
+              const v = y / divisions;
+              const lat = THREE.MathUtils.clamp(
+                latitudeDeg + (0.5 - v) * latSpan * 2, -89.9, 89.9
+              );
+              for (let x = 0; x <= divisions; x++) {
+                const u = x / divisions;
+                const lon = THREE.MathUtils.euclideanModulo(
+                  longitudeDeg + (u - 0.5) * lonSpan * 2 + 180, 360
+                ) - 180;
+                const elevation = elevationSampler(lon, lat);
+                if (!Number.isFinite(elevation)) return null;
+                const latRad = THREE.MathUtils.degToRad(lat);
+                const lonRad = THREE.MathUtils.degToRad(lon);
+                const patchRadius = radius + elevation + 0.025;
+                point.set(
+                  Math.cos(lonRad) * Math.cos(latRad) * patchRadius,
+                  Math.sin(latRad) * patchRadius,
+                  Math.sin(lonRad) * Math.cos(latRad) * patchRadius
+                );
+                positions.push(point.x, point.y, point.z);
+                uvs.push((lon + 180) / 360, (90 - lat) / 180);
+                if (x < divisions && y < divisions) {
+                  const a = y * (divisions + 1) + x;
+                  const b = a + 1;
+                  const c = a + divisions + 1;
+                  const d = c + 1;
+                  indices.push(a, c, b, b, c, d);
+                }
+              }
+            }
+
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+            geometry.setIndex(indices);
+            geometry.computeVertexNormals();
+            geometry.computeBoundingSphere();
+            const patchMaterial = surface.material.clone();
+            patchMaterial.polygonOffset = true;
+            patchMaterial.polygonOffsetFactor = -1;
+            patchMaterial.polygonOffsetUnits = -1;
+            const patch = new THREE.Mesh(geometry, patchMaterial);
+            patch.name = 'Earth-Local-HighResolution-Patch';
+            patch.userData.earthPatch = {
+              longitudeDeg,
+              latitudeDeg,
+              radiusKm: safeRadiusKm,
+              segments: divisions,
+              elevationSource: gridIsReady ? (grid.source ?? 'provided-global-grid') : 'procedural-fallback'
+            };
+            surface.add(patch);
+            highResolutionPatches.add(patch);
+            return patch;
+          },
           sample(longitudeDeg, latitudeDeg) {
             if (disposed || !elevationSampler ||
                 !Number.isFinite(longitudeDeg) || !Number.isFinite(latitudeDeg) ||
@@ -248,6 +332,10 @@ export function createTerrainRuntime({ options, layers }) {
     update() {},
     dispose() {
       disposed = true;
+      for (const patch of highResolutionPatches) {
+        surfacePatchDispose(patch);
+      }
+      highResolutionPatches.clear();
       maskCanvas = null;
       maskData = null;
       elevationSampler = null;
