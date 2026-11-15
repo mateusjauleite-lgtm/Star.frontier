@@ -67,12 +67,73 @@ const characterAnimationTestPoses = ['walk', 'run', 'jump', 'fall', 'land', 'sit
 let characterJumpQueued = false;
 let characterStaminaAccumulator = 0;
 let characterStaminaHudTimer = 0;
+let phaserChargeRemaining = 0;
+let phaserShotFlashRemaining = 0;
+const PHASER_RECHARGE_SECONDS = 4.5;
+const PHASER_FLASH_SECONDS = 0.16;
 let pilotInteractionAvailable = false;
 const pilotPlayerWorldPosition = new THREE.Vector3();
 const characterCameraWorldPosition = new THREE.Vector3();
 const characterCameraWorldQuaternion = new THREE.Quaternion();
 const characterCameraForward = new THREE.Vector3();
 const characterCameraOffset = new THREE.Vector3();
+
+function isPhaserEquipped() {
+  return Boolean(characterEquipment?.equippedItem('weapon'));
+}
+
+function updatePhaserWeapon(dt) {
+  const button = $('character-phaser-btn');
+  const fill = $('phaser-charge-fill');
+  if (phaserChargeRemaining > 0) phaserChargeRemaining = Math.max(0, phaserChargeRemaining - dt);
+  if (phaserShotFlashRemaining > 0) {
+    phaserShotFlashRemaining = Math.max(0, phaserShotFlashRemaining - dt);
+    const phaser = characterModel?.wardrobe?.weapon?.userData?.phaser;
+    if (phaser) {
+      phaser.position.z = THREE.MathUtils.lerp(-0.105, -0.145, phaserShotFlashRemaining / PHASER_FLASH_SECONDS);
+      if (phaser.userData.muzzleLight) phaser.userData.muzzleLight.intensity = 4.5 * (phaserShotFlashRemaining / PHASER_FLASH_SECONDS);
+      if (phaser.userData.beam) phaser.userData.beam.visible = phaserShotFlashRemaining > 0;
+    }
+  } else {
+    const phaser = characterModel?.wardrobe?.weapon?.userData?.phaser;
+    if (phaser) {
+      phaser.position.z = -0.105;
+      if (phaser.userData.muzzleLight) phaser.userData.muzzleLight.intensity = 0;
+      if (phaser.userData.beam) phaser.userData.beam.visible = false;
+    }
+  }
+  const equipped = isPhaserEquipped();
+  if (button) {
+    button.disabled = !equipped;
+    button.classList.toggle('is-ready', equipped && phaserChargeRemaining <= 0);
+    button.classList.toggle('is-charging', equipped && phaserChargeRemaining > 0);
+    const label = button.querySelector('small');
+    if (label) label.textContent = !equipped ? 'SEM ARMA' : phaserChargeRemaining > 0 ? 'CARREGANDO' : 'PHASER';
+  }
+  if (fill) fill.style.width = equipped
+    ? (100 * (1 - phaserChargeRemaining / PHASER_RECHARGE_SECONDS)) + '%'
+    : '0%';
+}
+
+function firePhaser() {
+  if (!isPhaserEquipped()) {
+    toast('Equipe o Phaser pelo inventário primeiro.');
+    return;
+  }
+  if (characterChargeLocked || phaserChargeRemaining > 0) return;
+  if (characterCore.snapshot().mode !== 'on-foot') {
+    toast('O Phaser só pode ser usado a pé nesta versão.');
+    return;
+  }
+  phaserChargeRemaining = PHASER_RECHARGE_SECONDS;
+  phaserShotFlashRemaining = PHASER_FLASH_SECONDS;
+  const phaser = characterModel?.wardrobe?.weapon?.userData?.phaser;
+  if (phaser) {
+    if (phaser.userData.muzzleLight) phaser.userData.muzzleLight.intensity = 4.5;
+    if (phaser.userData.beam) phaser.userData.beam.visible = true;
+  }
+  toast('Phaser disparado · recarga energética iniciada.');
+}
 
 function updateCharacterCameraButton() {
   const button = $('character-camera-btn');
@@ -1258,6 +1319,7 @@ function loop(now) {
   const dt = Math.min((now - last) / 1000, 0.04);
   last = now;
 
+  updatePhaserWeapon(dt);
   if (characterCore.snapshot().mode === 'on-foot') {
     updateCharacterMovement(dt);
     updateElevatorInteraction();
@@ -1399,6 +1461,8 @@ if (characterStick) {
 const characterJumpButton = $('character-jump-btn');
 const characterSprintButton = $('character-sprint-btn');
 const characterAnimationButton = $('character-animation-btn');
+const characterPhaserButton = $('character-phaser-btn');
+characterPhaserButton?.addEventListener('click', firePhaser);
 
 characterAnimationButton?.addEventListener('click', () => {
   if (characterCore.snapshot().mode !== 'on-foot' || !characterAnimator) return;
