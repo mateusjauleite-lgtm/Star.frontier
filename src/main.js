@@ -772,11 +772,8 @@ function updateFlight(dt) {
   const manualOverride = Math.abs(state.move.x) > 0.015 || Math.abs(state.move.y) > 0.015 ||
     state.throttle || state.braking || state.nitroButton;
   if (manualOverride && shipLandingAutopilot?.snapshot?.().active) {
-    shipLandingAutopilot.cancel();
-    ship.userData.landingGuidance = null;
-    ship.userData.landingAutopilotState = 'manual-override';
-    if ($('landing-btn')) $('landing-btn').textContent = '◎ GUIA DE POUSO';
-    if ($('landing-status')) $('landing-status').textContent = 'Comando manual assumido. A orientação automática foi cancelada.';
+    cancelLandingGuidance('manual-override');
+    if ($('landing-status')) $('landing-status').textContent = 'Comando manual assumido. A orientação foi cancelada e o botão POUSAR foi restaurado.';
     toast('Orientação automática cancelada: controle manual assumido.');
   }
 
@@ -1181,12 +1178,7 @@ function enterPilotMode() {
 function exitPilotMode() {
   if (characterCore.snapshot().mode !== 'ship-control') return;
 
-  shipLandingAutopilot?.cancel?.();
-  shipLandingTelemetry.reset();
-  if (ship) {
-    ship.userData.landingGuidance = null;
-    ship.userData.landingAutopilotState = 'pilot-disconnected';
-  }
+  cancelLandingGuidance('pilot-disconnected');
   shipComputer.disconnectTerminal('pilot-console');
   characterYaw = returnCharacterToDeck(characterModel, shipVisual, scene);
   characterPitch = 0;
@@ -1432,12 +1424,10 @@ function bindStick(id, key) {
 
     const nextX = x / max;
     const nextY = y / max;
-    if (key === 'move' && shipComputer.isTerminalConnected('pilot-console')) {
-      shipComputer.dispatch('pilot-console', 'flight', 'movement', { x: nextX, y: nextY });
-    } else {
-      state[key].x = nextX;
-      state[key].y = nextY;
-    }
+    // O joystick escreve diretamente no estado consumido por updateFlight.
+    // O computador da nave pode monitorar o voo, mas não pode bloquear a entrada.
+    state[key].x = nextX;
+    state[key].y = nextY;
 
     if (knob) {
       knob.style.transform = `translate(${x}px, ${y}px)`;
@@ -1463,12 +1453,8 @@ function bindStick(id, key) {
     if (pointer !== event.pointerId) return;
 
     pointer = null;
-    if (key === 'move' && shipComputer.isTerminalConnected('pilot-console')) {
-      shipComputer.dispatch('pilot-console', 'flight', 'movement', { x: 0, y: 0 });
-    } else {
-      state[key].x = 0;
-      state[key].y = 0;
-    }
+    state[key].x = 0;
+    state[key].y = 0;
 
     if (knob) knob.style.transform = 'translate(0,0)';
   };
@@ -1678,36 +1664,35 @@ if (aimArea) {
 function holdButton(id, key) {
   const button = $(id);
   if (!button) return;
+  let activePointer = null;
+
+  const stop = event => {
+    if (activePointer !== null && event?.pointerId !== undefined &&
+        event.pointerId !== activePointer) return;
+    activePointer = null;
+    state[key] = false;
+    button.classList.remove('active');
+  };
 
   button.addEventListener('pointerdown', event => {
+    if (activePointer !== null || (event.pointerType === 'mouse' && event.button !== 0)) return;
     event.preventDefault();
-
-    const flightCommand = { throttle: 'throttle', braking: 'brake', nitroButton: 'nitro' }[key];
-    if (flightCommand && shipComputer.isTerminalConnected('pilot-console')) {
-      shipComputer.dispatch('pilot-console', 'flight', flightCommand, true);
-    } else {
-      state[key] = true;
-    }
-
+    activePointer = event.pointerId;
+    // Propulsão, freio e nitro são entradas de tempo real: não dependem
+    // da disponibilidade do computador auxiliar nem do estado do terminal.
+    state[key] = true;
+    button.classList.add('active');
     try {
       button.setPointerCapture(event.pointerId);
-    } catch (error) {
-      // O botão continua funcionando mesmo sem captura.
+    } catch {
+      // A entrada permanece ativa; pointerup/blur ainda podem encerrá-la.
     }
   });
-
-  const stop = () => {
-    const flightCommand = { throttle: 'throttle', braking: 'brake', nitroButton: 'nitro' }[key];
-    if (flightCommand && shipComputer.isTerminalConnected('pilot-console')) {
-      shipComputer.dispatch('pilot-console', 'flight', flightCommand, false);
-    } else {
-      state[key] = false;
-    }
-  };
 
   ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type => {
     button.addEventListener(type, stop);
   });
+  window.addEventListener('blur', stop);
 }
 
 holdButton('throttle-btn', 'throttle');
@@ -1728,31 +1713,44 @@ document.addEventListener('selectstart', event => {
   }
 });
 
+function cancelLandingGuidance(reason = 'cancelled') {
+  shipLandingAutopilot?.cancel?.();
+  shipLandingTelemetry.reset();
+  selectedLandingSiteId = null;
+  if (ship) {
+    ship.userData.landingGuidance = null;
+    delete ship.userData.landingTelemetry;
+    delete ship.userData.landingGearMetricDiagnostics;
+    ship.userData.landingAutopilotState = reason;
+  }
+  const button = $('landing-btn');
+  if (button) button.textContent = '◉ POUSAR';
+}
+
 $('landing-btn')?.addEventListener('click', () => {
   if (!active || characterCore.snapshot().mode !== 'ship-control') return;
-  if (selectedLandingSiteId && shipLandingAutopilot) {
-    if (shipLandingAutopilot.snapshot().active) {
-      shipLandingAutopilot.cancel();
-      shipLandingTelemetry.reset();
-      ship.userData.landingGuidance = null;
-      ship.userData.landingAutopilotState = 'standby';
-      $('landing-status').textContent = 'Orientação automática em espera. O controle manual permanece disponível.';
-      $('landing-btn').textContent = '◎ GUIA DE POUSO';
-      toast('Orientação automática desativada.');
-    } else {
-      const site = getLandingSite(selectedLandingSiteId);
-      if (!site || !shipLandingAutopilot.arm(site)) {
-        toast('Não foi possível ativar a orientação de pouso.');
-        return;
-      }
-      shipLandingTelemetry.reset();
-      ship.userData.landingAutopilotState = 'armed-guidance-only';
-      $('landing-status').textContent = 'Referencial métrico da plataforma conectado: centro da nave, orientação e quatro sapatas calculados em metros. A calibração visual ainda está pendente; propulsão automática bloqueada.';
-      $('landing-btn').textContent = '◎ GUIA ATIVA — CANCELAR';
-      toast('Telemetria de pouso conectada. Propulsão automática bloqueada.');
-    }
+
+  if (shipLandingAutopilot?.snapshot?.().active) {
+    cancelLandingGuidance('standby');
+    if ($('landing-status')) $('landing-status').textContent = 'Orientação cancelada. Selecione novamente POUSAR para escolher um destino.';
+    toast('Guia de pouso cancelada.');
     return;
   }
+
+  if (selectedLandingSiteId && shipLandingAutopilot) {
+    const site = getLandingSite(selectedLandingSiteId);
+    if (!site || !shipLandingAutopilot.arm(site)) {
+      toast('Não foi possível ativar a orientação de pouso.');
+      return;
+    }
+    shipLandingTelemetry.reset();
+    ship.userData.landingAutopilotState = 'armed-guidance-only';
+    $('landing-status').textContent = 'Telemetria conectada. A orientação calcula a aproximação, mas não comanda a propulsão nesta versão.';
+    $('landing-btn').textContent = '✕ CANCELAR';
+    toast('Guia de pouso ativada. Propulsão automática permanece bloqueada.');
+    return;
+  }
+
   $('landing-modal')?.classList.remove('hidden');
   $('landing-modal')?.setAttribute('aria-hidden', 'false');
 });
@@ -1835,9 +1833,9 @@ $('landing-select-btn')?.addEventListener('click', () => {
   ship.userData.landingSiteId = site.id;
   ship.userData.landingAutopilotState = 'target-selected';
   const button = $('landing-btn');
-  if (button) button.textContent = '◎ GUIA DE POUSO';
+  if (button) button.textContent = '◎ ATIVAR GUIA DE POUSO';
   const status = $('landing-status');
-  if (status) status.textContent = 'Destino marcado: Salar de Uyuni · UY04. Pressione GUIA DE POUSO para conectar a telemetria real. A orientação será calculada, mas a propulsão automática permanece bloqueada até validar a escala métrica e o corredor de aproximação.';
+  if (status) status.textContent = 'Destino marcado: Salar de Uyuni · UY04. Ative a guia quando estiver pronto. A orientação calcula a aproximação, mas ainda não comanda a propulsão.';
   closeLandingPanel();
   toast('Destino UY04 marcado. Telemetria pronta para conexão.');
 });
