@@ -20,13 +20,20 @@ test('validação rejeita quantidade, durabilidade e metadados inválidos', () =
   assert.throws(() => createItemInstance(definition, { metadata: [] }), /metadata/);
 });
 
-test('inventário controla slots, pilhas e peso', () => {
-  const inventory = createInventory({ capacity: 3, maxWeight: 100, registry: itemDatabase });
+test('inventário controla slots, empilhamento e remoção parcial', () => {
+  const inventory = createInventory({ capacity: 1, registry: itemDatabase });
   assert.deepEqual(inventory.add('resource.ore.common', 1200), { ok: false, reason: 'inventory-full', added: 999, remaining: 201 });
   assert.equal(inventory.count('resource.ore.common'), 999);
   assert.equal(inventory.usedWeight, 499.5);
   assert.equal(inventory.remove('resource.ore.common', 250).removed, 250);
   assert.equal(inventory.count('resource.ore.common'), 749);
+});
+
+test('inventário aplica limite de peso também ao empilhar', () => {
+  const inventory = createInventory({ capacity: 5, maxWeight: 10, registry: itemDatabase });
+  const result = inventory.add('resource.ore.common', 30);
+  assert.deepEqual(result, { ok: false, reason: 'weight-limit', added: 20, remaining: 10 });
+  assert.equal(inventory.usedWeight, 10);
 });
 
 test('inventário rejeita definições desconhecidas e IDs de instância repetidos', () => {
@@ -36,7 +43,7 @@ test('inventário rejeita definições desconhecidas e IDs de instância repetid
   assert.throws(() => createInventory({ registry: itemDatabase, items: [item, item] }), /instanceId duplicado/);
 });
 
-test('inventário não mistura pilhas com durabilidade ou metadados diferentes', () => {
+test('inventário não mistura pilhas com metadados diferentes', () => {
   const inventory = createInventory({ capacity: 3, registry: itemDatabase });
   inventory.add('resource.ore.common', 2, { metadata: { source: 'mine-a' } });
   inventory.add('resource.ore.common', 2, { metadata: { source: 'mine-b' } });

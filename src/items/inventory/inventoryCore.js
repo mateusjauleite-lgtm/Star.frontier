@@ -6,8 +6,7 @@ function copyInstance(instance) {
 }
 
 function getInstanceWeight(instance, registry) {
-  const definition = registry.get(instance.definitionId);
-  return definition.weight * instance.quantity;
+  return registry.get(instance.definitionId).weight * instance.quantity;
 }
 
 export function createInventory({ capacity = 24, maxWeight = Infinity, registry, items = [] } = {}) {
@@ -27,8 +26,7 @@ export function createInventory({ capacity = 24, maxWeight = Infinity, registry,
     slots.push(copyInstance(item));
   }
   if (slots.length > capacity) throw new RangeError('Os itens iniciais excedem a capacidade de slots.');
-  const initialWeight = slots.reduce((sum, item) => sum + getInstanceWeight(item, registry), 0);
-  if (initialWeight > maxWeight) throw new RangeError('Os itens iniciais excedem o peso máximo.');
+  if (slots.reduce((sum, item) => sum + getInstanceWeight(item, registry), 0) > maxWeight) throw new RangeError('Os itens iniciais excedem o peso máximo.');
 
   const inventory = {
     get capacity() { return capacity; },
@@ -43,47 +41,46 @@ export function createInventory({ capacity = 24, maxWeight = Infinity, registry,
       const definition = registry.get(definitionId);
       if (!definition) return { ok: false, reason: 'unknown-item' };
       if (!Number.isSafeInteger(quantity) || quantity < 1) return { ok: false, reason: 'invalid-quantity' };
-      const weightAvailable = this.remainingWeight;
-      if (definition.weight * quantity > weightAvailable) return { ok: false, reason: 'weight-limit' };
+      if (definition.weight * quantity > this.remainingWeight) return { ok: false, reason: 'weight-limit' };
       let freeStackSpace = 0;
       if (definition.stackable) {
         for (const slot of slots) if (slot.definitionId === definitionId) freeStackSpace += definition.maxStack - slot.quantity;
       }
-      const remaining = Math.max(0, quantity - freeStackSpace);
-      const neededSlots = definition.stackable ? Math.ceil(remaining / definition.maxStack) : quantity;
-      if (slots.length + neededSlots > capacity) return { ok: false, reason: 'inventory-full' };
-      return { ok: true, reason: null };
+      const neededSlots = definition.stackable ? Math.ceil(Math.max(0, quantity - freeStackSpace) / definition.maxStack) : quantity;
+      return slots.length + neededSlots <= capacity ? { ok: true, reason: null } : { ok: false, reason: 'inventory-full' };
     },
     add(definitionId, quantity = 1, options = {}) {
       const definition = registry.get(definitionId);
       if (!definition) return { ok: false, reason: 'unknown-item', added: 0, remaining: quantity };
       if (!Number.isSafeInteger(quantity) || quantity < 1) return { ok: false, reason: 'invalid-quantity', added: 0, remaining: quantity };
+      if (!options || typeof options !== 'object' || Array.isArray(options)) return { ok: false, reason: 'invalid-options', added: 0, remaining: quantity };
       const durability = options.durability ?? definition.attributes?.durability ?? null;
       const metadata = options.metadata ?? {};
       if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return { ok: false, reason: 'invalid-metadata', added: 0, remaining: quantity };
+      const weightLimitedQuantity = definition.weight > 0 && maxWeight !== Infinity
+        ? Math.floor(this.remainingWeight / definition.weight)
+        : quantity;
       let remaining = quantity;
+      let toAdd = Math.min(quantity, weightLimitedQuantity);
       if (definition.stackable) {
         for (const slot of slots) {
           if (slot.definitionId !== definitionId || slot.quantity >= definition.maxStack) continue;
           if (slot.durability !== durability || JSON.stringify(slot.metadata) !== JSON.stringify(metadata)) continue;
-          const amount = Math.min(remaining, definition.maxStack - slot.quantity);
+          const amount = Math.min(toAdd, definition.maxStack - slot.quantity);
           slot.quantity += amount;
+          toAdd -= amount;
           remaining -= amount;
-          if (!remaining) break;
+          if (!toAdd) break;
         }
       }
-      while (remaining > 0 && slots.length < capacity) {
-        const amount = definition.stackable ? Math.min(remaining, definition.maxStack) : 1;
-        const amountByWeight = definition.weight > 0 && maxWeight !== Infinity
-          ? Math.floor(this.remainingWeight / definition.weight)
-          : amount;
-        if (amountByWeight < 1) break;
-        const stackAmount = Math.min(amount, amountByWeight);
-        slots.push(createItemInstance(definition, { ...options, quantity: stackAmount }));
-        remaining -= stackAmount;
+      while (toAdd > 0 && slots.length < capacity) {
+        const amount = definition.stackable ? Math.min(toAdd, definition.maxStack) : 1;
+        slots.push(createItemInstance(definition, { ...options, quantity: amount }));
+        toAdd -= amount;
+        remaining -= amount;
       }
       const added = quantity - remaining;
-      const reason = remaining ? (this.remainingWeight < definition.weight ? 'weight-limit' : 'inventory-full') : null;
+      const reason = remaining ? (weightLimitedQuantity < quantity ? 'weight-limit' : 'inventory-full') : null;
       return { ok: remaining === 0, reason, added, remaining };
     },
     remove(definitionId, quantity = 1) {
@@ -105,7 +102,7 @@ export function createInventory({ capacity = 24, maxWeight = Infinity, registry,
       return copyInstance(slots.splice(index, 1)[0]);
     },
     clear() { slots.length = 0; },
-    snapshot() { return { capacity, maxWeight, items: this.items }; }
+    snapshot() { return { capacity, maxWeight: maxWeight === Infinity ? null : maxWeight, items: this.items }; }
   };
   return inventory;
 }

@@ -20,13 +20,8 @@ export function createItemInstance(definition, options = {}) {
   const instanceId = options.instanceId ?? createInstanceId();
   const durability = options.durability ?? definition.attributes?.durability ?? null;
   const metadata = options.metadata ?? {};
-  const instance = {
-    instanceId,
-    definitionId: definition.id,
-    quantity,
-    durability,
-    metadata: { ...metadata }
-  };
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) throw new TypeError('metadata deve ser um objeto.');
+  const instance = { instanceId, definitionId: definition.id, quantity, durability, metadata: { ...metadata } };
   const errors = validateItemInstance(instance, definition);
   if (errors.length) throw new TypeError(errors.join(' '));
   return instance;
