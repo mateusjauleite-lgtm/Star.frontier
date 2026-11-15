@@ -91,6 +91,14 @@ export function createEarthCore(options = {}) {
           visualRadiusUnits: planetaryProfile.render.visualRadiusUnits,
           visualUnitsPerKm: planetaryProfile.render.visualUnitsPerKm
         },
+        terrain: layers.terrain ? {
+          elevationSource: layers.terrain.elevationSource,
+          sourceGridReady: layers.terrain.sourceGridReady,
+          etopoStatus: layers.terrain.etopoStatus,
+          verticalDatum: layers.terrain.verticalDatum ?? null,
+          gridResolutionArcSeconds: layers.terrain.gridResolutionArcSeconds ?? null,
+          verticalExaggeration: layers.terrain.verticalExaggeration
+        } : null,
         updateModules: updatePipeline.getStatus(),
         disposed
       };
