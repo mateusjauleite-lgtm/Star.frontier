@@ -1898,7 +1898,7 @@ body {
 
 
 /* Seleção explícita do equipamento ativo e balão de ação no inventário. */
-.quick-slot { cursor: pointer; pointer-events: auto; touch-action: manipulation; }
+.quick-slot { cursor: pointer; pointer-events: auto; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .quick-slot.action-selected { border-color: rgba(84,230,160,.9); box-shadow: 0 0 12px rgba(84,230,160,.22), inset 0 0 10px rgba(84,230,160,.1); }
 .inventory-item { position: relative; overflow: visible; }
 .inventory-item.item-pending-equip { border-color: rgba(84,230,160,.85); }
