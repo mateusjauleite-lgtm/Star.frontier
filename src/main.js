@@ -100,7 +100,7 @@ function updateCharacterCameraButton() {
     : 'CÂMERA: 3ª PESSOA';
 }
 
-function updateCharacterHUD(){const p=earthSystem?.getPlanetaryProfile?.(),s=characterCore.snapshot();const equipment=Object.fromEntries(Object.entries(s.equipment||{}).map(([slot,item])=>{const d=item?itemDatabase.get(item.definitionId):null;return[slot,item?{...item,displayName:d?.name||item.definitionId,displayCode:d?.code||'',tooltip:`${d?.code||'SEM CÓDIGO'} · ${d?.id||item.definitionId} · ${d?.description||''}`}:null];}));characterHUD.update({...s,equipment,name:state.user||state.character||'EXPLORADOR',environment:p?{label:`${p.displayName} • R MÉDIO ${Math.round(p.physical.meanRadiusKm).toLocaleString('pt-BR')} KM`}:null});updateCharacterActionButton();}
+function updateCharacterHUD(){const p=earthSystem?.getPlanetaryProfile?.(),s=characterCore.snapshot();const equipment=Object.fromEntries(Object.entries(s.equipment||{}).map(([slot,item])=>{const d=item?itemDatabase.get(item.definitionId):null;return[slot,item?{...item,displayName:d?.name||item.definitionId,displayCode:d?.code||'',tooltip:`${d?.code||'SEM CÓDIGO'} · ${d?.id||item.definitionId} · ${d?.description||''}`}:null];}));characterHUD.update({...s,equipment,name:state.user||state.character||'EXPLORADOR',environment:p?{label:`${p.displayName} • R MÉDIO ${Math.round(p.physical.meanRadiusKm).toLocaleString('pt-BR')} KM`}:null});updateEquipmentActionButton();}
 
 state.ship = 'Nave exploradora';
 
@@ -1086,9 +1086,8 @@ function updateCharacterMovement(dt) {
   characterAnimator?.update(dt);
 }
 
-function resolveCharacterAction() {
+function resolveEquipmentAction() {
   if (characterCore.snapshot().mode !== 'on-foot' || nearbyElevator) return { id: 'none', label: '◎ AÇÃO', enabled: false };
-  if (pilotInteractionAvailable) return { id: 'pilot', label: '◎ PILOTAR', enabled: true };
   const equipment = characterCore.snapshot().equipment || {};
   const weapon = equipment.weapon && itemDatabase.get(equipment.weapon.definitionId);
   const tool = equipment.tool && itemDatabase.get(equipment.tool.definitionId);
@@ -1098,21 +1097,20 @@ function resolveCharacterAction() {
   return { id: 'none', label: '◎ AÇÃO', enabled: false };
 }
 
-function updateCharacterActionButton() {
-  const button = $('character-action-btn');
+function updateEquipmentActionButton() {
+  const button = $('character-tool-action-btn');
   if (!button) return;
-  const action = resolveCharacterAction();
+  const action = resolveEquipmentAction();
   button.dataset.action = action.id;
   button.textContent = action.label;
   button.disabled = !action.enabled;
   button.classList.toggle('available', action.enabled);
-  button.classList.toggle('hidden', nearbyElevator);
+  button.classList.toggle('hidden', nearbyElevator || characterCore.snapshot().mode !== 'on-foot');
 }
 
-function performCharacterAction() {
-  const action = resolveCharacterAction();
+function performEquipmentAction() {
+  const action = resolveEquipmentAction();
   if (!action.enabled) return;
-  if (action.id === 'pilot') { enterPilotMode(); return; }
   const equipment = characterCore.snapshot().equipment || {};
   const equipped = action.id === 'weapon.fire' ? equipment.weapon : equipment.tool;
   const definition = equipped && itemDatabase.get(equipped.definitionId);
@@ -1188,9 +1186,16 @@ function updatePilotInteraction() {
   if (available === pilotInteractionAvailable) return;
 
   pilotInteractionAvailable = available;
+  const pilotButton = $('character-action-btn');
+  if (pilotButton) {
+    pilotButton.textContent = available ? '◎ PILOTAR' : 'PILOTAR';
+    pilotButton.disabled = !available;
+    pilotButton.classList.toggle('available', available);
+    pilotButton.classList.toggle('hidden', nearbyElevator);
+  }
   characterCore.setInteractionTarget(available ? 'PILOTAGEM DISPONÍVEL' : null);
   updateCharacterHUD();
-  updateCharacterActionButton();
+  updateEquipmentActionButton();
 }
 
 function setPilotInterface(activePilot) {
@@ -1585,7 +1590,8 @@ if (characterAim) {
   );
 }
 
-$('character-action-btn')?.addEventListener('click', performCharacterAction);
+$('character-action-btn')?.addEventListener('click', enterPilotMode);
+$('character-tool-action-btn')?.addEventListener('click', performEquipmentAction);
 $('elevator-up-btn')?.addEventListener('click', () => moveElevator(-1));
 $('elevator-down-btn')?.addEventListener('click', () => moveElevator(1));
 
@@ -1624,6 +1630,7 @@ renderInventory();
 $('leave-pilot-btn')?.addEventListener('click', exitPilotMode);
 
 if ($('character-action-btn')) $('character-action-btn').disabled = true;
+if ($('character-tool-action-btn')) $('character-tool-action-btn').disabled = true;
 
 // Ao perder foco no Android, zera entradas para impedir joystick ou aceleração presos.
 document.addEventListener('visibilitychange', () => {
