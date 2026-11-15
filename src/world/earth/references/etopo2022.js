@@ -54,7 +54,7 @@ export function parseEtopo2022Grid(buffer) {
     width, height, west, east, south, north, noDataValue,
     values,
     units: 'meters',
-    registration: 'grid-node',
+    registration: 'pixel-center',
     sourceResolutionArcSeconds: 60,
     packagedResolutionDegrees: (east - west) / (width - 1)
   };
