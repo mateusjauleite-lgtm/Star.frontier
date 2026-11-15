@@ -694,6 +694,7 @@ async function init3D() {
 
   // Spawn inicial no Deck 1 — ponte de comando, dentro do casco.
   characterModel = createCharacterModel({ clothingColor: 0x526879 });
+  applyCharacterSuit();
   // O personagem pertence ao referencial da nave: acompanha translação e rotação
   // sem ficar para trás no espaço quando a Aurora-7 se movimenta.
   characterModel.group.position.set(0, 8.91, -18);
@@ -1490,7 +1491,61 @@ function showInventoryTab(tab) {
     button.classList.toggle('active', button.dataset.inventoryTab === tab);
   });
 }
+function getCharacterSuitEquipped() {
+  return Boolean(state.inventory?.equipment?.suit);
+}
+
+function applyCharacterSuit() {
+  if (!characterModel) return;
+  const equipped = getCharacterSuitEquipped();
+  characterModel.setEquipment('torso', equipped ? 'clothing.field-jacket' : null);
+  characterModel.setEquipment('legs', equipped ? 'clothing.utility-trousers' : null);
+  characterModel.setEquipment('feet', equipped ? 'clothing.exploration-boots' : null);
+  characterCore.setEquipment('suit', equipped ? state.inventory.equipment.suit : null);
+}
+
+function renderClothing() {
+  const equipped = getCharacterSuitEquipped();
+  const suitSlot = document.querySelector('[data-slot="suit"]');
+  if (suitSlot) {
+    suitSlot.classList.toggle('selected', equipped);
+    const name = suitSlot.querySelector('b');
+    const status = suitSlot.querySelector('small');
+    if (name) name.textContent = 'Traje de exploração básico';
+    if (status) status.textContent = equipped ? 'EQUIPADO · TOQUE PARA REMOVER' : 'DESEQUIPADO · TOQUE PARA EQUIPAR';
+  }
+  const labels = {
+    helmet: ['Vazio', 'NÃO EQUIPADO'],
+    torso: [equipped ? 'Jaqueta de campo' : 'Vazio', equipped ? 'INCLUÍDO NO TRAJE' : 'NÃO EQUIPADO'],
+    gloves: ['Vazio', 'NÃO EQUIPADO'],
+    legs: [equipped ? 'Calça utilitária' : 'Vazio', equipped ? 'INCLUÍDO NO TRAJE' : 'NÃO EQUIPADO'],
+    boots: [equipped ? 'Botas de exploração' : 'Vazio', equipped ? 'INCLUÍDO NO TRAJE' : 'NÃO EQUIPADO']
+  };
+  for (const [slot, [nameText, statusText]] of Object.entries(labels)) {
+    const button = document.querySelector(`[data-slot="${slot}"]`);
+    if (!button) continue;
+    const name = button.querySelector('b');
+    const status = button.querySelector('small');
+    if (name) name.textContent = nameText;
+    if (status) status.textContent = statusText;
+    button.classList.toggle('selected', equipped && ['torso', 'legs', 'boots'].includes(slot));
+  }
+}
+
+function toggleCharacterSuit() {
+  if (!state.inventory) state.inventory = { items: [], equipment: {} };
+  if (!state.inventory.equipment) state.inventory.equipment = {};
+  state.inventory.equipment.suit = getCharacterSuitEquipped()
+    ? null
+    : 'Traje de exploração básico';
+  applyCharacterSuit();
+  renderClothing();
+  save();
+  toast(state.inventory.equipment.suit ? 'Traje de exploração equipado.' : 'Traje de exploração removido.');
+}
+
 function renderInventory() {
+  renderClothing();
   const grid = $('inventory-grid');
   if (!grid) return;
   const items = Array.isArray(state.inventory?.items) ? state.inventory.items : [];
@@ -1519,8 +1574,11 @@ $('inventory-modal')?.addEventListener('click', event => {
 });
 document.querySelectorAll('[data-slot]').forEach(button => {
   button.addEventListener('click', () => {
-    document.querySelectorAll('[data-slot]').forEach(slot => slot.classList.remove('selected'));
-    button.classList.add('selected');
+    if (button.dataset.slot === 'suit') {
+      toggleCharacterSuit();
+      return;
+    }
+    toast('Este espaço ainda não possui uma peça disponível.');
   });
 });
 renderInventory();
