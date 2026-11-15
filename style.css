@@ -1235,6 +1235,32 @@ select:focus {
   pointer-events: auto;
 }
 .character-action-btn:active { transform: scale(.94); }
+.character-tool-action-btn {
+  position: absolute;
+  right: max(20px, env(safe-area-inset-right));
+  bottom: max(28px, env(safe-area-inset-bottom));
+  z-index: 5;
+  min-width: 82px;
+  min-height: 62px;
+  padding: 8px;
+  border: 2px solid rgba(67,217,255,.72);
+  border-radius: 50%;
+  background: rgba(5,30,52,.92);
+  color: var(--cyan);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  box-shadow: 0 0 20px rgba(67,217,255,.22);
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+.character-tool-action-btn:active { transform: scale(.93); }
+.character-tool-action-btn:disabled { opacity: .38; }
+.character-tool-action-btn.available {
+  opacity: 1;
+  border-color: rgba(67,217,255,.98);
+  box-shadow: 0 0 22px rgba(67,217,255,.38);
+}
 @media (orientation: landscape) and (max-height: 600px) {
   .character-status { width: 220px; margin-top: 4px; }
   .character-equipment { max-width: 155px; margin-top: 4px; padding: 5px 7px; gap: 2px; }
@@ -1243,6 +1269,7 @@ select:focus {
   .character-move-stick { width: 88px; height: 88px; }
   .character-move-knob { width: 36px; height: 36px; left: calc(50% - 18px); top: calc(50% - 18px); }
   .character-action-btn { min-width: 66px; min-height: 48px; }
+  .character-tool-action-btn { min-width: 74px; min-height: 56px; right: max(14px, env(safe-area-inset-right)); bottom: max(16px, env(safe-area-inset-bottom)); }
 }
 
 
