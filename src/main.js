@@ -990,6 +990,11 @@ function updateCharacterMovement(dt) {
   const sprinting = characterSprintHeld && magnitude > 0.08 && stamina > 0;
   if (sprinting) characterCore.setStamina(Math.max(0, stamina - 22 * dt));
   else if (stamina < 100) characterCore.setStamina(Math.min(100, stamina + 13 * dt));
+  const staminaNow = characterCore.snapshot().stamina;
+  const staminaFill = $('character-stamina');
+  const staminaLabel = $('character-stamina-value');
+  if (staminaFill) staminaFill.style.width = staminaNow + '%';
+  if (staminaLabel) staminaLabel.textContent = Math.round(staminaNow) + '%';
 
   if (magnitude > 0.08) {
     // Movimento horizontal no referencial local da nave; a física vertical
@@ -1148,6 +1153,8 @@ function enterPilotMode() {
   }
 
   characterMoveInput = { x: 0, y: 0 };
+  characterJumpQueued = false;
+  stopCharacterSprint();
   characterCore.enterShipSeat();
   pilotInteractionAvailable = false;
   state.camera = 0;
