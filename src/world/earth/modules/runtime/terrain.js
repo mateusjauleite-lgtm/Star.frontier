@@ -26,7 +26,7 @@ export function calculateEtopoPatchSegments(radiusKm, latitudeDeg, grid = null, 
     Math.max(0.1, Math.abs(Math.cos(THREE.MathUtils.degToRad(latitudeDeg))));
   const sourceSpacingKm = Math.min(latitudeSpacingKm, longitudeSpacingKm);
   return Math.round(THREE.MathUtils.clamp(
-    Math.ceil((radiusKm * 2) / sourceSpacingKm), 8, maxSegments
+    Math.ceil(radiusKm / sourceSpacingKm), 8, maxSegments
   ));
 }
 
@@ -262,42 +262,66 @@ export function createTerrainRuntime({ options, layers }) {
             const divisions = Number.isFinite(segments)
               ? Math.round(THREE.MathUtils.clamp(segments, 8, 128))
               : calculateEtopoPatchSegments(safeRadiusKm, latitudeDeg, gridIsReady ? grid : null);
-            const latSpan = safeRadiusKm / 111.195;
-            const cosLatitude = Math.max(0.1, Math.cos(THREE.MathUtils.degToRad(latitudeDeg)));
-            const lonSpan = safeRadiusKm / (111.195 * cosLatitude);
+            const angularSegments = divisions * 4;
             const positions = [];
             const uvs = [];
             const indices = [];
+            const centerLatitude = THREE.MathUtils.degToRad(latitudeDeg);
+            const centerLongitude = THREE.MathUtils.degToRad(longitudeDeg);
             const point = new THREE.Vector3();
 
-            for (let y = 0; y <= divisions; y++) {
-              const v = y / divisions;
-              const lat = THREE.MathUtils.clamp(
-                latitudeDeg + (0.5 - v) * latSpan * 2, -89.9, 89.9
+            const appendPoint = (longitude, latitude) => {
+              const elevation = elevationSampler(longitude, latitude);
+              if (!Number.isFinite(elevation)) return false;
+              const latRad = THREE.MathUtils.degToRad(latitude);
+              const lonRad = THREE.MathUtils.degToRad(longitude);
+              const patchRadius = radius + elevation + 0.025;
+              point.set(
+                Math.cos(lonRad) * Math.cos(latRad) * patchRadius,
+                Math.sin(latRad) * patchRadius,
+                Math.sin(lonRad) * Math.cos(latRad) * patchRadius
               );
-              for (let x = 0; x <= divisions; x++) {
-                const u = x / divisions;
-                const lon = THREE.MathUtils.euclideanModulo(
-                  longitudeDeg + (u - 0.5) * lonSpan * 2 + 180, 360
-                ) - 180;
-                const elevation = elevationSampler(lon, lat);
-                if (!Number.isFinite(elevation)) return null;
-                const latRad = THREE.MathUtils.degToRad(lat);
-                const lonRad = THREE.MathUtils.degToRad(lon);
-                const patchRadius = radius + elevation + 0.025;
-                point.set(
-                  Math.cos(lonRad) * Math.cos(latRad) * patchRadius,
-                  Math.sin(latRad) * patchRadius,
-                  Math.sin(lonRad) * Math.cos(latRad) * patchRadius
+              positions.push(point.x, point.y, point.z);
+              uvs.push((longitude + 180) / 360, (90 - latitude) / 180);
+              return true;
+            };
+
+            if (!appendPoint(longitudeDeg, latitudeDeg)) return null;
+            for (let ring = 1; ring <= divisions; ring++) {
+              const angularDistance = (ring / divisions * safeRadiusKm) / 6371.0088;
+              const sinCenter = Math.sin(centerLatitude);
+              const cosCenter = Math.cos(centerLatitude);
+              const sinDistance = Math.sin(angularDistance);
+              const cosDistance = Math.cos(angularDistance);
+              for (let segment = 0; segment < angularSegments; segment++) {
+                const bearing = segment / angularSegments * Math.PI * 2;
+                const latitude = Math.asin(THREE.MathUtils.clamp(
+                  sinCenter * cosDistance + cosCenter * sinDistance * Math.cos(bearing),
+                  -1, 1
+                ));
+                const longitude = centerLongitude + Math.atan2(
+                  Math.sin(bearing) * sinDistance * cosCenter,
+                  cosDistance - sinCenter * Math.sin(latitude)
                 );
-                positions.push(point.x, point.y, point.z);
-                uvs.push((lon + 180) / 360, (90 - lat) / 180);
-                if (x < divisions && y < divisions) {
-                  const a = y * (divisions + 1) + x;
-                  const b = a + 1;
-                  const c = a + divisions + 1;
-                  const d = c + 1;
-                  indices.push(a, b, c, b, d, c);
+                const longitudeDegAtPoint = THREE.MathUtils.euclideanModulo(
+                  THREE.MathUtils.radToDeg(longitude) + 180, 360
+                ) - 180;
+                if (!appendPoint(longitudeDegAtPoint, THREE.MathUtils.radToDeg(latitude))) {
+                  return null;
+                }
+              }
+
+              const outerStart = 1 + (ring - 1) * angularSegments;
+              const innerStart = ring === 1 ? 0 : 1 + (ring - 2) * angularSegments;
+              for (let segment = 0; segment < angularSegments; segment++) {
+                const next = (segment + 1) % angularSegments;
+                if (ring === 1) {
+                  indices.push(0, outerStart + segment, outerStart + next);
+                } else {
+                  indices.push(
+                    innerStart + segment, outerStart + segment, innerStart + next,
+                    outerStart + segment, outerStart + next, innerStart + next
+                  );
                 }
               }
             }
@@ -319,7 +343,9 @@ export function createTerrainRuntime({ options, layers }) {
               latitudeDeg,
               radiusKm: safeRadiusKm,
               segments: divisions,
-              meshSpacingKm: (safeRadiusKm * 2) / divisions,
+              angularSegments,
+              shape: 'geodesic-disk',
+              meshSpacingKm: safeRadiusKm / divisions,
               sourceGridSpacingKm: gridIsReady
                 ? (grid.north - grid.south) / (grid.height - 1) * 111.195
                 : 0.25 * 111.195,
