@@ -5,6 +5,75 @@ function normalize(v){const n=Math.hypot(...v);return n>0?v.map(x=>cleanZero(x/n
 function dot(a,b){return a.reduce((sum,value,i)=>sum+value*b[i],0);}
 function cross(a,b){return [a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]].map(cleanZero);}
 
+/** Physical calibration for the current ship model: one authored geometry unit represents one metre. */
+export const SHIP_MODEL_METERS_PER_UNIT = 1;
+export const SHIP_LANDING_PLATFORM_DECK_HEIGHT_METERS = 0.76;
+export const SHIP_LANDING_TARGET_HEIGHT_METERS = 23.94;
+
+/**
+ * Converts the ship origin and four landing-gear anchors into the platform's
+ * metric local frame. The platform parent carries Earth-units-per-metre scale,
+ * so Object3D.worldToLocal() returns metres directly.
+ * Axes returned to Ship Core are [east, up, north].
+ */
+export function createShipLandingMetricTelemetryAdapter({
+ modelMetersPerUnit=SHIP_MODEL_METERS_PER_UNIT,
+ deckHeightMeters=SHIP_LANDING_PLATFORM_DECK_HEIGHT_METERS,
+ deckRadiusMeters=108
+}={}){
+ if(!Number.isFinite(modelMetersPerUnit)||modelMetersPerUnit<=0||
+    !Number.isFinite(deckHeightMeters)||!Number.isFinite(deckRadiusMeters)||deckRadiusMeters<=0)
+  throw new TypeError('Invalid ship/platform metric calibration');
+ let previousPosition=null;
+ return {
+  sample({shipOriginPlatformLocalMeters,shipRotationRelativeToPlatform,contactPoints=[],dt}={}){
+   if(!vector3(shipOriginPlatformLocalMeters)||!Array.isArray(shipRotationRelativeToPlatform)||
+      shipRotationRelativeToPlatform.length!==4||!shipRotationRelativeToPlatform.every(Number.isFinite)||
+      !Number.isFinite(dt)||dt<=0||!Array.isArray(contactPoints)||contactPoints.length!==4)return null;
+   const [qx,qy,qz,qw]=shipRotationRelativeToPlatform;
+   const qLength=Math.hypot(qx,qy,qz,qw);
+   if(!Number.isFinite(qLength)||qLength<1e-9)return null;
+   const q=[qx/qLength,qy/qLength,qz/qLength,qw/qLength];
+   const rotate=v=>{
+    const [x,y,z]=v,[ax,ay,az,aw]=q;
+    const tx=2*(ay*z-az*y),ty=2*(az*x-ax*z),tz=2*(ax*y-ay*x);
+    return [x+aw*tx+(ay*tz-az*ty),y+aw*ty+(az*tx-ax*tz),z+aw*tz+(ax*ty-ay*tx)];
+   };
+   const positionMeters=[shipOriginPlatformLocalMeters[0],shipOriginPlatformLocalMeters[1],-shipOriginPlatformLocalMeters[2]].map(cleanZero);
+   const forwardPlatform=rotate([0,0,-1]),upPlatform=rotate([0,1,0]);
+   const toAxes=v=>[cleanZero(v[0]),cleanZero(v[1]),cleanZero(-v[2])];
+   const gear=[];
+   for(const item of contactPoints){
+    if(!item||typeof item.id!=='string'||!vector3(item.point))return null;
+    const offsetAxes=toAxes(rotate(item.point.map(v=>v*modelMetersPerUnit)));
+    const position=positionMeters.map((v,i)=>cleanZero(v+offsetAxes[i]));
+    gear.push({id:item.id,positionMeters:position,
+     clearanceMeters:cleanZero(position[1]-deckHeightMeters),
+     radialDistanceMeters:cleanZero(Math.hypot(position[0],position[2]))});
+   }
+   const velocity=previousPosition
+    ?positionMeters.map((v,i)=>cleanZero((v-previousPosition[i])/dt))
+    :[0,0,0];
+   previousPosition=[...positionMeters];
+   return {
+    positionMeters,velocityMetersPerSecond:velocity,
+    targetPositionMeters:[0,SHIP_LANDING_TARGET_HEIGHT_METERS,0],
+    surfaceNormal:[0,1,0],
+    shipForwardLocal:toAxes(forwardPlatform),shipUpLocal:toAxes(upPlatform),
+    targetNorthLocal:[0,0,1],contactPointsMeters:gear,
+    allGearInsideDeck:gear.every(point=>point.radialDistanceMeters<=deckRadiusMeters),
+    minimumGearClearanceMeters:Math.min(...gear.map(point=>point.clearanceMeters)),
+    maximumGearClearanceMeters:Math.max(...gear.map(point=>point.clearanceMeters)),
+    modelMetersPerUnit,coordinateFrame:'platform-local-metric',
+    source:'ship-model-and-platform-world-matrices',
+    scaleValidation:'metric-proxy-calibrated-render-scale-pending',
+    actuationEnabled:false
+   };
+  },
+  reset(){previousPosition=null;}
+ };
+}
+
 /** Read-only adapter from live Three.js world transforms to the local SI tangent frame. */
 export function createShipLandingTelemetryAdapter({metersPerRenderUnit}={}){
  if(!Number.isFinite(metersPerRenderUnit)||metersPerRenderUnit<=0)throw new TypeError('metersPerRenderUnit must be positive');

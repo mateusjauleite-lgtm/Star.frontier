@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { createEarthCore } from './world/earth/earthCore.js';
 import { createStation } from './world/station.js';
 import { getLandingSite } from './ships/flight/landingSites.js';
-import { createShipLandingAutopilot, createShipLandingTelemetryAdapter } from './ships/flight/landingAutopilot.js';
+import { createShipLandingAutopilot, createShipLandingMetricTelemetryAdapter, SHIP_MODEL_METERS_PER_UNIT } from './ships/flight/landingAutopilot.js';
 import { loadShipFlightKernel } from './ships/flight/shipFlightKernel.js';
 import { createOrbitSystem } from './world/orbits.js';
 import { createAsteroidField } from './world/asteroids.js';
@@ -384,7 +384,11 @@ let landingBaseSystem;
 let selectedLandingSiteId = null;
 let shipFlightKernel = null;
 let shipLandingAutopilot = null;
-const shipLandingTelemetry = createShipLandingTelemetryAdapter({ metersPerRenderUnit: 6371008.8 / 600 });
+const shipLandingTelemetry = createShipLandingMetricTelemetryAdapter({
+  modelMetersPerUnit: SHIP_MODEL_METERS_PER_UNIT,
+  deckHeightMeters: 0.76,
+  deckRadiusMeters: 108
+});
 let orbitSystem;
 let asteroidSystem;
 let lightingSystem;
@@ -1762,37 +1766,53 @@ function updateShipLandingGuidance(dt) {
     return;
   }
 
-  ship.updateWorldMatrix(true, true);
+  // A inversão da matriz da plataforma desfaz também a escala métrica
+  // herdada pela raiz da base: o resultado já está em metros.
+  shipVisual.updateWorldMatrix(true, true);
   platform.updateWorldMatrix(true, true);
-  const targetPosition = platform.localToWorld(new THREE.Vector3(0, 0.76, 0));
-  const shipPosition = ship.getWorldPosition(new THREE.Vector3());
-  const platformQuaternion = platform.getWorldQuaternion(new THREE.Quaternion());
-  const shipQuaternion = shipVisual.getWorldQuaternion(new THREE.Quaternion());
-  const eastWorld = new THREE.Vector3(1, 0, 0).applyQuaternion(platformQuaternion).normalize();
-  const upWorld = new THREE.Vector3(0, 1, 0).applyQuaternion(platformQuaternion).normalize();
-  const northWorld = new THREE.Vector3(0, 0, -1).applyQuaternion(platformQuaternion).normalize();
-  const shipForwardWorld = new THREE.Vector3(0, 0, -1).applyQuaternion(shipQuaternion).normalize();
-  const shipUpWorld = new THREE.Vector3(0, 1, 0).applyQuaternion(shipQuaternion).normalize();
+  const shipOriginWorld = shipVisual.getWorldPosition(new THREE.Vector3());
+  const shipOriginPlatformLocal = platform.worldToLocal(shipOriginWorld.clone());
+  const platformWorldQuaternion = platform.getWorldQuaternion(new THREE.Quaternion());
+  const shipWorldQuaternion = shipVisual.getWorldQuaternion(new THREE.Quaternion());
+  const shipRotationRelativeToPlatform = platformWorldQuaternion
+    .invert().multiply(shipWorldQuaternion).normalize();
 
   const telemetry = shipLandingTelemetry.sample({
-    shipPositionWorld: shipPosition.toArray(), targetPositionWorld: targetPosition.toArray(),
-    shipForwardWorld: shipForwardWorld.toArray(), shipUpWorld: shipUpWorld.toArray(),
-    eastWorld: eastWorld.toArray(), upWorld: upWorld.toArray(), northWorld: northWorld.toArray(),
+    shipOriginPlatformLocalMeters: shipOriginPlatformLocal.toArray(),
+    shipRotationRelativeToPlatform: [
+      shipRotationRelativeToPlatform.x, shipRotationRelativeToPlatform.y,
+      shipRotationRelativeToPlatform.z, shipRotationRelativeToPlatform.w
+    ],
+    contactPoints: shipLandingGearContactPoints.map(({ id, point }) => ({
+      id, point: point.toArray()
+    })),
     dt: Math.max(dt, 1 / 240)
   });
   if (!telemetry) {
     ship.userData.landingGuidance = null;
-    ship.userData.landingAutopilotState = 'invalid-live-telemetry';
+    ship.userData.landingAutopilotState = 'invalid-metric-telemetry';
     return;
   }
 
   const guidance = shipLandingAutopilot.update(telemetry);
   ship.userData.landingTelemetry = telemetry;
+  ship.userData.landingGearMetricDiagnostics = {
+    contactPoints: telemetry.contactPointsMeters,
+    allGearInsideDeck: telemetry.allGearInsideDeck,
+    minimumGearClearanceMeters: telemetry.minimumGearClearanceMeters,
+    maximumGearClearanceMeters: telemetry.maximumGearClearanceMeters,
+    modelMetersPerUnit: telemetry.modelMetersPerUnit,
+    coordinateFrame: telemetry.coordinateFrame
+  };
   ship.userData.landingGuidance = guidance;
   ship.userData.landingAutopilotState = guidance ? 'guidance-only' : 'guidance-unavailable';
   if (guidance) {
     guidance.backend = shipFlightKernel.backend;
     guidance.actuationEnabled = false;
+    guidance.coordinateFrame = telemetry.coordinateFrame;
+    guidance.gearClearanceMeters = telemetry.minimumGearClearanceMeters;
+    guidance.allGearInsideDeck = telemetry.allGearInsideDeck;
+    guidance.scaleValidation = telemetry.scaleValidation;
   }
 }
 
