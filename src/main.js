@@ -71,7 +71,7 @@ let characterStaminaAccumulator = 0;
 let characterStaminaHudTimer = 0;
 let phaserChargeRemaining = 0;
 let phaserShotFlashRemaining = 0;
-const PHASER_RECHARGE_SECONDS = 4.5;
+const PHASER_RECHARGE_SECONDS = 2.5;
 const PHASER_FLASH_SECONDS = 0.16;
 let pilotInteractionAvailable = false;
 const pilotPlayerWorldPosition = new THREE.Vector3();
@@ -110,7 +110,14 @@ function updatePhaserWeapon(dt) {
     button.classList.toggle('is-ready', equipped && phaserChargeRemaining <= 0);
     button.classList.toggle('is-charging', equipped && phaserChargeRemaining > 0);
     const label = button.querySelector('small');
-    if (label) label.textContent = !equipped ? 'SEM ARMA' : phaserChargeRemaining > 0 ? 'CARREGANDO' : 'PHASER';
+    if (label) {
+      const nextLabel = !equipped
+        ? 'SEM ARMA'
+        : phaserChargeRemaining > 0
+          ? 'RECARGA ' + phaserChargeRemaining.toFixed(1) + 's'
+          : 'PRONTO';
+      if (label.textContent !== nextLabel) label.textContent = nextLabel;
+    }
   }
   if (fill) fill.style.width = equipped
     ? (100 * (1 - phaserChargeRemaining / PHASER_RECHARGE_SECONDS)) + '%'
@@ -122,7 +129,11 @@ function firePhaser() {
     toast('Equipe o Phaser pelo inventário primeiro.');
     return;
   }
-  if (phaserChargeRemaining > 0) return;
+  if (phaserChargeRemaining > 0) {
+    const label = $('character-phaser-btn')?.querySelector('small');
+    if (label) label.textContent = 'RECARGA ' + phaserChargeRemaining.toFixed(1) + 's';
+    return;
+  }
   if (characterCore.snapshot().mode !== 'on-foot') {
     toast('O Phaser só pode ser usado a pé nesta versão.');
     return;
@@ -1464,7 +1475,14 @@ const characterJumpButton = $('character-jump-btn');
 const characterSprintButton = $('character-sprint-btn');
 const characterAnimationButton = $('character-animation-btn');
 const characterPhaserButton = $('character-phaser-btn');
-characterPhaserButton?.addEventListener('click', firePhaser);
+const handlePhaserInput = event => {
+  if (event.type === 'click' && event.detail !== 0) return;
+  event.preventDefault();
+  event.stopPropagation();
+  firePhaser();
+};
+characterPhaserButton?.addEventListener('pointerup', handlePhaserInput);
+characterPhaserButton?.addEventListener('click', handlePhaserInput);
 const characterAimButton = $('character-aim-btn');
 characterAimButton?.addEventListener('click', () => {
   if (!isPhaserEquipped() || characterCore.snapshot().mode !== 'on-foot') {
