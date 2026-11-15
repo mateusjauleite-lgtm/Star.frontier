@@ -12,6 +12,7 @@ import { createExplorationShip } from './ships/exploration.js';
 import { state, resetTransientState } from './core/state.js';
 import { createCharacterCore } from './character/characterCore.js';
 import { itemDatabase } from './items/itemDatabase.js';
+import { on } from './core/events.js';
 import { createCharacterHUD } from './character/characterHUD.js';
 import { createCharacterModel } from './character/characterModel.js';
 import { createCharacterAnimator } from './character/characterAnimator.js';
@@ -1580,6 +1581,11 @@ function persistCharacterInventory() {
   state.characterInventory = characterCore.getInventorySnapshot();
   save();
 }
+on('character:inventory-changed', () => {
+  persistCharacterInventory();
+  if (!$('inventory-modal')?.classList.contains('hidden')) renderInventory();
+});
+
 function renderInventory() {
   const grid = $('inventory-grid');
   if (!grid) return;
