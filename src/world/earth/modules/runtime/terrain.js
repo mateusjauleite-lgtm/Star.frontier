@@ -33,11 +33,25 @@ export function sampleEarthElevationGrid(grid, longitudeDeg, latitudeDeg) {
   const north = grid.north ?? 90;
   if (![west, east, south, north, longitudeDeg, latitudeDeg].every(Number.isFinite) ||
       !(east > west) || !(north > south)) return null;
-  const u = THREE.MathUtils.clamp((longitudeDeg - west) / (east - west), 0, 1) * (grid.width - 1);
+  let x0, x1, tx;
+  if (grid.wrapLongitude === true) {
+    const period = grid.longitudePeriod ?? 360;
+    if (!Number.isFinite(period) || period <= 0) return null;
+    const offset = THREE.MathUtils.euclideanModulo(longitudeDeg - west, period);
+    const u = offset / (period / grid.width);
+    const base = Math.floor(u);
+    x0 = base % grid.width;
+    x1 = (x0 + 1) % grid.width;
+    tx = u - base;
+  } else {
+    const u = THREE.MathUtils.clamp((longitudeDeg - west) / (east - west), 0, 1) * (grid.width - 1);
+    x0 = Math.floor(u);
+    x1 = Math.min(grid.width - 1, x0 + 1);
+    tx = u - x0;
+  }
   const v = THREE.MathUtils.clamp((north - latitudeDeg) / (north - south), 0, 1) * (grid.height - 1);
-  const x0 = Math.floor(u), y0 = Math.floor(v);
-  const x1 = Math.min(grid.width - 1, x0 + 1), y1 = Math.min(grid.height - 1, y0 + 1);
-  const tx = u - x0, ty = v - y0;
+  const y0 = Math.floor(v), y1 = Math.min(grid.height - 1, y0 + 1);
+  const ty = v - y0;
   const at = (x, y) => grid.values[y * grid.width + x];
   const values = [at(x0,y0), at(x1,y0), at(x0,y1), at(x1,y1)];
   const weights = [(1 - tx) * (1 - ty), tx * (1 - ty), (1 - tx) * ty, tx * ty];
