@@ -126,6 +126,14 @@ void AFrontierShip::BeginPiloting(AFrontierCharacter* Character, FName NewComman
             {
                 ShipHUD->AddToViewport();
                 ShipHUD->ObserveShip(this, Character);
+
+                // GameOnly bypasses UMG hit testing. GameAndUI lets mobile touch
+                // reach the HUD while the character remains in ShipControl mode.
+                FInputModeGameAndUI InputMode;
+                InputMode.SetWidgetToFocus(ShipHUD->TakeWidget());
+                InputMode.SetHideCursorDuringCapture(true);
+                PC->SetInputMode(InputMode);
+                PC->SetShowMouseCursor(false);
             }
         }
     }
@@ -143,10 +151,13 @@ void AFrontierShip::EndPiloting()
     // Clear component-owned touch/button values while the pilot is still valid.
     if (Controls) Controls->ClearControls();
     AFrontierCharacter* Character = ActivePilot.Get();
+    APlayerController* PC = Character
+        ? Cast<APlayerController>(Character->GetController())
+        : (ShipHUD ? ShipHUD->GetOwningPlayer() : nullptr);
+
     if (Character)
     {
-        if (APlayerController* PC = Cast<APlayerController>(Character->GetController()))
-            PC->SetViewTarget(Character);
+        if (PC) PC->SetViewTarget(Character);
 
         Character->SetActorRelativeLocation(ThreeToUnrealLocalPosition(FVector(0.0f, 8.91f, -25.5f)));
         Character->GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
@@ -158,6 +169,14 @@ void AFrontierShip::EndPiloting()
     {
         ShipHUD->RemoveFromParent();
         ShipHUD = nullptr;
+    }
+
+    // Restore the gameplay-only route after the pilot HUD has been removed.
+    if (PC)
+    {
+        FInputModeGameOnly InputMode;
+        PC->SetInputMode(InputMode);
+        PC->SetShowMouseCursor(false);
     }
     if (UWorld* World = GetWorld())
         if (UFrontierPlayerShipSubsystem* PlayerShip = World->GetSubsystem<UFrontierPlayerShipSubsystem>())

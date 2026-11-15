@@ -61,8 +61,12 @@ protected:
 
 private:
     void BuildNativeLayout();
-    void ReleaseTouchPointer(int32 Finger);
+    void ApplyTouchInputs();
+    bool ReleaseTouchPointer(int32 Finger);
+    void HandleApplicationWillDeactivate();
+
     TMap<int32, FVector2D> TouchOrigins;
+    TMap<int32, FVector2D> TouchPositions;
     TSet<int32> ThrottlePointers;
     TSet<int32> SteeringPointers;
 };

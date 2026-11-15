@@ -40,7 +40,11 @@ Blueprint-callable ship actions:
 
 The widget observes `OnFlightStateChanged` and calls `RefreshShipHUD(FlightState, ShipName, bVisible)`. Its native runtime layout provides left-side throttle and right-side steering touch zones, plus compact impulse, brake and exit buttons. Elevator navigation is deliberately kept on the on-foot HUD, not shown while seated.
 
-The left touch area controls forward/reverse throttle; the right touch area controls yaw and pitch. Impulse and brake are hold buttons; exit returns control to the character. The ship HUD is created automatically when the player enters the pilot station and removed on exit.
+The left touch area controls forward/reverse throttle; the right touch area controls yaw and pitch. Each finger is tracked independently and both axes are recomputed from active pointers, so acceleration and steering can be held simultaneously and releasing one finger does not cancel another active pointer in the same zone. Impulse and brake are hold buttons; exit returns control to the character.
+
+Pilot entry switches the local PlayerController to `FInputModeGameAndUI` and focuses the ship HUD so UMG touch zones and buttons receive input. The character remains in `ShipControl` mode, so on-foot movement/look handlers ignore gameplay input while seated. Exit removes the ship HUD, restores the character view and returns the controller to `FInputModeGameOnly`.
+
+Touch state is cleared on normal finger release, HUD teardown, loss of pilot state, and application deactivation/backgrounding. The latter also clears held brake/impulse buttons if Android interrupts the app before Slate delivers a release event. The ship HUD is created automatically when the player enters the pilot station and removed on exit.
 
 ## Deck and elevator behavior
 
@@ -54,4 +58,4 @@ Up from D4 and down from D1 are blocked. The current deck is determined in the o
 
 ## Remaining validation
 
-The native runtime layouts and input handlers are in the migration branch, and both HUD classes are used as defaults when no Blueprint subclass is assigned. Visual tuning against the actual mobile aspect ratio/safe areas, Unreal compilation, multiplayer ownership checks, and touch-device testing remain. Enhanced Input assets are still required for keyboard/controller parity. No Unreal compile or touch-device test has been performed yet.
+The native runtime layouts and input handlers are in the migration branch, and both HUD classes are used as defaults when no Blueprint subclass is assigned. Static source checks cover the ship touch routing and pilot input-mode transitions. Visual tuning against the actual mobile aspect ratio/safe areas, Unreal compilation, multiplayer ownership checks, and touch-device testing remain. Enhanced Input assets are still required for keyboard/controller parity. No Unreal compile, Editor interaction test, or Android device/APK test has been performed.

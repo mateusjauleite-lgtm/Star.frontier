@@ -8,6 +8,7 @@
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
 #include "Blueprint/WidgetTree.h"
+#include "Misc/CoreDelegates.h"
 
 namespace
 {
@@ -33,6 +34,13 @@ void UFrontierShipHUDWidget::NativeConstruct()
 {
     Super::NativeConstruct();
     BuildNativeLayout();
+
+    // Clear held controls if Android suspends the app or the window loses focus
+    // before Slate can deliver the matching touch/button release event.
+    FCoreDelegates::ApplicationWillDeactivateDelegate.AddUObject(
+        this, &UFrontierShipHUDWidget::HandleApplicationWillDeactivate);
+    FCoreDelegates::ApplicationWillEnterBackgroundDelegate.AddUObject(
+        this, &UFrontierShipHUDWidget::HandleApplicationWillDeactivate);
 }
 
 void UFrontierShipHUDWidget::BuildNativeLayout()
@@ -93,6 +101,13 @@ void UFrontierShipHUDWidget::ObserveShip(AFrontierShip* Ship, AFrontierCharacter
 void UFrontierShipHUDWidget::HandleFlightStateChanged(const FFrontierShipFlightState& State)
 {
     const bool bPiloting = ObservedShip && ObservedShip->IsPiloted();
+    if (!bPiloting)
+    {
+        TouchOrigins.Empty();
+        TouchPositions.Empty();
+        ThrottlePointers.Empty();
+        SteeringPointers.Empty();
+    }
     SetVisibility(bPiloting ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
     RefreshShipHUD(State, bPiloting ? ObservedShip->Identity.DisplayName : FText::GetEmpty(), bPiloting);
 }
@@ -133,50 +148,123 @@ void UFrontierShipHUDWidget::OnExitPressed() { ExitPilotSeat(); }
 FReply UFrontierShipHUDWidget::NativeOnTouchStarted(const FGeometry& Geometry, const FPointerEvent& Event)
 {
     if (!ObservedShip || !ObservedShip->IsPiloted()) return FReply::Unhandled();
+
     const FVector2D Local = Geometry.AbsoluteToLocal(Event.GetScreenSpacePosition());
     const int32 Finger = Event.GetPointerIndex();
+
+    // Each finger owns an independent origin/current position. Recompute both
+    // axes from all active fingers so releasing one finger cannot zero another.
+    ReleaseTouchPointer(Finger);
     TouchOrigins.Add(Finger, Local);
+    TouchPositions.Add(Finger, Local);
     if (Local.X < Geometry.GetLocalSize().X * 0.5f) ThrottlePointers.Add(Finger);
     else SteeringPointers.Add(Finger);
+
+    ApplyTouchInputs();
     return FReply::Handled();
 }
 
 FReply UFrontierShipHUDWidget::NativeOnTouchMoved(const FGeometry& Geometry, const FPointerEvent& Event)
 {
     const int32 Finger = Event.GetPointerIndex();
-    const FVector2D* Origin = TouchOrigins.Find(Finger);
-    if (!Origin) return FReply::Unhandled();
-    const FVector2D Local = Geometry.AbsoluteToLocal(Event.GetScreenSpacePosition());
-    const FVector2D Delta = Local - *Origin;
-    if (ThrottlePointers.Contains(Finger))
-        SetThrottleInput(FMath::Clamp(-Delta.Y / 100.0f, -1.0f, 1.0f));
-    else if (SteeringPointers.Contains(Finger))
-        SetSteeringInput(FMath::Clamp(Delta.X / 100.0f, -1.0f, 1.0f), FMath::Clamp(-Delta.Y / 100.0f, -1.0f, 1.0f));
+    if (!TouchOrigins.Contains(Finger)) return FReply::Unhandled();
+    if (!ObservedShip || !ObservedShip->IsPiloted())
+    {
+        ReleaseTouchPointer(Finger);
+        return FReply::Unhandled();
+    }
+
+    TouchPositions.Add(Finger, Geometry.AbsoluteToLocal(Event.GetScreenSpacePosition()));
+    ApplyTouchInputs();
     return FReply::Handled();
 }
 
-void UFrontierShipHUDWidget::ReleaseTouchPointer(int32 Finger)
+void UFrontierShipHUDWidget::ApplyTouchInputs()
 {
-    if (ThrottlePointers.Contains(Finger)) SetThrottleInput(0.0f);
-    if (SteeringPointers.Contains(Finger)) SetSteeringInput(0.0f, 0.0f);
+    if (!ObservedShip || !ObservedShip->IsPiloted()) return;
+
+    FVector2D ThrottleDelta = FVector2D::ZeroVector;
+    int32 ThrottleCount = 0;
+    for (const int32 Finger : ThrottlePointers)
+    {
+        const FVector2D* Origin = TouchOrigins.Find(Finger);
+        const FVector2D* Current = TouchPositions.Find(Finger);
+        if (Origin && Current)
+        {
+            ThrottleDelta += *Current - *Origin;
+            ++ThrottleCount;
+        }
+    }
+
+    FVector2D SteeringDelta = FVector2D::ZeroVector;
+    int32 SteeringCount = 0;
+    for (const int32 Finger : SteeringPointers)
+    {
+        const FVector2D* Origin = TouchOrigins.Find(Finger);
+        const FVector2D* Current = TouchPositions.Find(Finger);
+        if (Origin && Current)
+        {
+            SteeringDelta += *Current - *Origin;
+            ++SteeringCount;
+        }
+    }
+
+    const float Throttle = ThrottleCount > 0
+        ? FMath::Clamp(-(ThrottleDelta / static_cast<float>(ThrottleCount)).Y / 100.0f, -1.0f, 1.0f)
+        : 0.0f;
+    const FVector2D AverageSteering = SteeringCount > 0
+        ? SteeringDelta / static_cast<float>(SteeringCount)
+        : FVector2D::ZeroVector;
+
+    SetThrottleInput(Throttle);
+    SetSteeringInput(
+        FMath::Clamp(AverageSteering.X / 100.0f, -1.0f, 1.0f),
+        FMath::Clamp(-AverageSteering.Y / 100.0f, -1.0f, 1.0f));
+}
+
+bool UFrontierShipHUDWidget::ReleaseTouchPointer(int32 Finger)
+{
+    if (!TouchOrigins.Contains(Finger)) return false;
+
     TouchOrigins.Remove(Finger);
+    TouchPositions.Remove(Finger);
     ThrottlePointers.Remove(Finger);
     SteeringPointers.Remove(Finger);
+    ApplyTouchInputs();
+    return true;
 }
 
 FReply UFrontierShipHUDWidget::NativeOnTouchEnded(const FGeometry& Geometry, const FPointerEvent& Event)
 {
-    ReleaseTouchPointer(Event.GetPointerIndex());
-    return FReply::Handled();
+    return ReleaseTouchPointer(Event.GetPointerIndex())
+        ? FReply::Handled()
+        : FReply::Unhandled();
+}
+
+void UFrontierShipHUDWidget::HandleApplicationWillDeactivate()
+{
+    // Also releases UButton-held brake/boost when the platform interrupts input.
+    ClearFlightInput();
+    TouchOrigins.Empty();
+    TouchPositions.Empty();
+    ThrottlePointers.Empty();
+    SteeringPointers.Empty();
 }
 
 void UFrontierShipHUDWidget::NativeDestruct()
 {
-    // If the HUD is torn down unexpectedly while piloting, do not leave
-    // throttle, steering, brake or boost latched in the ship controls.
+    FCoreDelegates::ApplicationWillDeactivateDelegate.RemoveAll(this);
+    FCoreDelegates::ApplicationWillEnterBackgroundDelegate.RemoveAll(this);
+
+    // Do not leave throttle, steering, brake or boost latched if the HUD is removed.
     ClearFlightInput();
     TouchOrigins.Empty();
+    TouchPositions.Empty();
     ThrottlePointers.Empty();
     SteeringPointers.Empty();
+
+    if (ObservedShip)
+        ObservedShip->OnFlightStateChanged.RemoveDynamic(this, &UFrontierShipHUDWidget::HandleFlightStateChanged);
+
     Super::NativeDestruct();
 }
