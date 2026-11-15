@@ -81,6 +81,8 @@ export function createTerrainRuntime({ options, layers }) {
   let heightScale = 1;
   let disposed = false;
   const highResolutionPatches = new Set();
+  let activeHighResolutionPatch = null;
+  let lastPatchCenter = null;
 
   return {
     initialize() {
@@ -257,6 +259,90 @@ export function createTerrainRuntime({ options, layers }) {
             highResolutionPatches.add(patch);
             return patch;
           },
+          updateHighResolutionPatch(worldPosition, {
+            activationAltitudeUnits = 120,
+            radiusKm = 100,
+            segments = 64,
+            recenterDistanceKm = 20
+          } = {}) {
+            if (disposed || !worldPosition?.isVector3 || !surface.parent) return null;
+            surface.updateWorldMatrix(true, false);
+            const centerWorld = surface.getWorldPosition(new THREE.Vector3());
+            const altitudeUnits = worldPosition.distanceTo(centerWorld) - radius;
+            if (altitudeUnits > activationAltitudeUnits) {
+              if (activeHighResolutionPatch) {
+                surfacePatchDispose(activeHighResolutionPatch);
+                highResolutionPatches.delete(activeHighResolutionPatch);
+                activeHighResolutionPatch = null;
+                lastPatchCenter = null;
+              }
+              return null;
+            }
+
+            const surfaceLocal = surface.worldToLocal(worldPosition.clone()).normalize();
+            const latitudeDeg = THREE.MathUtils.radToDeg(Math.asin(
+              THREE.MathUtils.clamp(surfaceLocal.y, -1, 1)
+            ));
+            const longitudeDeg = THREE.MathUtils.radToDeg(Math.atan2(
+              surfaceLocal.z, surfaceLocal.x
+            ));
+
+            if (lastPatchCenter) {
+              const previous = new THREE.Vector3(
+                Math.cos(THREE.MathUtils.degToRad(lastPatchCenter.latitudeDeg)) *
+                  Math.cos(THREE.MathUtils.degToRad(lastPatchCenter.longitudeDeg)),
+                Math.sin(THREE.MathUtils.degToRad(lastPatchCenter.latitudeDeg)),
+                Math.cos(THREE.MathUtils.degToRad(lastPatchCenter.latitudeDeg)) *
+                  Math.sin(THREE.MathUtils.degToRad(lastPatchCenter.longitudeDeg))
+              );
+              const current = new THREE.Vector3(
+                Math.cos(THREE.MathUtils.degToRad(latitudeDeg)) *
+                  Math.cos(THREE.MathUtils.degToRad(longitudeDeg)),
+                Math.sin(THREE.MathUtils.degToRad(latitudeDeg)),
+                Math.cos(THREE.MathUtils.degToRad(latitudeDeg)) *
+                  Math.sin(THREE.MathUtils.degToRad(longitudeDeg))
+              );
+              const movedKm = previous.angleTo(current) * 6371.0088;
+              if (movedKm < recenterDistanceKm) return activeHighResolutionPatch;
+            }
+
+            if (activeHighResolutionPatch) {
+              surfacePatchDispose(activeHighResolutionPatch);
+              highResolutionPatches.delete(activeHighResolutionPatch);
+            }
+            activeHighResolutionPatch = this.createHighResolutionPatch({
+              longitudeDeg,
+              latitudeDeg,
+              radiusKm,
+              segments
+            });
+            lastPatchCenter = activeHighResolutionPatch ? { longitudeDeg, latitudeDeg } : null;
+            return activeHighResolutionPatch;
+          },
+          sampleWorldPosition(worldPosition) {
+            if (disposed || !worldPosition?.isVector3 || !surface.parent) return null;
+            surface.updateWorldMatrix(true, false);
+            const surfaceLocal = surface.worldToLocal(worldPosition.clone()).normalize();
+            const latitudeDeg = THREE.MathUtils.radToDeg(Math.asin(
+              THREE.MathUtils.clamp(surfaceLocal.y, -1, 1)
+            ));
+            const longitudeDeg = THREE.MathUtils.radToDeg(Math.atan2(
+              surfaceLocal.z, surfaceLocal.x
+            ));
+            const result = this.sample(longitudeDeg, latitudeDeg);
+            if (!result) return null;
+            surface.parent.updateWorldMatrix(true, false);
+            const worldPositionOnSurface = result.localPosition.clone()
+              .applyMatrix4(surface.parent.matrixWorld);
+            const worldNormal = result.radialNormal.clone()
+              .transformDirection(surface.parent.matrixWorld);
+            return {
+              ...result,
+              worldPosition: worldPositionOnSurface,
+              worldNormal,
+              altitudeUnits: worldPosition.distanceTo(worldPositionOnSurface)
+            };
+          },
           sample(longitudeDeg, latitudeDeg) {
             if (disposed || !elevationSampler ||
                 !Number.isFinite(longitudeDeg) || !Number.isFinite(latitudeDeg) ||
@@ -340,6 +426,8 @@ export function createTerrainRuntime({ options, layers }) {
         surfacePatchDispose(patch);
       }
       highResolutionPatches.clear();
+      activeHighResolutionPatch = null;
+      lastPatchCenter = null;
       maskCanvas = null;
       maskData = null;
       elevationSampler = null;
