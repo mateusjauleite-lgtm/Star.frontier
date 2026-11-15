@@ -5,11 +5,13 @@ on:
     branches:
       - integration/threejs-recovery
       - feature/earth-procedural-lod
+      - feature/ship-orbital-landing-foundation
       - main
   pull_request:
     branches:
       - main
       - integration/threejs-recovery
+      - feature/ship-orbital-landing-foundation
   workflow_dispatch:
 
 permissions:
