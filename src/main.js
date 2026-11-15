@@ -986,6 +986,10 @@ function updateCharacterMovement(dt) {
   const input = characterMoveInput;
   const magnitude = Math.min(1, Math.hypot(input.x, input.y));
   const deck = characterModel.group.position;
+  const stamina = characterCore.snapshot().stamina;
+  const sprinting = characterSprintHeld && magnitude > 0.08 && stamina > 0;
+  if (sprinting) characterCore.setStamina(Math.max(0, stamina - 22 * dt));
+  else if (stamina < 100) characterCore.setStamina(Math.min(100, stamina + 13 * dt));
 
   if (magnitude > 0.08) {
     // Movimento horizontal no referencial local da nave; a física vertical
@@ -998,11 +1002,7 @@ function updateCharacterMovement(dt) {
 
     if (characterMove.lengthSq() > 0) characterMove.normalize();
 
-    const stamina = characterCore.snapshot().stamina;
-  const sprinting = characterSprintHeld && magnitude > 0.08 && stamina > 0;
-  const step = (sprinting ? 5.0 : 3.1) * magnitude * dt;
-  if (sprinting) characterCore.setStamina(Math.max(0, stamina - 22 * dt));
-  else if (stamina < 100) characterCore.setStamina(Math.min(100, stamina + 13 * dt));
+    const step = (sprinting ? 5.0 : 3.1) * magnitude * dt;
     const previousX = deck.x;
     const previousZ = deck.z;
 
@@ -1046,6 +1046,8 @@ function updateCharacterMovement(dt) {
   }
 
   characterAnimator?.update(dt);
+  if (characterJumpButton) characterJumpButton.disabled = !characterPhysics?.grounded;
+  if (characterSprintButton) characterSprintButton.disabled = characterCore.snapshot().stamina <= 0;
 }
 
 function updateElevatorButtons() {
@@ -1164,6 +1166,8 @@ function exitPilotMode() {
   characterCore.leaveShipSeat();
 
   characterMoveInput = { x: 0, y: 0 };
+  characterJumpQueued = false;
+  stopCharacterSprint();
   state.move.x = 0;
   state.move.y = 0;
   state.throttle = false;
@@ -1366,6 +1370,44 @@ if (characterStick) {
     characterStick.addEventListener(type, endCharacterMove)
   );
 }
+
+// Controles exclusivos do personagem: salto por toque e corrida por pressão.
+const characterJumpButton = $('character-jump-btn');
+const characterSprintButton = $('character-sprint-btn');
+
+characterJumpButton?.addEventListener('pointerdown', event => {
+  event.preventDefault();
+  if (characterCore.snapshot().mode !== 'on-foot' || !characterPhysics?.grounded) return;
+  characterJumpQueued = true;
+});
+
+const stopCharacterSprint = () => {
+  characterSprintHeld = false;
+  characterSprintButton?.classList.remove('is-active');
+};
+characterSprintButton?.addEventListener('pointerdown', event => {
+  event.preventDefault();
+  if (characterCore.snapshot().mode !== 'on-foot') return;
+  characterSprintHeld = true;
+  characterSprintButton.classList.add('is-active');
+  characterSprintButton.setPointerCapture(event.pointerId);
+});
+['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type =>
+  characterSprintButton?.addEventListener(type, stopCharacterSprint)
+);
+
+window.addEventListener('keydown', event => {
+  if (characterCore.snapshot().mode !== 'on-foot' || event.repeat) return;
+  if (event.code === 'Space') {
+    event.preventDefault();
+    if (characterPhysics?.grounded) characterJumpQueued = true;
+  }
+  if (event.code === 'ShiftLeft' || event.code === 'ShiftRight') characterSprintHeld = true;
+});
+window.addEventListener('keyup', event => {
+  if (event.code === 'ShiftLeft' || event.code === 'ShiftRight') stopCharacterSprint();
+});
+window.addEventListener('blur', stopCharacterSprint);
 
 const characterAim = $('character-aim-area');
 let characterAimPointer = null;
