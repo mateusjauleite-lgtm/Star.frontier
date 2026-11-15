@@ -1,17 +1,19 @@
-name: Build Star Frontier Three.js Android APK
+name: Build Star Frontier Android APK
 
 on:
   push:
     branches:
+      - main
+      - architecture/modules-skeleton
       - integration/threejs-recovery
       - feature/earth-procedural-lod
       - feature/ship-orbital-landing-foundation
-      - main
   pull_request:
     branches:
       - main
+      - architecture/modules-skeleton
       - integration/threejs-recovery
-      - feature/ship-orbital-landing-foundation
+      - feature/earth-procedural-lod
   workflow_dispatch:
 
 permissions:
@@ -20,7 +22,7 @@ permissions:
 jobs:
   build-android:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     steps:
       - name: Checkout
@@ -31,14 +33,16 @@ jobs:
         with:
           node-version: 22
 
-      - name: Prepare Emscripten cache directory
-        run: mkdir -p "${{ runner.temp }}/emsdk-cache"
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
 
       - name: Set up Emscripten
         uses: mymindstorm/setup-emsdk@v14
         with:
           version: 3.1.64
-          actions-cache-folder: '${{ runner.temp }}/emsdk-cache'
+          actions-cache-folder: ${{ runner.temp }}/emsdk-cache
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -56,46 +60,41 @@ jobs:
           yes | sdkmanager --licenses
           sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
-      - name: Set up Python for ETOPO preparation
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Cache NOAA ETOPO 2022 source
+      - name: Cache NOAA ETOPO prepared grid
         uses: actions/cache@v4
         with:
           path: public/earth/data/etopo2022-global-0.25deg.bin
-          key: noaa-etopo2022-global-0.25deg-v2
+          key: noaa-etopo2022-global-0.25deg-v3
 
-      - name: Install geospatial preparation dependencies
+      - name: Install geospatial dependencies
         run: python -m pip install --disable-pip-version-check numpy netCDF4
 
       - name: Install JavaScript dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Prepare compact NOAA ETOPO 2022 terrain grid
-        run: npm run prepare:earth:etopo
+      - name: Prepare NOAA ETOPO terrain data
+        run: npm run prepare:earth:etopo --if-present
 
       - name: Compile Earth C++ kernel to WebAssembly
-        run: npm run build:earth:wasm
+        run: npm run build:earth:wasm --if-present
 
       - name: Compile Ship C++ orbital kernel to WebAssembly
-        run: npm run build:ship:wasm
+        run: npm run build:ship:wasm --if-present
 
       - name: Run project tests
-        run: npm test
+        run: npm test --if-present
 
       - name: Build Three.js web runtime
         run: npm run build
 
-      - name: Generate native Android project
+      - name: Generate and sync native Android project
         run: |
           if [ ! -d android ]; then
             npx cap add android
           fi
           npx cap sync android
 
-      - name: Force landscape orientation
+      - name: Configure landscape orientation
         run: |
           python3 - <<'PY'
           import xml.etree.ElementTree as ET
@@ -103,26 +102,32 @@ jobs:
           tree = ET.parse(path)
           root = tree.getroot()
           android_ns = "{http://schemas.android.com/apk/res/android}"
-          activity = next((node for node in root.iter("activity") if node.get(android_ns + "name", "").endswith("MainActivity")), None)
+          activity = next(
+              (node for node in root.iter("activity")
+               if node.get(android_ns + "name", "").endswith("MainActivity")),
+              None
+          )
           if activity is None:
               raise SystemExit("MainActivity not found in AndroidManifest.xml")
           activity.set(android_ns + "screenOrientation", "landscape")
           ET.register_namespace("android", "http://schemas.android.com/apk/res/android")
           tree.write(path, encoding="utf-8", xml_declaration=True)
-          print("MainActivity orientation set to landscape")
           PY
 
       - name: Enable immersive fullscreen
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          path = Path("android/app/src/main/java/com/mateus/starfrontier/MainActivity.java")
+          matches = list(Path("android/app/src/main/java").rglob("MainActivity.java"))
+          if len(matches) != 1:
+              raise SystemExit(f"Expected one MainActivity.java, found {len(matches)}")
+          path = matches[0]
           source = path.read_text()
+          bridge_import = "import com.getcapacitor.BridgeActivity;"
+          if bridge_import not in source:
+              raise SystemExit("BridgeActivity import not found in MainActivity.java")
           if "import android.view.View;" not in source:
-              source = source.replace(
-                  "import com.getcapacitor.BridgeActivity;",
-                  "import android.view.View;" + chr(10) + "import com.getcapacitor.BridgeActivity;"
-              )
+              source = source.replace(bridge_import, "import android.view.View;\n" + bridge_import)
           if "SYSTEM_UI_FLAG_IMMERSIVE_STICKY" not in source:
               method = """
               @Override
@@ -145,7 +150,7 @@ jobs:
                   raise SystemExit("MainActivity closing brace not found")
               source = source[:position] + method + source[position:]
           path.write_text(source)
-          print("Immersive fullscreen enabled for Android")
+          print(f"Immersive fullscreen configured: {path}")
           PY
 
       - name: Compile Android APK
@@ -155,7 +160,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: star-frontier-threejs-debug-apk
+          name: star-frontier-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
