@@ -97,8 +97,7 @@ EARTH_EXPORT float earth_elevation_meters_to_units(
 }
 
 
-namespace {
-float earth_hash_lattice(int x, int y, int z) {
+static float earth_hash_lattice(int x, int y, int z) {
     unsigned int h = static_cast<unsigned int>(x) * 374761393u
         + static_cast<unsigned int>(y) * 668265263u
         + static_cast<unsigned int>(z) * 2246822519u
@@ -107,8 +106,8 @@ float earth_hash_lattice(int x, int y, int z) {
     h ^= h >> 16;
     return static_cast<float>(h & 0x00ffffffu) / 8388607.5f - 1.0f;
 }
-float earth_fade(float t) { return t * t * (3.0f - 2.0f * t); }
-float earth_value_noise(float x, float y, float z) {
+static float earth_fade(float t) { return t * t * (3.0f - 2.0f * t); }
+static float earth_value_noise(float x, float y, float z) {
     const int ix = static_cast<int>(floorf(x));
     const int iy = static_cast<int>(floorf(y));
     const int iz = static_cast<int>(floorf(z));
@@ -128,7 +127,6 @@ float earth_value_noise(float x, float y, float z) {
     const float y0 = x00 + (x10 - x00) * ty;
     const float y1 = x01 + (x11 - x01) * ty;
     return y0 + (y1 - y0) * tz;
-}
 }
 
 EARTH_EXPORT float earth_procedural_detail_meters(
