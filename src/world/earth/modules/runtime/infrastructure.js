@@ -12,7 +12,9 @@ function alignToSurfaceSample(target, frame, sample, surface, offsetUnits) {
     .transformDirection(inverseSurfaceMatrix).normalize();
   const north = new THREE.Vector3(...frame.north);
   north.addScaledVector(up, -north.dot(up)).normalize();
+  if (north.lengthSq() < 0.9 || up.lengthSq() < 0.9) return null;
   const east = new THREE.Vector3().crossVectors(north, up).normalize();
+  if (east.lengthSq() < 0.9) return null;
   target.position.copy(position).addScaledVector(up, offsetUnits);
   target.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(
     east, up, north.clone().negate()
@@ -27,7 +29,7 @@ function createSiteMarker(frame, site, sample, surface) {
     id: site.id, latitudeDeg: site.latitudeDeg, longitudeDeg: site.longitudeDeg,
     referencePointId: site.referencePointId, status: site.status
   };
-  alignToSurfaceSample(marker, frame, sample, surface, 2);
+  if (!alignToSurfaceSample(marker, frame, sample, surface, 2)) return null;
   const ringMaterial = new THREE.MeshBasicMaterial({
     color: 0x36caff, transparent: true, opacity: 0.95,
     side: THREE.DoubleSide, depthWrite: false
@@ -88,13 +90,13 @@ export function createEarthInfrastructureRuntime({ options, layers }) {
       // malha, que carrega sua inclinação axial e rotação diária.
       // Atualiza o marcador do relevo provisório para a altitude ETOPO real.
       if (marker) alignToSurfaceSample(marker, frame, sample, surface, 2);
-      const orientation = alignToSurfaceSample(
-        new THREE.Group(), frame, sample, surface, 0
-      );
-      if (orientation.north.lengthSq() < 0.9 || orientation.up.lengthSq() < 0.9) return;
 
       base = createLandingBase();
-      alignToSurfaceSample(base.group, frame, sample, surface, 0.24);
+      if (!alignToSurfaceSample(base.group, frame, sample, surface, 0.24)) {
+        base.dispose();
+        base = null;
+        return;
+      }
       surface.add(base.group);
       console.info('[Earth] Base de superfície posicionada no ponto UY04 do Salar de Uyuni.');
     },
