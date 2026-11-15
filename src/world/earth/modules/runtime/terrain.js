@@ -132,7 +132,9 @@ export function createTerrainRuntime({ options, layers }) {
 
       elevationSampler = (longitudeDeg, latitudeDeg) => {
         if (gridIsReady) {
-          const meters = earthKernel.sampleElevation(grid, longitudeDeg, latitudeDeg);
+          // Point queries stay in JS to avoid copying the full global grid into WASM
+          // for every character/collision sample; geometry batches still use C++.
+          const meters = sampleEarthElevationGrid(grid, longitudeDeg, latitudeDeg);
           if (meters !== null) return earthKernel.elevationMetersToUnits(
             meters, radius, 6371.0088, exaggeration
           );
