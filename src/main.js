@@ -1003,13 +1003,13 @@ function updateCharacterMovement(dt) {
     // Colisão por eixo preserva o deslizamento junto às paredes.
     deck.x = previousX + characterMove.x * step;
     if (isCharacterPositionBlocked(deck, activeDeckIndex) ||
-        (characterPhysics?.grounded && !isCharacterInsideDeck(deck, activeDeckIndex))) {
+        !isCharacterInsideDeck(deck, activeDeckIndex)) {
       deck.x = previousX;
     }
 
     deck.z = previousZ + characterMove.z * step;
     if (isCharacterPositionBlocked(deck, activeDeckIndex) ||
-        (characterPhysics?.grounded && !isCharacterInsideDeck(deck, activeDeckIndex))) {
+        !isCharacterInsideDeck(deck, activeDeckIndex)) {
       deck.z = previousZ;
     }
   }
