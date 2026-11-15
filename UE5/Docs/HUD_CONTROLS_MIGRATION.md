@@ -44,7 +44,7 @@ The left touch area controls forward/reverse throttle; the right touch area cont
 
 Pilot entry switches the local PlayerController to `FInputModeGameAndUI` and focuses the ship HUD so UMG touch zones and buttons receive input. The character remains in `ShipControl` mode, so on-foot movement/look handlers ignore gameplay input while seated. Exit removes the ship HUD, restores the character view and returns the controller to `FInputModeGameOnly`.
 
-Touch state is cleared on normal finger release, HUD teardown, loss of pilot state, and application deactivation/backgrounding. The latter also clears held brake/impulse buttons if Android interrupts the app before Slate delivers a release event. The ship HUD is created automatically when the player enters the pilot station and removed on exit.
+Touch state is cleared on normal finger release, HUD teardown, loss of pilot state, and application deactivation/backgrounding through `FCoreDelegates::ApplicationWillDeactivateDelegate` and `FCoreDelegates::ApplicationWillEnterBackgroundDelegate`. These callbacks also clear held brake/impulse buttons if Android interrupts the app before Slate delivers a release event. The ship HUD is created automatically when the player enters the pilot station and removed on exit.
 
 ## Deck and elevator behavior
 
