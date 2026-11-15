@@ -446,6 +446,11 @@ export function createTerrainRuntime({ options, layers }) {
           onStatus: status => {
             if (disposed || !layers.terrain) return;
             layers.terrain.etopoStatus = status;
+            if (status.state === 'ready') {
+              console.info('[Earth] NOAA ETOPO loaded:', status);
+            } else if (status.state !== 'loading') {
+              console.warn('[Earth] NOAA ETOPO unavailable; procedural terrain remains active:', status);
+            }
           }
         }).then(loadedGrid => {
           if (disposed || !loadedGrid) return;
