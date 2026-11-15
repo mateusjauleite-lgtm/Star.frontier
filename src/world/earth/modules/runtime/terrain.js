@@ -102,7 +102,16 @@ export function createTerrainRuntime({ options, layers }) {
       maskData = context.getImageData(0, 0, maskCanvas.width, maskCanvas.height).data;
 
       let grid = options.elevationGrid ?? null;
-      let gridIsReady = grid?.values instanceof Float32Array;
+      let gridIsReady = Boolean(
+        grid?.values instanceof Float32Array &&
+        Number.isInteger(grid.width) && grid.width >= 2 &&
+        Number.isInteger(grid.height) && grid.height >= 2 &&
+        grid.values.length >= grid.width * grid.height &&
+        [grid.west ?? -180, grid.east ?? 180, grid.south ?? -90, grid.north ?? 90]
+          .every(Number.isFinite) &&
+        (grid.east ?? 180) > (grid.west ?? -180) &&
+        (grid.north ?? 90) > (grid.south ?? -90)
+      );
       const exaggeration = Math.max(1, options.terrainVerticalExaggeration ?? 8);
       const radius = options.radius;
       const lodGeometries = surface.userData?.earthLodGeometries ?? [surface.geometry];
@@ -174,6 +183,11 @@ export function createTerrainRuntime({ options, layers }) {
         elevationSource: gridIsReady ? (grid.source ?? 'provided-global-grid') : 'procedural-fallback',
         sourceAttribution: grid?.attribution ?? null,
         sourceGridReady: gridIsReady,
+        etopoStatus: gridIsReady
+          ? { state: 'ready', source: grid.source ?? 'provided-global-grid' }
+          : options.loadEtopo === false
+            ? { state: 'disabled', reason: 'load-disabled' }
+            : { state: 'loading', source: 'procedural-fallback-active' },
         verticalExaggeration: exaggeration,
         computeBackend: earthKernel.backend,
         unitsPerKm,
@@ -427,7 +441,13 @@ export function createTerrainRuntime({ options, layers }) {
       // applyElevationToMeshes also applies the identical no-data fallback
       // used by point queries from the collision surface.
       if (!gridIsReady && options.loadEtopo !== false) {
-        loadEtopo2022GlobalGrid({ url: options.etopoUrl ?? null }).then(loadedGrid => {
+        loadEtopo2022GlobalGrid({
+          url: options.etopoUrl ?? null,
+          onStatus: status => {
+            if (disposed || !layers.terrain) return;
+            layers.terrain.etopoStatus = status;
+          }
+        }).then(loadedGrid => {
           if (disposed || !loadedGrid) return;
           grid = loadedGrid;
           gridIsReady = true;
@@ -439,10 +459,15 @@ export function createTerrainRuntime({ options, layers }) {
             layers.terrain.sourceGridReady = true;
             layers.terrain.verticalDatum = grid.verticalDatum ?? 'unspecified';
             layers.terrain.gridResolutionArcSeconds = grid.resolutionArcSeconds ?? null;
+            layers.terrain.etopoStatus = {
+              state: 'ready',
+              width: grid.width,
+              height: grid.height,
+              packagedResolutionDegrees: grid.packagedResolutionDegrees,
+              verticalDatum: grid.verticalDatum ?? 'unspecified'
+            };
             layers.terrain.collisionSurface.source = grid.source;
           }
-        }).catch(() => {
-          // Keep the procedural surface if the optional ETOPO asset is absent.
         });
       }
 
