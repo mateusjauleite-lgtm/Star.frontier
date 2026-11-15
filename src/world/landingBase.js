@@ -2,11 +2,11 @@ import * as THREE from 'three';
 
 // Dimensões da infraestrutura em metros no referencial local do local de pouso.
 export const LANDING_BASE_METRICS = Object.freeze({
-  platformRadiusMeters: 63,
-  stationCenterEastMeters: 80,
+  platformRadiusMeters: 64,
+  stationCenterEastMeters: 82,
   stationCenterNorthMeters: 0,
-  stationHalfWidthMeters: 4.5,
-  stationHalfDepthMeters: 3.5,
+  stationHalfWidthMeters: 4.7,
+  stationHalfDepthMeters: 3.7,
   minimumStationClearanceMeters: 10
 });
 
