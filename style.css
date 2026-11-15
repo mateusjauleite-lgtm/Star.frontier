@@ -1779,7 +1779,7 @@ body {
 
 
 /* Phaser portátil: botão, recarga energética e estado de disparo. */
-.phaser-btn { position: relative; overflow: hidden; border-color: rgba(77,218,255,.65); color: #a5edff; }
+.phaser-btn { position: relative; z-index: 2; overflow: hidden; border-color: rgba(77,218,255,.65); color: #a5edff; touch-action: manipulation; user-select: none; -webkit-tap-highlight-color: transparent; }
 .phaser-btn:disabled { opacity: .42; }
 .phaser-btn.is-ready { box-shadow: 0 0 12px rgba(65,213,255,.32); }
 .phaser-btn i { position: absolute; left: 0; bottom: 0; height: 3px; width: 0; background: #57dcff; transition: width .08s linear; pointer-events: none; }
