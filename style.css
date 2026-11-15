@@ -1492,9 +1492,33 @@ select:focus {
   font-weight: 700;
 }
 .inventory-slot.selected {
-  border-color: rgba(67,217,255,.75);
-  box-shadow: inset 0 0 14px rgba(67,217,255,.08);
+  border-color: rgba(84,230,160,.9);
+  background: linear-gradient(145deg, rgba(18,76,55,.88), rgba(5,28,27,.94));
+  box-shadow: inset 0 0 14px rgba(84,230,160,.16), 0 0 10px rgba(84,230,160,.10);
 }
+.inventory-slot.selected small { color: var(--green); }
+.inventory-item-button {
+  position: relative;
+  border-color: rgba(83,190,255,.30);
+  cursor: pointer;
+  text-align: left;
+}
+.inventory-item-button:active,
+.inventory-item-button:focus-visible {
+  border-color: rgba(84,230,160,.95);
+  background: linear-gradient(145deg, rgba(18,76,55,.9), rgba(5,28,27,.96));
+  box-shadow: inset 0 0 14px rgba(84,230,160,.18), 0 0 10px rgba(84,230,160,.12);
+  outline: none;
+}
+.inventory-item-button small { color: var(--muted); font-size: 8px; }
+.inventory-slot.weapon-inventory-slot { border-style: dashed; }
+.quick-slot.is-equipped {
+  border-color: rgba(84,230,160,.72);
+  background: linear-gradient(145deg, rgba(10,48,38,.88), rgba(3,18,27,.9));
+  box-shadow: inset 0 0 12px rgba(84,230,160,.10), 0 0 9px rgba(84,230,160,.08);
+}
+.quick-slot.is-equipped b { color: var(--green); }
+.quick-slot:not(.is-equipped) b { color: var(--muted); }
 .inventory-note {
   margin: 12px 0 0;
   color: var(--muted);
