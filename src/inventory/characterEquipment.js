@@ -6,9 +6,10 @@ export const CHARACTER_ITEMS = Object.freeze({
   'clothing.exploration-boots': { name: 'Botas de exploração', slot: 'feet' },
   'equipment.explorer-helmet': { name: 'Capacete explorador', slot: 'head' },
   'equipment.utility-gloves': { name: 'Luvas utilitárias', slot: 'hands' },
-  'equipment.compact-backpack': { name: 'Mochila compacta', slot: 'back' }
+  'equipment.compact-backpack': { name: 'Mochila compacta', slot: 'back' },
+  'weapon.phaser': { name: 'Phaser', slot: 'weapon' }
 });
-const SLOTS = ['head', 'torso', 'hands', 'legs', 'feet', 'back'];
+const SLOTS = ['head', 'torso', 'hands', 'legs', 'feet', 'back', 'weapon'];
 const id = () => globalThis.crypto?.randomUUID?.() || `item-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,9)}`;
 
 export function createCharacterEquipmentSystem(gameState, { applyVisual = () => {}, onChange = () => {} } = {}) {
@@ -72,7 +73,7 @@ export function createCharacterEquipmentSystem(gameState, { applyVisual = () => 
     // Migra qualquer peça que tenha sido salva na mochila pelo formato antigo.
     inventory.items = inventory.items.filter(item => !Object.values(equipment).some(worn => worn?.instanceId === item.instanceId));
     // Kit inicial dos espaços adicionais para permitir testar troca e devolução.
-    for (const itemId of ['equipment.explorer-helmet', 'equipment.utility-gloves', 'equipment.compact-backpack']) {
+    for (const itemId of ['equipment.explorer-helmet', 'equipment.utility-gloves', 'equipment.compact-backpack', 'weapon.phaser']) {
       const slot = CHARACTER_ITEMS[itemId].slot;
       if (!equippedItem(slot) && !inventory.items.some(item => item.itemId === itemId)) inventory.items.push(makeItem(itemId));
     }
