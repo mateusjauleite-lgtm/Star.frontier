@@ -225,7 +225,7 @@ export function createTerrainRuntime({ options, layers }) {
                   const b = a + 1;
                   const c = a + divisions + 1;
                   const d = c + 1;
-                  indices.push(a, c, b, b, c, d);
+                  indices.push(a, b, c, b, d, c);
                 }
               }
             }
