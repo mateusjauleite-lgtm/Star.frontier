@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { createEarthLandMask } from './surface.js';
 import { createEarthKernelAdapter, loadEarthKernel } from '../../wasm/earthKernel.js';
+import { loadEtopo2022GlobalGrid } from '../../references/etopo2022.js';
 
 const clamp01 = value => THREE.MathUtils.clamp(value, 0, 1);
 const smoothstep = (a, b, value) => {
@@ -82,8 +83,8 @@ export function createTerrainRuntime({ options, layers }) {
       const context = maskCanvas.getContext('2d');
       maskData = context.getImageData(0, 0, maskCanvas.width, maskCanvas.height).data;
 
-      const grid = options.elevationGrid ?? null;
-      const gridIsReady = grid?.values instanceof Float32Array;
+      let grid = options.elevationGrid ?? null;
+      let gridIsReady = grid?.values instanceof Float32Array;
       const exaggeration = Math.max(1, options.terrainVerticalExaggeration ?? 8);
       const radius = options.radius;
       const lodGeometries = surface.userData?.earthLodGeometries ?? [surface.geometry];
@@ -191,6 +192,60 @@ export function createTerrainRuntime({ options, layers }) {
           }
         }
       };
+
+      // Load the compact NOAA-derived global grid after the safe procedural
+      // first frame. The same ETOPO samples then replace the fallback on every
+      // prepared LOD mesh and remain the source used by the collision sampler.
+      if (!gridIsReady && options.loadEtopo !== false) {
+        loadEtopo2022GlobalGrid().then(loadedGrid => {
+          if (disposed || !loadedGrid) return;
+          grid = loadedGrid;
+          gridIsReady = true;
+          const vertexDirection = new THREE.Vector3();
+          for (const geometry of lodGeometries) {
+            const geometryPositions = geometry.attributes.position;
+            for (let i = 0; i < geometryPositions.count; i++) {
+              vertexDirection.fromBufferAttribute(geometryPositions, i).normalize();
+              const latitudeDeg = THREE.MathUtils.radToDeg(Math.asin(
+                THREE.MathUtils.clamp(vertexDirection.y, -1, 1)
+              ));
+              const longitudeDeg = THREE.MathUtils.radToDeg(Math.atan2(
+                vertexDirection.z, vertexDirection.x
+              ));
+              const meters = sampleEarthElevationGrid(grid, longitudeDeg, latitudeDeg);
+              let elevationUnits;
+              if (meters === null) {
+                const lon = THREE.MathUtils.degToRad(longitudeDeg);
+                const lat = THREE.MathUtils.degToRad(latitudeDeg);
+                const u = (longitudeDeg + 180) / 360;
+                const v = (90 - latitudeDeg) / 180;
+                const px = Math.min(width - 1, Math.max(0, Math.floor(u * (width - 1))));
+                const py = Math.min(height - 1, Math.max(0, Math.floor(v * (height - 1))));
+                const land = smoothstep(.08, .92, maskData[(py * width + px) * 4] / 255);
+                elevationUnits = proceduralFallback(lon, lat, radius, land);
+              } else {
+                elevationUnits = (meters / 1000) * unitsPerKm * exaggeration;
+              }
+              const finalRadius = radius + elevationUnits;
+              geometryPositions.setXYZ(i, vertexDirection.x * finalRadius,
+                vertexDirection.y * finalRadius, vertexDirection.z * finalRadius);
+            }
+            geometryPositions.needsUpdate = true;
+            geometry.computeVertexNormals();
+            geometry.computeBoundingSphere();
+          }
+          if (layers.terrain) {
+            layers.terrain.elevationSource = grid.source;
+            layers.terrain.sourceAttribution = grid.attribution;
+            layers.terrain.sourceGridReady = true;
+            layers.terrain.verticalDatum = grid.verticalDatum ?? 'unspecified';
+            layers.terrain.gridResolutionArcSeconds = grid.resolutionArcSeconds ?? null;
+            layers.terrain.collisionSurface.source = grid.source;
+          }
+        }).catch(() => {
+          // The procedural surface remains available when the optional data asset is absent.
+        });
+      }
 
       // Re-run the vertex elevation pass through the compiled C++ kernel once
       // WebAssembly is ready. The first pass above remains a safe JS fallback.
