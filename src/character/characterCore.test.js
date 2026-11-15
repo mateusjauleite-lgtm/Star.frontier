@@ -51,3 +51,12 @@ test('códigos de catálogo identificam itens sem substituir o ID técnico',()=>
 
 
 test('snapshot restaura também os equipamentos já vestidos',()=>{const original=createTestCharacter();original.addItem('equipment.suit.explorer.basic');const suit=original.getInventorySnapshot().items[0];original.equipItem(suit.instanceId);const restored=createTestCharacter(original.getInventorySnapshot());assert.equal(restored.getEquippedItem('suit').definitionId,'equipment.suit.explorer.basic');assert.equal(restored.hasItem('equipment.suit.explorer.basic'),false);});
+
+test('item selecionado para ação não pode ser desequipado até limpar a seleção',()=>{
+ const c=createTestCharacter();c.addItem('tool.mining_drill.basic');const drill=c.getInventorySnapshot().items[0];c.equipItem(drill.instanceId);
+ assert.deepEqual(c.selectActionSlot('tool'),{ok:true,slot:'tool'});
+ assert.deepEqual(c.unequipItem('tool'),{ok:false,reason:'item-selected-for-action'});
+ assert.equal(c.getEquippedItem('tool').instanceId,drill.instanceId);
+ assert.deepEqual(c.selectActionSlot('tool'),{ok:true,slot:null});
+ const result=c.unequipItem('tool');assert.equal(result.ok,true);assert.equal(result.returned.instanceId,drill.instanceId);
+});
