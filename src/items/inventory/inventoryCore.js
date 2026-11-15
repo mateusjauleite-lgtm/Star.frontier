@@ -107,6 +107,17 @@ export function createInventory({ capacity = 24, maxWeight = Infinity, registry,
       }
       return { ok: remaining === 0, reason: remaining ? 'insufficient-items' : null, removed: quantity - remaining, remaining };
     },
+    addInstance(instance) {
+      const definition = registry.get(instance?.definitionId);
+      const errors = validateItemInstance(instance, definition);
+      if (errors.length) return { ok: false, reason: 'invalid-instance', errors };
+      if (slots.some(slot => slot.instanceId === instance.instanceId)) return { ok: false, reason: 'duplicate-instance-id' };
+      if (slots.length >= capacity) return { ok: false, reason: 'inventory-full' };
+      const weight = getInstanceWeight(instance, registry);
+      if (weight > this.remainingWeight) return { ok: false, reason: 'weight-limit' };
+      slots.push(copyInstance(instance));
+      return { ok: true, reason: null, instanceId: instance.instanceId };
+    },
     removeInstance(instanceId) {
       const index = slots.findIndex(item => item.instanceId === instanceId);
       if (index < 0) return null;
