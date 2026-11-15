@@ -11,6 +11,7 @@ import { createCharacterCore } from './character/characterCore.js';
 import { createCharacterHUD } from './character/characterHUD.js';
 import { createCharacterModel } from './character/characterModel.js';
 import { createCharacterAnimator } from './character/characterAnimator.js';
+import { createCharacterPhysics } from './character/characterPhysics.js';
 import { isPilotConsoleInRange, attachCharacterToPilotConsole, returnCharacterToDeck } from './ships/bridge/commandBridge.js';
 import { saveState as save, loadState as load } from './core/storage.js';
 import { createShipComputer } from './ships/computer/shipComputer.js';
@@ -50,6 +51,7 @@ const characterHUD = createCharacterHUD(document);
 let characterCameraMode = 'third-person';
 let characterModel = null;
 let characterAnimator = null;
+let characterPhysics = null;
 let characterYaw = 0;
 let characterPitch = 0;
 const characterForward = new THREE.Vector3();
@@ -585,6 +587,7 @@ async function startGame() {
     starshipInterior = null;
     characterModel = null;
     characterAnimator = null;
+    characterPhysics = null;
     asteroids = [];
     engineFlames = [];
     engineLights = [];
@@ -683,13 +686,16 @@ async function init3D() {
   nearbyElevator = false;
 
   // Spawn inicial no Deck 1 — ponte de comando, dentro do casco.
-  characterModel = createCharacterModel({ suitColor: 0x263b50, accentColor: 0x36c9df });
+  characterModel = createCharacterModel({ clothingColor: 0x526879 });
   // O personagem pertence ao referencial da nave: acompanha translação e rotação
   // sem ficar para trás no espaço quando a Aurora-7 se movimenta.
   characterModel.group.position.set(0, 8.91, -18);
   characterModel.group.rotation.y = characterYaw;
   shipVisual.add(characterModel.group);
   characterAnimator = createCharacterAnimator(characterModel);
+  characterPhysics = createCharacterPhysics();
+  characterPhysics.reset(characterModel.group.position.y);
+  characterCore.setGrounded(true);
   characterAnimator.play('idle');
 
   const npc = new THREE.Mesh(
@@ -957,6 +963,22 @@ function isCharacterPositionBlocked(position, deckIndex) {
   return false;
 }
 
+function isCharacterInsideDeck(position, deckIndex) {
+  const deckIds = ['D1', 'D2', 'D3', 'D4'];
+  const footprints = {
+    D1: [50, 82, -2],
+    D2: [50, 94, -2],
+    D3: [53, 102, -2],
+    D4: [48, 110, 5.5]
+  };
+  const [width, length, centerZ] = footprints[deckIds[deckIndex]];
+  const rx = width * 0.5 - 0.55;
+  const rz = length * 0.5 - 0.55;
+  const nx = position.x / rx;
+  const nz = (position.z - centerZ) / rz;
+  return nx * nx + nz * nz <= 1;
+}
+
 function updateCharacterMovement(dt) {
   if (!characterModel || characterCore.snapshot().mode !== 'on-foot') return;
   const input = characterMoveInput;
@@ -964,9 +986,8 @@ function updateCharacterMovement(dt) {
   const deck = characterModel.group.position;
 
   if (magnitude > 0.08) {
-    // Usa a mesma rotação local aplicada ao modelo. O joystick e a posição
-    // estão no referencial do convés, portanto os eixos não dependem da
-    // rotação global, arfagem ou inclinação visual da nave.
+    // Movimento horizontal no referencial local da nave; a física vertical
+    // é independente da translação/rotação do casco.
     const yaw = characterModel.group.rotation.y;
     characterForward.set(0, 0, -1).applyAxisAngle(THREE.Object3D.DEFAULT_UP, yaw);
     characterRight.set(1, 0, 0).applyAxisAngle(THREE.Object3D.DEFAULT_UP, yaw);
@@ -979,19 +1000,40 @@ function updateCharacterMovement(dt) {
     const previousX = deck.x;
     const previousZ = deck.z;
 
-    // Cada eixo é validado separadamente. Ao atingir a borda do piso ou uma
-    // parede, só esse componente é cancelado; o movimento tangencial continua.
+    // Colisão por eixo preserva o deslizamento junto às paredes.
     deck.x = previousX + characterMove.x * step;
-    if (isCharacterPositionBlocked(deck, activeDeckIndex)) deck.x = previousX;
+    if (isCharacterPositionBlocked(deck, activeDeckIndex) ||
+        (characterPhysics?.grounded && !isCharacterInsideDeck(deck, activeDeckIndex))) {
+      deck.x = previousX;
+    }
 
     deck.z = previousZ + characterMove.z * step;
-    if (isCharacterPositionBlocked(deck, activeDeckIndex)) deck.z = previousZ;
+    if (isCharacterPositionBlocked(deck, activeDeckIndex) ||
+        (characterPhysics?.grounded && !isCharacterInsideDeck(deck, activeDeckIndex))) {
+      deck.z = previousZ;
+    }
+  }
 
-    deck.y = starshipInterior.layout.decks[activeDeckIndex].y + 0.21;
+  const floorY = starshipInterior.layout.decks[activeDeckIndex].y + 0.21;
+  const physicsState = characterPhysics?.update(dt, {
+    position: deck,
+    floorY
+  });
+
+  if (physicsState && characterCore.snapshot().grounded !== physicsState.grounded) {
+    characterCore.setGrounded(physicsState.grounded);
+  }
+
+  if (!physicsState?.grounded) {
+    characterAnimator?.play(physicsState.velocityY > 0 ? 'jump' : 'fall');
+  } else if (physicsState.justLanded) {
+    characterAnimator?.play('land', { restart: true });
+  } else if (magnitude > 0.08) {
     characterAnimator?.play(magnitude > 0.72 ? 'run' : 'walk');
-  } else {
+  } else if (characterAnimator?.current !== 'land') {
     characterAnimator?.play('idle');
   }
+
   characterAnimator?.update(dt);
 }
 
@@ -1037,6 +1079,9 @@ function moveElevator(direction) {
   updateDeck4Clearance();
   const deck = starshipInterior.layout.decks[activeDeckIndex];
   characterModel.group.position.set(0, deck.y + 0.21, 25);
+  characterPhysics?.reset(deck.y + 0.21);
+  characterCore.setGrounded(true);
+  characterAnimator?.play('idle', { restart: true });
   // O centro do elevador fica dentro da área livre dos quatro decks.
   // Não chamar resolveCharacterShipCollisions: essa função não existe no runtime.
   nearbyElevator = true;
