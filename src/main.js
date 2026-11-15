@@ -392,6 +392,8 @@ let activeDeckIndex = 0;
 let shipYaw;
 let shipPitch;
 let shipVisual;
+let shipLandingGear;
+let shipLandingGearContactPoints = [];
 
 // Estruturas externas da popa que invadem visualmente o espaço útil do Deck 4.
 // São ocultadas somente enquanto o personagem está no D4 e restauradas nos demais decks.
@@ -634,6 +636,8 @@ async function startGame() {
     shipYaw = null;
     shipPitch = null;
     shipVisual = null;
+    shipLandingGear = null;
+    shipLandingGearContactPoints = [];
     stars = null;
     earthSystem = null;
     stationSystem = null;
@@ -718,6 +722,8 @@ async function init3D() {
   shipYaw = explorationShip.yaw;
   shipPitch = explorationShip.pitch;
   shipVisual = explorationShip.visual;
+  shipLandingGear = explorationShip.landingGear;
+  shipLandingGearContactPoints = explorationShip.landingGearContactPoints;
   updateDeck4Clearance();
   engineFlames = explorationShip.engineFlames;
   engineLights = explorationShip.engineLights;
@@ -1297,20 +1303,44 @@ function loop(now) {
 
       const sampleShipContacts = () => {
         shipVisual.updateWorldMatrix(true, true);
-        return shipEarthContactPoints.map(({ id, point }) => {
+        const pad = landingBaseSystem?.group;
+        if (pad) pad.updateWorldMatrix(true, false);
+        const probePoints = [...shipEarthContactPoints, ...shipLandingGearContactPoints];
+        return probePoints.map(({ id, point }) => {
           const worldPoint = shipVisual.localToWorld(point.clone());
-          const sample = collisionSurface.sampleWorldPosition?.(worldPoint);
-          if (!sample?.worldPosition || !sample?.worldNormal) {
-            return { id, valid: false };
+          const terrain = collisionSurface.sampleWorldPosition?.(worldPoint);
+          let chosen = terrain?.worldPosition && terrain?.worldNormal
+            ? { worldPosition: terrain.worldPosition, worldNormal: terrain.worldNormal, surface: 'etopo' }
+            : null;
+
+          // A face superior da plataforma entra na mesma consulta de contato do ETOPO.
+          // Não há um segundo motor físico: escolhemos a superfície mais alta sob a sonda.
+          if (pad) {
+            const padLocal = pad.worldToLocal(worldPoint.clone());
+            const insidePad = padLocal.x * padLocal.x + padLocal.z * padLocal.z <= 60.5 * 60.5;
+            if (insidePad) {
+              const padTop = pad.localToWorld(new THREE.Vector3(padLocal.x, 0.76, padLocal.z));
+              const padUp = new THREE.Vector3(0, 1, 0).transformDirection(pad.matrixWorld).normalize();
+              const padClearance = worldPoint.clone().sub(padTop).dot(padUp);
+              const terrainClearance = chosen
+                ? worldPoint.clone().sub(chosen.worldPosition).dot(chosen.worldNormal)
+                : Infinity;
+              if (padClearance < terrainClearance) {
+                chosen = { worldPosition: padTop, worldNormal: padUp, surface: 'landing-pad' };
+              }
+            }
           }
+
+          if (!chosen) return { id, valid: false };
           const clearanceUnits = worldPoint.clone()
-            .sub(sample.worldPosition)
-            .dot(sample.worldNormal);
+            .sub(chosen.worldPosition)
+            .dot(chosen.worldNormal);
           return {
             id,
             valid: Number.isFinite(clearanceUnits),
             clearanceUnits,
-            worldNormal: sample.worldNormal,
+            worldNormal: chosen.worldNormal,
+            surface: chosen.surface,
             penetrating: clearanceUnits < -0.05
           };
         });
@@ -1341,13 +1371,34 @@ function loop(now) {
       const minimumClearance = validContacts.length
         ? Math.min(...validContacts.map(contact => contact.clearanceUnits))
         : null;
+      const padUp = landingBaseSystem
+        ? new THREE.Vector3(0, 1, 0).transformDirection(landingBaseSystem.group.matrixWorld).normalize()
+        : null;
+      const shipUp = shipVisual.localToWorld(new THREE.Vector3(0, 1, 0))
+        .sub(shipVisual.getWorldPosition(new THREE.Vector3())).normalize();
+      const upAlignment = padUp ? THREE.MathUtils.clamp(shipUp.dot(padUp), -1, 1) : null;
+      const attitude = upAlignment === null ? 'unavailable'
+        : upAlignment >= Math.cos(THREE.MathUtils.degToRad(12)) ? 'upright'
+        : upAlignment <= -Math.cos(THREE.MathUtils.degToRad(12)) ? 'inverted'
+        : Math.abs(upAlignment) <= Math.sin(THREE.MathUtils.degToRad(12)) ? 'sideways'
+        : 'tilted';
+      const gearContacts = contacts.filter(contact =>
+        contact.id.startsWith('gear-') && contact.valid && contact.clearanceUnits <= 0.35
+      );
       ship.userData.earthLandingContacts = {
         status: validContacts.length !== contacts.length
           ? 'partial'
           : minimumClearance <= 0.35 ? 'contact' : 'clear',
         contacts,
         minimumClearanceUnits: minimumClearance,
-        physicsApplied: Boolean(ship.userData.earthCollisionResolved)
+        physicsApplied: Boolean(ship.userData.earthCollisionResolved),
+        landingGear: {
+          total: shipLandingGearContactPoints.length,
+          touching: gearContacts.length,
+          allTouching: gearContacts.length === shipLandingGearContactPoints.length
+        },
+        attitude,
+        landingComplete: false
       };
     } else {
       delete ship.userData.earthSurfaceSample;
