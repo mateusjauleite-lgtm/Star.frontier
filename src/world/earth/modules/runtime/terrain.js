@@ -190,7 +190,9 @@ export function createTerrainRuntime({ options, layers }) {
             // so the caller applies the Earth's world transform only once.
             surface.updateMatrix();
             localPosition.applyMatrix4(surface.matrix);
-            const localNormal = new THREE.Vector3(
+            // This is the radial up direction, not the terrain slope normal;
+            // the latter will be derived from neighbouring height samples.
+            const radialNormal = new THREE.Vector3(
               Math.cos(longitude) * cosLatitude,
               Math.sin(latitude),
               Math.sin(longitude) * cosLatitude
@@ -202,7 +204,7 @@ export function createTerrainRuntime({ options, layers }) {
               elevationUnits,
               radiusUnits: radiusAtPoint,
               localPosition,
-              localNormal
+              radialNormal
             };
           }
         }
