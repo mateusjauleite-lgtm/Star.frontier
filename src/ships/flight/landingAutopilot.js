@@ -33,28 +33,21 @@ export function geodeticToEarthLocalFrame({
  };
 }
 
-/**
- * Builds a tangent-frame landing attitude.
- * northReference is true north transformed into the same world frame as surfaceNormal.
- * Heading is degrees clockwise from true north. Returns basis vectors, not a live ship command.
- */
-export function calculateLandingOrientation({
- surfaceNormal,northReference,headingDeg=0
-}){
+/** Builds a tangent-frame landing attitude, with heading clockwise from true north. */
+export function calculateLandingOrientation({surfaceNormal,northReference,headingDeg=0}){
  if(!vector3(surfaceNormal)||!vector3(northReference)||!Number.isFinite(headingDeg))return null;
  const up=normalize(surfaceNormal);if(!up)return null;
- const projectedNorth=northReference.map((value,i)=>value-up[i]*dot(northReference,up));
+ const projectedNorth=northReference.map((value,i)=>value-up[i]*dot(northReference,up[i]));
  const north=normalize(projectedNorth);if(!north)return null;
  const east=normalize(cross(north,up));if(!east)return null;
- const heading=THREE_DEG_TO_RAD(headingDeg);
+ const heading=headingDeg*Math.PI/180;
  const forward=normalize(north.map((value,i)=>value*Math.cos(heading)+east[i]*Math.sin(heading)));
  if(!forward)return null;
  const right=normalize(cross(forward,up));if(!right)return null;
  return {forward,right,up,headingDeg:((headingDeg%360)+360)%360,reference:'true-north'};
 }
-function THREE_DEG_TO_RAD(degrees){return degrees*Math.PI/180;}
 
-/** Guidance only; it does not move the live ship. Positions use render units. */
+/** Legacy visual-unit guidance, retained for compatibility; not connected to live movement. */
 export function calculateLandingGuidance({
  currentPosition,currentVelocity=[0,0,0],targetPosition,surfaceNormal,
  maximumDescentSpeed=1.5,lateralGain=0.08,verticalGain=0.15
@@ -71,6 +64,37 @@ export function calculateLandingGuidance({
  const phase=lateralDistance>8?'align':altitude>80?'approach':altitude>10?'descent':'flare';
  return {altitudeUnits:altitude,lateralErrorUnits:lateralDistance,desiredVelocity,phase};
 }
+
+/**
+ * Stateful JS orchestration around the C++ Ship Core guidance calculation.
+ * Input/output are SI in a local tangent frame. Authority remains guidance-only
+ * until the live ship transform, physics and collision frame are normalized.
+ */
+export function createShipLandingAutopilot(shipKernel){
+ let active=false,targetId=null;
+ return {
+  arm(site){
+   if(!site||typeof site.id!=='string'||!site.id)return false;
+   targetId=site.id;active=true;return true;
+  },
+  update(state){
+   if(!active||!state)return null;
+   const guidance=shipKernel?.calculateLandingGuidanceMeters?.({
+    position:state.positionMeters,
+    velocity:state.velocityMetersPerSecond,
+    targetPosition:state.targetPositionMeters,
+    surfaceNormal:state.surfaceNormal,
+    maximumDescentSpeed:state.maximumDescentSpeed??1.5,
+    lateralGain:state.lateralGain??0.08,
+    verticalGain:state.verticalGain??0.15
+   });
+   return guidance?{...guidance,targetId,authority:'guidance-only'}:null;
+  },
+  cancel(){active=false;targetId=null;},
+  snapshot(){return {active,targetId,authority:'guidance-only'};}
+ };
+}
+
 export function isLandingEnvelopeSatisfied({
  altitudeUnits,lateralErrorUnits,speedUnitsPerSecond,maximumSlopeDeg,
  maximumLateralErrorUnits=3,maximumTouchdownSpeed=0.5,maximumSlopeAllowedDeg=5

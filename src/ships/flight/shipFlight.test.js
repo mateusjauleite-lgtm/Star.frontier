@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createShipFlightKernel} from './shipFlightKernel.js';
 import {EARTH_LANDING_SITES,getLandingSite} from './landingSites.js';
-import {calculateLandingGuidance,calculateLandingOrientation,geodeticToEarthLocalFrame,isLandingEnvelopeSatisfied} from './landingAutopilot.js';
+import {calculateLandingGuidance,calculateLandingOrientation,createShipLandingAutopilot,geodeticToEarthLocalFrame,isLandingEnvelopeSatisfied} from './landingAutopilot.js';
 import {resolveFlightCommand} from './flightControlContract.js';
 
 test('Earth gravity points toward the center in the JS fallback',()=>{
@@ -18,6 +18,46 @@ test('velocity-Verlet advances an orbital state with finite values',()=>{
 test('orbital kernel rejects zero radius and invalid time step',()=>{
  const k=createShipFlightKernel();assert.equal(k.gravityAcceleration([0,0,0]),null);
  assert.equal(k.integrateOrbitStep([1,0,0],[0,1,0],undefined,0),null);
+});
+test('Ship Core computes landing guidance in SI units and prioritizes lateral alignment',()=>{
+ const k=createShipFlightKernel();
+ const g=k.calculateLandingGuidanceMeters({
+  position:[20,100,0],velocity:[0,0,0],targetPosition:[0,0,0],surfaceNormal:[0,1,0]
+ });
+ assert.ok(g);assert.equal(g.phase,'align');
+ assert.ok(g.desiredVelocityMetersPerSecond[0]<0);
+ assert.ok(g.desiredVelocityMetersPerSecond[1]<0);
+ assert.equal(g.altitudeMeters,100);
+});
+test('Ship Core landing guidance damps lateral velocity and limits descent speed',()=>{
+ const k=createShipFlightKernel();
+ const g=k.calculateLandingGuidanceMeters({
+  position:[0,50,0],velocity:[4,-20,0],targetPosition:[0,0,0],surfaceNormal:[0,1,0],
+  maximumDescentSpeed:1.2
+ });
+ assert.ok(g);assert.equal(g.phase,'descent');
+ assert.ok(g.desiredVelocityMetersPerSecond[0]<0);
+ assert.ok(g.desiredVelocityMetersPerSecond[1]>=-1.2);
+});
+test('Ship Core landing guidance rejects invalid SI vectors',()=>{
+ const k=createShipFlightKernel();
+ assert.equal(k.calculateLandingGuidanceMeters({
+  position:[0,0,0],targetPosition:[0,0,0],surfaceNormal:[0,0,0]
+ }),null);
+});
+test('Ship landing autopilot orchestrates the C++ guidance interface without movement authority',()=>{
+ const kernel=createShipFlightKernel();
+ const autopilot=createShipLandingAutopilot(kernel);
+ const site=getLandingSite('earth-salar-test-candidate');
+ assert.equal(autopilot.arm(site),true);
+ const result=autopilot.update({
+  positionMeters:[0,100,0],velocityMetersPerSecond:[0,0,0],
+  targetPositionMeters:[0,0,0],surfaceNormal:[0,1,0]
+ });
+ assert.equal(result.phase,'approach');
+ assert.equal(result.targetId,site.id);
+ assert.equal(result.authority,'guidance-only');
+ autopilot.cancel();assert.equal(autopilot.snapshot().active,false);
 });
 test('Uyuni landing site uses the surveyed UY04 WGS84 reference and remains a candidate',()=>{
  const site=getLandingSite('earth-salar-test-candidate');assert.equal(site.status,'candidate');
