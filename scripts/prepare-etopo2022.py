@@ -101,7 +101,7 @@ def build_grid():
 
     header = struct.pack(
         "<8sII4dhHI",
-        b"ETOPO22\\0", WIDTH, HEIGHT, WEST, EAST, SOUTH, NORTH,
+        b"ETOPO22\0", WIDTH, HEIGHT, WEST, EAST, SOUTH, NORTH,
         NODATA, 1, HEADER_BYTES
     )
     temporary = OUTPUT.with_suffix(".bin.tmp")
