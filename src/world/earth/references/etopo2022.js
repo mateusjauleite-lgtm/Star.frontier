@@ -13,7 +13,9 @@ export const ETOPO_2022_GLOBAL_GRID = Object.freeze({
   east: 179.875,
   south: -89.875,
   north: 89.875,
-  noDataValue: -32768
+  noDataValue: -32768,
+  wrapLongitude: true,
+  longitudePeriod: 360
 });
 
 /**
@@ -52,6 +54,8 @@ export function parseEtopo2022Grid(buffer) {
   return {
     ...ETOPO_2022_GLOBAL_GRID,
     width, height, west, east, south, north, noDataValue,
+    wrapLongitude: true,
+    longitudePeriod: 360,
     values,
     units: 'meters',
     registration: 'pixel-center',
