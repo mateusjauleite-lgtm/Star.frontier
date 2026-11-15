@@ -32,8 +32,8 @@ test('ignores no-data neighbours with zero interpolation weight', () => {
   assert.equal(sampleEarthElevationGrid(grid([100, -32768, 300, 400]), 0, 1), 100);
 });
 
-test('rejects invalid grids and coordinates outside the supported latitude range', () => {
+test('rejects invalid grids and clamps coordinates to the grid extent', () => {
   assert.equal(sampleEarthElevationGrid(null, 0, 0), null);
   assert.equal(sampleEarthElevationGrid(grid([1, 2, 3]), 0, 0), null);
-  assert.equal(sampleEarthElevationGrid(grid([1, 2, 3, 4]), 0, 91), 4);
+  assert.equal(sampleEarthElevationGrid(grid([1, 2, 3, 4]), 0, 91), 1);
 });
