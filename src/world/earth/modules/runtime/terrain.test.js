@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { sampleEarthElevationGrid } from './terrain.js';
+import { sampleEarthElevationGrid, calculateEtopoPatchSegments } from './terrain.js';
+import { selectEarthLodLevel } from './surface.js';
 import { ETOPO_2022_GLOBAL_GRID, loadEtopo2022GlobalGrid, parseEtopo2022Grid } from '../../references/etopo2022.js';
 import { createEarthKernelAdapter } from '../../wasm/earthKernel.js';
 
@@ -148,6 +149,42 @@ test('production ETOPO asset contract matches the 0.25-degree global grid', () =
   assert.equal(ETOPO_2022_GLOBAL_GRID.wrapLongitude, true);
   assert.equal(ETOPO_2022_GLOBAL_GRID.longitudePeriod, 360);
   assert.equal(ETOPO_2022_GLOBAL_GRID.verticalDatum, 'EGM2008 geoid');
+});
+
+
+test('sizes the regional terrain patch to the packaged ETOPO grid spacing', () => {
+  const etopoGrid = {
+    width: 1440,
+    height: 720,
+    west: -179.875,
+    east: 179.875,
+    south: -89.875,
+    north: 89.875
+  };
+  assert.equal(calculateEtopoPatchSegments(750, 0, etopoGrid), 54);
+  assert.equal(calculateEtopoPatchSegments(750, 60, etopoGrid), 108);
+  assert.equal(calculateEtopoPatchSegments(750, 80, etopoGrid), 128);
+});
+
+test('keeps Earth LOD stable around transition thresholds', () => {
+  assert.equal(selectEarthLodLevel(4.0 * 600, 600, 0), 0);
+  assert.equal(selectEarthLodLevel(3.8 * 600, 600, 0), 1);
+  assert.equal(selectEarthLodLevel(1.4 * 600, 600, 3), 3);
+  assert.equal(selectEarthLodLevel(1.5 * 600, 600, 3), 2);
+});
+
+test('batched elevation sampling matches the scalar ETOPO sampler', () => {
+  const source = grid([100, 200, 300, 400]);
+  const kernel = createEarthKernelAdapter();
+  const longitudes = new Float32Array([0, 0.5, 1]);
+  const latitudes = new Float32Array([1, 0.5, 0]);
+  const batch = kernel.sampleElevationBatch(source, longitudes, latitudes);
+  assert.deepEqual(Array.from(batch), [
+    sampleEarthElevationGrid(source, 0, 1),
+    sampleEarthElevationGrid(source, 0.5, 0.5),
+    sampleEarthElevationGrid(source, 1, 0)
+  ]);
+  kernel.dispose();
 });
 
 test('global ETOPO interpolation wraps continuously across the antimeridian', () => {
