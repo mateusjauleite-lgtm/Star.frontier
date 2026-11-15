@@ -103,6 +103,13 @@ export function createEarthKernelAdapter(module = null) {
         module._free(outPtr);
       }
     },
+    proceduralDetailMeters(longitude, latitude, amplitudeMeters = 2600) {
+      if (disposed || !module || !Number.isFinite(longitude) ||
+          !Number.isFinite(latitude) || !Number.isFinite(amplitudeMeters)) return null;
+      return finiteOrNull(module._earth_procedural_detail_meters(
+        longitude, latitude, amplitudeMeters
+      ));
+    },
     elevationMetersToUnits(meters, radius, meanRadiusKm, exaggeration) {
       if (disposed) return null;
       if (!module) return finiteOrNull((meters / 1000) * (radius / meanRadiusKm) * exaggeration);
