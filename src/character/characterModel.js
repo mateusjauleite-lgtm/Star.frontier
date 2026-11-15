@@ -195,6 +195,27 @@ export function createCharacterModel(options = {}) {
     parts[prefix + 'Ankle'] = ankle;
   }
 
+  // Peças adicionais para testar o sistema modular de equipamento.
+  const helmetMat = material(0x607b8b, 0.38, 0.42);
+  const visorMat = new THREE.MeshStandardMaterial({ color: 0x69dfff, roughness: 0.22, metalness: 0.55, transparent: true, opacity: 0.72 });
+  sphere(wardrobe.head, 0.151, helmetMat, [0, 0.72, 0.005], 'explorer-helmet-shell', 20, 14);
+  box(wardrobe.head, [0.22, 0.055, 0.16], helmetMat, [0, 0.665, -0.012], 'explorer-helmet-rim');
+  sphere(wardrobe.head, 0.105, visorMat, [0, 0.705, -0.105], 'explorer-helmet-visor', 18, 12);
+  for (const side of [-1, 1]) {
+    const hand = parts[side < 0 ? 'leftHand' : 'rightHand'];
+    sphere(wardrobe.hands, 0.001, materials.glove, [0, 0, 0], 'glove-anchor-' + side, 6, 4).visible = false;
+    const glove = new THREE.Group();
+    glove.name = (side < 0 ? 'left' : 'right') + '-glove';
+    hand.add(glove);
+    sphere(glove, 0.058, materials.glove, [0, -0.018, 0], 'glove-palm', 14, 10);
+    for (let finger = 0; finger < 4; finger++) {
+      capsule(glove, 0.013, 0.04, materials.glove,
+        [(finger - 1.5) * 0.022, -0.067, -0.012], 'glove-finger-' + finger);
+    }
+  }
+  box(wardrobe.back, [0.29, 0.38, 0.14], materials.pack, [0, 0.22, 0.205], 'explorer-backpack');
+  box(wardrobe.back, [0.20, 0.12, 0.035], materials.fabricTrim, [0, 0.18, 0.285], 'backpack-panel');
+
   // Vestuário inicial independente: jaqueta leve, calça e botas.
   // Nenhuma peça cobre a cabeça; luvas e mochila começam desequipadas.
   const torsoClothes = wardrobe.torso;
