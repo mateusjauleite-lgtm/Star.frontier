@@ -9,5 +9,6 @@ export const itemDatabase = createItemRegistry([
   ...weaponDefinitions, ...toolDefinitions, ...equipmentDefinitions,
   ...resourceDefinitions, ...consumableDefinitions
 ]);
-export const getItemDefinition = id => itemDatabase.get(id);\nexport const getItemDefinitionByCode = code => itemDatabase.getByCode(code);
+export const getItemDefinition = id => itemDatabase.get(id);
+export const getItemDefinitionByCode = code => itemDatabase.getByCode(code);
 export const getItemsByCategory = category => itemDatabase.byCategory(category);
