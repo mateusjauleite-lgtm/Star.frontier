@@ -975,22 +975,6 @@ function isCharacterPositionBlocked(position, deckIndex) {
   return false;
 }
 
-function isCharacterInsideDeck(position, deckIndex) {
-  const deckIds = ['D1', 'D2', 'D3', 'D4'];
-  const footprints = {
-    D1: [50, 82, -2],
-    D2: [50, 94, -2],
-    D3: [53, 102, -2],
-    D4: [48, 110, 5.5]
-  };
-  const [width, length, centerZ] = footprints[deckIds[deckIndex]];
-  const rx = width * 0.5 - 0.55;
-  const rz = length * 0.5 - 0.55;
-  const nx = position.x / rx;
-  const nz = (position.z - centerZ) / rz;
-  return nx * nx + nz * nz <= 1;
-}
-
 function updateCharacterMovement(dt) {
   if (!characterModel || characterCore.snapshot().mode !== 'on-foot') return;
   const input = characterMoveInput;
