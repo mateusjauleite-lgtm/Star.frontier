@@ -138,7 +138,11 @@ export function createTerrainRuntime({ options, layers }) {
         const px = Math.min(width - 1, Math.max(0, Math.floor(u * (width - 1))));
         const py = Math.min(height - 1, Math.max(0, Math.floor(v * (height - 1))));
         const land = smoothstep(.08, .92, maskData[(py * width + px) * 4] / 255);
-        return proceduralFallback(lon, lat, radius, land);
+        const baseUnits = proceduralFallback(lon, lat, radius, land);
+        const detailMeters = earthKernel.proceduralDetailMeters(longitudeDeg, latitudeDeg, 2600);
+        const detailUnits = detailMeters === null ? 0 :
+          earthKernel.elevationMetersToUnits(detailMeters, radius, 6371.0088, exaggeration);
+        return baseUnits + (land > .5 && detailUnits !== null ? detailUnits : 0);
       };
 
       layers.terrain = {
@@ -190,7 +194,38 @@ export function createTerrainRuntime({ options, layers }) {
         earthKernel.dispose();
         earthKernel = kernel;
         if (layers.terrain) layers.terrain.computeBackend = kernel.backend;
-        if (!gridIsReady || kernel.backend !== 'wasm-c++') return;
+        if (kernel.backend !== 'wasm-c++') return;
+
+        if (!gridIsReady) {
+          const detailDirection = new THREE.Vector3();
+          for (let i = 0; i < positions.count; i++) {
+            detailDirection.fromBufferAttribute(positions, i).normalize();
+            const latitudeDeg = THREE.MathUtils.radToDeg(Math.asin(
+              THREE.MathUtils.clamp(detailDirection.y, -1, 1)
+            ));
+            const longitudeDeg = THREE.MathUtils.radToDeg(Math.atan2(
+              detailDirection.z, detailDirection.x
+            ));
+            const u = (longitudeDeg + 180) / 360;
+            const v = (90 - latitudeDeg) / 180;
+            const px = Math.min(width - 1, Math.max(0, Math.floor(u * (width - 1))));
+            const py = Math.min(height - 1, Math.max(0, Math.floor(v * (height - 1))));
+            const land = smoothstep(.08, .92, maskData[(py * width + px) * 4] / 255);
+            const lon = THREE.MathUtils.degToRad(longitudeDeg);
+            const lat = THREE.MathUtils.degToRad(latitudeDeg);
+            const baseUnits = proceduralFallback(lon, lat, radius, land);
+            const detailMeters = kernel.proceduralDetailMeters(longitudeDeg, latitudeDeg, 2600);
+            const detailUnits = detailMeters === null ? 0 :
+              kernel.elevationMetersToUnits(detailMeters, radius, 6371.0088, exaggeration);
+            const finalRadius = radius + baseUnits + (land > .5 && detailUnits !== null ? detailUnits : 0);
+            positions.setXYZ(i, detailDirection.x * finalRadius,
+              detailDirection.y * finalRadius, detailDirection.z * finalRadius);
+          }
+          positions.needsUpdate = true;
+          surface.geometry.computeVertexNormals();
+          surface.geometry.computeBoundingSphere();
+          return;
+        }
 
         const longitudes = new Float32Array(positions.count);
         const latitudes = new Float32Array(positions.count);
