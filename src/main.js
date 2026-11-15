@@ -11,6 +11,7 @@ import { createCharacterCore } from './character/characterCore.js';
 import { createCharacterHUD } from './character/characterHUD.js';
 import { createCharacterModel } from './character/characterModel.js';
 import { createCharacterAnimator } from './character/characterAnimator.js';
+import { createCharacterWeaponController } from './character/characterWeaponController.js';
 import { createCharacterPhysics } from './character/characterPhysics.js';
 import { createCharacterEquipmentSystem } from './inventory/characterEquipment.js';
 import { isPilotConsoleInRange, attachCharacterToPilotConsole, returnCharacterToDeck } from './ships/bridge/commandBridge.js';
@@ -127,11 +128,9 @@ function firePhaser() {
   }
   phaserChargeRemaining = PHASER_RECHARGE_SECONDS;
   phaserShotFlashRemaining = PHASER_FLASH_SECONDS;
+  characterWeaponController?.fire();
   const phaser = characterModel?.wardrobe?.weapon?.userData?.phaser;
-  if (phaser) {
-    if (phaser.userData.muzzleLight) phaser.userData.muzzleLight.intensity = 4.5;
-    if (phaser.userData.beam) phaser.userData.beam.visible = true;
-  }
+  if (phaser?.userData.muzzleLight) phaser.userData.muzzleLight.intensity = 4.5;
   toast('Phaser disparado · recarga energética iniciada.');
 }
 
@@ -766,6 +765,7 @@ async function init3D() {
   characterModel.group.rotation.y = characterYaw;
   shipVisual.add(characterModel.group);
   characterAnimator = createCharacterAnimator(characterModel);
+  characterWeaponController.instance = createCharacterWeaponController(characterModel);
   characterPhysics = createCharacterPhysics();
   characterPhysics.reset(characterModel.group.position.y);
   characterCore.setGrounded(true);
@@ -1322,6 +1322,7 @@ function loop(now) {
   updatePhaserWeapon(dt);
   if (characterCore.snapshot().mode === 'on-foot') {
     updateCharacterMovement(dt);
+    updateCharacterWeapon(dt);
     updateElevatorInteraction();
     updatePilotInteraction();
     updateCharacterCamera();
@@ -1463,6 +1464,11 @@ const characterSprintButton = $('character-sprint-btn');
 const characterAnimationButton = $('character-animation-btn');
 const characterPhaserButton = $('character-phaser-btn');
 characterPhaserButton?.addEventListener('click', firePhaser);
+const characterAimButton = $('character-aim-btn');
+characterAimButton?.addEventListener('click', () => {
+  const aiming = characterWeaponController.toggleAiming();
+  if (aiming !== false) toast(aiming ? 'Mira ativada.' : 'Arma abaixada.');
+});
 
 characterAnimationButton?.addEventListener('click', () => {
   if (characterCore.snapshot().mode !== 'on-foot' || !characterAnimator) return;
@@ -1508,6 +1514,39 @@ window.addEventListener('keyup', event => {
   if (event.code === 'ShiftLeft' || event.code === 'ShiftRight') stopCharacterSprint();
 });
 window.addEventListener('blur', stopCharacterSprint);
+
+const characterWeaponController = {
+  instance: null,
+  setAiming(value) {
+    if (!isPhaserEquipped() || characterCore.snapshot().mode !== 'on-foot') value = false;
+    return this.instance?.setAiming(value) ?? false;
+  },
+  toggleAiming() {
+    if (!isPhaserEquipped() || characterCore.snapshot().mode !== 'on-foot') {
+      toast('Equipe o Phaser para usar a mira.');
+      return false;
+    }
+    return this.instance?.toggleAiming() ?? false;
+  },
+  fire() { return this.instance?.fire() ?? false; },
+  update(dt) { return this.instance?.update(dt, characterPitch); },
+  reset() { this.instance?.reset(); }
+};
+
+function updateCharacterWeapon(dt) {
+  const equipped = isPhaserEquipped();
+  if (!equipped) characterWeaponController.reset();
+  const result = characterWeaponController.update(dt);
+  const aimButton = $('character-aim-btn');
+  const reticle = $('character-aim-reticle');
+  if (aimButton) {
+    aimButton.disabled = !equipped;
+    aimButton.classList.toggle('is-active', Boolean(result?.aiming));
+    const label = aimButton.querySelector('small');
+    if (label) label.textContent = !equipped ? 'SEM ARMA' : result?.aiming ? 'MIRANDO' : 'MIRAR';
+  }
+  if (reticle) reticle.classList.toggle('is-visible', equipped && Boolean(result?.aiming));
+}
 
 const characterAim = $('character-aim-area');
 let characterAimPointer = null;
