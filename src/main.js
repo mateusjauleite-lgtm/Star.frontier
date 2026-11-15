@@ -698,6 +698,7 @@ async function init3D() {
   // Spawn inicial no Deck 1 — ponte de comando, dentro do casco.
   characterModel = createCharacterModel({ clothingColor: 0x526879 });
   applyCharacterSuit();
+  applyCharacterGear();
   // O personagem pertence ao referencial da nave: acompanha translação e rotação
   // sem ficar para trás no espaço quando a Aurora-7 se movimenta.
   characterModel.group.position.set(0, 8.91, -18);
@@ -1079,7 +1080,10 @@ function updateCharacterMovement(dt) {
 
   characterAnimator?.update(dt);
   const animationButton = $('character-animation-btn');
-  if (animationButton) animationButton.classList.toggle('is-active', characterAnimationTestRemaining > 0);
+  if (animationButton) {
+    animationButton.classList.toggle('is-active', characterAnimationTestRemaining > 0);
+    if (characterAnimationTestRemaining <= 0) animationButton.querySelector('small').textContent = 'ANIMAÇÃO';
+  }
   if (characterJumpButton) characterJumpButton.disabled = !characterPhysics?.grounded;
   if (characterSprintButton) characterSprintButton.disabled = characterCore.snapshot().stamina <= 0;
 }
@@ -1526,6 +1530,14 @@ function applyCharacterSuit() {
   characterCore.setEquipment('suit', equipped ? state.inventory.equipment.suit : null);
 }
 
+function applyCharacterGear() {
+  if (!characterModel) return;
+  const equipment = state.inventory?.equipment || {};
+  characterModel.setEquipment('head', equipment.helmet ? 'equipment.explorer-helmet' : null);
+  characterModel.setEquipment('hands', equipment.gloves ? 'equipment.utility-gloves' : null);
+  characterModel.setEquipment('back', equipment.back ? 'equipment.compact-backpack' : null);
+}
+
 function renderClothing() {
   const equipped = getCharacterSuitEquipped();
   const suitSlot = document.querySelector('[data-slot="suit"]');
@@ -1618,8 +1630,7 @@ document.querySelectorAll('[data-slot]').forEach(button => {
     const slot = button.dataset.slot;
     const removing = state.inventory.equipment[slot] === item.id;
     state.inventory.equipment[slot] = removing ? null : item.id;
-    characterModel?.setEquipment(slot === 'helmet' ? 'head' : slot === 'gloves' ? 'hands' : 'back',
-      removing ? null : item.id);
+    applyCharacterGear();
     renderClothing();
     save();
     toast(removing ? item.label + ' removido.' : item.label + ' equipado.');
