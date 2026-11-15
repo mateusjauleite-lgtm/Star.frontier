@@ -1175,6 +1175,12 @@ function enterPilotMode() {
 function exitPilotMode() {
   if (characterCore.snapshot().mode !== 'ship-control') return;
 
+  shipLandingAutopilot?.cancel?.();
+  shipLandingTelemetry.reset();
+  if (ship) {
+    ship.userData.landingGuidance = null;
+    ship.userData.landingAutopilotState = 'pilot-disconnected';
+  }
   shipComputer.disconnectTerminal('pilot-console');
   characterYaw = returnCharacterToDeck(characterModel, shipVisual, scene);
   characterPitch = 0;
