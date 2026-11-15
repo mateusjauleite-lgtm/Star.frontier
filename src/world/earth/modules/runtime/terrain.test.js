@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { sampleEarthElevationGrid } from './terrain.js';
+import { loadEtopo2022GlobalGrid, parseEtopo2022Grid } from '../../references/etopo2022.js';
 import { createEarthKernelAdapter } from '../../wasm/earthKernel.js';
 
 const grid = (values, extra = {}) => ({
@@ -68,4 +69,73 @@ test('converts ETOPO metres to the current 600-unit Earth scale', () => {
   const oneKilometre = kernel.elevationMetersToUnits(1000, 600, 6371.0088, 8);
   assert.ok(Math.abs(oneKilometre - (600 / 6371.0088) * 8) < 1e-9);
   kernel.dispose();
+});
+
+
+function makeCompactEtopoBuffer(values = [10, 20, 30, 40]) {
+  const headerBytes = 56;
+  const buffer = new ArrayBuffer(headerBytes + values.length * 2);
+  const bytes = new Uint8Array(buffer);
+  bytes.set(new TextEncoder().encode('ETOPO22\\0'), 0);
+  const view = new DataView(buffer);
+  view.setUint32(8, 2, true);
+  view.setUint32(12, 2, true);
+  view.setFloat64(16, -1, true);
+  view.setFloat64(24, 1, true);
+  view.setFloat64(32, -1, true);
+  view.setFloat64(40, 1, true);
+  view.setInt16(48, -32768, true);
+  view.setUint16(50, 1, true);
+  view.setUint32(52, headerBytes, true);
+  values.forEach((value, index) => view.setInt16(headerBytes + index * 2, value, true));
+  return buffer;
+}
+
+test('decodes the compact ETOPO binary header and elevation samples', () => {
+  const grid = parseEtopo2022Grid(makeCompactEtopoBuffer());
+  assert.equal(grid.width, 2);
+  assert.equal(grid.height, 2);
+  assert.equal(grid.units, 'meters');
+  assert.deepEqual(Array.from(grid.values), [10, 20, 30, 40]);
+});
+
+test('rejects compact ETOPO data with an invalid payload length', () => {
+  const valid = makeCompactEtopoBuffer();
+  assert.equal(parseEtopo2022Grid(valid.slice(0, valid.byteLength - 2)), null);
+});
+
+test('reports ETOPO loading success and returns the decoded grid', async () => {
+  const statuses = [];
+  const buffer = makeCompactEtopoBuffer();
+  const grid = await loadEtopo2022GlobalGrid({
+    url: 'https://example.test/etopo.bin',
+    fetchImpl: async () => ({ ok: true, arrayBuffer: async () => buffer }),
+    onStatus: status => statuses.push(status)
+  });
+  assert.equal(grid.width, 2);
+  assert.equal(statuses[0].state, 'loading');
+  assert.equal(statuses.at(-1).state, 'ready');
+});
+
+test('reports a missing ETOPO asset instead of silently hiding the failure', async () => {
+  const statuses = [];
+  const grid = await loadEtopo2022GlobalGrid({
+    url: 'https://example.test/etopo.bin',
+    fetchImpl: async () => ({ ok: false, status: 404 }),
+    onStatus: status => statuses.push(status)
+  });
+  assert.equal(grid, null);
+  assert.equal(statuses.at(-1).state, 'missing');
+  assert.equal(statuses.at(-1).httpStatus, 404);
+});
+
+test('reports an invalid ETOPO binary payload', async () => {
+  const statuses = [];
+  const grid = await loadEtopo2022GlobalGrid({
+    url: 'https://example.test/etopo.bin',
+    fetchImpl: async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(64) }),
+    onStatus: status => statuses.push(status)
+  });
+  assert.equal(grid, null);
+  assert.equal(statuses.at(-1).state, 'invalid');
 });
