@@ -81,7 +81,8 @@ import { selectEarthLodLevel } from './modules/runtime/surface.js';
 test('Earth global LOD selects lower mesh detail at greater camera distances', () => {
   assert.equal(selectEarthLodLevel(3000, 600), 0);
   assert.equal(selectEarthLodLevel(1500, 600), 1);
-  assert.equal(selectEarthLodLevel(800, 600), 2);
+  assert.equal(selectEarthLodLevel(800, 600), 3);
+  assert.equal(selectEarthLodLevel(900, 600), 2);
 });
 
 test('Earth global LOD preserves close-range detail for invalid camera measurements', () => {
