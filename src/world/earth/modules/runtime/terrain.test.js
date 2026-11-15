@@ -37,3 +37,26 @@ test('rejects invalid grids and clamps coordinates to the grid extent', () => {
   assert.equal(sampleEarthElevationGrid(grid([1, 2, 3]), 0, 0), null);
   assert.equal(sampleEarthElevationGrid(grid([1, 2, 3, 4]), 0, 91), 1);
 });
+
+
+test('supports grids with different dimensions and resolutions', () => {
+  const largerGrid = {
+    width: 4,
+    height: 3,
+    west: -180,
+    east: 180,
+    south: -90,
+    north: 90,
+    values: new Float32Array([
+      0, 10, 20, 30,
+      40, 50, 60, 70,
+      80, 90, 100, 110
+    ])
+  };
+  assert.equal(sampleEarthElevationGrid(largerGrid, 60, 0), 60);
+});
+
+test('rejects grids with invalid geographic extents', () => {
+  const invalidGrid = grid([1, 2, 3, 4], { west: 10, east: 10 });
+  assert.equal(sampleEarthElevationGrid(invalidGrid, 10, 0), null);
+});
