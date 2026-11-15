@@ -44,7 +44,6 @@ export function createCharacterWeaponController(model) {
     if (p.rightUpperArm) p.rightUpperArm.rotation.x += aim * (0.88 - pitchOffset) + recoil * 0.10;
     if (p.rightElbow) p.rightElbow.rotation.x += aim * 0.42 + recoil * 0.12;
     if (p.rightForearm) p.rightForearm.rotation.x += aim * 0.18 - recoil * 0.18;
-    if (p.rightHand) p.rightHand.rotation.x += aim * -0.08;
 
     // Braço esquerdo acompanha a arma como apoio, sem alterar a hierarquia do rig.
     if (p.leftUpperArm) p.leftUpperArm.rotation.x += aim * (0.72 - pitchOffset * 0.55);
