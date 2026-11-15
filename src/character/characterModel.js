@@ -233,6 +233,9 @@ export function createCharacterModel(options = {}) {
     // A peça acompanha o pivô da coxa e preserva as articulações existentes.
     legGarments.push(thighCloth);
     capsule(thighCloth, 0.101, 0.34, materials.trousers, [0, -0.19, 0], prefix + '-trousers');
+    const kneeCloth = makeClothingGroup(parts[prefix + 'Knee'], prefix + '-trouser-knee');
+    legGarments.push(kneeCloth);
+    sphere(kneeCloth, 0.086, materials.trousers, [0, -0.012, 0], prefix + '-trouser-knee-cover', 16, 12);
     const shinCloth = makeClothingGroup(parts[prefix + 'Knee'], prefix + '-trouser-shin');
     legGarments.push(shinCloth);
     capsule(shinCloth, 0.078, 0.31, materials.trousers, [0, -0.17, 0], prefix + '-lower-trousers');
