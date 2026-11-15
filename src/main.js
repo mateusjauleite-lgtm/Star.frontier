@@ -382,6 +382,7 @@ let earthSystem;
 let stationSystem;
 let landingBaseSystem;
 let selectedLandingSiteId = null;
+let nextLandingBaseAttempt = 0;
 let orbitSystem;
 let asteroidSystem;
 let lightingSystem;
@@ -636,6 +637,7 @@ async function startGame() {
     stationSystem = null;
     landingBaseSystem = null;
     selectedLandingSiteId = null;
+    nextLandingBaseAttempt = 0;
     orbitSystem = null;
     asteroidSystem = null;
     lightingSystem = null;
@@ -1275,7 +1277,10 @@ function loop(now) {
   earthSystem?.update(dt, camera);
   // O ETOPO pode terminar a inicialização depois da cena; tenta posicionar a base
   // quando o sampler físico estiver pronto, sem recorrer a uma esfera aproximada.
-  if (!landingBaseSystem) mountUyuniLandingBase();
+  if (!landingBaseSystem && now >= nextLandingBaseAttempt) {
+    nextLandingBaseAttempt = now + 1000;
+    mountUyuniLandingBase();
+  }
 
   // Mantém uma região local de maior densidade geométrica sob a nave
   // durante a aproximação. A consulta usa o mesmo sampler do relevo global.
