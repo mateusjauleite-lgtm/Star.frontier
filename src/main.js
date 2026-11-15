@@ -462,7 +462,9 @@ function registerComputerSubsystems() {
 function mountUyuniLandingBase() {
   if (!earthSystem || landingBaseSystem) return Boolean(landingBaseSystem);
   const site = getLandingSite('earth-salar-test-candidate');
-  if (!site) return false;
+  const terrainStatus = earthSystem.getStatus?.().terrain;
+  // Não fixa a base no relevo procedural provisório: espera a grade ETOPO real.
+  if (!site || !terrainStatus?.sourceGridReady) return false;
 
   // Primeiro localiza o ponto geodésico na esfera; depois consulta a superfície
   // física compartilhada com o terreno visível para assentar a base no relevo.
