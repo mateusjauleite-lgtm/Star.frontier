@@ -11,9 +11,10 @@ test('inventário empilha recursos respeitando limite e remove quantidades', () 
   assert.equal(inventory.count('resource.ore.common'), 749);
 });
 
-test('inventário não cria itens inexistentes nem empilha itens únicos', () => {
+test('inventário não cria itens inexistentes e mantém itens únicos em instâncias separadas', () => {
   const inventory = createInventory({ capacity: 4, registry: itemDatabase });
   assert.equal(inventory.add('item.not.registered').reason, 'unknown-item');
-  assert.equal(inventory.add('tool.mining_drill.basic', 2).added, 1);
-  assert.equal(inventory.items.length, 1);
+  assert.equal(inventory.add('tool.mining_drill.basic', 2).added, 2);
+  assert.equal(inventory.items.length, 2);
+  assert.notEqual(inventory.items[0].instanceId, inventory.items[1].instanceId);
 });
