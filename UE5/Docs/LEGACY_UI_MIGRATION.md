@@ -69,7 +69,7 @@ The CSS currently defines a dark navy science-fiction interface:
 - Accent gold: `#ffc857`; health/positive green: `#54e6a0`; warning red: `#ff5b68`.
 - Thin cyan-blue borders, compact uppercase labels, translucent panels and restrained glow.
 
-A shared native palette helper, `FFrontierUIStyle`, now centralizes the legacy colours for panels, headings, body text, buttons and translucent touch surfaces. The main-menu shell uses a UE `USafeZone`; the character and ship HUD button/touch-surface colours now consume the same helper. This is a source scaffold, not a verified visual match. Keep the mobile landscape layout usable on narrow screens; test touch targets, text scaling and safe areas in UE 5.8 mobile preview and on device.
+A shared native palette helper, `FFrontierUIStyle`, centralizes the legacy colours for panels, headings, body text, buttons and translucent touch surfaces. The main-menu shell uses a UE `USafeZone`; the character and ship HUD button/touch-surface colours consume the same helper. The six main-menu navigation buttons retain their widget references and use the shared selected/unselected button treatment when the active section changes. This remains a source scaffold, not a verified visual match. Keep the mobile landscape layout usable on narrow screens; test touch targets, text scaling, focus and safe areas in UE 5.8 mobile preview and on device.
 
 ## Conversion order
 
@@ -87,6 +87,10 @@ A shared native palette helper, `FFrontierUIStyle`, now centralizes the legacy c
 `AFrontierPlayerController` now creates the native menu for the local player, binds its profile/section/play delegates, applies UI-only input while open, and restores game-only input when the player chooses Explore. The Main GameMode selects this controller while retaining the existing Character pawn, starting ship and D1 placement behavior. The initial Explore action only closes the overlay; the world is already running behind it.
 
 Profile-name and section events are forwarded as Blueprint integration events. The controller does not persist profile data, authenticate accounts, own inventory/currency or alter Ship/Character Core state. A separate profile/save service and real loading transition remain future work.
+
+## Main-menu navigation feedback slice (source only)
+
+The existing menu shell now keeps a reflected map of its six navigation buttons and refreshes their selected/unselected appearance through `FFrontierUIStyle::ApplyNavigationButton`. This is deliberately limited to presentation: `SelectSection` still broadcasts the selected section, while `AFrontierPlayerController` forwards it to the Blueprint integration event. No panel content, profile persistence, authentication or gameplay state was added. The shared style helper remains the single source for menu/HUD palette values.
 
 ## Initial native UMG implementation (source only)
 

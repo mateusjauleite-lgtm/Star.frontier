@@ -60,3 +60,10 @@ void FFrontierUIStyle::ApplyButton(UButton* Button, bool bPrimary)
     Button->SetBackgroundColor(bPrimary ? Secondary() : PanelEmphasis());
     Button->SetColorAndOpacity(FLinearColor::White);
 }
+
+void FFrontierUIStyle::ApplyNavigationButton(UButton* Button, bool bSelected)
+{
+    if (!Button) return;
+    Button->SetBackgroundColor(bSelected ? Secondary() : PanelEmphasis());
+    Button->SetColorAndOpacity(FLinearColor::White);
+}

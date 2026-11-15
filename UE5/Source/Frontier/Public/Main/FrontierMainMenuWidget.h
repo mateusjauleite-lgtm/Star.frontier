@@ -91,5 +91,8 @@ private:
     TObjectPtr<UButton> PlayButton;
 
     UPROPERTY(Transient)
+    TMap<EFrontierMainMenuSection, TObjectPtr<UButton>> NavigationButtons;
+
+    UPROPERTY(Transient)
     EFrontierMainMenuSection ActiveSection = EFrontierMainMenuSection::Explore;
 };

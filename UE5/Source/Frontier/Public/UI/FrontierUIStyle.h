@@ -29,4 +29,5 @@ public:
     static void ApplyHeading(UTextBlock* TextBlock);
     static void ApplyBody(UTextBlock* TextBlock);
     static void ApplyButton(UButton* Button, bool bPrimary = false);
+    static void ApplyNavigationButton(UButton* Button, bool bSelected);
 };

@@ -185,6 +185,7 @@ Initial native source scaffold committed:
 
 - [x] Shared `FFrontierUIStyle` palette helper for the legacy navy/cyan/gold/green/red visual language.
 - [x] Shared panel, heading, body and button styling helpers.
+- [x] Shared selected/unselected navigation-button treatment for the six native main-menu sections.
 - [x] Native `UFrontierMainMenuWidget` with Explore, Story, Character, Ships, Store and Settings navigation sections.
 - [x] Display-name-only profile entry with empty-name validation and explicit notice that account authentication is not implemented.
 - [x] Blueprint extension events for profile-name handoff, section changes and play intent; widgets do not own save data, account security, credits, inventory, ship state or world startup.
@@ -198,10 +199,10 @@ Still required before the UI shell is considered integrated:
 - [ ] Implement profile persistence with SaveGame/GameInstance or an agreed profile service; do not persist passwords or treat the display-name event as authentication.
 - [ ] Implement story, character, ships, store and settings panels against their owning systems.
 - [ ] Integrate inventory, loading, pause and notification widgets.
-- [ ] Apply the shared theme consistently to every HUD and panel.
+- [ ] Apply the shared theme consistently to every HUD and panel; current character/ship HUD surfaces and main-menu navigation consume the shared palette, but individual menu panels are not implemented.
 - [ ] Compile with Unreal Build Tool, inspect in UE 5.8 Editor, and test landscape/mobile safe areas and touch response.
 
-**Current gate:** PlayerController and menu wiring are native source scaffolds. Static source checks only; no Unreal compile, Editor preview, runtime menu spawn, Blueprint asset or Android package has been verified. The startup `.umap` is also still absent, so the configured default map must be generated in Editor before a full project launch test.
+**Current gate:** PlayerController and menu wiring, including selected navigation feedback, are native source scaffolds. Static source checks only; no Unreal compile, Editor preview, runtime menu spawn, Blueprint asset or Android package has been verified. The startup `.umap` is also still absent, so the configured default map must be generated in Editor before a full project launch test.
 
 ### Main menu PlayerController integration
 

@@ -155,6 +155,7 @@ void UFrontierMainMenuWidget::BuildNativeLayout()
         {
             SelectSection(TargetSection);
         });
+        NavigationButtons.Add(TargetSection, NavigationButton);
         AddVertical(Navigation, NavigationButton, FMargin(0.0f, 0.0f, 0.0f, 8.0f));
     }
 
@@ -202,6 +203,12 @@ void UFrontierMainMenuWidget::SetProfileNameHint(const FText& Hint)
 
 void UFrontierMainMenuWidget::RefreshSectionContent()
 {
+    for (const TPair<EFrontierMainMenuSection, TObjectPtr<UButton>>& Entry : NavigationButtons)
+    {
+        FFrontierUIStyle::ApplyNavigationButton(
+            Entry.Value, Entry.Key == ActiveSection);
+    }
+
     if (SectionTitleText)
     {
         SectionTitleText->SetText(GetSectionTitle());
