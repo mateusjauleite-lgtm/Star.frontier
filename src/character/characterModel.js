@@ -104,7 +104,8 @@ export function createCharacterModel(options = {}) {
     legs: makeClothingGroup(parts.pelvis, 'wardrobe-legs'),
     hands: makeClothingGroup(rig, 'wardrobe-hands'),
     feet: makeClothingGroup(rig, 'wardrobe-feet'),
-    back: makeClothingGroup(parts.torso, 'wardrobe-back')
+    back: makeClothingGroup(parts.torso, 'wardrobe-back'),
+    weapon: makeClothingGroup(rig, 'wardrobe-weapon')
   };
 
   // Cabeça, pescoço, rosto e cabelo.
@@ -217,6 +218,33 @@ export function createCharacterModel(options = {}) {
   box(wardrobe.back, [0.29, 0.38, 0.14], materials.pack, [0, 0.22, 0.205], 'explorer-backpack');
   box(wardrobe.back, [0.20, 0.12, 0.035], materials.fabricTrim, [0, 0.18, 0.285], 'backpack-panel');
 
+  // Phaser procedural, preso à mão direita para acompanhar o rig e as animações.
+  const phaserBody = material(0x354956, 0.32, 0.72);
+  const phaserMetal = material(0x9bb4c1, 0.28, 0.82);
+  const phaserEnergy = new THREE.MeshStandardMaterial({ color: 0x55dcff, emissive: 0x168eb8, emissiveIntensity: 1.8, metalness: 0.35, roughness: 0.2 });
+  const phaserHand = parts.rightHand;
+  const phaser = new THREE.Group();
+  phaser.name = 'phaser-weapon';
+  phaser.position.set(0, -0.035, -0.105);
+  phaser.rotation.x = -0.08;
+  wardrobe.weapon.add(phaser);
+  // Empunhadura e corpo apontam para a frente do personagem (-Z).
+  box(phaser, [0.075, 0.105, 0.25], phaserBody, [0, 0.005, -0.055], 'phaser-frame');
+  box(phaser, [0.052, 0.13, 0.085], phaserBody, [0, -0.105, 0.015], 'phaser-grip');
+  box(phaser, [0.09, 0.035, 0.12], phaserMetal, [0, 0.066, -0.055], 'phaser-top-rail');
+  const emitter = new THREE.Group();
+  emitter.position.set(0, 0.005, -0.19);
+  phaser.add(emitter);
+  sphere(emitter, 0.035, phaserEnergy, [0, 0, 0], 'phaser-emitter', 14, 10);
+  const muzzle = new THREE.PointLight(0x49dfff, 0, 1.6, 2);
+  muzzle.position.set(0, 0, -0.22);
+  phaser.add(muzzle);
+  phaser.userData.muzzleLight = muzzle;
+  phaser.userData.energyMaterial = phaserEnergy;
+  // A arma é anexada ao grupo da mão, não à tela/HUD.
+  phaserHand.add(wardrobe.weapon);
+  wardrobe.weapon.visible = false;
+
   // Vestuário inicial independente: jaqueta leve, calça e botas.
   // Nenhuma peça cobre a cabeça; luvas e mochila começam desequipadas.
   const torsoClothes = wardrobe.torso;
@@ -264,7 +292,8 @@ export function createCharacterModel(options = {}) {
     legs: legGarments,
     hands: [wardrobe.hands, ...handGarments],
     feet: footGarments,
-    back: [wardrobe.back]
+    back: [wardrobe.back],
+    weapon: [wardrobe.weapon]
   };
 
   function setEquipment(slot, itemId) {
