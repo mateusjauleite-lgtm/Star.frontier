@@ -37,14 +37,18 @@ export function createInventory({ capacity = 24, maxWeight = Infinity, registry,
     get size() { return slots.length; },
     count(definitionId) { return slots.filter(item => item.definitionId === definitionId).reduce((sum, item) => sum + item.quantity, 0); },
     has(definitionId, quantity = 1) { return Number.isSafeInteger(quantity) && quantity > 0 && this.count(definitionId) >= quantity; },
-    canAdd(definitionId, quantity = 1) {
+    canAdd(definitionId, quantity = 1, options = {}) {
       const definition = registry.get(definitionId);
       if (!definition) return { ok: false, reason: 'unknown-item' };
       if (!Number.isSafeInteger(quantity) || quantity < 1) return { ok: false, reason: 'invalid-quantity' };
       if (definition.weight * quantity > this.remainingWeight) return { ok: false, reason: 'weight-limit' };
+      const durability = options.durability ?? definition.attributes?.durability ?? null;
+      const metadata = options.metadata ?? {};
       let freeStackSpace = 0;
       if (definition.stackable) {
-        for (const slot of slots) if (slot.definitionId === definitionId) freeStackSpace += definition.maxStack - slot.quantity;
+        for (const slot of slots) {
+          if (slot.definitionId === definitionId && slot.durability === durability && JSON.stringify(slot.metadata) === JSON.stringify(metadata)) freeStackSpace += definition.maxStack - slot.quantity;
+        }
       }
       const neededSlots = definition.stackable ? Math.ceil(Math.max(0, quantity - freeStackSpace) / definition.maxStack) : quantity;
       return slots.length + neededSlots <= capacity ? { ok: true, reason: null } : { ok: false, reason: 'inventory-full' };
@@ -57,6 +61,9 @@ export function createInventory({ capacity = 24, maxWeight = Infinity, registry,
       const durability = options.durability ?? definition.attributes?.durability ?? null;
       const metadata = options.metadata ?? {};
       if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return { ok: false, reason: 'invalid-metadata', added: 0, remaining: quantity };
+      if (durability !== null && (typeof durability !== 'number' || !Number.isFinite(durability) || durability < 0)) return { ok: false, reason: 'invalid-durability', added: 0, remaining: quantity };
+      if (options.instanceId !== undefined && (typeof options.instanceId !== 'string' || !options.instanceId.trim())) return { ok: false, reason: 'invalid-instance-id', added: 0, remaining: quantity };
+      if (options.instanceId && slots.some(slot => slot.instanceId === options.instanceId)) return { ok: false, reason: 'duplicate-instance-id', added: 0, remaining: quantity };
       const weightLimitedQuantity = definition.weight > 0 && maxWeight !== Infinity
         ? Math.floor(this.remainingWeight / definition.weight)
         : quantity;
@@ -73,9 +80,13 @@ export function createInventory({ capacity = 24, maxWeight = Infinity, registry,
           if (!toAdd) break;
         }
       }
+      let customInstanceIdUsed = false;
       while (toAdd > 0 && slots.length < capacity) {
         const amount = definition.stackable ? Math.min(toAdd, definition.maxStack) : 1;
-        slots.push(createItemInstance(definition, { ...options, quantity: amount }));
+        const instanceOptions = { ...options, quantity: amount };
+        if (customInstanceIdUsed) delete instanceOptions.instanceId;
+        else if (options.instanceId) customInstanceIdUsed = true;
+        slots.push(createItemInstance(definition, instanceOptions));
         toAdd -= amount;
         remaining -= amount;
       }
