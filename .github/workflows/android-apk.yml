@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - integration/threejs-recovery
+      - feature/earth-procedural-lod
       - main
   pull_request:
     branches:
