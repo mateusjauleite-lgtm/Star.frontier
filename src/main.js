@@ -1860,6 +1860,120 @@ $('interact-btn')?.addEventListener('click', () => {
   npcReady = false;
 });
 
+
+/* Editor do HUD do personagem: não move nem modifica o HUD da nave. */
+const characterHudEditor = $('character-hud-editor');
+const characterHudEditable = [...document.querySelectorAll('[data-hud-editable]')];
+let characterHudEditing = false;
+let characterHudBeforeEdit = null;
+let characterHudDrag = null;
+
+function readCharacterHudLayout() {
+  return state.settings?.characterHudLayout && typeof state.settings.characterHudLayout === 'object'
+    ? structuredClone(state.settings.characterHudLayout)
+    : {};
+}
+
+function applyCharacterHudLayout(layout = {}) {
+  characterHudEditable.forEach(element => {
+    const saved = layout[element.dataset.hudEditable];
+    if (!saved || !Number.isFinite(saved.x) || !Number.isFinite(saved.y)) {
+      ['position', 'left', 'top', 'right', 'bottom', 'transform'].forEach(prop => element.style.removeProperty(prop));
+      return;
+    }
+    const rect = element.getBoundingClientRect();
+    const x = Math.max(0, Math.min(1, saved.x));
+    const y = Math.max(0, Math.min(1, saved.y));
+    element.style.position = 'fixed';
+    element.style.left = `${x * Math.max(1, window.innerWidth - rect.width)}px`;
+    element.style.top = `${y * Math.max(1, window.innerHeight - rect.height)}px`;
+    element.style.right = 'auto';
+    element.style.bottom = 'auto';
+    element.style.transform = 'none';
+  });
+}
+
+function captureCharacterHudLayout() {
+  const layout = {};
+  characterHudEditable.forEach(element => {
+    const rect = element.getBoundingClientRect();
+    layout[element.dataset.hudEditable] = {
+      x: Math.max(0, Math.min(1, rect.left / Math.max(1, window.innerWidth - rect.width))),
+      y: Math.max(0, Math.min(1, rect.top / Math.max(1, window.innerHeight - rect.height)))
+    };
+  });
+  return layout;
+}
+
+function finishCharacterHudEditing({ saveChanges = false, reset = false } = {}) {
+  if (!characterHudEditing) return;
+  state.settings ||= {};
+  if (reset) {
+    delete state.settings.characterHudLayout;
+    applyCharacterHudLayout({});
+  } else if (saveChanges) {
+    state.settings.characterHudLayout = captureCharacterHudLayout();
+    save();
+  } else {
+    applyCharacterHudLayout(characterHudBeforeEdit || {});
+  }
+  characterHudEditing = false;
+  characterHudDrag = null;
+  characterHudEditable.forEach(element => element.classList.remove('hud-editable-active'));
+  characterHudEditor?.classList.add('hidden');
+  characterHudEditor?.setAttribute('aria-hidden', 'true');
+  if (reset) save();
+}
+
+function startCharacterHudEditing() {
+  if (characterHudEditing) return;
+  characterHudBeforeEdit = readCharacterHudLayout();
+  applyCharacterHudLayout(characterHudBeforeEdit);
+  characterHudEditing = true;
+  $('game-menu-modal')?.classList.add('hidden');
+  characterHudEditor?.classList.remove('hidden');
+  characterHudEditor?.setAttribute('aria-hidden', 'false');
+  characterHudEditable.forEach(element => element.classList.add('hud-editable-active'));
+  toast('Arraste os elementos do HUD. Depois toque em SALVAR.');
+}
+
+characterHudEditable.forEach(element => {
+  element.addEventListener('pointerdown', event => {
+    if (!characterHudEditing || (event.target.closest('button') && element.dataset.hudEditable !== 'action')) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const rect = element.getBoundingClientRect();
+    element.style.position = 'fixed';
+    element.style.left = `${rect.left}px`;
+    element.style.top = `${rect.top}px`;
+    element.style.right = 'auto';
+    element.style.bottom = 'auto';
+    element.style.transform = 'none';
+    characterHudDrag = { element, pointerId: event.pointerId, offsetX: event.clientX - rect.left, offsetY: event.clientY - rect.top };
+    element.setPointerCapture?.(event.pointerId);
+  });
+  element.addEventListener('pointermove', event => {
+    if (!characterHudEditing || !characterHudDrag || characterHudDrag.element !== element || characterHudDrag.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    const rect = element.getBoundingClientRect();
+    const x = Math.max(0, Math.min(window.innerWidth - rect.width, event.clientX - characterHudDrag.offsetX));
+    const y = Math.max(0, Math.min(window.innerHeight - rect.height, event.clientY - characterHudDrag.offsetY));
+    element.style.left = `${x}px`;
+    element.style.top = `${y}px`;
+  });
+  const endDrag = event => {
+    if (characterHudDrag?.element === element && characterHudDrag.pointerId === event.pointerId) characterHudDrag = null;
+  };
+  element.addEventListener('pointerup', endDrag);
+  element.addEventListener('pointercancel', endDrag);
+});
+
+$('edit-character-hud-btn')?.addEventListener('click', startCharacterHudEditing);
+$('character-hud-save-btn')?.addEventListener('click', () => finishCharacterHudEditing({ saveChanges: true }));
+$('character-hud-cancel-btn')?.addEventListener('click', () => finishCharacterHudEditing());
+$('character-hud-reset-btn')?.addEventListener('click', () => finishCharacterHudEditing({ reset: true }));
+applyCharacterHudLayout(readCharacterHudLayout());
+
 /* MENU DE PAUSA */
 
 $('character-camera-btn')?.addEventListener('click', () => {
