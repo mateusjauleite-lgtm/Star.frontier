@@ -81,6 +81,7 @@ export function createCharacterModel(options = {}) {
   const parts = {};
   const legGarments = [];
   const footGarments = [];
+  const handGarments = [];
 
   // Pelve e tronco: volumes anatômicos arredondados, sem placas rígidas.
   parts.pelvis = new THREE.Group();
@@ -203,10 +204,10 @@ export function createCharacterModel(options = {}) {
   sphere(wardrobe.head, 0.105, visorMat, [0, 0.705, -0.105], 'explorer-helmet-visor', 18, 12);
   for (const side of [-1, 1]) {
     const hand = parts[side < 0 ? 'leftHand' : 'rightHand'];
-    sphere(wardrobe.hands, 0.001, materials.glove, [0, 0, 0], 'glove-anchor-' + side, 6, 4).visible = false;
     const glove = new THREE.Group();
     glove.name = (side < 0 ? 'left' : 'right') + '-glove';
     hand.add(glove);
+    handGarments.push(glove);
     sphere(glove, 0.058, materials.glove, [0, -0.018, 0], 'glove-palm', 14, 10);
     for (let finger = 0; finger < 4; finger++) {
       capsule(glove, 0.013, 0.04, materials.glove,
@@ -258,7 +259,7 @@ export function createCharacterModel(options = {}) {
     head: [wardrobe.head],
     torso: [wardrobe.torso],
     legs: legGarments,
-    hands: [wardrobe.hands],
+    hands: [wardrobe.hands, ...handGarments],
     feet: footGarments,
     back: [wardrobe.back]
   };
