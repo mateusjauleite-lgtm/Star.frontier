@@ -1491,6 +1491,11 @@ select:focus {
   background: rgba(5,17,33,.82);
   color: var(--text);
   text-align: left;
+  position: relative;
+  z-index: 1;
+  pointer-events: auto;
+  touch-action: manipulation;
+  cursor: pointer;
 }
 .inventory-cell:not(.inventory-item-button) { pointer-events: none; }
 .inventory-item-button {
