@@ -22,7 +22,8 @@ const DEFAULT_CHARACTER_STATE = {
     hands: null,
     legs: null,
     feet: null,
-    back: null
+    back: null,
+    weapon: null
   }
 };
 
