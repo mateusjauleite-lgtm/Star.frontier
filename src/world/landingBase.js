@@ -2,12 +2,16 @@ import * as THREE from 'three';
 
 // Dimensões da infraestrutura em metros no referencial local do local de pouso.
 export const LANDING_BASE_METRICS = Object.freeze({
-  platformRadiusMeters: 64,
-  stationCenterEastMeters: 82,
+  platformRadiusMeters: 112,
+  stationCenterEastMeters: 132,
   stationCenterNorthMeters: 0,
   stationHalfWidthMeters: 4.7,
   stationHalfDepthMeters: 3.7,
-  minimumStationClearanceMeters: 10
+  minimumStationClearanceMeters: 10,
+  shipEnvelopeForwardMeters: 50,
+  shipEnvelopeAftMeters: 105,
+  shipEnvelopeHalfWidthMeters: 27.2,
+  shipEnvelopeMaximumRadiusMeters: Math.hypot(105, 27.2)
 });
 
 const stationFootprintRadiusMeters = Math.hypot(
@@ -66,24 +70,24 @@ export function createLandingBase() {
   };
 
   // Zona de pouso: permanece livre de edifícios e pode receber colisão própria.
-  add(platform, new THREE.CylinderGeometry(LANDING_BASE_METRICS.platformRadiusMeters, 64, 1.15, 96), foundation, [0, 0.05, 0]);
-  add(platform, new THREE.CylinderGeometry(60.5, 60.5, 0.16, 96), deck, [0, 0.68, 0]);
-  add(platform, new THREE.TorusGeometry(59.2, 0.22, 8, 96), marking, [0, 0.8, 0], [Math.PI / 2, 0, 0]);
-  add(platform, new THREE.TorusGeometry(29, 0.16, 8, 80), marking, [0, 0.8, 0], [Math.PI / 2, 0, 0]);
-  add(platform, new THREE.BoxGeometry(0.32, 0.035, 36), marking, [0, 0.81, 0]);
-  add(platform, new THREE.BoxGeometry(36, 0.035, 0.32), marking, [0, 0.81, 0]);
-  add(platform, new THREE.ConeGeometry(2.1, 5, 4), marking, [0, 0.9, -39], [-Math.PI / 2, 0, 0]);
+  add(platform, new THREE.CylinderGeometry(LANDING_BASE_METRICS.platformRadiusMeters, LANDING_BASE_METRICS.platformRadiusMeters, 1.15, 96), foundation, [0, 0.05, 0]);
+  add(platform, new THREE.CylinderGeometry(108, 108, 0.16, 96), deck, [0, 0.68, 0]);
+  add(platform, new THREE.TorusGeometry(105, 0.22, 8, 128), marking, [0, 0.8, 0], [Math.PI / 2, 0, 0]);
+  add(platform, new THREE.TorusGeometry(52, 0.16, 8, 96), marking, [0, 0.8, 0], [Math.PI / 2, 0, 0]);
+  add(platform, new THREE.BoxGeometry(0.32, 0.035, 70), marking, [0, 0.81, 0]);
+  add(platform, new THREE.BoxGeometry(70, 0.035, 0.32), marking, [0, 0.81, 0]);
+  add(platform, new THREE.ConeGeometry(2.1, 5, 4), marking, [0, 0.9, -75], [-Math.PI / 2, 0, 0]);
 
   // Balizamento baixo no perímetro, sem obstruir o corredor de aproximação.
   for (let i = 0; i < 8; i++) {
     const angle = i * Math.PI / 4;
-    const x = Math.cos(angle) * 56;
-    const z = Math.sin(angle) * 56;
+    const x = Math.cos(angle) * 98;
+    const z = Math.sin(angle) * 98;
     add(platform, new THREE.CylinderGeometry(0.48, 0.58, 0.22, 12), foundation, [x, 0.86, z]);
     add(platform, new THREE.SphereGeometry(0.24, 10, 8), lamp, [x, 1.02, z]);
   }
 
-  const beacon = new THREE.PointLight(0x48cfff, 1.1, 95);
+  const beacon = new THREE.PointLight(0x48cfff, 1.1, 150);
   beacon.position.set(0, 5, 0);
   platform.add(beacon);
 
