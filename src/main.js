@@ -414,6 +414,16 @@ let asteroids = [];
 let engineFlames = [];
 let engineLights = [];
 
+// Pontos de referência na concha inferior do casco. Servem primeiro para
+// medir folga/contato com o relevo; não aplicam forças nem alteram a trajetória.
+const shipEarthContactPoints = [
+  { id: 'keel', point: new THREE.Vector3(0, -15.2, 0) },
+  { id: 'fore-port', point: new THREE.Vector3(-12, -11.89, -22) },
+  { id: 'fore-starboard', point: new THREE.Vector3(12, -11.89, -22) },
+  { id: 'aft-port', point: new THREE.Vector3(-12, -11.89, 22) },
+  { id: 'aft-starboard', point: new THREE.Vector3(12, -11.89, 22) }
+];
+
 let last = performance.now();
 let active = false;
 let npcReady = false;
@@ -1191,12 +1201,45 @@ function loop(now) {
     const collisionSurface = earthSystem?.getCollisionSurface?.();
     const landingPatch = collisionSurface?.updateHighResolutionPatch?.(ship.position);
     if (landingPatch) {
-      // Cache the matching physical surface point and slope normal for the
-      // upcoming hull/landing-gear contact solver; this does not clamp flight yet.
+      // Cache the center sample and probe five points on the lower hull. This
+      // stage only reports clearance/contact; it does not constrain flight.
       ship.userData.earthSurfaceSample =
         collisionSurface.sampleWorldPosition?.(ship.position) ?? null;
-    } else if (ship.userData.earthSurfaceSample) {
+
+      shipVisual.updateWorldMatrix(true, true);
+      const contacts = shipEarthContactPoints.map(({ id, point }) => {
+        const worldPoint = shipVisual.localToWorld(point.clone());
+        const sample = collisionSurface.sampleWorldPosition?.(worldPoint);
+        if (!sample?.worldPosition || !sample?.worldNormal) {
+          return { id, valid: false };
+        }
+        const clearanceUnits = worldPoint.clone()
+          .sub(sample.worldPosition)
+          .dot(sample.worldNormal);
+        return {
+          id,
+          valid: Number.isFinite(clearanceUnits),
+          clearanceUnits,
+          penetrating: clearanceUnits < -0.05
+        };
+      });
+      const validContacts = contacts.filter(contact =>
+        contact.valid && Number.isFinite(contact.clearanceUnits)
+      );
+      const minimumClearance = validContacts.length
+        ? Math.min(...validContacts.map(contact => contact.clearanceUnits))
+        : null;
+      ship.userData.earthLandingContacts = {
+        status: validContacts.length !== contacts.length
+          ? 'partial'
+          : minimumClearance <= 0.35 ? 'contact' : 'clear',
+        contacts,
+        minimumClearanceUnits: minimumClearance,
+        physicsApplied: false
+      };
+    } else {
       delete ship.userData.earthSurfaceSample;
+      delete ship.userData.earthLandingContacts;
     }
   }
   orbitSystem?.update(dt);
