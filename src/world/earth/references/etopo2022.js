@@ -60,23 +60,74 @@ export function parseEtopo2022Grid(buffer) {
   };
 }
 
-/** Load the optional compact NOAA-derived asset; null keeps the safe fallback. */
+/**
+ * Load the compact NOAA-derived asset and report its state to the runtime.
+ * A missing/invalid optional asset keeps the procedural fallback, but is no
+ * longer silent: callers can expose the exact reason in diagnostics.
+ */
 export async function loadEtopo2022GlobalGrid({
   fetchImpl = globalThis.fetch,
-  url = null
+  url = null,
+  onStatus = null
 } = {}) {
-  if (typeof fetchImpl !== 'function') return null;
+  const report = status => {
+    try { onStatus?.(status); } catch {}
+  };
+  if (typeof fetchImpl !== 'function') {
+    const status = { state: 'unavailable', reason: 'fetch-api-unavailable' };
+    report(status);
+    return null;
+  }
+
   const base = import.meta.env?.BASE_URL ?? './';
   const assetUrl = url ?? new URL(
     `${base}${ETOPO_DATA_PATH}`,
     globalThis.location?.href ?? 'http://localhost/'
   ).href;
+  report({ state: 'loading', url: assetUrl });
 
   try {
     const response = await fetchImpl(assetUrl);
-    if (!response?.ok) return null;
-    return parseEtopo2022Grid(await response.arrayBuffer());
-  } catch {
+    if (!response?.ok) {
+      const status = {
+        state: 'missing',
+        reason: 'http-error',
+        httpStatus: response?.status ?? null,
+        url: assetUrl
+      };
+      report(status);
+      return null;
+    }
+
+    const buffer = await response.arrayBuffer();
+    const grid = parseEtopo2022Grid(buffer);
+    if (!grid) {
+      const status = {
+        state: 'invalid',
+        reason: 'invalid-binary-format-or-size',
+        byteLength: buffer?.byteLength ?? null,
+        url: assetUrl
+      };
+      report(status);
+      return null;
+    }
+
+    report({
+      state: 'ready',
+      url: assetUrl,
+      width: grid.width,
+      height: grid.height,
+      packagedResolutionDegrees: grid.packagedResolutionDegrees,
+      verticalDatum: grid.verticalDatum
+    });
+    return grid;
+  } catch (error) {
+    report({
+      state: 'error',
+      reason: 'fetch-or-decode-failed',
+      message: error instanceof Error ? error.message : String(error),
+      url: assetUrl
+    });
     return null;
   }
 }
