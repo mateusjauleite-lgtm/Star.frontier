@@ -47,7 +47,7 @@ int ship_calculate_landing_guidance(
   double* desired_velocity,double* metrics
 ) {
   if (!finite_vector(position)||!finite_vector(velocity)||!finite_vector(target)||
-      !finite_vector(surface_normal)||!finite_vector(desired_velocity)||!finite_vector(metrics)||
+      !finite_vector(surface_normal)||!desired_velocity||!metrics||
       !std::isfinite(maximum_descent_speed)||maximum_descent_speed<=0.0||
       !std::isfinite(lateral_gain)||lateral_gain<0.0||
       !std::isfinite(vertical_gain)||vertical_gain<0.0) return 0;
