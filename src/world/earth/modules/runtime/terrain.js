@@ -214,76 +214,7 @@ export function createTerrainRuntime({ options, layers }) {
         });
       }
 
-      // Re-run the vertex elevation pass through the compiled C++ kernel once
-      // WebAssembly is ready. The first pass above remains a safe JS fallback.
-      loadEarthKernel().then(kernel => {
-        if (disposed) { kernel.dispose(); return; }
-        earthKernel.dispose();
-        earthKernel = kernel;
-        if (layers.terrain) layers.terrain.computeBackend = kernel.backend;
-        if (kernel.backend !== 'wasm-c++') return;
-
-        const vertexDirection = new THREE.Vector3();
-        for (const geometry of lodGeometries) {
-          const geometryPositions = geometry.attributes.position;
-          if (!gridIsReady) {
-            for (let i = 0; i < geometryPositions.count; i++) {
-              vertexDirection.fromBufferAttribute(geometryPositions, i).normalize();
-              const latitudeDeg = THREE.MathUtils.radToDeg(Math.asin(
-                THREE.MathUtils.clamp(vertexDirection.y, -1, 1)
-              ));
-              const longitudeDeg = THREE.MathUtils.radToDeg(Math.atan2(
-                vertexDirection.z, vertexDirection.x
-              ));
-              const u = (longitudeDeg + 180) / 360;
-              const v = (90 - latitudeDeg) / 180;
-              const px = Math.min(width - 1, Math.max(0, Math.floor(u * (width - 1))));
-              const py = Math.min(height - 1, Math.max(0, Math.floor(v * (height - 1))));
-              const land = smoothstep(.08, .92, maskData[(py * width + px) * 4] / 255);
-              const lon = THREE.MathUtils.degToRad(longitudeDeg);
-              const lat = THREE.MathUtils.degToRad(latitudeDeg);
-              const baseUnits = proceduralFallback(lon, lat, radius, land);
-              const detailMeters = kernel.proceduralDetailMeters(longitudeDeg, latitudeDeg, 2600);
-              const detailUnits = detailMeters === null ? 0 :
-                kernel.elevationMetersToUnits(detailMeters, radius, 6371.0088, exaggeration);
-              const finalRadius = radius + baseUnits + (land > .5 && detailUnits !== null ? detailUnits : 0);
-              geometryPositions.setXYZ(i, vertexDirection.x * finalRadius,
-                vertexDirection.y * finalRadius, vertexDirection.z * finalRadius);
-            }
-          } else {
-            const longitudes = new Float32Array(geometryPositions.count);
-            const latitudes = new Float32Array(geometryPositions.count);
-            for (let i = 0; i < geometryPositions.count; i++) {
-              vertexDirection.fromBufferAttribute(geometryPositions, i).normalize();
-              latitudes[i] = THREE.MathUtils.radToDeg(Math.asin(
-                THREE.MathUtils.clamp(vertexDirection.y, -1, 1)
-              ));
-              longitudes[i] = THREE.MathUtils.radToDeg(Math.atan2(
-                vertexDirection.z, vertexDirection.x
-              ));
-            }
-            const elevations = kernel.sampleElevationBatch(grid, longitudes, latitudes);
-            if (!elevations) continue;
-            for (let i = 0; i < geometryPositions.count; i++) {
-              const meters = elevations[i];
-              if (!Number.isFinite(meters)) continue;
-              vertexDirection.fromBufferAttribute(geometryPositions, i).normalize();
-              const elevation = kernel.elevationMetersToUnits(
-                meters, radius, 6371.0088, exaggeration
-              );
-              if (elevation === null) continue;
-              const finalRadius = radius + elevation;
-              geometryPositions.setXYZ(i, vertexDirection.x * finalRadius,
-                vertexDirection.y * finalRadius, vertexDirection.z * finalRadius);
-            }
-          }
-          geometryPositions.needsUpdate = true;
-          geometry.computeVertexNormals();
-          geometry.computeBoundingSphere();
-        }
-      }).catch(() => {
-        // Keep the already-generated JS terrain if WASM loading fails.
-      });      // Rebuild the visible meshes through the same sampler after WASM is
+      // Rebuild the visible meshes through the same sampler after WASM is
       // ready. C++ accelerates the procedural detail calculation; it does not
       // introduce a second elevation path or a different collision surface.
       loadEarthKernel().then(kernel => {
