@@ -30,6 +30,16 @@ const characterCore = createCharacterCore({}, {
   inventoryCapacity: 24,
   inventoryMaxWeight: 60
 });
+
+// Primeiro acesso: kit inicial guardado no inventário do explorador,
+// separado do compartimento de carga da nave.
+if (!state.characterInventory) {
+  characterCore.addItem('tool.mining_drill.basic');
+  characterCore.addItem('tool.scanner.portable');
+  characterCore.addItem('consumable.medkit.basic', 2);
+  state.characterInventory = characterCore.getInventorySnapshot();
+  save();
+}
 const shipComputer = createShipComputer();
 shipComputer.registerSystem('flight', {
   name: 'Controle de voo',
