@@ -97,8 +97,18 @@ export function createEarthInfrastructureRuntime({ options, layers }) {
         base = null;
         return;
       }
+      // A geometria da base usa metros. Convertemos somente suas dimensões
+      // locais para a escala visual planetária; a posição geodésica permanece
+      // no referencial Earth-local, sem escalar a translação do grupo.
+      const metersToEarthUnits = options.radius / 6371008.8;
+      base.group.scale.setScalar(metersToEarthUnits);
+      base.group.userData.metricScale = {
+        sourceUnit: 'meter',
+        earthUnitsPerMeter: metersToEarthUnits,
+        metersPerEarthUnit: 1 / metersToEarthUnits
+      };
       surface.add(base.group);
-      console.info('[Earth] Base de superfície posicionada no ponto UY04 do Salar de Uyuni.');
+      console.info('[Earth] Base UY04 posicionada com geometria métrica local.');
     },
     getBase() { return base; },
     getMarker() { return marker; },

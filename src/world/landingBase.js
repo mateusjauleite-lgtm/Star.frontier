@@ -1,10 +1,36 @@
 import * as THREE from 'three';
 
+// Dimensões da infraestrutura em metros no referencial local do local de pouso.
+export const LANDING_BASE_METRICS = Object.freeze({
+  platformRadiusMeters: 63,
+  stationCenterEastMeters: 80,
+  stationCenterNorthMeters: 0,
+  stationHalfWidthMeters: 4.5,
+  stationHalfDepthMeters: 3.5,
+  minimumStationClearanceMeters: 10
+});
+
+const stationFootprintRadiusMeters = Math.hypot(
+  LANDING_BASE_METRICS.stationHalfWidthMeters,
+  LANDING_BASE_METRICS.stationHalfDepthMeters
+);
+export const LANDING_BASE_CLEARANCE_METERS =
+  Math.hypot(LANDING_BASE_METRICS.stationCenterEastMeters,
+    LANDING_BASE_METRICS.stationCenterNorthMeters) -
+  stationFootprintRadiusMeters - LANDING_BASE_METRICS.platformRadiusMeters;
+
 // Complexo terrestre de Uyuni. A raiz recebe a orientação geodésica da Earth;
 // plataforma e estação permanecem como grupos independentes para evolução/LOD.
 export function createLandingBase() {
   const group = new THREE.Group();
   group.name = 'StarFrontier-Uyuni-Base-Complex';
+  group.userData.landingMetrics = {
+    unit: 'meter',
+    ...LANDING_BASE_METRICS,
+    calculatedStationClearanceMeters: LANDING_BASE_CLEARANCE_METERS,
+    clearanceValidatedGeometrically:
+      LANDING_BASE_CLEARANCE_METERS >= LANDING_BASE_METRICS.minimumStationClearanceMeters
+  };
 
   const platform = new THREE.Group();
   platform.name = 'StarFrontier-Uyuni-Landing-Platform';
@@ -40,7 +66,7 @@ export function createLandingBase() {
   };
 
   // Zona de pouso: permanece livre de edifícios e pode receber colisão própria.
-  add(platform, new THREE.CylinderGeometry(63, 64, 1.15, 96), foundation, [0, 0.05, 0]);
+  add(platform, new THREE.CylinderGeometry(LANDING_BASE_METRICS.platformRadiusMeters, 64, 1.15, 96), foundation, [0, 0.05, 0]);
   add(platform, new THREE.CylinderGeometry(60.5, 60.5, 0.16, 96), deck, [0, 0.68, 0]);
   add(platform, new THREE.TorusGeometry(59.2, 0.22, 8, 96), marking, [0, 0.8, 0], [Math.PI / 2, 0, 0]);
   add(platform, new THREE.TorusGeometry(29, 0.16, 8, 80), marking, [0, 0.8, 0], [Math.PI / 2, 0, 0]);
@@ -63,11 +89,15 @@ export function createLandingBase() {
 
   // Estação fora do círculo de pouso. Seu grupo pode ser movido/expandido
   // sem alterar a plataforma nem a referência de orientação geográfica.
-  add(station, new THREE.BoxGeometry(9, 4.2, 7), habitat, [72, 2.7, 12]);
-  add(station, new THREE.BoxGeometry(5.8, 1.8, 0.16), glass, [72, 2.95, 8.42]);
-  add(station, new THREE.BoxGeometry(9.4, 0.38, 7.4), foundation, [72, 4.95, 12]);
-  add(station, new THREE.CylinderGeometry(0.22, 0.3, 4.5, 8), foundation, [76, 7.2, 14]);
-  add(station, new THREE.SphereGeometry(0.34, 10, 8), lamp, [76, 9.55, 14]);
+  station.position.set(
+    LANDING_BASE_METRICS.stationCenterEastMeters, 0,
+    LANDING_BASE_METRICS.stationCenterNorthMeters
+  );
+  add(station, new THREE.BoxGeometry(9, 4.2, 7), habitat, [0, 2.7, 0]);
+  add(station, new THREE.BoxGeometry(5.8, 1.8, 0.16), glass, [0, 2.95, -3.58]);
+  add(station, new THREE.BoxGeometry(9.4, 0.38, 7.4), foundation, [0, 4.95, 0]);
+  add(station, new THREE.CylinderGeometry(0.22, 0.3, 4.5, 8), foundation, [4, 7.2, 2]);
+  add(station, new THREE.SphereGeometry(0.34, 10, 8), lamp, [4, 9.55, 2]);
 
   return {
     group,
