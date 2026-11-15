@@ -74,3 +74,24 @@ test('Earth kernel fallback supports batched elevation samples', () => {
   );
   assert.deepEqual(Array.from(result), [100, 250, 400]);
 });
+
+
+import { selectEarthLodLevel } from './modules/runtime/surface.js';
+
+test('Earth global LOD selects lower mesh detail at greater camera distances', () => {
+  assert.equal(selectEarthLodLevel(3000, 600), 0);
+  assert.equal(selectEarthLodLevel(1500, 600), 1);
+  assert.equal(selectEarthLodLevel(800, 600), 2);
+});
+
+test('Earth global LOD preserves close-range detail for invalid camera measurements', () => {
+  assert.equal(selectEarthLodLevel(NaN, 600), 2);
+  assert.equal(selectEarthLodLevel(100, 0), 2);
+});
+
+test('Earth procedural detail safely remains unavailable before the WASM kernel loads', () => {
+  const kernel = createEarthKernelAdapter();
+  assert.equal(kernel.proceduralDetailMeters(0, 0, 2600), null);
+  assert.equal(kernel.proceduralDetailMeters(NaN, 0, 2600), null);
+  kernel.dispose();
+});
