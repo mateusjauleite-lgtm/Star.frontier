@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createShipFlightKernel} from './shipFlightKernel.js';
 import {EARTH_LANDING_SITES,getLandingSite} from './landingSites.js';
-import {calculateLandingGuidance,isLandingEnvelopeSatisfied} from './landingAutopilot.js';
+import {calculateLandingGuidance,calculateLandingOrientation,isLandingEnvelopeSatisfied} from './landingAutopilot.js';
 import {resolveFlightCommand} from './flightControlContract.js';
 
 test('Earth gravity points toward the center in the JS fallback',()=>{
@@ -19,10 +19,28 @@ test('orbital kernel rejects zero radius and invalid time step',()=>{
  const k=createShipFlightKernel();assert.equal(k.gravityAcceleration([0,0,0]),null);
  assert.equal(k.integrateOrbitStep([1,0,0],[0,1,0],undefined,0),null);
 });
-test('landing location is a candidate and is not approved for landing',()=>{
+test('Uyuni landing site uses the surveyed UY04 WGS84 reference and remains a candidate',()=>{
  const site=getLandingSite('earth-salar-test-candidate');assert.equal(site.status,'candidate');
  assert.equal(site.requiresTerrainValidation,true);assert.equal(site.requiresPadPlacement,true);
  assert.equal(EARTH_LANDING_SITES.length,1);
+ assert.equal(site.latitudeDeg,-20.211888829);
+ assert.equal(site.longitudeDeg,-67.422529683);
+ assert.equal(site.coordinateReference,'WGS84');
+ assert.equal(site.referencePointId,'UY04');
+ assert.equal(site.referenceElevationMeters,3697.2995);
+ assert.equal(site.landingHeadingTrueDeg,0);
+});
+test('landing orientation aligns ship forward with true north on a level surface',()=>{
+ const o=calculateLandingOrientation({surfaceNormal:[0,1,0],northReference:[0,0,-1],headingDeg:0});
+ assert.ok(o);
+ assert.deepEqual(o.forward.map(v=>Math.round(v*1e6)/1e6),[0,0,-1]);
+ assert.deepEqual(o.right.map(v=>Math.round(v*1e6)/1e6),[1,0,0]);
+ assert.deepEqual(o.up,[0,1,0]);
+});
+test('landing orientation applies clockwise heading from true north',()=>{
+ const o=calculateLandingOrientation({surfaceNormal:[0,1,0],northReference:[0,0,-1],headingDeg:90});
+ assert.ok(o);
+ assert.deepEqual(o.forward.map(v=>Math.round(v*1e6)/1e6),[1,0,0]);
 });
 test('landing guidance aligns laterally before descent',()=>{
  const g=calculateLandingGuidance({currentPosition:[20,100,0],targetPosition:[0,0,0],surfaceNormal:[0,1,0]});
