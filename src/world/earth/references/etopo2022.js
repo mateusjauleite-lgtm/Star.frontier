@@ -7,12 +7,12 @@ export const ETOPO_2022_GLOBAL_GRID = Object.freeze({
   attribution: 'NOAA National Centers for Environmental Information, ETOPO 2022, DOI: 10.25921/fd45-gt74',
   verticalDatum: 'EGM2008 geoid',
   resolutionArcSeconds: 900,
-  width: 1441,
-  height: 721,
-  west: -180,
-  east: 180,
-  south: -90,
-  north: 90,
+  width: 1440,
+  height: 720,
+  west: -179.875,
+  east: 179.875,
+  south: -89.875,
+  north: 89.875,
   noDataValue: -32768
 });
 
