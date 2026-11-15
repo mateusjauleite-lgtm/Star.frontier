@@ -1895,3 +1895,11 @@ body {
 #character-tool-action-btn.hud-editable-active:disabled {
   opacity: 1;
 }
+
+
+/* Seleção explícita do equipamento ativo e balão de ação no inventário. */
+.quick-slot { cursor: pointer; pointer-events: auto; touch-action: manipulation; }
+.quick-slot.action-selected { border-color: rgba(84,230,160,.9); box-shadow: 0 0 12px rgba(84,230,160,.22), inset 0 0 10px rgba(84,230,160,.1); }
+.inventory-item { position: relative; overflow: visible; }
+.inventory-item.item-pending-equip { border-color: rgba(84,230,160,.85); }
+.item-action-bubble { position: absolute; z-index: 3; left: 50%; bottom: calc(100% + 5px); transform: translateX(-50%); padding: 6px 9px; border: 1px solid rgba(84,230,160,.8); border-radius: 7px; background: #08291f; color: #9af0c2; font-size: 9px; font-weight: 800; white-space: nowrap; box-shadow: 0 4px 14px rgba(0,0,0,.45); }
