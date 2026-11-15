@@ -1233,8 +1233,8 @@ function loop(now) {
     const collisionSurface = earthSystem?.getCollisionSurface?.();
     const landingPatch = collisionSurface?.updateHighResolutionPatch?.(ship.position);
     if (landingPatch) {
-      // Cache the center sample and probe five points on the lower hull. This
-      // stage only reports clearance/contact; it does not constrain flight.
+      // Record the center sample and probe five lower-hull points after
+      // updateFlight has applied any required terrain-clearance correction.
       ship.userData.earthSurfaceSample =
         collisionSurface.sampleWorldPosition?.(ship.position) ?? null;
 
