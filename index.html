@@ -114,7 +114,7 @@
 
     <!-- HUD 1: PERSONAGEM -->
     <div id="character-hud" class="character-hud">
-      <div class="character-hud-top">
+      <div class="character-hud-top" data-hud-editable="top" aria-label="Cabeçalho do HUD">
         <div class="character-identity">
           <span class="character-kicker">STAR FRONTIER // EXPLORAÇÃO</span>
           <b id="character-name">EXPLORADOR</b>
@@ -131,7 +131,7 @@
         </div>
       </div>
 
-      <div class="character-status">
+      <div class="character-status" data-hud-editable="status">
         <div class="character-stat">
           <div class="character-stat-heading"><span>SAÚDE</span><b id="character-health-value">100%</b></div>
           <div class="character-track"><div id="character-health" class="character-fill health-fill"></div></div>
@@ -142,13 +142,13 @@
         </div>
       </div>
 
-      <div class="character-quick-equipment" aria-label="Equipamento rápido">
+      <div class="character-quick-equipment" data-hud-editable="equipment" aria-label="Equipamento rápido">
         <div class="quick-slot" id="quick-slot-weapon"><span>ARMA</span><b id="quick-weapon">VAZIO</b><small id="quick-weapon-code"></small></div>
         <div class="quick-slot" id="quick-slot-tool"><span>FERRAMENTA</span><b id="quick-tool">VAZIO</b><small id="quick-tool-code"></small></div>
         <div class="quick-slot" id="quick-slot-machine"><span>MÁQUINA</span><b id="quick-machine">VAZIO</b><small id="quick-machine-code"></small></div>
       </div>
 
-      <div class="character-interaction">
+      <div class="character-interaction" data-hud-editable="interaction">
         <span>INTERAÇÃO</span>
         <b id="character-interaction">SEM ALVO PRÓXIMO</b>
       </div>
@@ -156,11 +156,11 @@
       <!-- CONTROLES DO PERSONAGEM: independentes dos controles da nave -->
       <div id="character-controls" class="character-controls">
         <div id="character-aim-area" class="character-aim-area" aria-label="Arraste para olhar ao redor"></div>
-        <div id="character-move-stick" class="character-move-stick" aria-label="Movimentar personagem">
+        <div id="character-move-stick" data-hud-editable="move" class="character-move-stick" aria-label="Movimentar personagem">
           <span class="character-move-knob"></span>
           <small>MOVER</small>
         </div>
-        <button id="character-tool-action-btn" class="character-tool-action-btn" type="button" disabled aria-label="Ação do equipamento">◎ AÇÃO</button>
+        <button id="character-tool-action-btn" data-hud-editable="action" class="character-tool-action-btn" type="button" disabled aria-label="Ação do equipamento">◎ AÇÃO</button>
       </div>
     </div>
 
@@ -354,12 +354,28 @@
         <button id="resume-btn" class="primary">
           CONTINUAR
         </button>
+        <button id="edit-character-hud-btn" class="secondary" type="button">
+          CONFIGURAR HUD DO PERSONAGEM
+        </button>
 
         <button id="return-menu-btn" class="secondary">
           VOLTAR AO MENU
         </button>
       </div>
 
+    </div>
+
+    <!-- Editor exclusivo do HUD do personagem -->
+    <div id="character-hud-editor" class="character-hud-editor hidden" aria-hidden="true">
+      <div class="character-hud-editor-panel">
+        <b>EDITAR HUD DO PERSONAGEM</b>
+        <span>Arraste os elementos para a posição desejada. A nave não será alterada.</span>
+        <div class="character-hud-editor-actions">
+          <button id="character-hud-reset-btn" type="button">PADRÃO</button>
+          <button id="character-hud-cancel-btn" type="button">CANCELAR</button>
+          <button id="character-hud-save-btn" type="button">SALVAR</button>
+        </div>
+      </div>
     </div>
 
   </section>
