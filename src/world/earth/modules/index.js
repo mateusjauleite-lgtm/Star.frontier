@@ -5,10 +5,11 @@ import { EARTH_OCEANS_MODULE } from './oceans.js';
 import { EARTH_ATMOSPHERE_MODULE } from './atmosphere.js';
 import { EARTH_CLOUDS_MODULE } from './clouds.js';
 import { EARTH_LIGHTING_MODULE } from './lighting.js';
+import { EARTH_INFRASTRUCTURE_MODULE } from './infrastructure.js';
 
 /** Dependency-safe initialization order for the independent Earth renderers. */
 export const EARTH_UPDATE_MODULES = Object.freeze([
   EARTH_INTERIOR_MODULE, EARTH_SURFACE_MODULE, EARTH_TERRAIN_MODULE,
   EARTH_OCEANS_MODULE, EARTH_ATMOSPHERE_MODULE, EARTH_CLOUDS_MODULE,
-  EARTH_LIGHTING_MODULE
+  EARTH_LIGHTING_MODULE, EARTH_INFRASTRUCTURE_MODULE
 ]);

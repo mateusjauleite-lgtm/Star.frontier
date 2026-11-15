@@ -1,9 +1,7 @@
 import * as THREE from 'three';
 import { createEarthCore } from './world/earth/earthCore.js';
 import { createStation } from './world/station.js';
-import { createLandingBase } from './world/landingBase.js';
 import { getLandingSite } from './ships/flight/landingSites.js';
-import { geodeticToEarthLocalFrame } from './ships/flight/landingAutopilot.js';
 import { createOrbitSystem } from './world/orbits.js';
 import { createAsteroidField } from './world/asteroids.js';
 import { createSpaceLighting } from './world/lighting.js';
@@ -382,7 +380,6 @@ let earthSystem;
 let stationSystem;
 let landingBaseSystem;
 let selectedLandingSiteId = null;
-let nextLandingBaseAttempt = 0;
 let orbitSystem;
 let asteroidSystem;
 let lightingSystem;
@@ -459,48 +456,6 @@ function registerComputerSubsystems() {
     getAsteroids: () => asteroids
   });
   shipComputerSystemsRegistered = true;
-}
-
-function mountUyuniLandingBase() {
-  if (!earthSystem || landingBaseSystem) return Boolean(landingBaseSystem);
-  const site = getLandingSite('earth-salar-test-candidate');
-  const terrainStatus = earthSystem.getStatus?.().terrain;
-  // Não fixa a base no relevo procedural provisório: espera a grade ETOPO real.
-  if (!site || !terrainStatus?.sourceGridReady) return false;
-
-  // Primeiro localiza o ponto geodésico na esfera; depois consulta a superfície
-  // física compartilhada com o terreno visível para assentar a base no relevo.
-  const frame = geodeticToEarthLocalFrame({
-    longitudeDeg: site.longitudeDeg,
-    latitudeDeg: site.latitudeDeg,
-    radiusUnits: 600
-  });
-  if (!frame) return false;
-
-  const earthGroup = earthSystem.group;
-  earthGroup.updateWorldMatrix(true, false);
-  const candidateWorld = earthGroup.localToWorld(new THREE.Vector3(...frame.position));
-  const surface = earthSystem.getCollisionSurface()?.sampleWorldPosition?.(candidateWorld);
-  if (!surface?.worldPosition || !surface?.worldNormal) return false;
-
-  const inverseEarthMatrix = earthGroup.matrixWorld.clone().invert();
-  const localPosition = surface.worldPosition.clone().applyMatrix4(inverseEarthMatrix);
-  const up = surface.worldNormal.clone().transformDirection(inverseEarthMatrix).normalize();
-  const north = new THREE.Vector3(...frame.north)
-    .transformDirection(earthGroup.matrixWorld)
-    .transformDirection(inverseEarthMatrix);
-  north.addScaledVector(up, -north.dot(up)).normalize();
-  if (north.lengthSq() < 0.9 || up.lengthSq() < 0.9) return false;
-
-  // Eixo -Z da plataforma aponta para norte verdadeiro; Y acompanha a normal.
-  const east = new THREE.Vector3().crossVectors(north, up).normalize();
-  const basis = new THREE.Matrix4().makeBasis(east, up, north.clone().negate());
-  landingBaseSystem = createLandingBase();
-  landingBaseSystem.group.position.copy(localPosition).addScaledVector(up, 0.24);
-  landingBaseSystem.group.quaternion.setFromRotationMatrix(basis);
-  earthGroup.add(landingBaseSystem.group);
-  console.info('Base de pouso Star Frontier posicionada no ponto UY04 do Salar de Uyuni.');
-  return true;
 }
 
 function loadingStep(percent, message) {
@@ -643,7 +598,6 @@ async function startGame() {
     stationSystem = null;
     landingBaseSystem = null;
     selectedLandingSiteId = null;
-    nextLandingBaseAttempt = 0;
     orbitSystem = null;
     asteroidSystem = null;
     lightingSystem = null;
@@ -1283,12 +1237,9 @@ function loop(now) {
     updateCamera();
   }
   earthSystem?.update(dt, camera);
-  // O ETOPO pode terminar a inicialização depois da cena; tenta posicionar a base
-  // quando o sampler físico estiver pronto, sem recorrer a uma esfera aproximada.
-  if (!landingBaseSystem && now >= nextLandingBaseAttempt) {
-    nextLandingBaseAttempt = now + 1000;
-    mountUyuniLandingBase();
-  }
+  // A Earth é proprietária da infraestrutura; a gameplay consulta a base
+  // criada pelo módulo para contatos e estado de pouso.
+  landingBaseSystem = earthSystem?.getLandingBase?.() ?? null;
 
   // Mantém uma região local de maior densidade geométrica sob a nave
   // durante a aproximação. A consulta usa o mesmo sampler do relevo global.
