@@ -85,8 +85,8 @@ test('Earth global LOD selects lower mesh detail at greater camera distances', (
 });
 
 test('Earth global LOD preserves close-range detail for invalid camera measurements', () => {
-  assert.equal(selectEarthLodLevel(NaN, 600), 2);
-  assert.equal(selectEarthLodLevel(100, 0), 2);
+  assert.equal(selectEarthLodLevel(NaN, 600), 3);
+  assert.equal(selectEarthLodLevel(100, 0), 3);
 });
 
 test('Earth procedural detail safely remains unavailable before the WASM kernel loads', () => {
