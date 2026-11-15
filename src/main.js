@@ -100,7 +100,7 @@ function updateCharacterCameraButton() {
     : 'CÂMERA: 3ª PESSOA';
 }
 
-function updateCharacterHUD(){const p=earthSystem?.getPlanetaryProfile?.(),s=characterCore.snapshot();const equipment=Object.fromEntries(Object.entries(s.equipment||{}).map(([slot,item])=>{const d=item?itemDatabase.get(item.definitionId):null;return[slot,item?{...item,displayName:d?.name||item.definitionId,tooltip:`${d?.code||'SEM CÓDIGO'} · ${d?.id||item.definitionId} · ${d?.description||''}`}:null];}));characterHUD.update({...s,equipment,name:state.user||state.character||'EXPLORADOR',environment:p?{label:`${p.displayName} • R MÉDIO ${Math.round(p.physical.meanRadiusKm).toLocaleString('pt-BR')} KM`}:null});}
+function updateCharacterHUD(){const p=earthSystem?.getPlanetaryProfile?.(),s=characterCore.snapshot();const equipment=Object.fromEntries(Object.entries(s.equipment||{}).map(([slot,item])=>{const d=item?itemDatabase.get(item.definitionId):null;return[slot,item?{...item,displayName:d?.name||item.definitionId,displayCode:d?.code||'',tooltip:`${d?.code||'SEM CÓDIGO'} · ${d?.id||item.definitionId} · ${d?.description||''}`}:null];}));characterHUD.update({...s,equipment,name:state.user||state.character||'EXPLORADOR',environment:p?{label:`${p.displayName} • R MÉDIO ${Math.round(p.physical.meanRadiusKm).toLocaleString('pt-BR')} KM`}:null});}
 
 state.ship = 'Nave exploradora';
 
