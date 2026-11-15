@@ -21,19 +21,32 @@ EARTH_EXPORT float earth_sample_bilinear(
     float east,
     float south,
     float north,
-    float no_data
+    float no_data,
+    float longitude_period
 ) {
     if (!values || width < 2 || height < 2 || !(east > west) || !(north > south)) {
         return NAN;
     }
 
-    const float u = fmaxf(0.0f, fminf(1.0f, (longitude - west) / (east - west))) * (width - 1);
+    int x0, x1;
+    float tx;
+    if (std::isfinite(longitude_period) && longitude_period > 0.0f) {
+        float offset = fmodf(longitude - west, longitude_period);
+        if (offset < 0.0f) offset += longitude_period;
+        const float u = offset / (longitude_period / width);
+        const int base = static_cast<int>(floorf(u));
+        x0 = base % width;
+        x1 = (x0 + 1) % width;
+        tx = u - base;
+    } else {
+        const float u = fmaxf(0.0f, fminf(1.0f, (longitude - west) / (east - west))) * (width - 1);
+        x0 = static_cast<int>(floorf(u));
+        x1 = x0 + 1 < width ? x0 + 1 : width - 1;
+        tx = u - x0;
+    }
     const float v = fmaxf(0.0f, fminf(1.0f, (north - latitude) / (north - south))) * (height - 1);
-    const int x0 = static_cast<int>(floorf(u));
     const int y0 = static_cast<int>(floorf(v));
-    const int x1 = x0 + 1 < width ? x0 + 1 : width - 1;
     const int y1 = y0 + 1 < height ? y0 + 1 : height - 1;
-    const float tx = u - x0;
     const float ty = v - y0;
 
     const float a = values[y0 * width + x0];
@@ -70,14 +83,15 @@ EARTH_EXPORT void earth_sample_bilinear_batch(
     float east,
     float south,
     float north,
-    float no_data
+    float no_data,
+    float longitude_period
 ) {
     if (!values || !longitudes || !latitudes || !output || count < 0 ||
         width < 2 || height < 2 || !(east > west) || !(north > south)) return;
     for (int i = 0; i < count; ++i) {
         output[i] = earth_sample_bilinear(
             values, width, height, longitudes[i], latitudes[i],
-            west, east, south, north, no_data
+            west, east, south, north, no_data, longitude_period
         );
     }
 }
