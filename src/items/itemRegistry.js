@@ -1,17 +1,2 @@
-import { validateItemDefinition } from './itemValidation.js';
-export function createItemRegistry(definitions = []) {
-  const items = new Map();
-  for (const definition of definitions) {
-    const errors = validateItemDefinition(definition);
-    if (errors.length) throw new TypeError(errors.join(' '));
-    if (items.has(definition.id)) throw new Error(`ID de item duplicado: ${definition.id}`);
-    items.set(definition.id, Object.freeze(definition));
-  }
-  return Object.freeze({
-    get: id => items.get(id) ?? null,
-    has: id => items.has(id),
-    all: () => [...items.values()],
-    byCategory: category => [...items.values()].filter(item => item.category === category),
-    ids: () => [...items.keys()]
-  });
-}
+import {validateItemDefinition} from './itemValidation.js';
+export function createItemRegistry(definitions=[]){const items=new Map(),codes=new Map();for(const definition of definitions){const errors=validateItemDefinition(definition);if(errors.length)throw new TypeError(errors.join(' '));if(items.has(definition.id))throw new Error(`ID de item duplicado: ${definition.id}`);if(definition.code&&codes.has(definition.code))throw new Error(`Código de catálogo duplicado: ${definition.code}`);items.set(definition.id,Object.freeze(definition));if(definition.code)codes.set(definition.code,definition.id);}return Object.freeze({get:id=>items.get(id)??null,getByCode:code=>items.get(codes.get(code))??null,has:id=>items.has(id),all:()=>[...items.values()],byCategory:c=>[...items.values()].filter(i=>i.category===c),ids:()=>[...items.keys()]});}
