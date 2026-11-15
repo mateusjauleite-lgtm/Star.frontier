@@ -1456,7 +1456,7 @@ select:focus {
   color: var(--text);
   text-align: left;
 }
-.inventory-cell { pointer-events: none; }
+.inventory-cell { pointer-events: auto; }\n.inventory-item { cursor: pointer; touch-action: pan-y; user-select: none; }\n.inventory-item b { color: var(--text); font-size: 10px; line-height: 1.25; }\n.inventory-item .item-code { color: var(--cyan); font-size: 9px; }\n.inventory-item small { color: var(--gold); font-size: 7px; font-weight: 700; }\n.inventory-item.equip-confirmed { border-color: var(--green); }\n.inventory-cell.empty { opacity: .45; }\n.quick-slot:active { border-color: var(--cyan); }
 .inventory-cell::before {
   content: '+';
   color: rgba(67,217,255,.45);
