@@ -95,3 +95,38 @@ test('Earth procedural detail safely remains unavailable before the WASM kernel 
   assert.equal(kernel.proceduralDetailMeters(NaN, 0, 2600), null);
   kernel.dispose();
 });
+
+
+import { parseEtopo2022Grid } from './references/etopo2022.js';
+
+test('ETOPO binary parser reads a north-to-south Int16 global grid', () => {
+  const width = 2, height = 2, headerBytes = 56;
+  const buffer = new ArrayBuffer(headerBytes + width * height * 2);
+  const view = new DataView(buffer);
+  const magic = new TextEncoder().encode('ETOPO22\\0');
+  new Uint8Array(buffer, 0, 8).set(magic);
+  view.setUint32(8, width, true);
+  view.setUint32(12, height, true);
+  view.setFloat64(16, -180, true);
+  view.setFloat64(24, 180, true);
+  view.setFloat64(32, -90, true);
+  view.setFloat64(40, 90, true);
+  view.setInt16(48, -32768, true);
+  view.setUint16(50, 1, true);
+  view.setUint32(52, headerBytes, true);
+  [100, 200, 300, -32768].forEach((value, index) =>
+    view.setInt16(headerBytes + index * 2, value, true)
+  );
+
+  const grid = parseEtopo2022Grid(buffer);
+  assert.ok(grid);
+  assert.deepEqual(Array.from(grid.values), [100, 200, 300, -32768]);
+  assert.equal(grid.verticalDatum, 'EGM2008 geoid');
+  assert.equal(grid.units, 'meters');
+});
+
+test('ETOPO binary parser rejects a truncated or unrelated asset', () => {
+  assert.equal(parseEtopo2022Grid(new ArrayBuffer(12)), null);
+  const invalid = new ArrayBuffer(64);
+  assert.equal(parseEtopo2022Grid(invalid), null);
+});
