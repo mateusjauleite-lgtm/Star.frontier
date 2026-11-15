@@ -143,9 +143,9 @@
       </div>
 
       <div class="character-quick-equipment" aria-label="Equipamento rápido">
-        <div class="quick-slot"><span>ARMA</span><b id="quick-weapon">VAZIO</b></div>
-        <div class="quick-slot"><span>FERRAMENTA</span><b id="quick-tool">VAZIO</b></div>
-        <div class="quick-slot"><span>MÁQUINA</span><b id="quick-machine">VAZIO</b></div>
+        <button type="button" class="quick-slot" id="quick-slot-weapon"><span>ARMA</span><b id="quick-weapon">VAZIO</b></button>
+        <button type="button" class="quick-slot" id="quick-slot-tool"><span>FERRAMENTA</span><b id="quick-tool">VAZIO</b></button>
+        <button type="button" class="quick-slot" id="quick-slot-machine"><span>MÁQUINA</span><b id="quick-machine">VAZIO</b></button>
       </div>
 
       <div class="character-interaction">
@@ -177,17 +177,17 @@
         <div id="inventory-items-view" class="inventory-view">
           <div class="inventory-section-heading"><b>MOCHILA</b><span id="inventory-count">0 / 24</span></div>
           <div id="inventory-grid" class="inventory-grid"></div>
-          <p class="inventory-note">Os itens coletados e recursos encontrados aparecerão aqui.</p>
+          <p class="inventory-note">Segure um item por 0,45 s para equipá-lo no slot compatível. Toque em um slot de vestuário para guardar o equipamento.</p>
         </div>
         <div id="inventory-clothing-view" class="inventory-view hidden">
           <div class="inventory-section-heading"><b>ROUPAS E PROTEÇÃO</b><span>EQUIPAMENTO DO EXPLORADOR</span></div>
           <div class="clothing-grid">
-            <button class="inventory-slot suit-slot selected" type="button" data-slot="suit"><span>TRAJE</span><b>Traje de exploração básico</b><small>EQUIPADO</small></button>
-            <button class="inventory-slot" type="button" data-slot="helmet"><span>CABEÇA</span><b>Vazio</b></button>
-            <button class="inventory-slot" type="button" data-slot="torso"><span>PEITORAL</span><b>Vazio</b></button>
-            <button class="inventory-slot" type="button" data-slot="gloves"><span>LUVAS</span><b>Vazio</b></button>
-            <button class="inventory-slot" type="button" data-slot="legs"><span>CALÇAS</span><b>Vazio</b></button>
-            <button class="inventory-slot" type="button" data-slot="boots"><span>BOTAS</span><b>Vazio</b></button>
+            <button class="inventory-slot suit-slot" type="button" data-slot="suit"><span>TRAJE</span><b>Vazio</b><small>VAZIO</small></button>
+            <button class="inventory-slot" type="button" data-slot="helmet"><span>CABEÇA</span><b>Vazio</b><small>VAZIO</small></button>
+            <button class="inventory-slot" type="button" data-slot="torso"><span>PEITORAL</span><b>Vazio</b><small>VAZIO</small></button>
+            <button class="inventory-slot" type="button" data-slot="gloves"><span>LUVAS</span><b>Vazio</b><small>VAZIO</small></button>
+            <button class="inventory-slot" type="button" data-slot="legs"><span>CALÇAS</span><b>Vazio</b><small>VAZIO</small></button>
+            <button class="inventory-slot" type="button" data-slot="boots"><span>BOTAS</span><b>Vazio</b><small>VAZIO</small></button>
           </div>
         </div>
         <footer class="inventory-footer">
