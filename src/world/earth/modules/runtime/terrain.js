@@ -247,6 +247,10 @@ export function createTerrainRuntime({ options, layers }) {
               latitudeDeg,
               radiusKm: safeRadiusKm,
               segments: divisions,
+              meshSpacingKm: (safeRadiusKm * 2) / divisions,
+              sourceGridSpacingKm: gridIsReady
+                ? (grid.north - grid.south) / (grid.height - 1) * 111.195
+                : null,
               elevationSource: gridIsReady ? (grid.source ?? 'provided-global-grid') : 'procedural-fallback'
             };
             surface.add(patch);
