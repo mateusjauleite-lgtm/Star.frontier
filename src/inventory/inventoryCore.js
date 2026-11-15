@@ -22,7 +22,7 @@ export function createInventory({ capacity = 24, registry, items = [] } = {}) {
       }
       while (remaining > 0 && slots.length < capacity) {
         const amount = definition.stackable ? Math.min(remaining, definition.maxStack) : 1;
-        slots.push(createItemInstance(definition, { quantity: amount, ...options }));
+        slots.push(createItemInstance(definition, { ...options, quantity: amount }));
         remaining -= amount;
       }
       return { ok: remaining === 0, reason: remaining ? 'inventory-full' : null, added: quantity - remaining, remaining };
