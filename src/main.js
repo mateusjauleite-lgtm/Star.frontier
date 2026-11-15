@@ -1580,7 +1580,7 @@ const characterEquipment = createCharacterEquipmentSystem(state, {
 });
 
 function renderClothing() {
-  const labels = { head: 'CABEÇA', torso: 'PEITORAL', hands: 'LUVAS', legs: 'CALÇAS', feet: 'BOTAS', back: 'COSTAS' };
+  const labels = { head: 'CABEÇA', torso: 'PEITORAL', hands: 'LUVAS', legs: 'CALÇAS', feet: 'BOTAS', back: 'COSTAS', weapon: 'ARMA' };
   for (const [slot] of Object.entries(labels)) {
     const button = document.querySelector(`[data-slot="${slot}"]`);
     if (!button) continue;
@@ -1608,7 +1608,12 @@ function renderInventory() {
   const equipment = state.inventory?.equipment || {};
   ['weapon', 'tool', 'machine'].forEach(slot => {
     const el = $('quick-' + slot);
-    if (el) el.textContent = equipment[slot]?.name || equipment[slot] || 'VAZIO';
+    if (el) {
+      const equipped = Boolean(equipment[slot]);
+      el.textContent = equipment[slot]?.name || equipment[slot] || 'VAZIO';
+      el.closest('.quick-slot')?.classList.toggle('is-equipped', equipped);
+      el.closest('.quick-slot')?.setAttribute('aria-label', `${slot}: ${equipped ? el.textContent : 'vazio'}`);
+    }
   });
 }
 $('inventory-open-btn')?.addEventListener('click', () => {
