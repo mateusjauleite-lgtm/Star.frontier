@@ -1007,6 +1007,7 @@ function updateCharacterMovement(dt) {
     characterStaminaAccumulator = 0;
     characterStaminaHudTimer = 0;
     const displayedStamina = characterCore.snapshot().stamina;
+    if (displayedStamina <= 0 && characterSprintHeld) stopCharacterSprint();
     const staminaFill = $('character-stamina');
     const staminaLabel = $('character-stamina-value');
     if (staminaFill) staminaFill.style.width = displayedStamina + '%';
