@@ -3,7 +3,7 @@ const finiteVector=v=>v&&v.length===3&&Array.from(v).every(Number.isFinite);
 function gravityFallback(p,mu){
  if(!finiteVector(p)||!Number.isFinite(mu)||mu<=0)return null;
  const r2=p[0]**2+p[1]**2+p[2]**2;if(!Number.isFinite(r2)||r2<=0)return null;
- const factor=-mu/(r2*Math.sqrt(r2));return p.map(v=>v*factor);
+ const factor=-mu/(r2*Math.sqrt(r2));return p.map(v=>{const component=v*factor;return component===0?0:component;});
 }
 function integrateFallback(p,v,mu,dt){
  if(!finiteVector(p)||!finiteVector(v)||!Number.isFinite(mu)||mu<=0||!Number.isFinite(dt)||dt<=0)return null;
