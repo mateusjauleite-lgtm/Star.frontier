@@ -1238,23 +1238,46 @@ function loop(now) {
       ship.userData.earthSurfaceSample =
         collisionSurface.sampleWorldPosition?.(ship.position) ?? null;
 
-      shipVisual.updateWorldMatrix(true, true);
-      const contacts = shipEarthContactPoints.map(({ id, point }) => {
-        const worldPoint = shipVisual.localToWorld(point.clone());
-        const sample = collisionSurface.sampleWorldPosition?.(worldPoint);
-        if (!sample?.worldPosition || !sample?.worldNormal) {
-          return { id, valid: false };
+      const sampleShipContacts = () => {
+        shipVisual.updateWorldMatrix(true, true);
+        return shipEarthContactPoints.map(({ id, point }) => {
+          const worldPoint = shipVisual.localToWorld(point.clone());
+          const sample = collisionSurface.sampleWorldPosition?.(worldPoint);
+          if (!sample?.worldPosition || !sample?.worldNormal) {
+            return { id, valid: false };
+          }
+          const clearanceUnits = worldPoint.clone()
+            .sub(sample.worldPosition)
+            .dot(sample.worldNormal);
+          return {
+            id,
+            valid: Number.isFinite(clearanceUnits),
+            clearanceUnits,
+            worldNormal: sample.worldNormal,
+            penetrating: clearanceUnits < -0.05
+          };
+        });
+      };
+
+      let contacts = sampleShipContacts();
+      const worstPenetration = contacts
+        .filter(contact => contact.valid && contact.clearanceUnits < -0.05)
+        .sort((a, b) => a.clearanceUnits - b.clearanceUnits)[0];
+      if (worstPenetration) {
+        // Resolve the deepest hull contact, not just the ship's center point.
+        const correctedWorldPosition = ship.getWorldPosition(new THREE.Vector3())
+          .addScaledVector(worstPenetration.worldNormal, -worstPenetration.clearanceUnits + 0.05);
+        if (ship.parent) {
+          ship.parent.updateWorldMatrix(true, false);
+          ship.position.copy(ship.parent.worldToLocal(correctedWorldPosition));
+        } else {
+          ship.position.copy(correctedWorldPosition);
         }
-        const clearanceUnits = worldPoint.clone()
-          .sub(sample.worldPosition)
-          .dot(sample.worldNormal);
-        return {
-          id,
-          valid: Number.isFinite(clearanceUnits),
-          clearanceUnits,
-          penetrating: clearanceUnits < -0.05
-        };
-      });
+        if (forwardVector.dot(worstPenetration.worldNormal) < 0) state.speed = 0;
+        ship.userData.earthCollisionResolved = true;
+        contacts = sampleShipContacts();
+      }
+
       const validContacts = contacts.filter(contact =>
         contact.valid && Number.isFinite(contact.clearanceUnits)
       );
