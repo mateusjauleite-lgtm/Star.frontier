@@ -64,8 +64,9 @@ export function createEarthCore(options = {}) {
       if (disposed) return false;
       return updatePipeline.attach(id, runtime);
     },
-    update(delta) {
+    update(delta, camera = null) {
       if (disposed) return;
+      context.camera = camera;
       updatePipeline.update(delta, context);
     },
     dispose() {
