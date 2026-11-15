@@ -342,7 +342,7 @@ export function createTerrainRuntime({ options, layers }) {
             surface.parent.updateWorldMatrix(true, false);
             const worldPositionOnSurface = result.localPosition.clone()
               .applyMatrix4(surface.parent.matrixWorld);
-            const worldNormal = result.radialNormal.clone()
+            const worldNormal = result.terrainNormal.clone()
               .transformDirection(surface.parent.matrixWorld);
             return {
               ...result,
@@ -380,13 +380,44 @@ export function createTerrainRuntime({ options, layers }) {
               Math.sin(longitude) * cosLatitude
             ).transformDirection(surface.matrix);
 
+            // Estimate the actual terrain normal from neighbouring elevations.
+            // This includes slopes from ETOPO rather than assuming a perfect sphere.
+            const pointAt = (lonDeg, latDeg) => {
+              const heightUnits = elevationSampler(lonDeg, latDeg);
+              if (!Number.isFinite(heightUnits)) return null;
+              const latRad = THREE.MathUtils.degToRad(latDeg);
+              const lonRad = THREE.MathUtils.degToRad(lonDeg);
+              const pointRadius = radius + heightUnits;
+              return new THREE.Vector3(
+                Math.cos(lonRad) * Math.cos(latRad) * pointRadius,
+                Math.sin(latRad) * pointRadius,
+                Math.sin(lonRad) * Math.cos(latRad) * pointRadius
+              ).applyMatrix4(surface.matrix);
+            };
+            const latitudeStep = 0.01;
+            const longitudeStep = latitudeStep / Math.max(0.1, Math.abs(cosLatitude));
+            const wrapLongitude = value =>
+              THREE.MathUtils.euclideanModulo(value + 180, 360) - 180;
+            const westPoint = pointAt(wrapLongitude(longitudeDeg - longitudeStep), latitudeDeg);
+            const eastPoint = pointAt(wrapLongitude(longitudeDeg + longitudeStep), latitudeDeg);
+            const southPoint = pointAt(longitudeDeg, Math.max(-90, latitudeDeg - latitudeStep));
+            const northPoint = pointAt(longitudeDeg, Math.min(90, latitudeDeg + latitudeStep));
+            let terrainNormal = radialNormal.clone();
+            if (westPoint && eastPoint && southPoint && northPoint) {
+              const eastTangent = eastPoint.sub(westPoint);
+              const northTangent = northPoint.sub(southPoint);
+              terrainNormal = northTangent.cross(eastTangent).normalize();
+              if (terrainNormal.dot(radialNormal) < 0) terrainNormal.negate();
+            }
+
             return {
               longitudeDeg,
               latitudeDeg,
               elevationUnits,
               radiusUnits: radiusAtPoint,
               localPosition,
-              radialNormal
+              radialNormal,
+              terrainNormal
             };
           }
         }
