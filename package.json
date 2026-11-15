@@ -13,7 +13,8 @@
     "test": "node --test $(find src -type f -name '*.test.js' -print)",
     "android:add": "npx cap add android",
     "android:sync": "npx cap sync android",
-    "build:earth:wasm": "bash scripts/build-earth-wasm.sh"
+    "build:earth:wasm": "bash scripts/build-earth-wasm.sh",
+    "prepare:earth:etopo": "python3 scripts/prepare-etopo2022.py"
   },
   "dependencies": {
     "@capacitor/core": "^7.4.3",
