@@ -59,6 +59,11 @@ export function createEarthCore(options = {}) {
     getPlanetaryProfile() {
       return planetaryProfile;
     },
+    // Shared physical query surface: collision reads the same ETOPO elevation
+    // sampler that displaces the visible terrain mesh.
+    getCollisionSurface() {
+      return layers.terrain?.collisionSurface ?? null;
+    },
     updateModules: EARTH_UPDATE_MODULES,
     attachUpdateModule(id, runtime) {
       if (disposed) return false;
