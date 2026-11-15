@@ -93,52 +93,22 @@ export function createTerrainRuntime({ options, layers }) {
       const unitsPerKm = radius / 6371.0088;
       heightScale = exaggeration;
 
-      // Displace every prepared LOD mesh from the same elevation source so
-      // switching detail levels never replaces real terrain with a smooth sphere.
-      for (const geometry of lodGeometries) {
-        const positions = geometry.attributes.position;
-        const uv = geometry.attributes.uv;
-        for (let i = 0; i < positions.count; i++) {
-          const u = uv.getX(i), v = uv.getY(i);
-          const px = Math.min(width - 1, Math.max(0, Math.floor(u * (width - 1))));
-          const py = Math.min(height - 1, Math.max(0, Math.floor((1 - v) * (height - 1))));
-          const land = smoothstep(.08, .92, maskData[(py * width + px) * 4] / 255);
-
-          direction.fromBufferAttribute(positions, i).normalize();
-          const latitude = Math.asin(THREE.MathUtils.clamp(direction.y, -1, 1));
-          const longitude = Math.atan2(direction.z, direction.x);
-          const latitudeDeg = THREE.MathUtils.radToDeg(latitude);
-          const longitudeDeg = THREE.MathUtils.radToDeg(longitude);
-
-          let elevationUnits = null;
-          if (gridIsReady) {
-            const elevationMeters = sampleEarthElevationGrid(grid, longitudeDeg, latitudeDeg);
-            if (elevationMeters !== null) {
-              elevationUnits = (elevationMeters / 1000) * unitsPerKm * exaggeration;
-            }
-          }
-          if (elevationUnits === null) {
-            elevationUnits = proceduralFallback(longitude, latitude, radius, land);
-          }
-
-          const finalRadius = radius + elevationUnits;
-          positions.setXYZ(i, direction.x * finalRadius, direction.y * finalRadius, direction.z * finalRadius);
-        }
-        positions.needsUpdate = true;
-        geometry.computeVertexNormals();
-        geometry.computeBoundingSphere();
-      }
-      const positions = surface.geometry.attributes.position;
-
+      // One authoritative elevation function feeds both the visible mesh and
+      // the physical collision surface. This prevents ETOPO/no-data/fallback
+      // differences between what is rendered and what the player or ship hits.
       elevationSampler = (longitudeDeg, latitudeDeg) => {
+        if (!Number.isFinite(longitudeDeg) || !Number.isFinite(latitudeDeg) ||
+            latitudeDeg < -90 || latitudeDeg > 90) return null;
+
         if (gridIsReady) {
-          // Point queries stay in JS to avoid copying the full global grid into WASM
-          // for every character/collision sample; geometry batches still use C++.
           const meters = sampleEarthElevationGrid(grid, longitudeDeg, latitudeDeg);
-          if (meters !== null) return earthKernel.elevationMetersToUnits(
-            meters, radius, 6371.0088, exaggeration
-          );
+          if (meters !== null) {
+            return earthKernel.elevationMetersToUnits(
+              meters, radius, 6371.0088, exaggeration
+            );
+          }
         }
+
         const lon = THREE.MathUtils.degToRad(longitudeDeg);
         const lat = THREE.MathUtils.degToRad(latitudeDeg);
         const u = (longitudeDeg + 180) / 360;
@@ -152,6 +122,33 @@ export function createTerrainRuntime({ options, layers }) {
           earthKernel.elevationMetersToUnits(detailMeters, radius, 6371.0088, exaggeration);
         return baseUnits + (land > .5 && detailUnits !== null ? detailUnits : 0);
       };
+
+      const applyElevationToMeshes = () => {
+        const vertexDirection = new THREE.Vector3();
+        for (const geometry of lodGeometries) {
+          const positions = geometry.attributes.position;
+          for (let i = 0; i < positions.count; i++) {
+            vertexDirection.fromBufferAttribute(positions, i).normalize();
+            const latitudeDeg = THREE.MathUtils.radToDeg(Math.asin(
+              THREE.MathUtils.clamp(vertexDirection.y, -1, 1)
+            ));
+            const longitudeDeg = THREE.MathUtils.radToDeg(Math.atan2(
+              vertexDirection.z, vertexDirection.x
+            ));
+            const elevationUnits = elevationSampler(longitudeDeg, latitudeDeg);
+            if (!Number.isFinite(elevationUnits)) continue;
+            const finalRadius = radius + elevationUnits;
+            positions.setXYZ(i, vertexDirection.x * finalRadius,
+              vertexDirection.y * finalRadius, vertexDirection.z * finalRadius);
+          }
+          positions.needsUpdate = true;
+          geometry.computeVertexNormals();
+          geometry.computeBoundingSphere();
+        }
+      };
+
+      applyElevationToMeshes();
+      const positions = surface.geometry.attributes.position;
 
       layers.terrain = {
         integratedWith: 'surface',
@@ -195,47 +192,15 @@ export function createTerrainRuntime({ options, layers }) {
         }
       };
 
-      // Load the compact NOAA-derived global grid after the safe procedural
-      // first frame. The same ETOPO samples then replace the fallback on every
-      // prepared LOD mesh and remain the source used by the collision sampler.
+      // Replace the procedural first frame with NOAA ETOPO data. Reusing
+      // applyElevationToMeshes also applies the identical no-data fallback
+      // used by point queries from the collision surface.
       if (!gridIsReady && options.loadEtopo !== false) {
         loadEtopo2022GlobalGrid().then(loadedGrid => {
           if (disposed || !loadedGrid) return;
           grid = loadedGrid;
           gridIsReady = true;
-          const vertexDirection = new THREE.Vector3();
-          for (const geometry of lodGeometries) {
-            const geometryPositions = geometry.attributes.position;
-            for (let i = 0; i < geometryPositions.count; i++) {
-              vertexDirection.fromBufferAttribute(geometryPositions, i).normalize();
-              const latitudeDeg = THREE.MathUtils.radToDeg(Math.asin(
-                THREE.MathUtils.clamp(vertexDirection.y, -1, 1)
-              ));
-              const longitudeDeg = THREE.MathUtils.radToDeg(Math.atan2(
-                vertexDirection.z, vertexDirection.x
-              ));
-              const meters = sampleEarthElevationGrid(grid, longitudeDeg, latitudeDeg);
-              let elevationUnits;
-              if (meters === null) {
-                const lon = THREE.MathUtils.degToRad(longitudeDeg);
-                const lat = THREE.MathUtils.degToRad(latitudeDeg);
-                const u = (longitudeDeg + 180) / 360;
-                const v = (90 - latitudeDeg) / 180;
-                const px = Math.min(width - 1, Math.max(0, Math.floor(u * (width - 1))));
-                const py = Math.min(height - 1, Math.max(0, Math.floor(v * (height - 1))));
-                const land = smoothstep(.08, .92, maskData[(py * width + px) * 4] / 255);
-                elevationUnits = proceduralFallback(lon, lat, radius, land);
-              } else {
-                elevationUnits = (meters / 1000) * unitsPerKm * exaggeration;
-              }
-              const finalRadius = radius + elevationUnits;
-              geometryPositions.setXYZ(i, vertexDirection.x * finalRadius,
-                vertexDirection.y * finalRadius, vertexDirection.z * finalRadius);
-            }
-            geometryPositions.needsUpdate = true;
-            geometry.computeVertexNormals();
-            geometry.computeBoundingSphere();
-          }
+          applyElevationToMeshes();
           if (layers.terrain) {
             layers.terrain.elevationSource = grid.source;
             layers.terrain.sourceAttribution = grid.attribution;
@@ -245,7 +210,7 @@ export function createTerrainRuntime({ options, layers }) {
             layers.terrain.collisionSurface.source = grid.source;
           }
         }).catch(() => {
-          // The procedural surface remains available when the optional data asset is absent.
+          // Keep the procedural surface if the optional ETOPO asset is absent.
         });
       }
 
@@ -316,6 +281,17 @@ export function createTerrainRuntime({ options, layers }) {
           geometry.computeVertexNormals();
           geometry.computeBoundingSphere();
         }
+      }).catch(() => {
+        // Keep the already-generated JS terrain if WASM loading fails.
+      });      // Rebuild the visible meshes through the same sampler after WASM is
+      // ready. C++ accelerates the procedural detail calculation; it does not
+      // introduce a second elevation path or a different collision surface.
+      loadEarthKernel().then(kernel => {
+        if (disposed) { kernel.dispose(); return; }
+        earthKernel.dispose();
+        earthKernel = kernel;
+        if (layers.terrain) layers.terrain.computeBackend = kernel.backend;
+        if (kernel.backend === 'wasm-c++') applyElevationToMeshes();
       }).catch(() => {
         // Keep the already-generated JS terrain if WASM loading fails.
       });
