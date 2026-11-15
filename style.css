@@ -1457,7 +1457,8 @@ select:focus {
   text-align: left;
 }
 .inventory-cell { pointer-events: auto; }
-.inventory-item::before { content: none; }\n.inventory-item { cursor: pointer; touch-action: pan-y; user-select: none; }
+.inventory-item::before { content: none; }
+.inventory-item { cursor: pointer; touch-action: pan-y; user-select: none; }
 .inventory-item b { color: var(--text); font-size: 10px; line-height: 1.25; }
 .inventory-item .item-code { color: var(--cyan); font-size: 9px; }
 .inventory-item small { color: var(--gold); font-size: 7px; font-weight: 700; }
