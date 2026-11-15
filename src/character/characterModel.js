@@ -242,6 +242,7 @@ export function createCharacterModel(options = {}) {
   phaser.userData.muzzleLight = muzzle;
   phaser.userData.energyMaterial = phaserEnergy;
   // A arma é anexada ao grupo da mão, não à tela/HUD.
+  wardrobe.weapon.userData.phaser = phaser;
   phaserHand.add(wardrobe.weapon);
   wardrobe.weapon.visible = false;
 
