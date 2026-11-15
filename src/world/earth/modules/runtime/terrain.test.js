@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { sampleEarthElevationGrid } from './terrain.js';
-import { loadEtopo2022GlobalGrid, parseEtopo2022Grid } from '../../references/etopo2022.js';
+import { ETOPO_2022_GLOBAL_GRID, loadEtopo2022GlobalGrid, parseEtopo2022Grid } from '../../references/etopo2022.js';
 import { createEarthKernelAdapter } from '../../wasm/earthKernel.js';
 
 const grid = (values, extra = {}) => ({
@@ -138,4 +138,12 @@ test('reports an invalid ETOPO binary payload', async () => {
   });
   assert.equal(grid, null);
   assert.equal(statuses.at(-1).state, 'invalid');
+});
+
+test('production ETOPO asset contract matches the 0.25-degree global grid', () => {
+  assert.equal(ETOPO_2022_GLOBAL_GRID.width, 1440);
+  assert.equal(ETOPO_2022_GLOBAL_GRID.height, 720);
+  assert.equal(ETOPO_2022_GLOBAL_GRID.resolutionArcSeconds, 900);
+  assert.equal(ETOPO_2022_GLOBAL_GRID.sourceResolutionArcSeconds, 60);
+  assert.equal(ETOPO_2022_GLOBAL_GRID.verticalDatum, 'EGM2008 geoid');
 });
