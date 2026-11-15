@@ -3,7 +3,7 @@ const ETOPO_HEADER_BYTES = 56;
 const ETOPO_DATA_PATH = 'earth/data/etopo2022-global-0.25deg.bin';
 
 export const ETOPO_2022_GLOBAL_GRID = Object.freeze({
-  source: 'NOAA ETOPO 2022 60 arc-second global relief, resampled to 0.25 degrees',
+  source: 'NOAA ETOPO 2022 60 arc-second global relief, sampled to a 0.25-degree grid through NOAA ERDDAP',
   attribution: 'NOAA National Centers for Environmental Information, ETOPO 2022, DOI: 10.25921/fd45-gt74',
   verticalDatum: 'EGM2008 geoid',
   resolutionArcSeconds: 900,
