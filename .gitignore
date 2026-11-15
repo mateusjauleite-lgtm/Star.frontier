@@ -1,0 +1,3 @@
+# Large source DEM is cached by CI and never committed.
+.cache/
+*.tmp
