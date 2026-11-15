@@ -53,8 +53,25 @@ jobs:
           yes | sdkmanager --licenses
           sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
+      - name: Set up Python for ETOPO preparation
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache NOAA ETOPO 2022 source
+        uses: actions/cache@v4
+        with:
+          path: .cache/ETOPO_2022_v1_60s_N90W180_surface.tif
+          key: noaa-etopo2022-60s-global-v1
+
+      - name: Install geospatial preparation dependencies
+        run: python -m pip install --disable-pip-version-check numpy rasterio
+
       - name: Install JavaScript dependencies
         run: npm install --no-audit --no-fund
+
+      - name: Prepare compact NOAA ETOPO 2022 terrain grid
+        run: npm run prepare:earth:etopo
 
       - name: Compile Earth C++ kernel to WebAssembly
         run: npm run build:earth:wasm
