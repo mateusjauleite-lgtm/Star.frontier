@@ -59,6 +59,8 @@ const characterRight = new THREE.Vector3();
 const characterMove = new THREE.Vector3();
 const characterLookEuler = new THREE.Euler(0, 0, 0, 'YXZ');
 let characterMoveInput = { x: 0, y: 0 };
+let characterSprintHeld = false;
+let characterJumpQueued = false;
 let pilotInteractionAvailable = false;
 const pilotPlayerWorldPosition = new THREE.Vector3();
 const characterCameraWorldPosition = new THREE.Vector3();
@@ -996,7 +998,11 @@ function updateCharacterMovement(dt) {
 
     if (characterMove.lengthSq() > 0) characterMove.normalize();
 
-    const step = 3.1 * magnitude * dt;
+    const stamina = characterCore.snapshot().stamina;
+  const sprinting = characterSprintHeld && magnitude > 0.08 && stamina > 0;
+  const step = (sprinting ? 5.0 : 3.1) * magnitude * dt;
+  if (sprinting) characterCore.setStamina(Math.max(0, stamina - 22 * dt));
+  else if (stamina < 100) characterCore.setStamina(Math.min(100, stamina + 13 * dt));
     const previousX = deck.x;
     const previousZ = deck.z;
 
@@ -1015,6 +1021,11 @@ function updateCharacterMovement(dt) {
   }
 
   const floorY = starshipInterior.layout.decks[activeDeckIndex].y + 0.21;
+  if (characterJumpQueued) {
+    if (characterPhysics?.jump()) characterAnimator?.play('jump', { restart: true });
+    characterJumpQueued = false;
+  }
+
   const physicsState = characterPhysics?.update(dt, {
     position: deck,
     floorY
@@ -1029,7 +1040,7 @@ function updateCharacterMovement(dt) {
   } else if (physicsState.justLanded) {
     characterAnimator?.play('land', { restart: true });
   } else if (magnitude > 0.08) {
-    characterAnimator?.play(magnitude > 0.72 ? 'run' : 'walk');
+    characterAnimator?.play(sprinting ? 'run' : 'walk');
   } else if (characterAnimator?.current !== 'land') {
     characterAnimator?.play('idle');
   }
