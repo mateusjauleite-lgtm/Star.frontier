@@ -1,12 +1,14 @@
 const DEFAULT_SLOTS = Object.freeze(['suit', 'helmet', 'torso', 'gloves', 'legs', 'boots', 'weapon', 'tool', 'machine']);
+const CATEGORY_SLOTS = Object.freeze({ equipment: true, weapon: 'weapon', tool: 'tool' });
 export function createEquipmentCore({ registry, slots = DEFAULT_SLOTS, initial = {} } = {}) {
   if (!registry) throw new TypeError('Item registry obrigatório.');
   const equipped = Object.fromEntries(slots.map(slot => [slot, initial[slot] ?? null]));
   function equip(instance) {
     const definition = registry.get(instance?.definitionId);
-    if (!definition || definition.category !== 'equipment') return { ok: false, reason: 'invalid-equipment' };
+    if (!definition || !CATEGORY_SLOTS[definition.category]) return { ok: false, reason: 'invalid-equipment' };
     const slot = definition.attributes?.slot;
     if (!slots.includes(slot)) return { ok: false, reason: 'invalid-slot' };
+    if (definition.category !== 'equipment' && CATEGORY_SLOTS[definition.category] !== slot) return { ok: false, reason: 'invalid-slot' };
     equipped[slot] = instance.instanceId;
     return { ok: true, slot, instanceId: instance.instanceId };
   }
