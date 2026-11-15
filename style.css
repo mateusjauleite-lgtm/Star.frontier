@@ -1671,3 +1671,8 @@ body {
   }
   .character-movement-btn { width: 54px; height: 54px; font-size: 20px; }
 }
+
+
+/* Botão temporário de teste das animações do personagem. */
+.animation-btn { border-color: rgba(255, 197, 92, .62); color: #ffd28a; }
+.animation-btn.is-active { background: rgba(100, 65, 20, .88); border-color: #ffd28a; box-shadow: 0 0 18px rgba(255, 197, 92, .32); }
