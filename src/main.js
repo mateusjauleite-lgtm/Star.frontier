@@ -1585,12 +1585,6 @@ document.querySelectorAll('[data-inventory-tab]').forEach(button => {
 $('inventory-modal')?.addEventListener('click', event => {
   if (event.target.id === 'inventory-modal') closeInventory();
 });
-document.querySelectorAll('[data-slot]').forEach(button => {
-  button.addEventListener('click', () => {
-    document.querySelectorAll('[data-slot]').forEach(slot => slot.classList.remove('selected'));
-    button.classList.add('selected');
-  });
-});
 renderInventory();
 $('leave-pilot-btn')?.addEventListener('click', exitPilotMode);
 
