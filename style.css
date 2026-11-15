@@ -1183,6 +1183,42 @@ select:focus {
   pointer-events: auto;
   touch-action: none;
 }
+.character-aim-reticle {
+  position: absolute;
+  left: 50%;
+  top: 47%;
+  width: 34px;
+  height: 34px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  opacity: .88;
+  filter: drop-shadow(0 0 5px rgba(67,217,255,.75));
+}
+.character-aim-reticle.is-visible { display: flex; }
+.character-aim-reticle b {
+  width: 5px;
+  height: 5px;
+  border: 1px solid #d8f8ff;
+  border-radius: 50%;
+  background: rgba(67,217,255,.4);
+}
+.character-aim-reticle i {
+  position: absolute;
+  width: 8px;
+  height: 1px;
+  background: #67e4ff;
+}
+.character-aim-reticle i:first-child { transform: translateX(-11px); }
+.character-aim-reticle i:last-child { transform: translateX(11px); }
+.aim-btn.is-active {
+  border-color: rgba(84,230,160,.85);
+  color: var(--green);
+  box-shadow: 0 0 15px rgba(84,230,160,.24);
+}
+
 .character-move-stick {
   position: absolute;
   left: max(18px, env(safe-area-inset-left));
