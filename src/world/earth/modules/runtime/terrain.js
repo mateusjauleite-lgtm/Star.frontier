@@ -83,6 +83,14 @@ export function createTerrainRuntime({ options, layers }) {
   const highResolutionPatches = new Set();
   let activeHighResolutionPatch = null;
   let lastPatchCenter = null;
+  const invalidateActiveHighResolutionPatch = () => {
+    if (activeHighResolutionPatch) {
+      surfacePatchDispose(activeHighResolutionPatch);
+      highResolutionPatches.delete(activeHighResolutionPatch);
+    }
+    activeHighResolutionPatch = null;
+    lastPatchCenter = null;
+  };
 
   return {
     initialize() {
@@ -392,6 +400,7 @@ export function createTerrainRuntime({ options, layers }) {
           if (disposed || !loadedGrid) return;
           grid = loadedGrid;
           gridIsReady = true;
+          invalidateActiveHighResolutionPatch();
           applyElevationToMeshes();
           if (layers.terrain) {
             layers.terrain.elevationSource = grid.source;
@@ -413,6 +422,7 @@ export function createTerrainRuntime({ options, layers }) {
         if (disposed) { kernel.dispose(); return; }
         earthKernel.dispose();
         earthKernel = kernel;
+        invalidateActiveHighResolutionPatch();
         if (layers.terrain) layers.terrain.computeBackend = kernel.backend;
         if (kernel.backend === 'wasm-c++') applyElevationToMeshes();
       }).catch(() => {
