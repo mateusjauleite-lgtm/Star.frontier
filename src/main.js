@@ -1214,6 +1214,7 @@ function loop(now) {
 
   const dt = Math.min((now - last) / 1000, 0.04);
   last = now;
+  if (ship) ship.userData.earthCollisionResolved = false;
 
   if (characterCore.snapshot().mode === 'on-foot') {
     updateCharacterMovement(dt);
