@@ -147,13 +147,19 @@ function makeRockAlbedo() {
 }
 
 export function createSurfaceRuntime({ group, options, layers }) {
-  let mesh, texture, geometry, material;
+  let mesh, texture, geometry, material, lodGeometries = [];
   return {
     initialize() {
       texture = new THREE.CanvasTexture(makeRockAlbedo());
       texture.colorSpace = THREE.SRGBColorSpace;
       texture.anisotropy = 4;
-      geometry = new THREE.SphereGeometry(options.radius, 320, 192);
+      // Global mesh LOD: retain the existing 320x192 surface as the close-range level.
+      lodGeometries = [
+        new THREE.SphereGeometry(options.radius, 72, 48),
+        new THREE.SphereGeometry(options.radius, 144, 96),
+        new THREE.SphereGeometry(options.radius, 320, 192)
+      ];
+      geometry = lodGeometries[2];
       material = new THREE.MeshStandardMaterial({
         map: texture,
         roughness: .96,
@@ -161,16 +167,30 @@ export function createSurfaceRuntime({ group, options, layers }) {
       });
       mesh = new THREE.Mesh(geometry, material);
       mesh.name = 'Earth-Continuous-Rocky-Globe';
+      mesh.userData.earthLodGeometries = lodGeometries;
+      mesh.userData.earthLodLevel = 2;
       mesh.rotation.z = THREE.MathUtils.degToRad(11.5);
       group.add(mesh);
       layers.surface = mesh;
     },
-    update(delta) {
-      if (mesh) mesh.rotation.y += Math.min(Math.max(delta || 0, 0), .1) * .012;
+    update(delta, context) {
+      if (!mesh) return;
+      mesh.rotation.y += Math.min(Math.max(delta || 0, 0), .1) * .012;
+      const camera = context?.camera;
+      if (!camera || lodGeometries.length !== 3) return;
+      const center = mesh.getWorldPosition(new THREE.Vector3());
+      const distance = camera.position.distanceTo(center);
+      const radius = options.radius;
+      const nextLevel = distance > radius * 4.2 ? 0 : distance > radius * 2.2 ? 1 : 2;
+      if (nextLevel !== mesh.userData.earthLodLevel) {
+        mesh.geometry = lodGeometries[nextLevel];
+        mesh.userData.earthLodLevel = nextLevel;
+      }
     },
     dispose() {
       if (mesh) group.remove(mesh);
-      geometry?.dispose();
+      lodGeometries.forEach(item => item.dispose());
+      lodGeometries = [];
       material?.dispose();
       texture?.dispose();
     }
