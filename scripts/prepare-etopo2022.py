@@ -21,8 +21,8 @@ SOURCE_URL = (
 )
 OUTPUT = Path("public/earth/data/etopo2022-global-0.25deg.bin")
 SOURCE = Path(".cache/ETOPO_2022_v1_60s_N90W180_surface.tif")
-WIDTH, HEIGHT = 1441, 721
-WEST, EAST, SOUTH, NORTH = -180.0, 180.0, -90.0, 90.0
+WIDTH, HEIGHT = 1440, 720
+WEST, EAST, SOUTH, NORTH = -179.875, 179.875, -89.875, 89.875
 NODATA = -32768
 HEADER_BYTES = 56
 MAGIC = b"ETOPO22\0"
@@ -43,11 +43,9 @@ def download_source():
 def build_grid():
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     destination = np.full((HEIGHT, WIDTH), NODATA, dtype=np.int16)
-    # ETOPO grid nodes lie on -180..180 / -90..90. Pixel centers are placed
-    # exactly on those nodes so the runtime's bilinear sampler is aligned.
-    target_transform = from_origin(
-        WEST - 0.125, NORTH + 0.125, 0.25, 0.25
-    )
+    # ETOPO's global GeoTIFF is pixel-registered. The output stores sample
+    # centers from -179.875..179.875 / 89.875..-89.875 at 0.25-degree spacing.
+    target_transform = from_origin(-180.0, 90.0, 0.25, 0.25)
     with rasterio.open(SOURCE) as source:
         reproject(
             source=rasterio.band(source, 1),
