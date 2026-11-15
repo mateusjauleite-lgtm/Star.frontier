@@ -29,6 +29,10 @@ MAGIC = b"ETOPO22\0"
 
 
 def download_source():
+    expected_output_size = HEADER_BYTES + WIDTH * HEIGHT * 2
+    if OUTPUT.exists() and OUTPUT.stat().st_size == expected_output_size:
+        print(f"Using cached compact ETOPO grid: {OUTPUT}")
+        return
     SOURCE.parent.mkdir(parents=True, exist_ok=True)
     if SOURCE.exists() and SOURCE.stat().st_size > 100_000_000:
         return
@@ -41,6 +45,10 @@ def download_source():
 
 
 def build_grid():
+    expected_output_size = HEADER_BYTES + WIDTH * HEIGHT * 2
+    if OUTPUT.exists() and OUTPUT.stat().st_size == expected_output_size:
+        print(f"Compact ETOPO grid is already prepared: {OUTPUT}")
+        return
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     destination = np.full((HEIGHT, WIDTH), NODATA, dtype=np.int16)
     # ETOPO's global GeoTIFF is pixel-registered. The output stores sample
