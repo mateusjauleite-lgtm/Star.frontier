@@ -100,7 +100,7 @@ function updateCharacterCameraButton() {
     : 'CÂMERA: 3ª PESSOA';
 }
 
-function updateCharacterHUD(){const p=earthSystem?.getPlanetaryProfile?.(),s=characterCore.snapshot();const equipment=Object.fromEntries(Object.entries(s.equipment||{}).map(([slot,item])=>{const d=item?itemDatabase.get(item.definitionId):null;return[slot,item?{...item,displayName:d?.name||item.definitionId,displayCode:d?.code||'',tooltip:`${d?.code||'SEM CÓDIGO'} · ${d?.id||item.definitionId} · ${d?.description||''}`}:null];}));characterHUD.update({...s,equipment,name:state.user||state.character||'EXPLORADOR',environment:p?{label:`${p.displayName} • R MÉDIO ${Math.round(p.physical.meanRadiusKm).toLocaleString('pt-BR')} KM`}:null});}
+function updateCharacterHUD(){const p=earthSystem?.getPlanetaryProfile?.(),s=characterCore.snapshot();const equipment=Object.fromEntries(Object.entries(s.equipment||{}).map(([slot,item])=>{const d=item?itemDatabase.get(item.definitionId):null;return[slot,item?{...item,displayName:d?.name||item.definitionId,displayCode:d?.code||'',tooltip:`${d?.code||'SEM CÓDIGO'} · ${d?.id||item.definitionId} · ${d?.description||''}`}:null];}));characterHUD.update({...s,equipment,name:state.user||state.character||'EXPLORADOR',environment:p?{label:`${p.displayName} • R MÉDIO ${Math.round(p.physical.meanRadiusKm).toLocaleString('pt-BR')} KM`}:null});updateCharacterActionButton();}
 
 state.ship = 'Nave exploradora';
 
@@ -1086,6 +1086,47 @@ function updateCharacterMovement(dt) {
   characterAnimator?.update(dt);
 }
 
+function resolveCharacterAction() {
+  if (characterCore.snapshot().mode !== 'on-foot' || nearbyElevator) return { id: 'none', label: '◎ AÇÃO', enabled: false };
+  if (pilotInteractionAvailable) return { id: 'pilot', label: '◎ PILOTAR', enabled: true };
+  const equipment = characterCore.snapshot().equipment || {};
+  const weapon = equipment.weapon && itemDatabase.get(equipment.weapon.definitionId);
+  const tool = equipment.tool && itemDatabase.get(equipment.tool.definitionId);
+  if (weapon?.category === 'weapon') return { id: 'weapon.fire', label: 'ATIRAR', enabled: true };
+  if (tool?.tags?.includes('mining')) return { id: 'tool.mine', label: 'MINERAR', enabled: true };
+  if (tool?.tags?.includes('scanner')) return { id: 'tool.scan', label: 'ESCANEAR', enabled: true };
+  return { id: 'none', label: '◎ AÇÃO', enabled: false };
+}
+
+function updateCharacterActionButton() {
+  const button = $('character-action-btn');
+  if (!button) return;
+  const action = resolveCharacterAction();
+  button.dataset.action = action.id;
+  button.textContent = action.label;
+  button.disabled = !action.enabled;
+  button.classList.toggle('available', action.enabled);
+  button.classList.toggle('hidden', nearbyElevator);
+}
+
+function performCharacterAction() {
+  const action = resolveCharacterAction();
+  if (!action.enabled) return;
+  if (action.id === 'pilot') { enterPilotMode(); return; }
+  const equipment = characterCore.snapshot().equipment || {};
+  const equipped = action.id === 'weapon.fire' ? equipment.weapon : equipment.tool;
+  const definition = equipped && itemDatabase.get(equipped.definitionId);
+  document.dispatchEvent(new CustomEvent('character:action-requested', {
+    detail: { action: action.id, itemInstanceId: equipped?.instanceId, itemId: definition?.id, itemCode: definition?.code }
+  }));
+  const messages = {
+    'weapon.fire': 'Pistola reconhecida. O disparo do personagem será integrado ao sistema de combate.',
+    'tool.mine': 'Broca reconhecida. A mineração planetária será integrada ao sistema de terreno.',
+    'tool.scan': 'Scanner reconhecido. A leitura de alvos será integrada ao sistema de exploração.'
+  };
+  toast(messages[action.id] || 'Ação indisponível.');
+}
+
 function updateElevatorButtons() {
   const up = $('elevator-up-btn');
   const down = $('elevator-down-btn');
@@ -1147,15 +1188,9 @@ function updatePilotInteraction() {
   if (available === pilotInteractionAvailable) return;
 
   pilotInteractionAvailable = available;
-  const button = $('character-action-btn');
-  if (button) {
-    button.disabled = !available;
-    button.textContent = available ? '◎ PILOTAR' : 'AÇÃO';
-    button.classList.toggle('available', available);
-  }
-
   characterCore.setInteractionTarget(available ? 'PILOTAGEM DISPONÍVEL' : null);
   updateCharacterHUD();
+  updateCharacterActionButton();
 }
 
 function setPilotInterface(activePilot) {
@@ -1550,7 +1585,7 @@ if (characterAim) {
   );
 }
 
-$('character-action-btn')?.addEventListener('click', enterPilotMode);
+$('character-action-btn')?.addEventListener('click', performCharacterAction);
 $('elevator-up-btn')?.addEventListener('click', () => moveElevator(-1));
 $('elevator-down-btn')?.addEventListener('click', () => moveElevator(1));
 
