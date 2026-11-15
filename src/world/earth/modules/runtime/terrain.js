@@ -14,6 +14,22 @@ const smoothstep = (a, b, value) => {
   return t * t * (3 - 2 * t);
 };
 
+export function calculateEtopoPatchSegments(radiusKm, latitudeDeg, grid = null, maxSegments = 128) {
+  if (!Number.isFinite(radiusKm) || radiusKm <= 0 ||
+      !Number.isFinite(latitudeDeg) || !Number.isFinite(maxSegments)) return 8;
+  const latitudeSpacingDegrees = grid?.height > 1 && Number.isFinite(grid.north) &&
+    Number.isFinite(grid.south)
+    ? (grid.north - grid.south) / (grid.height - 1)
+    : 0.25;
+  const latitudeSpacingKm = Math.max(1, latitudeSpacingDegrees * 111.195);
+  const longitudeSpacingKm = latitudeSpacingKm *
+    Math.max(0.1, Math.abs(Math.cos(THREE.MathUtils.degToRad(latitudeDeg))));
+  const sourceSpacingKm = Math.min(latitudeSpacingKm, longitudeSpacingKm);
+  return Math.round(THREE.MathUtils.clamp(
+    Math.ceil((radiusKm * 2) / sourceSpacingKm), 8, maxSegments
+  ));
+}
+
 /**
  * Global elevation grid contract:
  * { width, height, values: Float32Array, noDataValue?, units: 'meters',
@@ -168,16 +184,32 @@ export function createTerrainRuntime({ options, layers }) {
         const vertexDirection = new THREE.Vector3();
         for (const geometry of lodGeometries) {
           const positions = geometry.attributes.position;
+          const longitudes = new Float32Array(positions.count);
+          const latitudes = new Float32Array(positions.count);
           for (let i = 0; i < positions.count; i++) {
             vertexDirection.fromBufferAttribute(positions, i).normalize();
-            const latitudeDeg = THREE.MathUtils.radToDeg(Math.asin(
+            latitudes[i] = THREE.MathUtils.radToDeg(Math.asin(
               THREE.MathUtils.clamp(vertexDirection.y, -1, 1)
             ));
-            const longitudeDeg = THREE.MathUtils.radToDeg(Math.atan2(
+            longitudes[i] = THREE.MathUtils.radToDeg(Math.atan2(
               vertexDirection.z, vertexDirection.x
             ));
-            const elevationUnits = elevationSampler(longitudeDeg, latitudeDeg);
+          }
+
+          // One batched C++/WASM call samples the authoritative NOAA grid.
+          // The JavaScript sampler remains the fallback for no-data cells and
+          // for devices where the WASM module is unavailable.
+          const sampledMeters = gridIsReady
+            ? earthKernel.sampleElevationBatch(grid, longitudes, latitudes)
+            : null;
+          for (let i = 0; i < positions.count; i++) {
+            let elevationUnits = Number.isFinite(sampledMeters?.[i])
+              ? earthKernel.elevationMetersToUnits(
+                sampledMeters[i], radius, 6371.0088, exaggeration
+              )
+              : elevationSampler(longitudes[i], latitudes[i]);
             if (!Number.isFinite(elevationUnits)) continue;
+            vertexDirection.fromBufferAttribute(positions, i).normalize();
             const finalRadius = radius + elevationUnits;
             positions.setXYZ(i, vertexDirection.x * finalRadius,
               vertexDirection.y * finalRadius, vertexDirection.z * finalRadius);
@@ -221,13 +253,15 @@ export function createTerrainRuntime({ options, layers }) {
             longitudeDeg,
             latitudeDeg,
             radiusKm = 25,
-            segments = 32
+            segments = null
           } = {}) {
             if (disposed || !elevationSampler ||
                 !Number.isFinite(longitudeDeg) || !Number.isFinite(latitudeDeg) ||
                 latitudeDeg < -89.5 || latitudeDeg > 89.5) return null;
             const safeRadiusKm = THREE.MathUtils.clamp(radiusKm, 1, 1000);
-            const divisions = Math.round(THREE.MathUtils.clamp(segments, 8, 128));
+            const divisions = Number.isFinite(segments)
+              ? Math.round(THREE.MathUtils.clamp(segments, 8, 128))
+              : calculateEtopoPatchSegments(safeRadiusKm, latitudeDeg, gridIsReady ? grid : null);
             const latSpan = safeRadiusKm / 111.195;
             const cosLatitude = Math.max(0.1, Math.cos(THREE.MathUtils.degToRad(latitudeDeg)));
             const lonSpan = safeRadiusKm / (111.195 * cosLatitude);
@@ -288,7 +322,9 @@ export function createTerrainRuntime({ options, layers }) {
               meshSpacingKm: (safeRadiusKm * 2) / divisions,
               sourceGridSpacingKm: gridIsReady
                 ? (grid.north - grid.south) / (grid.height - 1) * 111.195
-                : null,
+                : 0.25 * 111.195,
+              patchAreaDiameterKm: safeRadiusKm * 2,
+              samplingFollowsEtopo: true,
               elevationSource: gridIsReady ? (grid.source ?? 'provided-global-grid') : 'procedural-fallback'
             };
             surface.add(patch);
@@ -297,9 +333,9 @@ export function createTerrainRuntime({ options, layers }) {
           },
           updateHighResolutionPatch(worldPosition, {
             activationAltitudeUnits = 120,
-            radiusKm = 100,
-            segments = 64,
-            recenterDistanceKm = 20
+            radiusKm = 750,
+            segments = null,
+            recenterDistanceKm = 80
           } = {}) {
             if (disposed || !worldPosition?.isVector3 || !surface.parent) return null;
             surface.updateWorldMatrix(true, false);
