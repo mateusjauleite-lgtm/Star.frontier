@@ -7,6 +7,7 @@ export const ETOPO_2022_GLOBAL_GRID = Object.freeze({
   attribution: 'NOAA National Centers for Environmental Information, ETOPO 2022, DOI: 10.25921/fd45-gt74',
   verticalDatum: 'EGM2008 geoid',
   resolutionArcSeconds: 900,
+  sourceResolutionArcSeconds: 60,
   width: 1440,
   height: 720,
   west: -179.875,
