@@ -5,20 +5,25 @@ import { geodeticToEarthLocalFrame } from '../../../../ships/flight/landingAutop
 
 const SITE_ID = 'earth-salar-test-candidate';
 
-function createSiteMarker(frame, site) {
+function createSiteMarker(frame, site, sample, surface) {
+  const inverseSurfaceMatrix = surface.matrix.clone().invert();
+  const position = sample.localPosition.clone().applyMatrix4(inverseSurfaceMatrix);
+  const up = sample.terrainNormal.clone()
+    .transformDirection(inverseSurfaceMatrix).normalize();
+  const north = new THREE.Vector3(...frame.north);
+  north.addScaledVector(up, -north.dot(up)).normalize();
+  const east = new THREE.Vector3().crossVectors(north, up).normalize();
+
   const marker = new THREE.Group();
   marker.name = 'Earth-Uyuni-Persistent-Site-Marker';
   marker.userData.landingSite = {
     id: site.id, latitudeDeg: site.latitudeDeg, longitudeDeg: site.longitudeDeg,
     referencePointId: site.referencePointId, status: site.status
   };
-  marker.position.set(...frame.position);
-  marker.position.add(new THREE.Vector3(...frame.up).multiplyScalar(2));
-  const basis = new THREE.Matrix4().makeBasis(
-    new THREE.Vector3(...frame.east), new THREE.Vector3(...frame.up),
-    new THREE.Vector3(...frame.north).negate()
-  );
-  marker.quaternion.setFromRotationMatrix(basis);
+  marker.position.copy(position).addScaledVector(up, 2);
+  marker.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(
+    east, up, north.clone().negate()
+  ));
   const ringMaterial = new THREE.MeshBasicMaterial({
     color: 0x36caff, transparent: true, opacity: 0.95,
     side: THREE.DoubleSide, depthWrite: false
@@ -34,26 +39,36 @@ function createSiteMarker(frame, site) {
   beacon.name = 'Uyuni-Site-Reference-Beacon';
   beacon.position.y = 7;
   marker.add(beacon);
+  surface.add(marker);
   return marker;
 }
 
-export function createEarthInfrastructureRuntime({ group, options, layers }) {
+export function createEarthInfrastructureRuntime({ options, layers }) {
   let marker = null;
   let base = null;
   let disposed = false;
   const site = getLandingSite(SITE_ID);
+  const surface = layers.surface;
+  const collisionSurface = layers.terrain?.collisionSurface;
+
+  const sampleSite = () => {
+    if (!surface || !collisionSurface?.sample) return null;
+    surface.updateMatrix();
+    return collisionSurface.sample(site.longitudeDeg, site.latitudeDeg);
+  };
 
   return {
     initialize() {
-      if (!site) return;
-      // O marcador usa a coordenada geodésica e o raio nominal: não depende do ETOPO.
+      if (!site || !surface || !collisionSurface) return;
+      // O marcador nasce com o sampler provisório e permanece preso à malha,
+      // mesmo antes do ETOPO e durante a rotação/inclinação axial da Earth.
       const frame = geodeticToEarthLocalFrame({
         longitudeDeg: site.longitudeDeg, latitudeDeg: site.latitudeDeg,
         radiusUnits: options.radius
       });
-      if (!frame) return;
-      marker = createSiteMarker(frame, site);
-      group.add(marker);
+      const sample = sampleSite();
+      if (!frame || !sample) return;
+      marker = createSiteMarker(frame, site, sample, surface);
     },
     update() {
       if (disposed || base || !site || !layers.terrain?.sourceGridReady) return;
@@ -61,24 +76,27 @@ export function createEarthInfrastructureRuntime({ group, options, layers }) {
         longitudeDeg: site.longitudeDeg, latitudeDeg: site.latitudeDeg,
         radiusUnits: options.radius
       });
-      if (!frame) return;
-      group.updateWorldMatrix(true, false);
-      const candidateWorld = group.localToWorld(new THREE.Vector3(...frame.position));
-      const sampled = layers.terrain.collisionSurface?.sampleWorldPosition?.(candidateWorld);
-      if (!sampled?.worldPosition || !sampled?.worldNormal) return;
-      const inverseEarthMatrix = group.matrixWorld.clone().invert();
-      const localPosition = sampled.worldPosition.clone().applyMatrix4(inverseEarthMatrix);
-      const up = sampled.worldNormal.clone().transformDirection(inverseEarthMatrix).normalize();
-      const north = new THREE.Vector3(...frame.north)
-        .transformDirection(group.matrixWorld).transformDirection(inverseEarthMatrix);
+      const sample = sampleSite();
+      if (!frame || !sample) return;
+
+      // sample() devolve a posição e a normal já transformadas pela matriz
+      // atual da malha; invertemos essa matriz para anexar a base à própria
+      // malha, que carrega sua inclinação axial e rotação diária.
+      const inverseSurfaceMatrix = surface.matrix.clone().invert();
+      const localPosition = sample.localPosition.clone()
+        .applyMatrix4(inverseSurfaceMatrix);
+      const up = sample.terrainNormal.clone()
+        .transformDirection(inverseSurfaceMatrix).normalize();
+      const north = new THREE.Vector3(...frame.north);
       north.addScaledVector(up, -north.dot(up)).normalize();
       if (north.lengthSq() < 0.9 || up.lengthSq() < 0.9) return;
       const east = new THREE.Vector3().crossVectors(north, up).normalize();
       const basis = new THREE.Matrix4().makeBasis(east, up, north.clone().negate());
+
       base = createLandingBase();
       base.group.position.copy(localPosition).addScaledVector(up, 0.24);
       base.group.quaternion.setFromRotationMatrix(basis);
-      group.add(base.group);
+      surface.add(base.group);
       console.info('[Earth] Base de superfície posicionada no ponto UY04 do Salar de Uyuni.');
     },
     getBase() { return base; },
