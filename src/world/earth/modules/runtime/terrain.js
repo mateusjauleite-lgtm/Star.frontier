@@ -266,22 +266,15 @@ export function createTerrainRuntime({ options, layers }) {
             const positions = [];
             const uvs = [];
             const indices = [];
+            const longitudes = [];
+            const latitudes = [];
             const centerLatitude = THREE.MathUtils.degToRad(latitudeDeg);
             const centerLongitude = THREE.MathUtils.degToRad(longitudeDeg);
             const point = new THREE.Vector3();
 
             const appendPoint = (longitude, latitude) => {
-              const elevation = elevationSampler(longitude, latitude);
-              if (!Number.isFinite(elevation)) return false;
-              const latRad = THREE.MathUtils.degToRad(latitude);
-              const lonRad = THREE.MathUtils.degToRad(longitude);
-              const patchRadius = radius + elevation + 0.025;
-              point.set(
-                Math.cos(lonRad) * Math.cos(latRad) * patchRadius,
-                Math.sin(latRad) * patchRadius,
-                Math.sin(lonRad) * Math.cos(latRad) * patchRadius
-              );
-              positions.push(point.x, point.y, point.z);
+              longitudes.push(longitude);
+              latitudes.push(latitude);
               uvs.push((longitude + 180) / 360, (90 - latitude) / 180);
               return true;
             };
@@ -324,6 +317,32 @@ export function createTerrainRuntime({ options, layers }) {
                   );
                 }
               }
+            }
+
+            // Sample the complete regional disk in one batch, using the same
+            // ETOPO grid path as the global LOD meshes. Fall back per point
+            // only when a source cell is no-data or WASM allocation fails.
+            const sampledMeters = gridIsReady
+              ? earthKernel.sampleElevationBatch(
+                grid, new Float32Array(longitudes), new Float32Array(latitudes)
+              )
+              : null;
+            for (let i = 0; i < longitudes.length; i++) {
+              const elevationUnits = Number.isFinite(sampledMeters?.[i])
+                ? earthKernel.elevationMetersToUnits(
+                  sampledMeters[i], radius, 6371.0088, exaggeration
+                )
+                : elevationSampler(longitudes[i], latitudes[i]);
+              if (!Number.isFinite(elevationUnits)) return null;
+              const latRad = THREE.MathUtils.degToRad(latitudes[i]);
+              const lonRad = THREE.MathUtils.degToRad(longitudes[i]);
+              const patchRadius = radius + elevationUnits + 0.025;
+              point.set(
+                Math.cos(lonRad) * Math.cos(latRad) * patchRadius,
+                Math.sin(latRad) * patchRadius,
+                Math.sin(lonRad) * Math.cos(latRad) * patchRadius
+              );
+              positions.push(point.x, point.y, point.z);
             }
 
             const geometry = new THREE.BufferGeometry();
