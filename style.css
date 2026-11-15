@@ -1456,7 +1456,18 @@ select:focus {
   color: var(--text);
   text-align: left;
 }
-.inventory-cell { pointer-events: none; }
+.inventory-cell:not(.inventory-item-button) { pointer-events: none; }
+.inventory-item-button {
+  pointer-events: auto;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.inventory-window,
+.inventory-window * {
+  -webkit-tap-highlight-color: transparent;
+}
 .inventory-cell::before {
   content: '+';
   color: rgba(67,217,255,.45);
