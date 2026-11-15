@@ -1,9 +1,9 @@
 /**
  * Planejamento do núcleo de interação entre itens e objetos do mundo.
  *
- * Este arquivo documenta as próximas ramificações sem implementar ainda
- * detecção física, interface de loot ou transferência. O jogo ainda não possui
- * armários/baús integrados para validar esses fluxos.
+ * Este arquivo acompanha as ramificações do fluxo. As primeiras funções
+ * independentes já existem; integração com objetos físicos e inventário fica
+ * pendente até haver recipientes reais na gameplay.
  *
  * Não substituir nem alterar o inventário, os slots de equipamento ou a
  * persistência existentes. Quando houver recipientes físicos na gameplay,
@@ -11,16 +11,18 @@
  */
 
 export const ITEM_WORLD_INTERACTION_PLAN = Object.freeze({
-  status: 'planned',
+  status: 'in-progress',
 
   modules: Object.freeze({
     proximity: Object.freeze({
-      status: 'planned',
+      status: 'foundation',
+      path: './worldInteraction/proximityDetection.js',
       responsibility: 'Detectar quando o personagem entra ou sai da área de interação de um objeto.'
     }),
 
     lootRecognition: Object.freeze({
-      status: 'planned',
+      status: 'foundation',
+      path: './worldInteraction/lootRecognition.js',
       responsibility: 'Reconhecer o objeto próximo e identificar se é item coletável, armário ou baú.'
     }),
 
