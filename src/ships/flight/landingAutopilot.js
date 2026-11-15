@@ -1,8 +1,37 @@
 const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
 const vector3=v=>v&&v.length===3&&v.every(Number.isFinite);
-function normalize(v){const n=Math.hypot(...v);return n>0?v.map(x=>x/n):null;}
+const cleanZero=value=>Object.is(value,-0)||Math.abs(value)<1e-15?0:value;
+function normalize(v){const n=Math.hypot(...v);return n>0?v.map(x=>cleanZero(x/n)):null;}
 function dot(a,b){return a.reduce((sum,value,i)=>sum+value*b[i],0);}
-function cross(a,b){return [a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];}
+function cross(a,b){return [a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]].map(cleanZero);}
+
+/**
+ * Converts geodetic longitude/latitude into the Earth mesh's local +X/+Y/+Z
+ * convention. Elevation must already be converted to render units by the
+ * authoritative Earth collision sampler. The returned north/east/up vectors
+ * are local tangent directions; transform them through the Earth surface and
+ * group matrices before using them in world-space flight guidance.
+ */
+export function geodeticToEarthLocalFrame({
+ longitudeDeg,latitudeDeg,radiusUnits,elevationUnits=0
+}){
+ if(![longitudeDeg,latitudeDeg,radiusUnits,elevationUnits].every(Number.isFinite)||
+    latitudeDeg < -90||latitudeDeg > 90||radiusUnits<=0)return null;
+ const longitude=longitudeDeg*Math.PI/180;
+ const latitude=latitudeDeg*Math.PI/180;
+ const cosLatitude=Math.cos(latitude),sinLatitude=Math.sin(latitude);
+ const cosLongitude=Math.cos(longitude),sinLongitude=Math.sin(longitude);
+ const radius=radiusUnits+elevationUnits;
+ if(radius<=0)return null;
+ const clean=v=>v.map(cleanZero);
+ return {
+  position:clean([cosLongitude*cosLatitude*radius,sinLatitude*radius,sinLongitude*cosLatitude*radius]),
+  up:clean([cosLongitude*cosLatitude,sinLatitude,sinLongitude*cosLatitude]),
+  north:clean([-cosLongitude*sinLatitude,cosLatitude,-sinLongitude*sinLatitude]),
+  east:clean([-sinLongitude,0,cosLongitude]),
+  radiusUnits:radius
+ };
+}
 
 /**
  * Builds a tangent-frame landing attitude.
@@ -38,7 +67,7 @@ export function calculateLandingGuidance({
  const lateral=relative.map((v,i)=>v-altitude*normal[i]);
  const lateralDistance=Math.hypot(...lateral);
  const descent=clamp(altitude*verticalGain,0,maximumDescentSpeed);
- const desiredVelocity=normal.map((v,i)=>-v*descent-lateral[i]*lateralGain);
+ const desiredVelocity=normal.map((v,i)=>cleanZero(-v*descent-lateral[i]*lateralGain));
  const phase=lateralDistance>8?'align':altitude>80?'approach':altitude>10?'descent':'flare';
  return {altitudeUnits:altitude,lateralErrorUnits:lateralDistance,desiredVelocity,phase};
 }
