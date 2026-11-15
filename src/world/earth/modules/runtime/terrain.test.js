@@ -145,6 +145,8 @@ test('production ETOPO asset contract matches the 0.25-degree global grid', () =
   assert.equal(ETOPO_2022_GLOBAL_GRID.height, 720);
   assert.equal(ETOPO_2022_GLOBAL_GRID.resolutionArcSeconds, 900);
   assert.equal(ETOPO_2022_GLOBAL_GRID.sourceResolutionArcSeconds, 60);
+  assert.equal(ETOPO_2022_GLOBAL_GRID.wrapLongitude, true);
+  assert.equal(ETOPO_2022_GLOBAL_GRID.longitudePeriod, 360);
   assert.equal(ETOPO_2022_GLOBAL_GRID.verticalDatum, 'EGM2008 geoid');
 });
 
