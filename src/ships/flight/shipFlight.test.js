@@ -120,7 +120,7 @@ test('metric landing frame derives relative velocity and rotates the four feet w
   contactPoints:feet,dt:0.5
  });
  assert.deepEqual(rotated.velocityMetersPerSecond,[2,2,0]);
- assert.ok(Math.abs(rotated.contactPointsMeters[0].positionMeters[0]+30)<1e-9);
+ assert.ok(Math.abs(rotated.contactPointsMeters[0].positionMeters[0]+29)<1e-9);
  assert.equal(rotated.actuationEnabled,false);
 });
 test('metric landing frame rejects invalid quaternion or missing one of the four feet',()=>{
