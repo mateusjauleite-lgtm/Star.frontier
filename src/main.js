@@ -11,6 +11,7 @@ import { createStarshipInterior } from './ships/interior.js';
 import { createExplorationShip } from './ships/exploration.js';
 import { state, resetTransientState } from './core/state.js';
 import { createCharacterCore } from './character/characterCore.js';
+import { itemDatabase } from './items/itemDatabase.js';
 import { createCharacterHUD } from './character/characterHUD.js';
 import { createCharacterModel } from './character/characterModel.js';
 import { createCharacterAnimator } from './character/characterAnimator.js';
@@ -21,7 +22,14 @@ import { registerShipComputerSystems } from './ships/computer/shipComputerSystem
 
 const $ = id => document.getElementById(id);
 
-const characterCore = createCharacterCore();
+// Restaura o perfil antes de hidratar o inventário pessoal do personagem.
+load();
+const characterCore = createCharacterCore({}, {
+  itemRegistry: itemDatabase,
+  inventorySnapshot: state.characterInventory,
+  inventoryCapacity: 24,
+  inventoryMaxWeight: 60
+});
 const shipComputer = createShipComputer();
 shipComputer.registerSystem('flight', {
   name: 'Controle de voo',
@@ -86,7 +94,6 @@ function updateCharacterHUD() {
   });
 }
 
-load();
 state.ship = 'Nave exploradora';
 
 /* UTILITÁRIOS */
@@ -1559,20 +1566,32 @@ function showInventoryTab(tab) {
     button.classList.toggle('active', button.dataset.inventoryTab === tab);
   });
 }
+function persistCharacterInventory() {
+  state.characterInventory = characterCore.getInventorySnapshot();
+  save();
+}
 function renderInventory() {
   const grid = $('inventory-grid');
   if (!grid) return;
-  const items = Array.isArray(state.inventory?.items) ? state.inventory.items : [];
-  $('inventory-count').textContent = `${items.length} / 24`;
-  grid.innerHTML = Array.from({ length: 24 }, (_, index) => {
-    const item = items[index];
-    return `<div class="inventory-cell"><span>${item?.name || 'ESPAÇO LIVRE'}</span></div>`;
+  const snapshot = characterCore.getInventorySnapshot();
+  const items = snapshot?.items || [];
+  const capacity = snapshot?.capacity || 24;
+  $('inventory-count').textContent = `${items.length} / ${capacity}`;
+  grid.innerHTML = Array.from({ length: capacity }, (_, index) => {
+    const instance = items[index];
+    const definition = instance ? itemDatabase.get(instance.definitionId) : null;
+    const label = definition?.name || 'ESPAÇO LIVRE';
+    const quantity = instance?.quantity > 1 ? ` ×${instance.quantity}` : '';
+    return `<div class="inventory-cell" data-instance-id="${instance?.instanceId || ''}"><span>${label}${quantity}</span></div>`;
   }).join('');
   const equipment = state.inventory?.equipment || {};
   ['weapon', 'tool', 'machine'].forEach(slot => {
     const el = $('quick-' + slot);
     if (el) el.textContent = equipment[slot] || 'VAZIO';
   });
+  const weight = items.reduce((total, instance) => total + (itemDatabase.get(instance.definitionId)?.weight || 0) * instance.quantity, 0);
+  const count = $('inventory-count');
+  if (count) count.title = `Peso: ${weight.toFixed(1)} / ${snapshot?.maxWeight ?? 60} kg`;
 }
 $('inventory-open-btn')?.addEventListener('click', () => {
   renderInventory();
