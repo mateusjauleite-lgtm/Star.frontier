@@ -35,11 +35,17 @@ const characterCore = createCharacterCore({}, {
 // Primeiro acesso: kit inicial guardado no inventário do explorador,
 // separado do compartimento de carga da nave.
 if (!state.characterInventory) {
+  characterCore.addItem('equipment.suit.explorer.basic');
   characterCore.addItem('tool.mining_drill.basic');
   characterCore.addItem('tool.scanner.portable');
   characterCore.addItem('consumable.medkit.basic', 2);
-  state.characterInventory = characterCore.getInventorySnapshot();
-  save();
+  const suit=characterCore.getInventorySnapshot().items.find(item=>item.definitionId==='equipment.suit.explorer.basic');
+  if(suit)characterCore.equipItem(suit.instanceId);
+  state.characterInventory=characterCore.getInventorySnapshot();save();
+} else if(!characterCore.getEquippedItem('suit')) {
+  let suit=characterCore.getInventorySnapshot()?.items.find(item=>item.definitionId==='equipment.suit.explorer.basic');
+  if(!suit){characterCore.addItem('equipment.suit.explorer.basic');suit=characterCore.getInventorySnapshot()?.items.find(item=>item.definitionId==='equipment.suit.explorer.basic');}
+  if(suit)characterCore.equipItem(suit.instanceId);state.characterInventory=characterCore.getInventorySnapshot();save();
 }
 const shipComputer = createShipComputer();
 shipComputer.registerSystem('flight', {
@@ -94,16 +100,7 @@ function updateCharacterCameraButton() {
     : 'CÂMERA: 3ª PESSOA';
 }
 
-function updateCharacterHUD() {
-  const planetaryProfile = earthSystem?.getPlanetaryProfile?.();
-  characterHUD.update({
-    ...characterCore.snapshot(),
-    name: state.user || state.character || 'EXPLORADOR',
-    environment: planetaryProfile ? {
-      label: `${planetaryProfile.displayName} • R MÉDIO ${Math.round(planetaryProfile.physical.meanRadiusKm).toLocaleString('pt-BR')} KM`
-    } : null
-  });
-}
+function updateCharacterHUD(){const p=earthSystem?.getPlanetaryProfile?.(),s=characterCore.snapshot();const equipment=Object.fromEntries(Object.entries(s.equipment||{}).map(([slot,item])=>{const d=item?itemDatabase.get(item.definitionId):null;return[slot,item?{...item,displayName:d?.name||item.definitionId,tooltip:`${d?.code||'SEM CÓDIGO'} · ${d?.id||item.definitionId} · ${d?.description||''}`}:null];}));characterHUD.update({...s,equipment,name:state.user||state.character||'EXPLORADOR',environment:p?{label:`${p.displayName} • R MÉDIO ${Math.round(p.physical.meanRadiusKm).toLocaleString('pt-BR')} KM`}:null});}
 
 state.ship = 'Nave exploradora';
 
@@ -1569,46 +1566,13 @@ function openInventory() {
   modal.setAttribute('aria-hidden', 'false');
   showInventoryTab('items');
 }
-function showInventoryTab(tab) {
-  const items = tab === 'items';
-  $('inventory-items-view')?.classList.toggle('hidden', !items);
-  $('inventory-clothing-view')?.classList.toggle('hidden', items);
-  document.querySelectorAll('[data-inventory-tab]').forEach(button => {
-    button.classList.toggle('active', button.dataset.inventoryTab === tab);
-  });
-}
-function persistCharacterInventory() {
-  state.characterInventory = characterCore.getInventorySnapshot();
-  save();
-}
-on('character:inventory-changed', () => {
-  persistCharacterInventory();
-  if (!$('inventory-modal')?.classList.contains('hidden')) renderInventory();
-});
-
-function renderInventory() {
-  const grid = $('inventory-grid');
-  if (!grid) return;
-  const snapshot = characterCore.getInventorySnapshot();
-  const items = snapshot?.items || [];
-  const capacity = snapshot?.capacity || 24;
-  $('inventory-count').textContent = `${items.length} / ${capacity}`;
-  grid.innerHTML = Array.from({ length: capacity }, (_, index) => {
-    const instance = items[index];
-    const definition = instance ? itemDatabase.get(instance.definitionId) : null;
-    const label = definition?.name || 'ESPAÇO LIVRE';
-    const quantity = instance?.quantity > 1 ? ` ×${instance.quantity}` : '';
-    return `<div class="inventory-cell" data-instance-id="${instance?.instanceId || ''}"><span>${label}${quantity}</span></div>`;
-  }).join('');
-  const equipment = state.inventory?.equipment || {};
-  ['weapon', 'tool', 'machine'].forEach(slot => {
-    const el = $('quick-' + slot);
-    if (el) el.textContent = equipment[slot] || 'VAZIO';
-  });
-  const weight = items.reduce((total, instance) => total + (itemDatabase.get(instance.definitionId)?.weight || 0) * instance.quantity, 0);
-  const count = $('inventory-count');
-  if (count) count.title = `Peso: ${weight.toFixed(1)} / ${snapshot?.maxWeight ?? 60} kg`;
-}
+function showInventoryTab(tab){const items=tab==='items';$('inventory-items-view')?.classList.toggle('hidden',!items);$('inventory-clothing-view')?.classList.toggle('hidden',items);document.querySelectorAll('[data-inventory-tab]').forEach(button=>button.classList.toggle('active',button.dataset.inventoryTab===tab));}
+function persistCharacterInventory(){state.characterInventory=characterCore.getInventorySnapshot();save();}
+on('character:inventory-changed',()=>{persistCharacterInventory();renderInventory();updateCharacterHUD();});on('character:equipment-changed',updateCharacterHUD);
+function equipFromInventory(id){const r=characterCore.equipItem(id);if(!r.ok){toast(r.reason==='item-has-no-equipment-slot'?'Este item não possui slot de equipamento.':'Não foi possível equipar este item.');return;}const d=itemDatabase.get(r.equipped.definitionId);if(r.slot==='tool')state.miningDrill=d?.tags?.includes('mining')?d.name:'';toast(`${d?.name||'Item'} equipado em ${r.slot}.`);renderInventory();updateCharacterHUD();}
+function renderInventory(){const grid=$('inventory-grid');if(!grid)return;const s=characterCore.getInventorySnapshot(),items=s?.items||[],capacity=s?.capacity||24;$('inventory-count').textContent=`${items.length} / ${capacity}`;grid.innerHTML=Array.from({length:capacity},(_,i)=>{const item=items[i],d=item?itemDatabase.get(item.definitionId):null;if(!item)return '<div class="inventory-cell empty"><span>ESPAÇO LIVRE</span></div>';const code=d?.code||'SEM CÓDIGO',qty=item.quantity>1?` ×${item.quantity}`:'';return `<button type="button" class="inventory-cell inventory-item" data-instance-id="${item.instanceId}" title="${code} · ${d?.id||item.definitionId} · ${d?.description||''}"><span class="item-code">${code}</span><b>${d?.name||item.definitionId}${qty}</b><small>SEGURE PARA EQUIPAR</small></button>`;}).join('');const equipment=characterCore.snapshot().equipment||{};document.querySelectorAll('[data-slot]').forEach(button=>{const slot=button.dataset.slot,item=equipment[slot],d=item?itemDatabase.get(item.definitionId):null,name=button.querySelector('b'),status=button.querySelector('small');if(name)name.textContent=d?.name||'Vazio';if(status)status.textContent=item?`EQUIPADO · ${d?.code||''}`:'VAZIO';button.classList.toggle('selected',Boolean(item));button.title=item?`${d?.code||''} · ${d?.id||item.definitionId}`:'Slot vazio';});const weight=items.reduce((sum,item)=>sum+(itemDatabase.get(item.definitionId)?.weight||0)*item.quantity,0);$('inventory-count').title=`Peso: ${weight.toFixed(1)} / ${s?.maxWeight??60} kg`;updateCharacterHUD();}
+const inventoryGrid=$('inventory-grid');let itemHoldTimer=null;inventoryGrid?.addEventListener('pointerdown',event=>{const button=event.target.closest('[data-instance-id]');if(!button)return;itemHoldTimer=setTimeout(()=>{itemHoldTimer=null;equipFromInventory(button.dataset.instanceId);button.classList.add('equip-confirmed');},450);});const cancelItemHold=()=>{if(itemHoldTimer)clearTimeout(itemHoldTimer);itemHoldTimer=null;};inventoryGrid?.addEventListener('pointerup',cancelItemHold);inventoryGrid?.addEventListener('pointerleave',cancelItemHold);inventoryGrid?.addEventListener('pointercancel',cancelItemHold);inventoryGrid?.addEventListener('contextmenu',event=>event.preventDefault());
+document.querySelectorAll('[data-slot]').forEach(button=>button.addEventListener('click',()=>{const r=characterCore.unequipItem(button.dataset.slot);if(r.ok)toast(`${itemDatabase.get(r.returned.definitionId)?.name||'Item'} guardado na mochila.`);else if(r.reason==='slot-empty')toast('Este slot já está vazio.');renderInventory();updateCharacterHUD();}));
 $('inventory-open-btn')?.addEventListener('click', () => {
   renderInventory();
   openInventory();
