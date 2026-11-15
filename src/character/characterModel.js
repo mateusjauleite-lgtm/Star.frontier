@@ -79,6 +79,8 @@ export function createCharacterModel(options = {}) {
   root.add(rig);
 
   const parts = {};
+  const legGarments = [];
+  const footGarments = [];
 
   // Pelve e tronco: volumes anatômicos arredondados, sem placas rígidas.
   parts.pelvis = new THREE.Group();
@@ -207,16 +209,18 @@ export function createCharacterModel(options = {}) {
     const hip = parts[prefix + 'Hip'];
     const thighCloth = makeClothingGroup(hip, prefix + '-trouser-leg');
     // A peça acompanha o pivô da coxa e preserva as articulações existentes.
+    legGarments.push(thighCloth);
     capsule(thighCloth, 0.101, 0.34, materials.trousers, [0, -0.19, 0], prefix + '-trousers');
     const shinCloth = makeClothingGroup(parts[prefix + 'Knee'], prefix + '-trouser-shin');
+    legGarments.push(shinCloth);
     capsule(shinCloth, 0.078, 0.31, materials.trousers, [0, -0.17, 0], prefix + '-lower-trousers');
-    wardrobe.legs.add(thighCloth);
-    wardrobe.legs.add(shinCloth);
+    // Mantém cada peça no pivô da articulação para acompanhar a animação.
 
     const boot = makeClothingGroup(parts[prefix + 'Ankle'], prefix + '-boot-item');
+    footGarments.push(boot);
     box(boot, [0.14, 0.12, 0.24], materials.boots, [0, -0.025, -0.035], prefix + '-boot-shoe');
     box(boot, [0.145, 0.025, 0.245], materials.fabricTrim, [0, -0.087, -0.035], prefix + '-boot-sole');
-    wardrobe.feet.add(boot);
+    // A bota permanece filha do tornozelo para acompanhar a passada.
   }
 
   const defaultEquipment = {
@@ -232,9 +236,9 @@ export function createCharacterModel(options = {}) {
   const slotGroups = {
     head: [wardrobe.head],
     torso: [wardrobe.torso],
-    legs: [wardrobe.legs],
+    legs: legGarments,
     hands: [wardrobe.hands],
-    feet: [wardrobe.feet],
+    feet: footGarments,
     back: [wardrobe.back]
   };
 
