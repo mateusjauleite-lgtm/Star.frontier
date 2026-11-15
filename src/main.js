@@ -120,7 +120,7 @@ function firePhaser() {
     toast('Equipe o Phaser pelo inventário primeiro.');
     return;
   }
-  if (characterChargeLocked || phaserChargeRemaining > 0) return;
+  if (phaserChargeRemaining > 0) return;
   if (characterCore.snapshot().mode !== 'on-foot') {
     toast('O Phaser só pode ser usado a pé nesta versão.');
     return;
@@ -1573,7 +1573,7 @@ const characterEquipment = createCharacterEquipmentSystem(state, {
     renderClothing();
     renderInventory();
     characterCore.setEquipment('suit', characterEquipment.equippedItem('torso')?.itemId || null);
-    for (const slot of ['head', 'torso', 'hands', 'legs', 'feet', 'back']) {
+    for (const slot of ['head', 'torso', 'hands', 'legs', 'feet', 'back', 'weapon']) {
       characterCore.setEquipment(slot, characterEquipment.equippedItem(slot)?.itemId || null);
     }
   }
@@ -1608,7 +1608,7 @@ function renderInventory() {
   const equipment = state.inventory?.equipment || {};
   ['weapon', 'tool', 'machine'].forEach(slot => {
     const el = $('quick-' + slot);
-    if (el) el.textContent = equipment[slot] || 'VAZIO';
+    if (el) el.textContent = equipment[slot]?.name || equipment[slot] || 'VAZIO';
   });
 }
 $('inventory-open-btn')?.addEventListener('click', () => {
