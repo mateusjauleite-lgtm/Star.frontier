@@ -53,6 +53,7 @@ const characterHUD = createCharacterHUD(document);
 let characterCameraMode = 'third-person';
 let characterModel = null;
 let characterAnimator = null;
+let characterWeaponController = null;
 let characterPhysics = null;
 let characterYaw = 0;
 let characterPitch = 0;
@@ -765,7 +766,7 @@ async function init3D() {
   characterModel.group.rotation.y = characterYaw;
   shipVisual.add(characterModel.group);
   characterAnimator = createCharacterAnimator(characterModel);
-  characterWeaponController.instance = createCharacterWeaponController(characterModel);
+  characterWeaponController = createCharacterWeaponController(characterModel);
   characterPhysics = createCharacterPhysics();
   characterPhysics.reset(characterModel.group.position.y);
   characterCore.setGrounded(true);
@@ -1466,8 +1467,12 @@ const characterPhaserButton = $('character-phaser-btn');
 characterPhaserButton?.addEventListener('click', firePhaser);
 const characterAimButton = $('character-aim-btn');
 characterAimButton?.addEventListener('click', () => {
-  const aiming = characterWeaponController.toggleAiming();
-  if (aiming !== false) toast(aiming ? 'Mira ativada.' : 'Arma abaixada.');
+  if (!isPhaserEquipped() || characterCore.snapshot().mode !== 'on-foot') {
+    toast('Equipe o Phaser para usar a mira.');
+    return;
+  }
+  const aiming = characterWeaponController?.toggleAiming() ?? false;
+  toast(aiming ? 'Mira ativada.' : 'Arma abaixada.');
 });
 
 characterAnimationButton?.addEventListener('click', () => {
@@ -1515,28 +1520,10 @@ window.addEventListener('keyup', event => {
 });
 window.addEventListener('blur', stopCharacterSprint);
 
-const characterWeaponController = {
-  instance: null,
-  setAiming(value) {
-    if (!isPhaserEquipped() || characterCore.snapshot().mode !== 'on-foot') value = false;
-    return this.instance?.setAiming(value) ?? false;
-  },
-  toggleAiming() {
-    if (!isPhaserEquipped() || characterCore.snapshot().mode !== 'on-foot') {
-      toast('Equipe o Phaser para usar a mira.');
-      return false;
-    }
-    return this.instance?.toggleAiming() ?? false;
-  },
-  fire() { return this.instance?.fire() ?? false; },
-  update(dt) { return this.instance?.update(dt, characterPitch); },
-  reset() { this.instance?.reset(); }
-};
-
 function updateCharacterWeapon(dt) {
   const equipped = isPhaserEquipped();
-  if (!equipped) characterWeaponController.reset();
-  const result = characterWeaponController.update(dt);
+  if (!equipped) characterWeaponController?.reset();
+  const result = characterWeaponController?.update(dt, characterPitch);
   const aimButton = $('character-aim-btn');
   const reticle = $('character-aim-reticle');
   if (aimButton) {
