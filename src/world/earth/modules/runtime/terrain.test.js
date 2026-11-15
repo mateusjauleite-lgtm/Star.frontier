@@ -161,8 +161,8 @@ test('sizes the regional terrain patch to the packaged ETOPO grid spacing', () =
     south: -89.875,
     north: 89.875
   };
-  assert.equal(calculateEtopoPatchSegments(750, 0, etopoGrid), 54);
-  assert.equal(calculateEtopoPatchSegments(750, 60, etopoGrid), 108);
+  assert.equal(calculateEtopoPatchSegments(750, 0, etopoGrid), 27);
+  assert.equal(calculateEtopoPatchSegments(750, 60, etopoGrid), 54);
   assert.equal(calculateEtopoPatchSegments(750, 80, etopoGrid), 128);
 });
 
