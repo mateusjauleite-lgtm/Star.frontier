@@ -60,6 +60,9 @@ const characterMove = new THREE.Vector3();
 const characterLookEuler = new THREE.Euler(0, 0, 0, 'YXZ');
 let characterMoveInput = { x: 0, y: 0 };
 let characterSprintHeld = false;
+let characterAnimationTestRemaining = 0;
+let characterAnimationTestIndex = -1;
+const characterAnimationTestPoses = ['walk', 'run', 'jump', 'fall', 'land', 'sit', 'stand', 'idle'];
 let characterJumpQueued = false;
 let characterStaminaAccumulator = 0;
 let characterStaminaHudTimer = 0;
@@ -1059,7 +1062,12 @@ function updateCharacterMovement(dt) {
     characterCore.setGrounded(physicsState.grounded);
   }
 
-  if (!physicsState?.grounded) {
+  if (characterAnimationTestRemaining > 0) {
+    characterAnimationTestRemaining = Math.max(0, characterAnimationTestRemaining - dt);
+  }
+  if (characterAnimationTestRemaining > 0) {
+    // Mantém a pose de teste sem alterar a física nem o deslocamento do personagem.
+  } else if (!physicsState?.grounded) {
     characterAnimator?.play(physicsState.velocityY > 0 ? 'jump' : 'fall');
   } else if (physicsState.justLanded) {
     characterAnimator?.play('land', { restart: true });
@@ -1070,6 +1078,8 @@ function updateCharacterMovement(dt) {
   }
 
   characterAnimator?.update(dt);
+  const animationButton = $('character-animation-btn');
+  if (animationButton) animationButton.classList.toggle('is-active', characterAnimationTestRemaining > 0);
   if (characterJumpButton) characterJumpButton.disabled = !characterPhysics?.grounded;
   if (characterSprintButton) characterSprintButton.disabled = characterCore.snapshot().stamina <= 0;
 }
@@ -1400,6 +1410,18 @@ if (characterStick) {
 // Controles exclusivos do personagem: salto por toque e corrida por pressão.
 const characterJumpButton = $('character-jump-btn');
 const characterSprintButton = $('character-sprint-btn');
+const characterAnimationButton = $('character-animation-btn');
+
+characterAnimationButton?.addEventListener('click', () => {
+  if (characterCore.snapshot().mode !== 'on-foot' || !characterAnimator) return;
+  characterAnimationTestIndex = (characterAnimationTestIndex + 1) % characterAnimationTestPoses.length;
+  const pose = characterAnimationTestPoses[characterAnimationTestIndex];
+  characterAnimationTestRemaining = pose === 'idle' ? 1.1 : 1.45;
+  characterAnimator.play(pose, { restart: true });
+  characterAnimationButton.classList.add('is-active');
+  characterAnimationButton.querySelector('small').textContent = pose.toUpperCase();
+  toast('Teste de animação: ' + pose.toUpperCase());
+});
 
 characterJumpButton?.addEventListener('pointerdown', event => {
   event.preventDefault();
@@ -1514,12 +1536,14 @@ function renderClothing() {
     if (name) name.textContent = 'Traje de exploração básico';
     if (status) status.textContent = equipped ? 'EQUIPADO · TOQUE PARA REMOVER' : 'DESEQUIPADO · TOQUE PARA EQUIPAR';
   }
+  const gear = state.inventory?.equipment || {};
   const labels = {
-    helmet: ['Vazio', 'NÃO EQUIPADO'],
+    helmet: [gear.helmet ? 'Capacete explorador' : 'Vazio', gear.helmet ? 'EQUIPADO · TOQUE PARA REMOVER' : 'DISPONÍVEL · TOQUE PARA EQUIPAR'],
     torso: [equipped ? 'Jaqueta de campo' : 'Vazio', equipped ? 'INCLUÍDO NO TRAJE' : 'NÃO EQUIPADO'],
-    gloves: ['Vazio', 'NÃO EQUIPADO'],
+    gloves: [gear.gloves ? 'Luvas utilitárias' : 'Vazio', gear.gloves ? 'EQUIPADO · TOQUE PARA REMOVER' : 'DISPONÍVEL · TOQUE PARA EQUIPAR'],
     legs: [equipped ? 'Calça utilitária' : 'Vazio', equipped ? 'INCLUÍDO NO TRAJE' : 'NÃO EQUIPADO'],
-    boots: [equipped ? 'Botas de exploração' : 'Vazio', equipped ? 'INCLUÍDO NO TRAJE' : 'NÃO EQUIPADO']
+    boots: [equipped ? 'Botas de exploração' : 'Vazio', equipped ? 'INCLUÍDO NO TRAJE' : 'NÃO EQUIPADO'],
+    back: [gear.back ? 'Mochila compacta' : 'Vazio', gear.back ? 'EQUIPADO · TOQUE PARA REMOVER' : 'DISPONÍVEL · TOQUE PARA EQUIPAR']
   };
   for (const [slot, [nameText, statusText]] of Object.entries(labels)) {
     const button = document.querySelector(`[data-slot="${slot}"]`);
@@ -1528,7 +1552,8 @@ function renderClothing() {
     const status = button.querySelector('small');
     if (name) name.textContent = nameText;
     if (status) status.textContent = statusText;
-    button.classList.toggle('selected', equipped && ['torso', 'legs', 'boots'].includes(slot));
+    const selected = ['torso', 'legs', 'boots'].includes(slot) ? equipped : Boolean(gear[slot]);
+    button.classList.toggle('selected', selected);
   }
 }
 
@@ -1578,7 +1603,26 @@ document.querySelectorAll('[data-slot]').forEach(button => {
       toggleCharacterSuit();
       return;
     }
-    toast('Este espaço ainda não possui uma peça disponível.');
+    const gearSlots = {
+      helmet: { id: 'equipment.explorer-helmet', label: 'Capacete explorador' },
+      gloves: { id: 'equipment.utility-gloves', label: 'Luvas utilitárias' },
+      back: { id: 'equipment.compact-backpack', label: 'Mochila compacta' }
+    };
+    const item = gearSlots[button.dataset.slot];
+    if (!item) {
+      toast('Esta peça faz parte do traje de exploração.');
+      return;
+    }
+    if (!state.inventory) state.inventory = { items: [], equipment: {} };
+    if (!state.inventory.equipment) state.inventory.equipment = {};
+    const slot = button.dataset.slot;
+    const removing = state.inventory.equipment[slot] === item.id;
+    state.inventory.equipment[slot] = removing ? null : item.id;
+    characterModel?.setEquipment(slot === 'helmet' ? 'head' : slot === 'gloves' ? 'hands' : 'back',
+      removing ? null : item.id);
+    renderClothing();
+    save();
+    toast(removing ? item.label + ' removido.' : item.label + ' equipado.');
   });
 });
 renderInventory();
