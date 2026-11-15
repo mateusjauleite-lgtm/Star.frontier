@@ -1183,7 +1183,7 @@ function loop(now) {
     updateFlight(dt);
     updateCamera();
   }
-  earthSystem?.update(dt);
+  earthSystem?.update(dt, camera);
   orbitSystem?.update(dt);
   asteroidSystem?.update(dt);
   lightingSystem?.update(dt);
