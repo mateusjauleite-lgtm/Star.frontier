@@ -2031,9 +2031,12 @@ function applyCharacterHudLayout(layout = {}) {
       element.style.removeProperty('transform');
       return;
     }
+    const rect = element.getBoundingClientRect();
+    const x = Math.max(0, Math.min(1, saved.x));
+    const y = Math.max(0, Math.min(1, saved.y));
     element.style.position = 'fixed';
-    element.style.left = `${Math.max(0, Math.min(1, saved.x)) * 100}%`;
-    element.style.top = `${Math.max(0, Math.min(1, saved.y)) * 100}%`;
+    element.style.left = `${x * Math.max(1, window.innerWidth - rect.width)}px`;
+    element.style.top = `${y * Math.max(1, window.innerHeight - rect.height)}px`;
     element.style.right = 'auto';
     element.style.bottom = 'auto';
     element.style.transform = 'none';
