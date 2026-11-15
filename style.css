@@ -1827,3 +1827,71 @@ body {
     max-width: 35vw;
   }
 }
+
+
+/* Editor e posições personalizadas do HUD do personagem (independente da nave). */
+.character-hud-editor {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  background: rgba(0, 5, 15, .16);
+}
+.character-hud-editor-panel {
+  position: absolute;
+  left: 50%;
+  bottom: max(12px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  display: grid;
+  gap: 7px;
+  width: min(94vw, 440px);
+  padding: 11px;
+  border: 1px solid rgba(67,217,255,.55);
+  border-radius: 12px;
+  background: rgba(3,12,26,.96);
+  color: var(--text);
+  text-align: center;
+  box-shadow: 0 8px 28px rgba(0,0,0,.42);
+  pointer-events: auto;
+}
+.character-hud-editor-panel > b {
+  color: var(--cyan);
+  font-size: 11px;
+  letter-spacing: .08em;
+}
+.character-hud-editor-panel > span {
+  color: var(--muted);
+  font-size: 10px;
+}
+.character-hud-editor-actions {
+  display: flex;
+  gap: 7px;
+}
+.character-hud-editor-actions button {
+  flex: 1;
+  min-height: 38px;
+  padding: 5px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(9,35,57,.96);
+  color: var(--cyan);
+  font-size: 10px;
+  font-weight: 700;
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+.character-hud-editor-actions #character-hud-save-btn {
+  border-color: rgba(84,230,160,.65);
+  color: #8ef0bd;
+}
+.hud-editable-active {
+  outline: 2px dashed rgba(67,217,255,.95) !important;
+  outline-offset: 3px;
+  z-index: 55 !important;
+  pointer-events: auto !important;
+  touch-action: none !important;
+  cursor: move;
+}
+#character-tool-action-btn.hud-editable-active:disabled {
+  opacity: 1;
+}
