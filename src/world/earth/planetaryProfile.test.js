@@ -103,7 +103,7 @@ test('ETOPO binary parser reads a north-to-south Int16 global grid', () => {
   const width = 2, height = 2, headerBytes = 56;
   const buffer = new ArrayBuffer(headerBytes + width * height * 2);
   const view = new DataView(buffer);
-  const magic = new TextEncoder().encode('ETOPO22\\0');
+  const magic = new TextEncoder().encode('ETOPO22\0');
   new Uint8Array(buffer, 0, 8).set(magic);
   view.setUint32(8, width, true);
   view.setUint32(12, height, true);
