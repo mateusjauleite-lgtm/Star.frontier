@@ -1,4 +1,5 @@
 // Catálogo e ciclo de vida dos equipamentos do personagem.
+// Regra: itens equipados saem da mochila; ao desequipar/substituir, voltam à mochila.
 export const CHARACTER_ITEMS = Object.freeze({
   'clothing.field-jacket': { name: 'Jaqueta de campo', slot: 'torso' },
   'clothing.utility-trousers': { name: 'Calça utilitária', slot: 'legs' },
@@ -17,22 +18,28 @@ export function createCharacterEquipmentSystem(gameState, { applyVisual = () => 
   inventory.equipment ||= {};
   const equipment = inventory.equipment;
 
-  const find = instanceId => inventory.items.find(item => item.instanceId === instanceId) || null;
-  const create = itemId => {
+  const makeItem = itemId => {
     const definition = CHARACTER_ITEMS[itemId];
     if (!definition) throw new TypeError('Item desconhecido: ' + itemId);
-    const item = { instanceId: id(), itemId, name: definition.name, category: itemId.startsWith('clothing.') ? 'clothing' : 'equipment', slot: definition.slot, quantity: 1 };
-    inventory.items.push(item);
+    return { instanceId: id(), itemId, name: definition.name, category: itemId.startsWith('clothing.') ? 'clothing' : 'equipment', slot: definition.slot, quantity: 1 };
+  };
+  const normalizeItem = item => {
+    if (!item || typeof item !== 'object') return null;
+    item.instanceId ||= id();
+    if (!item.itemId && CHARACTER_ITEMS[item.id]) item.itemId = item.id;
+    const definition = CHARACTER_ITEMS[item.itemId];
+    if (!definition) return item;
+    Object.assign(item, { name: definition.name, slot: definition.slot, quantity: Math.max(1, Number(item.quantity) || 1) });
     return item;
   };
   const equippedItem = slot => {
-    const item = find(equipment[slot]);
-    return item ? { ...item } : null;
+    const item = equipment[slot];
+    return item && typeof item === 'object' ? { ...item } : null;
   };
-  const publish = () => onChange(snapshot());
   function snapshot() {
     return { items: inventory.items.map(item => ({ ...item })), equipment: Object.fromEntries(SLOTS.map(slot => [slot, equippedItem(slot)])) };
   }
+  const publish = () => onChange(snapshot());
   function syncVisuals() {
     for (const slot of SLOTS) {
       const item = equippedItem(slot);
@@ -40,63 +47,62 @@ export function createCharacterEquipmentSystem(gameState, { applyVisual = () => 
     }
   }
   function initialize() {
-    inventory.items = inventory.items.filter(item => item && typeof item === 'object');
-    for (const item of inventory.items) {
-      item.instanceId ||= id();
-      if (!item.itemId && CHARACTER_ITEMS[item.id]) item.itemId = item.id;
-      const definition = CHARACTER_ITEMS[item.itemId];
-      if (definition) Object.assign(item, { name: definition.name, slot: definition.slot, quantity: Math.max(1, Number(item.quantity) || 1) });
-    }
-    // Migração segura do traje antigo para três peças independentes.
+    inventory.items = inventory.items.map(normalizeItem).filter(Boolean);
+    // Migra o traje legado para três instâncias independentes equipadas.
     if (equipment.suit) {
       for (const itemId of ['clothing.field-jacket', 'clothing.utility-trousers', 'clothing.exploration-boots']) {
         const slot = CHARACTER_ITEMS[itemId].slot;
-        if (!equippedItem(slot)) equipment[slot] = create(itemId).instanceId;
+        if (!equippedItem(slot)) equipment[slot] = makeItem(itemId);
       }
       equipment.suit = null;
     }
-    // Migra IDs antigos armazenados diretamente nos slots.
+    // Migra os antigos slots que guardavam apenas o ID do item.
     const legacy = { helmet: 'head', gloves: 'hands' };
     for (const [oldSlot, slot] of Object.entries(legacy)) {
       const old = equipment[oldSlot];
-      if (old && CHARACTER_ITEMS[old]) equipment[slot] = create(old).instanceId;
+      if (old && CHARACTER_ITEMS[old]) equipment[slot] = makeItem(old);
       equipment[oldSlot] = null;
     }
     for (const slot of SLOTS) {
       const current = equipment[slot];
-      if (current && !find(current)) {
-        if (CHARACTER_ITEMS[current]) equipment[slot] = create(current).instanceId;
-        else equipment[slot] = null;
-      }
+      if (typeof current === 'string' && CHARACTER_ITEMS[current]) equipment[slot] = makeItem(current);
+      else if (current && typeof current === 'object') equipment[slot] = normalizeItem(current);
+      else if (!current) equipment[slot] = null;
     }
-    // Kit demonstrativo para os três espaços adicionais, sem duplicar posse.
+    // Migra qualquer peça que tenha sido salva na mochila pelo formato antigo.
+    inventory.items = inventory.items.filter(item => !Object.values(equipment).some(worn => worn?.instanceId === item.instanceId));
+    // Kit inicial dos espaços adicionais para permitir testar troca e devolução.
     for (const itemId of ['equipment.explorer-helmet', 'equipment.utility-gloves', 'equipment.compact-backpack']) {
-      if (!inventory.items.some(item => item.itemId === itemId)) create(itemId);
+      const slot = CHARACTER_ITEMS[itemId].slot;
+      if (!equippedItem(slot) && !inventory.items.some(item => item.itemId === itemId)) inventory.items.push(makeItem(itemId));
     }
     syncVisuals();
     publish();
     return snapshot();
   }
   function equip(instanceId) {
-    const item = find(instanceId);
-    if (!item) return { ok: false, reason: 'Item não encontrado na mochila.' };
+    const index = inventory.items.findIndex(item => item.instanceId === instanceId);
+    if (index < 0) return { ok: false, reason: 'Item não encontrado na mochila.' };
+    const item = inventory.items[index];
     const definition = CHARACTER_ITEMS[item.itemId];
     if (!definition || !SLOTS.includes(definition.slot)) return { ok: false, reason: 'Este item não pode ser equipado.' };
+    inventory.items.splice(index, 1);
     const previous = equipment[definition.slot];
-    if (previous === instanceId) return { ok: true, changed: false, item: { ...item } };
-    equipment[definition.slot] = instanceId;
+    if (previous) inventory.items.push(previous);
+    equipment[definition.slot] = item;
     syncVisuals();
     publish();
-    return { ok: true, changed: true, item: { ...item }, replaced: find(previous) ? { ...find(previous) } : null };
+    return { ok: true, item: { ...item }, replaced: previous ? { ...previous } : null };
   }
   function unequip(slot) {
     if (!SLOTS.includes(slot)) return { ok: false, reason: 'Espaço inválido.' };
-    const item = equippedItem(slot);
+    const item = equipment[slot];
     if (!item) return { ok: false, reason: 'Este espaço já está vazio.' };
+    inventory.items.push(item);
     equipment[slot] = null;
     syncVisuals();
     publish();
-    return { ok: true, item };
+    return { ok: true, item: { ...item } };
   }
   function toggleSlot(slot) {
     if (!SLOTS.includes(slot)) return { ok: false, reason: 'Espaço inválido.' };
@@ -106,7 +112,8 @@ export function createCharacterEquipmentSystem(gameState, { applyVisual = () => 
   }
   function add(itemId, quantity = 1) {
     if (!CHARACTER_ITEMS[itemId]) return { ok: false, reason: 'Item desconhecido.' };
-    const added = Array.from({ length: Math.max(1, Math.floor(quantity)) }, () => create(itemId));
+    const added = Array.from({ length: Math.max(1, Math.floor(quantity)) }, () => makeItem(itemId));
+    inventory.items.push(...added);
     publish();
     return { ok: true, items: added.map(item => ({ ...item })) };
   }
