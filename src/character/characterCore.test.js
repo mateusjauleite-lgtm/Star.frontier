@@ -43,3 +43,8 @@ test('reset do personagem não apaga seus pertences', () => {
   character.reset();
   assert.equal(character.hasItem('tool.scanner.portable'), true);
 });
+
+
+test('equipar item ocupa slot compatível e devolve equipamento anterior à mochila',()=>{const c=createTestCharacter();c.addItem('tool.mining_drill.basic');c.addItem('tool.scanner.portable');const [drill,scanner]=c.getInventorySnapshot().items;assert.equal(c.equipItem(drill.instanceId).ok,true);const r=c.equipItem(scanner.instanceId);assert.equal(r.ok,true);assert.equal(r.slot,'tool');assert.equal(c.getEquippedItem('tool').definitionId,'tool.scanner.portable');assert.equal(c.hasItem('tool.mining_drill.basic'),true);});
+test('guardar equipamento devolve a mesma instância ao inventário',()=>{const c=createTestCharacter();c.addItem('tool.mining_drill.basic');const drill=c.getInventorySnapshot().items[0];c.equipItem(drill.instanceId);const r=c.unequipItem('tool');assert.equal(r.ok,true);assert.equal(r.returned.instanceId,drill.instanceId);assert.equal(c.hasItem('tool.mining_drill.basic'),true);});
+test('códigos de catálogo identificam itens sem substituir o ID técnico',()=>{assert.equal(itemDatabase.getByCode('B-001').id,'tool.mining_drill.basic');assert.equal(itemDatabase.getByCode('P-001').category,'weapon');});
