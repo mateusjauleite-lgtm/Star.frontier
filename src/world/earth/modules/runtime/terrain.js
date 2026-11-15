@@ -262,7 +262,7 @@ export function createTerrainRuntime({ options, layers }) {
             const divisions = Number.isFinite(segments)
               ? Math.round(THREE.MathUtils.clamp(segments, 8, 128))
               : calculateEtopoPatchSegments(safeRadiusKm, latitudeDeg, gridIsReady ? grid : null);
-            const angularSegments = divisions * 4;
+            const angularSegments = Math.max(32, Math.ceil(divisions * Math.PI * 2));
             const positions = [];
             const uvs = [];
             const indices = [];
