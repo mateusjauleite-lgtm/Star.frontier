@@ -846,6 +846,37 @@ function updateFlight(dt) {
     state.speed = Math.min(state.speed, 8);
   }
 
+  // Primeira resposta física da nave ao relevo real da Earth.
+  // A consulta usa a mesma superfície ETOPO que alimenta o mesh visível.
+  ship.userData.earthCollisionResolved = false;
+  const earthCollisionSurface = earthSystem?.getCollisionSurface?.();
+  ship.updateWorldMatrix(true, false);
+  const shipWorldPosition = ship.getWorldPosition(new THREE.Vector3());
+  const terrainContact = earthCollisionSurface?.sampleWorldPosition?.(shipWorldPosition);
+  if (terrainContact?.worldPosition && terrainContact?.worldNormal) {
+    const signedClearance = shipWorldPosition.clone()
+      .sub(terrainContact.worldPosition)
+      .dot(terrainContact.worldNormal);
+    const minimumHullClearance = 18;
+    if (Number.isFinite(signedClearance) && signedClearance < minimumHullClearance) {
+      const correctedWorldPosition = shipWorldPosition.addScaledVector(
+        terrainContact.worldNormal,
+        minimumHullClearance - signedClearance
+      );
+      if (ship.parent) {
+        ship.parent.updateWorldMatrix(true, false);
+        ship.position.copy(ship.parent.worldToLocal(correctedWorldPosition));
+      } else {
+        ship.position.copy(correctedWorldPosition);
+      }
+      // Cancela apenas a aproximação contra a superfície; o piloto pode
+      // voltar a acelerar para se afastar e decolar.
+      if (forwardVector.dot(terrainContact.worldNormal) < 0) state.speed = 0;
+      ship.userData.earthCollisionResolved = true;
+      ship.userData.earthCollisionClearanceUnits = minimumHullClearance;
+    }
+  }
+  
   /* EFEITOS DAS NACELLES */
 
   const enginePower = boosting ? 2.5 : (state.throttle ? 1.25 : 0.65);
@@ -1235,7 +1266,7 @@ function loop(now) {
           : minimumClearance <= 0.35 ? 'contact' : 'clear',
         contacts,
         minimumClearanceUnits: minimumClearance,
-        physicsApplied: false
+        physicsApplied: Boolean(ship.userData.earthCollisionResolved)
       };
     } else {
       delete ship.userData.earthSurfaceSample;
