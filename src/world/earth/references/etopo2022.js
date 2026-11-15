@@ -1,4 +1,4 @@
-const ETOPO_MAGIC = 'ETOPO22\\0';
+const ETOPO_MAGIC = 'ETOPO22\0';
 const ETOPO_HEADER_BYTES = 56;
 const ETOPO_DATA_PATH = 'earth/data/etopo2022-global-0.25deg.bin';
 
