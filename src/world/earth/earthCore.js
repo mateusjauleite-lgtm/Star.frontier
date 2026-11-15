@@ -59,6 +59,11 @@ export function createEarthCore(options = {}) {
     getPlanetaryProfile() {
       return planetaryProfile;
     },
+    // Shared physical query surface: the collision system consumes the same
+    // elevation sampler that displaces the rendered Earth mesh.
+    getCollisionSurface() {
+      return layers.terrain?.collisionSurface ?? null;
+    },
     updateModules: EARTH_UPDATE_MODULES,
     attachUpdateModule(id, runtime) {
       if (disposed) return false;
