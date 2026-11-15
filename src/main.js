@@ -1654,12 +1654,15 @@ document.querySelectorAll('[data-inventory-tab]').forEach(button => {
 $('inventory-modal')?.addEventListener('click', event => {
   if (event.target.id === 'inventory-modal') closeInventory();
 });
-document.querySelectorAll('[data-slot]').forEach(button => {
-  button.addEventListener('click', () => {
-    const result = characterEquipment.toggleSlot(button.dataset.slot);
-    if (!result.ok) toast(result.reason);
-    else { save(); toast(result.item?.name ? result.item.name + ' atualizado.' : 'Equipamento atualizado.'); }
-  });
+$('inventory-clothing-view')?.addEventListener('click', event => {
+  const button = event.target.closest('button[data-slot]');
+  if (!button || !event.currentTarget.contains(button)) return;
+  const result = characterEquipment.toggleSlot(button.dataset.slot);
+  if (!result.ok) toast(result.reason);
+  else {
+    save();
+    toast(result.item?.name ? result.item.name + ' atualizado.' : 'Equipamento atualizado.');
+  }
 });
 $('inventory-grid')?.addEventListener('click', event => {
   const target = event.target.closest('[data-item-instance]');
