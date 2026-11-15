@@ -147,3 +147,20 @@ test('production ETOPO asset contract matches the 0.25-degree global grid', () =
   assert.equal(ETOPO_2022_GLOBAL_GRID.sourceResolutionArcSeconds, 60);
   assert.equal(ETOPO_2022_GLOBAL_GRID.verticalDatum, 'EGM2008 geoid');
 });
+
+test('global ETOPO interpolation wraps continuously across the antimeridian', () => {
+  const seamGrid = {
+    width: 4,
+    height: 2,
+    west: -135,
+    east: 135,
+    south: -90,
+    north: 90,
+    wrapLongitude: true,
+    longitudePeriod: 360,
+    values: new Float32Array([0, 10, 20, 30, 0, 10, 20, 30])
+  };
+  assert.equal(sampleEarthElevationGrid(seamGrid, 180, 0), 15);
+  assert.equal(sampleEarthElevationGrid(seamGrid, -180, 0), 15);
+  assert.equal(sampleEarthElevationGrid(seamGrid, 540, 0), 15);
+});
