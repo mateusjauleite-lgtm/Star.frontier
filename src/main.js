@@ -771,6 +771,8 @@ function updateFlight(dt) {
     shipLandingAutopilot.cancel();
     ship.userData.landingGuidance = null;
     ship.userData.landingAutopilotState = 'manual-override';
+    if ($('landing-btn')) $('landing-btn').textContent = '◎ GUIA DE POUSO';
+    if ($('landing-status')) $('landing-status').textContent = 'Comando manual assumido. A orientação automática foi cancelada.';
     toast('Orientação automática cancelada: controle manual assumido.');
   }
 
