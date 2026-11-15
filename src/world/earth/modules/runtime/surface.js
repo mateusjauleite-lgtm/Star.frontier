@@ -146,9 +146,22 @@ function makeRockAlbedo() {
   return canvas;
 }
 
-export function selectEarthLodLevel(distance, radius) {
-  if (!Number.isFinite(distance) || !Number.isFinite(radius) || radius <= 0) return 2;
-  return distance > radius * 4.2 ? 0 : distance > radius * 2.2 ? 1 : 2;
+export function selectEarthLodLevel(distance, radius, currentLevel = null) {
+  if (!Number.isFinite(distance) || !Number.isFinite(radius) || radius <= 0) return 3;
+  const thresholds = [4.2, 2.2, 1.35];
+  if (!Number.isInteger(currentLevel) || currentLevel < 0 || currentLevel > 3) {
+    return distance > radius * thresholds[0] ? 0
+      : distance > radius * thresholds[1] ? 1
+      : distance > radius * thresholds[2] ? 2 : 3;
+  }
+  // Hysteresis prevents rapid LOD toggling when the camera sits on a boundary.
+  if (currentLevel < 3 && distance < radius * thresholds[currentLevel] * 0.92) {
+    return currentLevel + 1;
+  }
+  if (currentLevel > 0 && distance > radius * thresholds[currentLevel - 1] * 1.08) {
+    return currentLevel - 1;
+  }
+  return currentLevel;
 }
 
 export function createSurfaceRuntime({ group, options, layers }) {
@@ -158,13 +171,15 @@ export function createSurfaceRuntime({ group, options, layers }) {
       texture = new THREE.CanvasTexture(makeRockAlbedo());
       texture.colorSpace = THREE.SRGBColorSpace;
       texture.anisotropy = 4;
-      // Global mesh LOD: retain the existing 320x192 surface as the close-range level.
+      // Four global LOD levels. The 640x384 level supports close approaches;
+      // ETOPO-aligned local patches provide the finer regional surface detail.
       lodGeometries = [
         new THREE.SphereGeometry(options.radius, 72, 48),
         new THREE.SphereGeometry(options.radius, 144, 96),
-        new THREE.SphereGeometry(options.radius, 320, 192)
+        new THREE.SphereGeometry(options.radius, 320, 192),
+        new THREE.SphereGeometry(options.radius, 640, 384)
       ];
-      geometry = lodGeometries[2];
+      geometry = lodGeometries[3];
       material = new THREE.MeshStandardMaterial({
         map: texture,
         roughness: .96,
@@ -173,7 +188,7 @@ export function createSurfaceRuntime({ group, options, layers }) {
       mesh = new THREE.Mesh(geometry, material);
       mesh.name = 'Earth-Continuous-Rocky-Globe';
       mesh.userData.earthLodGeometries = lodGeometries;
-      mesh.userData.earthLodLevel = 2;
+      mesh.userData.earthLodLevel = 3;
       mesh.rotation.z = THREE.MathUtils.degToRad(11.5);
       group.add(mesh);
       layers.surface = mesh;
@@ -182,11 +197,11 @@ export function createSurfaceRuntime({ group, options, layers }) {
       if (!mesh) return;
       mesh.rotation.y += Math.min(Math.max(delta || 0, 0), .1) * .012;
       const camera = context?.camera;
-      if (!camera || lodGeometries.length !== 3) return;
+      if (!camera || lodGeometries.length !== 4) return;
       const center = mesh.getWorldPosition(new THREE.Vector3());
       const distance = camera.position.distanceTo(center);
       const radius = options.radius;
-      const nextLevel = selectEarthLodLevel(distance, radius);
+      const nextLevel = selectEarthLodLevel(distance, radius, mesh.userData.earthLodLevel);
       if (nextLevel !== mesh.userData.earthLodLevel) {
         mesh.geometry = lodGeometries[nextLevel];
         mesh.userData.earthLodLevel = nextLevel;
