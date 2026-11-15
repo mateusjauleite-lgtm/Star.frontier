@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createShipFlightKernel} from './shipFlightKernel.js';
 import {EARTH_LANDING_SITES,getLandingSite} from './landingSites.js';
-import {calculateLandingGuidance,calculateLandingOrientation,isLandingEnvelopeSatisfied} from './landingAutopilot.js';
+import {calculateLandingGuidance,calculateLandingOrientation,geodeticToEarthLocalFrame,isLandingEnvelopeSatisfied} from './landingAutopilot.js';
 import {resolveFlightCommand} from './flightControlContract.js';
 
 test('Earth gravity points toward the center in the JS fallback',()=>{
@@ -29,6 +29,17 @@ test('Uyuni landing site uses the surveyed UY04 WGS84 reference and remains a ca
  assert.equal(site.referencePointId,'UY04');
  assert.equal(site.referenceElevationMeters,3697.2995);
  assert.equal(site.landingHeadingTrueDeg,0);
+});
+test('geodetic coordinates use the Earth mesh axis convention and true-north tangent',()=>{
+ const frame=geodeticToEarthLocalFrame({
+  longitudeDeg:-67.422529683,latitudeDeg:-20.211888829,radiusUnits:600,elevationUnits:0.35
+ });
+ assert.ok(frame);
+ assert.ok(Math.abs(Math.hypot(...frame.position)-600.35)<1e-9);
+ const dot=frame.north.reduce((sum,v,i)=>sum+v*frame.up[i],0);
+ assert.ok(Math.abs(dot)<1e-12);
+ assert.ok(Math.abs(Math.hypot(...frame.north)-1)<1e-12);
+ assert.equal(geodeticToEarthLocalFrame({longitudeDeg:0,latitudeDeg:91,radiusUnits:600}),null);
 });
 test('landing orientation aligns ship forward with true north on a level surface',()=>{
  const o=calculateLandingOrientation({surfaceNormal:[0,1,0],northReference:[0,0,-1],headingDeg:0});
