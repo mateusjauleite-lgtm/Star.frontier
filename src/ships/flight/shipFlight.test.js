@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createShipFlightKernel} from './shipFlightKernel.js';
 import {EARTH_LANDING_SITES,getLandingSite} from './landingSites.js';
-import {calculateLandingGuidance,calculateLandingOrientation,createShipLandingAutopilot,createShipLandingTelemetryAdapter,geodeticToEarthLocalFrame,isLandingEnvelopeSatisfied} from './landingAutopilot.js';
+import {calculateLandingGuidance,calculateLandingOrientation,createShipLandingAutopilot,createShipLandingTelemetryAdapter,createShipLandingMetricTelemetryAdapter,geodeticToEarthLocalFrame,isLandingEnvelopeSatisfied} from './landingAutopilot.js';
 import {resolveFlightCommand} from './flightControlContract.js';
 
 test('Earth gravity points toward the center in the JS fallback',()=>{
@@ -80,6 +80,54 @@ test('telemetry adapter rejects invalid and non-orthogonal local frames',()=>{
  assert.equal(adapter.sample({shipPositionWorld:[0,1,0],targetPositionWorld:[0,0,0],dt:0.1,
   eastWorld:[1,0,0],upWorld:[1,0,0],northWorld:[0,0,1],
   shipForwardWorld:[0,0,1],shipUpWorld:[0,1,0]}),null);
+});
+
+
+test('metric landing frame maps all four ship feet into the platform metre frame',()=>{
+ const adapter=createShipLandingMetricTelemetryAdapter();
+ const feet=[
+  {id:'port-fore',point:[-18,-23.18,-30]},
+  {id:'starboard-fore',point:[18,-23.18,-30]},
+  {id:'port-aft',point:[-18,-23.18,30]},
+  {id:'starboard-aft',point:[18,-23.18,30]}
+ ];
+ const sample=adapter.sample({
+  shipOriginPlatformLocalMeters:[0,23.94,0],
+  shipRotationRelativeToPlatform:[0,0,0,1],contactPoints:feet,dt:0.1
+ });
+ assert.ok(sample);
+ assert.equal(sample.coordinateFrame,'platform-local-metric');
+ assert.deepEqual(sample.positionMeters,[0,23.94,0]);
+ assert.deepEqual(sample.shipForwardLocal,[0,0,1]);
+ assert.deepEqual(sample.shipUpLocal,[0,1,0]);
+ assert.equal(sample.contactPointsMeters.length,4);
+ assert.ok(sample.contactPointsMeters.every(p=>Math.abs(p.clearanceMeters)<1e-9));
+ assert.ok(sample.allGearInsideDeck);
+ assert.ok(Math.abs(sample.minimumGearClearanceMeters)<1e-9);
+});
+test('metric landing frame derives relative velocity and rotates the four feet with ship attitude',()=>{
+ const adapter=createShipLandingMetricTelemetryAdapter();
+ const feet=[
+  {id:'port-fore',point:[-18,-23.18,-30]},
+  {id:'starboard-fore',point:[18,-23.18,-30]},
+  {id:'port-aft',point:[-18,-23.18,30]},
+  {id:'starboard-aft',point:[18,-23.18,30]}
+ ];
+ adapter.sample({shipOriginPlatformLocalMeters:[0,23.94,0],shipRotationRelativeToPlatform:[0,0,0,1],contactPoints:feet,dt:0.1});
+ const rotated=adapter.sample({
+  shipOriginPlatformLocalMeters:[1,24.94,0],
+  shipRotationRelativeToPlatform:[0,Math.SQRT1_2,0,Math.SQRT1_2],
+  contactPoints:feet,dt:0.5
+ });
+ assert.deepEqual(rotated.velocityMetersPerSecond,[2,2,0]);
+ assert.ok(Math.abs(rotated.contactPointsMeters[0].positionMeters[0]+30)<1e-9);
+ assert.equal(rotated.actuationEnabled,false);
+});
+test('metric landing frame rejects invalid quaternion or missing one of the four feet',()=>{
+ const adapter=createShipLandingMetricTelemetryAdapter();
+ const feet=Array.from({length:4},(_,i)=>({id:String(i),point:[0,-23.18,0]}));
+ assert.equal(adapter.sample({shipOriginPlatformLocalMeters:[0,0,0],shipRotationRelativeToPlatform:[0,0,0],contactPoints:feet,dt:0.1}),null);
+ assert.equal(adapter.sample({shipOriginPlatformLocalMeters:[0,0,0],shipRotationRelativeToPlatform:[0,0,0,1],contactPoints:feet.slice(0,3),dt:0.1}),null);
 });
 
 test('Uyuni landing site uses the surveyed UY04 WGS84 reference and remains a candidate',()=>{

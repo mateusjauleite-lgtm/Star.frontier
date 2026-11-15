@@ -1743,7 +1743,7 @@ $('landing-btn')?.addEventListener('click', () => {
       }
       shipLandingTelemetry.reset();
       ship.userData.landingAutopilotState = 'armed-guidance-only';
-      $('landing-status').textContent = 'Telemetria real conectada: posição, velocidade relativa e atitude. A saída é apenas informativa; propulsão automática bloqueada até validar a escala métrica da nave.';
+      $('landing-status').textContent = 'Referencial métrico da plataforma conectado: centro da nave, orientação e quatro sapatas calculados em metros. A calibração visual ainda está pendente; propulsão automática bloqueada.';
       $('landing-btn').textContent = '◎ GUIA ATIVA — CANCELAR';
       toast('Telemetria de pouso conectada. Propulsão automática bloqueada.');
     }

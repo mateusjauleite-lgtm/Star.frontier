@@ -89,7 +89,7 @@ export function createShipLandingAutopilot(shipKernel){
     maximumDescentSpeed:state.maximumDescentSpeed??1.5,lateralGain:state.lateralGain??0.08,verticalGain:state.verticalGain??0.15
    });
    return guidance?{...guidance,targetId,authority:'guidance-only',actuationEnabled:false,
-    coordinateFrame:'earth-local-tangent',telemetrySource:state.source,scaleValidation:state.scaleValidation}:null;
+    coordinateFrame:state.coordinateFrame??'earth-local-tangent',telemetrySource:state.source,scaleValidation:state.scaleValidation}:null;
   },
   cancel(){active=false;targetId=null;},
   snapshot(){return {active,targetId,authority:'guidance-only',actuationEnabled:false};}
