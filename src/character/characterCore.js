@@ -16,7 +16,13 @@ const DEFAULT_CHARACTER_STATE = {
   interactionTarget: null,
   equipment: {
     suit: 'Traje de exploração básico',
-    tool: null
+    tool: null,
+    head: null,
+    torso: null,
+    hands: null,
+    legs: null,
+    feet: null,
+    back: null
   }
 };
 
