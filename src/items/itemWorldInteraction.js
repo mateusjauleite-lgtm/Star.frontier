@@ -27,12 +27,14 @@ export const ITEM_WORLD_INTERACTION_PLAN = Object.freeze({
     }),
 
     storageInteraction: Object.freeze({
-      status: 'planned',
+      status: 'foundation',
+      path: './inventory/storageContainer.js',
       responsibility: 'Abrir e fechar a área de loot do recipiente e apresentar seu conteúdo.'
     }),
 
     itemTransfer: Object.freeze({
-      status: 'planned',
+      status: 'foundation',
+      path: './inventory/inventoryTransfer.js',
       responsibility: 'Mover instâncias entre inventário e recipiente, preservando instanceId, quantidade, durabilidade e metadados.'
     }),
 
@@ -47,6 +49,6 @@ export const ITEM_WORLD_INTERACTION_PLAN = Object.freeze({
     'Respeitar capacidade e regras de empilhamento do inventário e do recipiente.',
     'Não recriar nem substituir o inventário atual.',
     'Não alterar a persistência ou os slots de equipamento já testados.',
-    'Implementar e testar cada módulo somente quando houver objetos do mundo disponíveis na gameplay.'
+    'Validar a integração visual e física quando houver objetos do mundo disponíveis na gameplay.'
   ])
 });
