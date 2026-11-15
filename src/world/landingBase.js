@@ -1,10 +1,16 @@
 import * as THREE from 'three';
 
-// Pequena base planetária no Salar de Uyuni: plataforma dimensionada para a nave
-// atual e um único módulo técnico, sem edifícios ou paredes extensas.
+// Complexo terrestre de Uyuni. A raiz recebe a orientação geodésica da Earth;
+// plataforma e estação permanecem como grupos independentes para evolução/LOD.
 export function createLandingBase() {
   const group = new THREE.Group();
-  group.name = 'StarFrontier-Uyuni-Landing-Base';
+  group.name = 'StarFrontier-Uyuni-Base-Complex';
+
+  const platform = new THREE.Group();
+  platform.name = 'StarFrontier-Uyuni-Landing-Platform';
+  const station = new THREE.Group();
+  station.name = 'StarFrontier-Uyuni-Surface-Station';
+  group.add(platform, station);
 
   const foundation = new THREE.MeshStandardMaterial({
     color: 0x263b4c, metalness: 0.78, roughness: 0.42
@@ -25,47 +31,48 @@ export function createLandingBase() {
   });
   const lamp = new THREE.MeshBasicMaterial({ color: 0x72e5ff });
 
-  const add = (geometry, material, position, rotation = [0, 0, 0]) => {
+  const add = (target, geometry, material, position, rotation = [0, 0, 0]) => {
     const mesh = new THREE.Mesh(geometry, material);
     mesh.position.set(...position);
     mesh.rotation.set(...rotation);
-    group.add(mesh);
+    target.add(mesh);
     return mesh;
   };
 
-  // Plataforma ampla, baixa e aberta: sem paredes em torno da área de pouso.
-  add(new THREE.CylinderGeometry(63, 64, 1.15, 96), foundation, [0, 0.05, 0]);
-  add(new THREE.CylinderGeometry(60.5, 60.5, 0.16, 96), deck, [0, 0.68, 0]);
-  add(new THREE.TorusGeometry(59.2, 0.22, 8, 96), marking, [0, 0.8, 0], [Math.PI / 2, 0, 0]);
-  add(new THREE.TorusGeometry(29, 0.16, 8, 80), marking, [0, 0.8, 0], [Math.PI / 2, 0, 0]);
+  // Zona de pouso: permanece livre de edifícios e pode receber colisão própria.
+  add(platform, new THREE.CylinderGeometry(63, 64, 1.15, 96), foundation, [0, 0.05, 0]);
+  add(platform, new THREE.CylinderGeometry(60.5, 60.5, 0.16, 96), deck, [0, 0.68, 0]);
+  add(platform, new THREE.TorusGeometry(59.2, 0.22, 8, 96), marking, [0, 0.8, 0], [Math.PI / 2, 0, 0]);
+  add(platform, new THREE.TorusGeometry(29, 0.16, 8, 80), marking, [0, 0.8, 0], [Math.PI / 2, 0, 0]);
+  add(platform, new THREE.BoxGeometry(0.32, 0.035, 36), marking, [0, 0.81, 0]);
+  add(platform, new THREE.BoxGeometry(36, 0.035, 0.32), marking, [0, 0.81, 0]);
+  add(platform, new THREE.ConeGeometry(2.1, 5, 4), marking, [0, 0.9, -39], [-Math.PI / 2, 0, 0]);
 
-  // Marcas centrais e guia de aproximação orientada para norte verdadeiro (-Z).
-  add(new THREE.BoxGeometry(0.32, 0.035, 36), marking, [0, 0.81, 0]);
-  add(new THREE.BoxGeometry(36, 0.035, 0.32), marking, [0, 0.81, 0]);
-  add(new THREE.ConeGeometry(2.1, 5, 4), marking, [0, 0.9, -39], [-Math.PI / 2, 0, 0]);
-
-  // Oito luzes baixas no perímetro, sem postes altos que atrapalhem a aproximação.
+  // Balizamento baixo no perímetro, sem obstruir o corredor de aproximação.
   for (let i = 0; i < 8; i++) {
     const angle = i * Math.PI / 4;
     const x = Math.cos(angle) * 56;
     const z = Math.sin(angle) * 56;
-    add(new THREE.CylinderGeometry(0.48, 0.58, 0.22, 12), foundation, [x, 0.86, z]);
-    add(new THREE.SphereGeometry(0.24, 10, 8), lamp, [x, 1.02, z]);
+    add(platform, new THREE.CylinderGeometry(0.48, 0.58, 0.22, 12), foundation, [x, 0.86, z]);
+    add(platform, new THREE.SphereGeometry(0.24, 10, 8), lamp, [x, 1.02, z]);
   }
-
-  // Um único módulo técnico compacto, deslocado para fora da zona de pouso.
-  add(new THREE.BoxGeometry(9, 4.2, 7), habitat, [72, 2.7, 12]);
-  add(new THREE.BoxGeometry(5.8, 1.8, 0.16), glass, [72, 2.95, 8.42]);
-  add(new THREE.BoxGeometry(9.4, 0.38, 7.4), foundation, [72, 4.95, 12]);
-  add(new THREE.CylinderGeometry(0.22, 0.3, 4.5, 8), foundation, [76, 7.2, 14]);
-  add(new THREE.SphereGeometry(0.34, 10, 8), lamp, [76, 9.55, 14]);
 
   const beacon = new THREE.PointLight(0x48cfff, 1.1, 95);
   beacon.position.set(0, 5, 0);
-  group.add(beacon);
+  platform.add(beacon);
+
+  // Estação fora do círculo de pouso. Seu grupo pode ser movido/expandido
+  // sem alterar a plataforma nem a referência de orientação geográfica.
+  add(station, new THREE.BoxGeometry(9, 4.2, 7), habitat, [72, 2.7, 12]);
+  add(station, new THREE.BoxGeometry(5.8, 1.8, 0.16), glass, [72, 2.95, 8.42]);
+  add(station, new THREE.BoxGeometry(9.4, 0.38, 7.4), foundation, [72, 4.95, 12]);
+  add(station, new THREE.CylinderGeometry(0.22, 0.3, 4.5, 8), foundation, [76, 7.2, 14]);
+  add(station, new THREE.SphereGeometry(0.34, 10, 8), lamp, [76, 9.55, 14]);
 
   return {
     group,
+    platform,
+    station,
     dispose() {
       group.traverse(object => {
         if (!object.isMesh) return;
