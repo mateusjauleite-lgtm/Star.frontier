@@ -1635,7 +1635,7 @@ document.querySelectorAll('[data-action-slot]').forEach(button=>{
        if(result.ok)toast(`${itemDatabase.get(result.returned.definitionId)?.name||'Item'} guardado na mochila.`);
        else if(result.reason==='item-selected-for-action')toast('Retire a seleção de uso com um toque antes de guardar.');
        renderInventory();updateCharacterHUD();
-     },550);
+     },400);
    });
    button.addEventListener('pointerup',cancelHold);
    button.addEventListener('pointercancel',cancelHold);
