@@ -1184,6 +1184,12 @@ function loop(now) {
     updateCamera();
   }
   earthSystem?.update(dt, camera);
+
+  // Mantém uma região local de maior densidade geométrica sob a nave
+  // durante a aproximação. A consulta usa o mesmo sampler do relevo global.
+  if (ship) {
+    earthSystem?.getCollisionSurface?.().updateHighResolutionPatch?.(ship.position);
+  }
   orbitSystem?.update(dt);
   asteroidSystem?.update(dt);
   lightingSystem?.update(dt);
