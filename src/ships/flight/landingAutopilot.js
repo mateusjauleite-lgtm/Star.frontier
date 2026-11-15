@@ -16,8 +16,8 @@ export function calculateLandingGuidance({
  const lateralDistance=Math.hypot(...lateral);
  const descent=clamp(altitude*verticalGain,0,maximumDescentSpeed);
  const desiredVelocity=normal.map((v,i)=>-v*descent-lateral[i]*lateralGain);
- return {altitudeUnits:altitude,lateralErrorUnits:lateralDistance,desiredVelocity,
-  phase:altitude>80?'approach':lateralDistance>8?'align':altitude>10?'descent':'flare'};
+ const phase=lateralDistance>8?'align':altitude>80?'approach':altitude>10?'descent':'flare';
+ return {altitudeUnits:altitude,lateralErrorUnits:lateralDistance,desiredVelocity,phase};
 }
 export function isLandingEnvelopeSatisfied({
  altitudeUnits,lateralErrorUnits,speedUnitsPerSecond,maximumSlopeDeg,
