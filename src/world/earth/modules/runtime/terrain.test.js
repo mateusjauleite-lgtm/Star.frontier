@@ -76,7 +76,7 @@ function makeCompactEtopoBuffer(values = [10, 20, 30, 40]) {
   const headerBytes = 56;
   const buffer = new ArrayBuffer(headerBytes + values.length * 2);
   const bytes = new Uint8Array(buffer);
-  bytes.set(new TextEncoder().encode('ETOPO22\\0'), 0);
+  bytes.set(new TextEncoder().encode('ETOPO22\0'), 0);
   const view = new DataView(buffer);
   view.setUint32(8, 2, true);
   view.setUint32(12, 2, true);
