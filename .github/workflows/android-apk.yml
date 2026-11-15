@@ -77,6 +77,9 @@ jobs:
       - name: Compile Earth C++ kernel to WebAssembly
         run: npm run build:earth:wasm
 
+      - name: Compile Ship C++ orbital kernel to WebAssembly
+        run: npm run build:ship:wasm
+
       - name: Run project tests
         run: npm test
 
