@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { createEarthCore } from './world/earth/earthCore.js';
 import { createStation } from './world/station.js';
 import { getLandingSite } from './ships/flight/landingSites.js';
+import { createShipLandingAutopilot, createShipLandingTelemetryAdapter } from './ships/flight/landingAutopilot.js';
+import { loadShipFlightKernel } from './ships/flight/shipFlightKernel.js';
 import { createOrbitSystem } from './world/orbits.js';
 import { createAsteroidField } from './world/asteroids.js';
 import { createSpaceLighting } from './world/lighting.js';
@@ -380,6 +382,9 @@ let earthSystem;
 let stationSystem;
 let landingBaseSystem;
 let selectedLandingSiteId = null;
+let shipFlightKernel = null;
+let shipLandingAutopilot = null;
+const shipLandingTelemetry = createShipLandingTelemetryAdapter({ metersPerRenderUnit: 6371008.8 / 600 });
 let orbitSystem;
 let asteroidSystem;
 let lightingSystem;
@@ -598,6 +603,11 @@ async function startGame() {
     stationSystem = null;
     landingBaseSystem = null;
     selectedLandingSiteId = null;
+    shipLandingAutopilot?.cancel?.();
+    shipLandingAutopilot = null;
+    shipFlightKernel?.dispose?.();
+    shipFlightKernel = null;
+    shipLandingTelemetry.reset();
     orbitSystem = null;
     asteroidSystem = null;
     lightingSystem = null;
@@ -678,6 +688,9 @@ async function init3D() {
   shipVisual = explorationShip.visual;
   shipLandingGear = explorationShip.landingGear;
   shipLandingGearContactPoints = explorationShip.landingGearContactPoints;
+  shipFlightKernel = await loadShipFlightKernel();
+  shipLandingAutopilot = createShipLandingAutopilot(shipFlightKernel);
+  shipLandingTelemetry.reset();
   updateDeck4Clearance();
   engineFlames = explorationShip.engineFlames;
   engineLights = explorationShip.engineLights;
@@ -752,6 +765,14 @@ function updateFlight(dt) {
   // Protege a simulação contra saltos de tempo quando o Android pausa ou atrasa um frame.
   const safeDt = THREE.MathUtils.clamp(Number.isFinite(dt) ? dt : 0, 0, 0.04);
   const sensitivity = Number(state.settings.sensitivity) || 1;
+  const manualOverride = Math.abs(state.move.x) > 0.015 || Math.abs(state.move.y) > 0.015 ||
+    state.throttle || state.braking || state.nitroButton;
+  if (manualOverride && shipLandingAutopilot?.snapshot?.().active) {
+    shipLandingAutopilot.cancel();
+    ship.userData.landingGuidance = null;
+    ship.userData.landingAutopilotState = 'manual-override';
+    toast('Orientação automática cancelada: controle manual assumido.');
+  }
 
   // Guinada sempre no eixo vertical global; arfagem sempre no eixo lateral local.
   // No joystick: puxar para cima (Y negativo) sobe; puxar para baixo (Y positivo) desce.
@@ -1240,6 +1261,7 @@ function loop(now) {
   // A Earth é proprietária da infraestrutura; a gameplay consulta a base
   // criada pelo módulo para contatos e estado de pouso.
   landingBaseSystem = earthSystem?.getLandingBase?.() ?? null;
+  updateShipLandingGuidance(dt);
 
   // Mantém uma região local de maior densidade geométrica sob a nave
   // durante a aproximação. A consulta usa o mesmo sampler do relevo global.
@@ -1696,9 +1718,75 @@ document.addEventListener('selectstart', event => {
 
 $('landing-btn')?.addEventListener('click', () => {
   if (!active || characterCore.snapshot().mode !== 'ship-control') return;
+  if (selectedLandingSiteId && shipLandingAutopilot) {
+    if (shipLandingAutopilot.snapshot().active) {
+      shipLandingAutopilot.cancel();
+      shipLandingTelemetry.reset();
+      ship.userData.landingGuidance = null;
+      ship.userData.landingAutopilotState = 'standby';
+      $('landing-status').textContent = 'Orientação automática em espera. O controle manual permanece disponível.';
+      $('landing-btn').textContent = '◎ GUIA DE POUSO';
+      toast('Orientação automática desativada.');
+    } else {
+      const site = getLandingSite(selectedLandingSiteId);
+      if (!site || !shipLandingAutopilot.arm(site)) {
+        toast('Não foi possível ativar a orientação de pouso.');
+        return;
+      }
+      shipLandingTelemetry.reset();
+      ship.userData.landingAutopilotState = 'armed-guidance-only';
+      $('landing-status').textContent = 'Telemetria real conectada: posição, velocidade relativa e atitude. A saída é apenas informativa; propulsão automática bloqueada até validar a escala métrica da nave.';
+      $('landing-btn').textContent = '◎ GUIA ATIVA — CANCELAR';
+      toast('Telemetria de pouso conectada. Propulsão automática bloqueada.');
+    }
+    return;
+  }
   $('landing-modal')?.classList.remove('hidden');
   $('landing-modal')?.setAttribute('aria-hidden', 'false');
 });
+
+function updateShipLandingGuidance(dt) {
+  if (!ship || !shipVisual || !shipLandingAutopilot?.snapshot?.().active) return;
+  const platform = landingBaseSystem?.platform;
+  if (!platform || !shipFlightKernel) {
+    ship.userData.landingGuidance = null;
+    ship.userData.landingAutopilotState = 'waiting-for-landing-platform';
+    return;
+  }
+
+  ship.updateWorldMatrix(true, true);
+  platform.updateWorldMatrix(true, true);
+  const targetPosition = platform.localToWorld(new THREE.Vector3(0, 0.76, 0));
+  const shipPosition = ship.getWorldPosition(new THREE.Vector3());
+  const platformQuaternion = platform.getWorldQuaternion(new THREE.Quaternion());
+  const shipQuaternion = shipVisual.getWorldQuaternion(new THREE.Quaternion());
+  const eastWorld = new THREE.Vector3(1, 0, 0).applyQuaternion(platformQuaternion).normalize();
+  const upWorld = new THREE.Vector3(0, 1, 0).applyQuaternion(platformQuaternion).normalize();
+  const northWorld = new THREE.Vector3(0, 0, -1).applyQuaternion(platformQuaternion).normalize();
+  const shipForwardWorld = new THREE.Vector3(0, 0, -1).applyQuaternion(shipQuaternion).normalize();
+  const shipUpWorld = new THREE.Vector3(0, 1, 0).applyQuaternion(shipQuaternion).normalize();
+
+  const telemetry = shipLandingTelemetry.sample({
+    shipPositionWorld: shipPosition.toArray(), targetPositionWorld: targetPosition.toArray(),
+    shipForwardWorld: shipForwardWorld.toArray(), shipUpWorld: shipUpWorld.toArray(),
+    eastWorld: eastWorld.toArray(), upWorld: upWorld.toArray(), northWorld: northWorld.toArray(),
+    dt: Math.max(dt, 1 / 240)
+  });
+  if (!telemetry) {
+    ship.userData.landingGuidance = null;
+    ship.userData.landingAutopilotState = 'invalid-live-telemetry';
+    return;
+  }
+
+  const guidance = shipLandingAutopilot.update(telemetry);
+  ship.userData.landingTelemetry = telemetry;
+  ship.userData.landingGuidance = guidance;
+  ship.userData.landingAutopilotState = guidance ? 'guidance-only' : 'guidance-unavailable';
+  if (guidance) {
+    guidance.backend = shipFlightKernel.backend;
+    guidance.actuationEnabled = false;
+  }
+}
 
 function closeLandingPanel() {
   $('landing-modal')?.classList.add('hidden');
@@ -1714,13 +1802,16 @@ $('landing-select-btn')?.addEventListener('click', () => {
     return;
   }
   selectedLandingSiteId = site.id;
+  shipLandingAutopilot?.cancel?.();
+  shipLandingTelemetry.reset();
   ship.userData.landingSiteId = site.id;
+  ship.userData.landingAutopilotState = 'target-selected';
   const button = $('landing-btn');
-  if (button) button.textContent = '◉ UYUNI MARCADO';
+  if (button) button.textContent = '◎ GUIA DE POUSO';
   const status = $('landing-status');
-  if (status) status.textContent = 'Destino marcado: Salar de Uyuni · UY04. A orientação e a base estão preparadas; o comando automático permanece bloqueado até validar colisão, escala e corredor de aproximação.';
+  if (status) status.textContent = 'Destino marcado: Salar de Uyuni · UY04. Pressione GUIA DE POUSO para conectar a telemetria real. A orientação será calculada, mas a propulsão automática permanece bloqueada até validar a escala métrica e o corredor de aproximação.';
   closeLandingPanel();
-  toast('Destino UY04 marcado. Pouso automático ainda em validação.');
+  toast('Destino UY04 marcado. Telemetria pronta para conexão.');
 });
 
 /* CÂMERAS */

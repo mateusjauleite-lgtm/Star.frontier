@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createShipFlightKernel} from './shipFlightKernel.js';
 import {EARTH_LANDING_SITES,getLandingSite} from './landingSites.js';
-import {calculateLandingGuidance,calculateLandingOrientation,createShipLandingAutopilot,geodeticToEarthLocalFrame,isLandingEnvelopeSatisfied} from './landingAutopilot.js';
+import {calculateLandingGuidance,calculateLandingOrientation,createShipLandingAutopilot,createShipLandingTelemetryAdapter,geodeticToEarthLocalFrame,isLandingEnvelopeSatisfied} from './landingAutopilot.js';
 import {resolveFlightCommand} from './flightControlContract.js';
 
 test('Earth gravity points toward the center in the JS fallback',()=>{
@@ -59,6 +59,29 @@ test('Ship landing autopilot orchestrates the C++ guidance interface without mov
  assert.equal(result.authority,'guidance-only');
  autopilot.cancel();assert.equal(autopilot.snapshot().active,false);
 });
+
+test('live ship telemetry converts relative position, velocity and attitude into local SI coordinates',()=>{
+ const adapter=createShipLandingTelemetryAdapter({metersPerRenderUnit:10});
+ const first=adapter.sample({shipPositionWorld:[1,5,3],targetPositionWorld:[0,0,0],dt:0.1,
+  eastWorld:[1,0,0],upWorld:[0,1,0],northWorld:[0,0,1],
+  shipForwardWorld:[0,0,1],shipUpWorld:[0,1,0]});
+ assert.deepEqual(first.positionMeters,[10,50,30]);
+ assert.deepEqual(first.velocityMetersPerSecond,[0,0,0]);
+ const second=adapter.sample({shipPositionWorld:[2,6,3],targetPositionWorld:[0,0.5,0],dt:0.5,
+  eastWorld:[1,0,0],upWorld:[0,1,0],northWorld:[0,0,1],
+  shipForwardWorld:[1,0,0],shipUpWorld:[0,1,0]});
+ assert.deepEqual(second.velocityMetersPerSecond,[20,10,0]);
+ assert.deepEqual(second.shipForwardLocal,[1,0,0]);
+ assert.equal(second.actuationEnabled,false);
+});
+test('telemetry adapter rejects invalid and non-orthogonal local frames',()=>{
+ const adapter=createShipLandingTelemetryAdapter({metersPerRenderUnit:1});
+ assert.equal(adapter.sample({}),null);
+ assert.equal(adapter.sample({shipPositionWorld:[0,1,0],targetPositionWorld:[0,0,0],dt:0.1,
+  eastWorld:[1,0,0],upWorld:[1,0,0],northWorld:[0,0,1],
+  shipForwardWorld:[0,0,1],shipUpWorld:[0,1,0]}),null);
+});
+
 test('Uyuni landing site uses the surveyed UY04 WGS84 reference and remains a candidate',()=>{
  const site=getLandingSite('earth-salar-test-candidate');assert.equal(site.status,'candidate');
  assert.equal(site.requiresTerrainValidation,true);assert.equal(site.requiresPadPlacement,true);
