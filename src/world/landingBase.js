@@ -2,8 +2,8 @@ import * as THREE from 'three';
 
 // Dimensões da infraestrutura em metros no referencial local do local de pouso.
 export const LANDING_BASE_METRICS = Object.freeze({
-  platformRadiusMeters: 112,
-  stationCenterEastMeters: 132,
+  platformRadiusMeters: 150,
+  stationCenterEastMeters: 178,
   stationCenterNorthMeters: 0,
   stationHalfWidthMeters: 4.7,
   stationHalfDepthMeters: 3.7,
@@ -71,9 +71,9 @@ export function createLandingBase() {
 
   // Zona de pouso: permanece livre de edifícios e pode receber colisão própria.
   add(platform, new THREE.CylinderGeometry(LANDING_BASE_METRICS.platformRadiusMeters, LANDING_BASE_METRICS.platformRadiusMeters, 1.15, 96), foundation, [0, 0.05, 0]);
-  add(platform, new THREE.CylinderGeometry(108, 108, 0.16, 96), deck, [0, 0.68, 0]);
-  add(platform, new THREE.TorusGeometry(105, 0.22, 8, 128), marking, [0, 0.8, 0], [Math.PI / 2, 0, 0]);
-  add(platform, new THREE.TorusGeometry(52, 0.16, 8, 96), marking, [0, 0.8, 0], [Math.PI / 2, 0, 0]);
+  add(platform, new THREE.CylinderGeometry(146, 146, 0.16, 96), deck, [0, 0.68, 0]);
+  add(platform, new THREE.TorusGeometry(145, 0.22, 8, 128), marking, [0, 0.8, 0], [Math.PI / 2, 0, 0]);
+  add(platform, new THREE.TorusGeometry(75, 0.16, 8, 96), marking, [0, 0.8, 0], [Math.PI / 2, 0, 0]);
   add(platform, new THREE.BoxGeometry(0.32, 0.035, 70), marking, [0, 0.81, 0]);
   add(platform, new THREE.BoxGeometry(70, 0.035, 0.32), marking, [0, 0.81, 0]);
   add(platform, new THREE.ConeGeometry(2.1, 5, 4), marking, [0, 0.9, -75], [-Math.PI / 2, 0, 0]);
@@ -81,8 +81,8 @@ export function createLandingBase() {
   // Balizamento baixo no perímetro, sem obstruir o corredor de aproximação.
   for (let i = 0; i < 8; i++) {
     const angle = i * Math.PI / 4;
-    const x = Math.cos(angle) * 98;
-    const z = Math.sin(angle) * 98;
+    const x = Math.cos(angle) * 140;
+    const z = Math.sin(angle) * 140;
     add(platform, new THREE.CylinderGeometry(0.48, 0.58, 0.22, 12), foundation, [x, 0.86, z]);
     add(platform, new THREE.SphereGeometry(0.24, 10, 8), lamp, [x, 1.02, z]);
   }
