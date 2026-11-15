@@ -1188,7 +1188,16 @@ function loop(now) {
   // Mantém uma região local de maior densidade geométrica sob a nave
   // durante a aproximação. A consulta usa o mesmo sampler do relevo global.
   if (ship) {
-    earthSystem?.getCollisionSurface?.().updateHighResolutionPatch?.(ship.position);
+    const collisionSurface = earthSystem?.getCollisionSurface?.();
+    const landingPatch = collisionSurface?.updateHighResolutionPatch?.(ship.position);
+    if (landingPatch) {
+      // Cache the matching physical surface point and slope normal for the
+      // upcoming hull/landing-gear contact solver; this does not clamp flight yet.
+      ship.userData.earthSurfaceSample =
+        collisionSurface.sampleWorldPosition?.(ship.position) ?? null;
+    } else if (ship.userData.earthSurfaceSample) {
+      delete ship.userData.earthSurfaceSample;
+    }
   }
   orbitSystem?.update(dt);
   asteroidSystem?.update(dt);
