@@ -4,9 +4,7 @@
   "private": true,
   "description": "Star Frontier Three.js game runtime and Capacitor Android package",
   "type": "module",
-  "engines": {
-    "node": ">=22"
-  },
+  "engines": { "node": ">=22" },
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
@@ -14,6 +12,7 @@
     "android:add": "npx cap add android",
     "android:sync": "npx cap sync android",
     "build:earth:wasm": "bash scripts/build-earth-wasm.sh",
+    "build:ship:wasm": "bash scripts/build-ship-flight-wasm.sh",
     "prepare:earth:etopo": "python3 scripts/prepare-etopo2022.py"
   },
   "dependencies": {
