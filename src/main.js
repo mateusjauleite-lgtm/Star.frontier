@@ -171,7 +171,7 @@ state.ship = 'Nave exploradora';
 /* UTILITÁRIOS */
 
 function show(id) {
-  ['login-screen', 'menu-screen', 'game-screen'].forEach(name => {
+  ['startup-screen', 'login-screen', 'menu-screen', 'game-screen'].forEach(name => {
     $(name)?.classList.add('hidden');
   });
 
@@ -200,6 +200,10 @@ function updateWallet() {
 }
 
 /* LOGIN E PERFIL */
+
+$('startup-play-btn')?.addEventListener('click', () => {
+  show('login-screen');
+});
 
 $('login-btn')?.addEventListener('click', () => {
   const name = $('login-name')?.value.trim();
@@ -539,6 +543,35 @@ function loadingStep(percent, message) {
   });
 }
 
+
+
+/* INICIALIZAÇÃO DO APLICATIVO: carregamento -> JOGAR -> LOGIN -> MENU */
+async function bootApplication() {
+  const loadingScreen = $('loading-screen');
+
+  // Reaproveita a mesma tela visual usada ao iniciar a missão após DECOLAR.
+  // Nesta etapa, o aplicativo prepara a interface e o menu; a cena 3D continua
+  // sendo inicializada no fluxo de DECOLAR, como já acontece atualmente.
+  show('game-screen');
+  loadingScreen?.classList.remove('hidden');
+
+  const stages = [
+    [8, 'Inicializando Star.frontier...'],
+    [28, 'Carregando os sistemas do jogo...'],
+    [54, 'Preparando a interface do piloto...'],
+    [78, 'Carregando o menu principal...'],
+    [100, 'Inicialização concluída.']
+  ];
+
+  for (const [percent, message] of stages) {
+    await loadingStep(percent, message);
+    await new Promise(resolve => setTimeout(resolve, 180));
+  }
+
+  loadingScreen?.classList.add('hidden');
+  show('startup-screen');
+}
+
 async function startGame() {
   if (launching) return;
 
@@ -620,6 +653,12 @@ async function startGame() {
     await new Promise(resolve => setTimeout(resolve, 350));
 
     loadingScreen?.classList.add('hidden');
+
+    // O HUD usa medidas do DOM. Só aplicar posições salvas depois que a tela
+    // do jogo estiver visível e o WebView concluir o layout em dois frames.
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    applyCharacterHudLayout(readCharacterHudLayout());
+
     active = true;
     last = performance.now();
 
@@ -812,6 +851,7 @@ function resize3D() {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
+  scheduleCharacterHudLayout();
 }
 
 /* MOVIMENTO */
@@ -1964,6 +2004,21 @@ function applyCharacterHudLayout(layout = {}) {
   });
 }
 
+function scheduleCharacterHudLayout() {
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const gameScreen = $('game-screen');
+    if (!gameScreen || gameScreen.classList.contains('hidden')) return;
+
+    const hasMeasuredHud = characterHudEditable.every(element => {
+      const rect = element.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    });
+    if (!hasMeasuredHud) return;
+
+    applyCharacterHudLayout(readCharacterHudLayout());
+  }));
+}
+
 function captureCharacterHudLayout() {
   const layout = {};
   characterHudEditable.forEach(element => {
@@ -2105,3 +2160,6 @@ $('return-menu-btn')?.addEventListener('click', () => {
   updateWallet();
   last = performance.now();
 });
+
+// A tela de entrada é exibida somente depois que o carregamento inicial termina.
+bootApplication();
