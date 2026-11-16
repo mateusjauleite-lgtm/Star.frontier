@@ -122,6 +122,7 @@ export function createCharacterEquipmentSystem(gameState, {
       ...item,
       itemId: item.definitionId,
       name: item.metadata?.legacyName || definition?.name || item.definitionId,
+      code: definition?.code || 'LEGACY',
       category: definition?.category || item.metadata?.legacyCategory || 'resource',
       slot: definition?.attributes?.slot || item.metadata?.legacySlot || null
     };

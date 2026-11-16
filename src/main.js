@@ -1656,7 +1656,7 @@ function renderInventory() {
   $('inventory-count').textContent = `${items.length} / ${capacity}`;
   $('inventory-count').title = `Peso: ${usedWeight.toFixed(1)} / ${maxWeight} kg`;
   if ($('inventory-backpack-name')) $('inventory-backpack-name').textContent = backpack?.name || 'SEM MOCHILA';
-  if ($('inventory-backpack-code')) $('inventory-backpack-code').textContent = backpack?.itemId || 'CAPACIDADE BASE';
+  if ($('inventory-backpack-code')) $('inventory-backpack-code').textContent = backpack?.code || 'CAPACIDADE BASE';
   if ($('inventory-backpack-capacity')) $('inventory-backpack-capacity').textContent = `${capacity} ESPAÇOS`;
   if ($('inventory-backpack-weight')) $('inventory-backpack-weight').textContent = `${usedWeight.toFixed(1)} / ${maxWeight} KG`;
   if ($('inventory-overflow-count')) $('inventory-overflow-count').textContent = String(overflowItems.length);
