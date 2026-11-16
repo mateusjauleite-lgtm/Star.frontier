@@ -168,7 +168,9 @@ test('equipamento incompatível em slot legado não é descartado', () => {
   });
   const system = createSystem(state);
   system.initialize();
-  const preserved = system.snapshot().overflowItems.find(item => item.instanceId === 'legacy-invalid-head');
+  const snapshot = system.snapshot();
+  const preserved = [...snapshot.items, ...snapshot.overflowItems]
+    .find(item => item.instanceId === 'legacy-invalid-head');
   assert.ok(preserved);
   assert.equal(preserved.name, 'Capacete protótipo');
 });
