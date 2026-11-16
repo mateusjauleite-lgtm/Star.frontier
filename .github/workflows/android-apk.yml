@@ -8,6 +8,7 @@ on:
       - integration/threejs-recovery
       - feature/earth-procedural-lod
       - feature/ship-orbital-landing-foundation
+      - feature/inventory-backpack-character-integration
   pull_request:
     branches:
       - main

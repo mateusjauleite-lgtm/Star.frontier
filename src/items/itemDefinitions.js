@@ -1,0 +1,30 @@
+export const ITEM_CATEGORIES = Object.freeze({
+  WEAPON: 'weapon',
+  TOOL: 'tool',
+  MACHINE: 'machine',
+  EQUIPMENT: 'equipment',
+  RESOURCE: 'resource',
+  CONSUMABLE: 'consumable'
+});
+
+export function defineItem(definition) {
+  if (!definition || typeof definition !== 'object' || Array.isArray(definition)) {
+    throw new TypeError('Definição de item inválida.');
+  }
+  const stackable = definition.stackable ?? false;
+  const item = {
+    id: definition.id,
+    code: definition.code ?? null,
+    name: definition.name,
+    category: definition.category,
+    description: definition.description ?? '',
+    icon: definition.icon ?? null,
+    stackable,
+    maxStack: stackable ? (definition.maxStack ?? 99) : 1,
+    weight: definition.weight ?? 0,
+    rarity: definition.rarity ?? 'common',
+    attributes: Object.freeze({ ...(definition.attributes || {}) }),
+    tags: Object.freeze([...(definition.tags ?? [])])
+  };
+  return Object.freeze(item);
+}

@@ -2,10 +2,28 @@
 import { state, resetTransientState } from './state.js';
 
 const STORAGE_KEY = 'sf-demo-state';
+const BACKUP_KEY = 'sf-demo-state-backup';
+
+function parseStoredObject(raw) {
+  if (!raw) return null;
+  const data = JSON.parse(raw);
+  return data && typeof data === 'object' && !Array.isArray(data) ? data : null;
+}
 
 export function saveState() {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    const storage = globalThis.localStorage;
+    if (!storage) return false;
+    const serialized = JSON.stringify(state);
+    const previous = storage.getItem(STORAGE_KEY);
+    if (previous) {
+      try {
+        if (parseStoredObject(previous)) storage.setItem(BACKUP_KEY, previous);
+      } catch {
+        // Não substituir um backup íntegro por um registro principal corrompido.
+      }
+    }
+    storage.setItem(STORAGE_KEY, serialized);
     return true;
   } catch (error) {
     console.warn('Não foi possível salvar:', error);
@@ -15,24 +33,35 @@ export function saveState() {
 
 export function loadState() {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) return false;
+    const storage = globalThis.localStorage;
+    if (!storage) return false;
+    let data = null;
+    let restoredFromBackup = false;
 
-    const data = JSON.parse(stored);
-    if (!data || typeof data !== 'object' || Array.isArray(data)) {
-      return false;
+    try {
+      data = parseStoredObject(storage.getItem(STORAGE_KEY));
+    } catch {
+      data = null;
     }
+    if (!data) {
+      try {
+        data = parseStoredObject(storage.getItem(BACKUP_KEY));
+        restoredFromBackup = Boolean(data);
+      } catch {
+        data = null;
+      }
+    }
+    if (!data) return false;
 
     Object.assign(state, data);
     // A nave ativa atual substitui o identificador antigo salvo localmente.
     state.ship = 'Nave exploradora';
-
     state.settings = {
       quality: 'Média',
       music: 40,
       effects: 70,
       sensitivity: 1,
-      ...(data.settings && typeof data.settings === 'object'
+      ...(data.settings && typeof data.settings === 'object' && !Array.isArray(data.settings)
         ? data.settings
         : {})
     };
@@ -40,6 +69,13 @@ export function loadState() {
     resetTransientState();
     state.nitro = Number.isFinite(data.nitro) ? data.nitro : 100;
 
+    if (restoredFromBackup) {
+      try {
+        storage.setItem(STORAGE_KEY, JSON.stringify(state));
+      } catch (error) {
+        console.warn('Dados recuperados, mas não foi possível restaurar o arquivo principal:', error);
+      }
+    }
     return true;
   } catch (error) {
     console.warn('Erro ao carregar dados:', error);
@@ -47,4 +83,4 @@ export function loadState() {
   }
 }
 
-export { STORAGE_KEY };
+export { STORAGE_KEY, BACKUP_KEY };

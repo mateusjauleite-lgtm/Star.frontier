@@ -20,6 +20,7 @@ import { createShipComputer } from './ships/computer/shipComputer.js';
 import { registerShipComputerSystems } from './ships/computer/shipComputerSystems.js';
 
 const $ = id => document.getElementById(id);
+const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 
 const characterCore = createCharacterCore();
 const shipComputer = createShipComputer();
@@ -1620,6 +1621,7 @@ const characterEquipment = createCharacterEquipmentSystem(state, {
     for (const slot of ['head', 'torso', 'hands', 'legs', 'feet', 'back', 'weapon']) {
       characterCore.setEquipment(slot, characterEquipment.equippedItem(slot)?.itemId || null);
     }
+    save();
   }
 });
 
@@ -1637,18 +1639,54 @@ function renderClothing() {
   }
 }
 
+let pendingInventoryEquipId = null;
+
 function renderInventory() {
   renderClothing();
   const grid = $('inventory-grid');
   if (!grid) return;
-  const items = Array.isArray(state.inventory?.items) ? state.inventory.items : [];
-  $('inventory-count').textContent = `${items.length} / 24`;
-  grid.innerHTML = Array.from({ length: 24 }, (_, index) => {
+  const snapshot = characterEquipment.snapshot();
+  const items = snapshot.items || [];
+  const overflowItems = snapshot.overflowItems || [];
+  const capacity = snapshot.capacity || 12;
+  const backpack = characterEquipment.equippedItem('back');
+  const usedWeight = snapshot.usedWeight || 0;
+  const maxWeight = snapshot.maxWeight ?? 60;
+
+  $('inventory-count').textContent = `${items.length} / ${capacity}`;
+  $('inventory-count').title = `Peso: ${usedWeight.toFixed(1)} / ${maxWeight} kg`;
+  if ($('inventory-backpack-name')) $('inventory-backpack-name').textContent = backpack?.name || 'SEM MOCHILA';
+  if ($('inventory-backpack-code')) $('inventory-backpack-code').textContent = backpack?.itemId || 'CAPACIDADE BASE';
+  if ($('inventory-backpack-capacity')) $('inventory-backpack-capacity').textContent = `${capacity} ESPAÇOS`;
+  if ($('inventory-backpack-weight')) $('inventory-backpack-weight').textContent = `${usedWeight.toFixed(1)} / ${maxWeight} KG`;
+  if ($('inventory-overflow-count')) $('inventory-overflow-count').textContent = String(overflowItems.length);
+  $('inventory-overflow-panel')?.classList.toggle('hidden', overflowItems.length === 0);
+
+  grid.innerHTML = Array.from({ length: capacity }, (_, index) => {
     const item = items[index];
-    return item
-      ? `<button class="inventory-cell inventory-item-button" type="button" data-item-instance="${item.instanceId}"><span>${item.name}</span><small>TOQUE PARA EQUIPAR</small></button>`
-      : '<div class="inventory-cell"><span>ESPAÇO LIVRE</span></div>';
+    if (!item) return '<div class="inventory-cell empty"><span>ESPAÇO LIVRE</span></div>';
+    const name = escapeHtml(item.name || item.itemId || item.definitionId);
+    const category = escapeHtml(item.category || 'ITEM').toUpperCase();
+    const quantity = item.quantity > 1 ? ` ×${item.quantity}` : '';
+    return `<button class="inventory-cell inventory-item-button" type="button" data-item-instance="${escapeHtml(item.instanceId)}">
+      <span>${name}${quantity}</span><small>${category} · TOQUE PARA EQUIPAR</small>
+    </button>`;
   }).join('');
+
+  const overflowGrid = $('inventory-overflow-grid');
+  if (overflowGrid) {
+    overflowGrid.innerHTML = overflowItems.map(item => {
+      const name = escapeHtml(item.name || item.itemId || item.definitionId);
+      const quantity = item.quantity > 1 ? ` ×${item.quantity}` : '';
+      const equipable = ['head', 'torso', 'hands', 'legs', 'feet', 'back', 'weapon'].includes(item.slot);
+      const pending = pendingInventoryEquipId === item.instanceId;
+      const action = equipable ? (pending ? 'EQUIPAR AGORA' : 'TOQUE PARA SELECIONAR') : 'TOQUE PARA RESTAURAR';
+      return `<button type="button" class="inventory-overflow-item${pending ? ' item-pending-equip' : ''}" data-overflow-instance-id="${escapeHtml(item.instanceId)}">
+        <b>${name}${quantity}</b><small>${action}</small>
+      </button>`;
+    }).join('');
+  }
+
   const equipment = state.inventory?.equipment || {};
   ['weapon', 'tool', 'machine'].forEach(slot => {
     const el = $('quick-' + slot);
@@ -1686,8 +1724,36 @@ $('inventory-grid')?.addEventListener('click', event => {
   const target = event.target.closest('[data-item-instance]');
   if (!target) return;
   const result = characterEquipment.equip(target.dataset.itemInstance);
+  pendingInventoryEquipId = null;
   if (!result.ok) toast(result.reason);
   else { save(); toast(result.item.name + ' equipado no personagem.'); }
+  renderInventory();
+});
+$('inventory-overflow-grid')?.addEventListener('click', event => {
+  const target = event.target.closest('[data-overflow-instance-id]');
+  if (!target) return;
+  const instanceId = target.dataset.overflowInstanceId;
+  const item = characterEquipment.snapshot().overflowItems.find(entry => entry.instanceId === instanceId);
+  if (!item) return;
+  const equipable = ['head', 'torso', 'hands', 'legs', 'feet', 'back', 'weapon'].includes(item.slot);
+  if (equipable) {
+    if (pendingInventoryEquipId !== instanceId) {
+      pendingInventoryEquipId = instanceId;
+      renderInventory();
+      return;
+    }
+    const result = characterEquipment.equip(instanceId);
+    pendingInventoryEquipId = null;
+    if (!result.ok) toast(result.reason);
+    else { save(); toast(result.item.name + ' equipado no personagem.'); }
+    renderInventory();
+    return;
+  }
+  pendingInventoryEquipId = null;
+  const result = characterEquipment.moveOverflowToInventory(instanceId);
+  if (!result.ok) toast('Ainda não há espaço ou peso disponível na mochila.');
+  else { save(); toast('Item restaurado para a mochila.'); }
+  renderInventory();
 });
 characterEquipment.initialize();
 save();
