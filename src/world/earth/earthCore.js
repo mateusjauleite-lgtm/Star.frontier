@@ -9,6 +9,7 @@ import { createOceansRuntime } from './modules/runtime/oceans.js';
 import { createAtmosphereRuntime } from './modules/runtime/atmosphere.js';
 import { createCloudsRuntime } from './modules/runtime/clouds.js';
 import { createLightingRuntime } from './modules/runtime/lighting.js';
+import { createEarthInfrastructureRuntime } from './modules/runtime/infrastructure.js';
 import { createEarthPlanetaryProfile } from './planetaryProfile.js';
 
 const RUNTIME_FACTORIES = Object.freeze({
@@ -18,7 +19,8 @@ const RUNTIME_FACTORIES = Object.freeze({
   oceans: createOceansRuntime,
   atmosphere: createAtmosphereRuntime,
   clouds: createCloudsRuntime,
-  lighting: createLightingRuntime
+  lighting: createLightingRuntime,
+  infrastructure: createEarthInfrastructureRuntime
 });
 
 /**
@@ -64,13 +66,20 @@ export function createEarthCore(options = {}) {
     getCollisionSurface() {
       return layers.terrain?.collisionSurface ?? null;
     },
+    getLandingBase() {
+      return layers.infrastructure?.getBase?.() ?? null;
+    },
+    getLandingSiteMarker() {
+      return layers.infrastructure?.getMarker?.() ?? null;
+    },
     updateModules: EARTH_UPDATE_MODULES,
     attachUpdateModule(id, runtime) {
       if (disposed) return false;
       return updatePipeline.attach(id, runtime);
     },
-    update(delta) {
+    update(delta, camera = null) {
       if (disposed) return;
+      context.camera = camera;
       updatePipeline.update(delta, context);
     },
     dispose() {
@@ -90,6 +99,14 @@ export function createEarthCore(options = {}) {
           visualRadiusUnits: planetaryProfile.render.visualRadiusUnits,
           visualUnitsPerKm: planetaryProfile.render.visualUnitsPerKm
         },
+        terrain: layers.terrain ? {
+          elevationSource: layers.terrain.elevationSource,
+          sourceGridReady: layers.terrain.sourceGridReady,
+          etopoStatus: layers.terrain.etopoStatus,
+          verticalDatum: layers.terrain.verticalDatum ?? null,
+          gridResolutionArcSeconds: layers.terrain.gridResolutionArcSeconds ?? null,
+          verticalExaggeration: layers.terrain.verticalExaggeration
+        } : null,
         updateModules: updatePipeline.getStatus(),
         disposed
       };

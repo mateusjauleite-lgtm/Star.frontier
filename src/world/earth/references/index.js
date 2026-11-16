@@ -58,7 +58,12 @@ export const EARTH_REFERENCE_SOURCES = Object.freeze([
     attributionRequired: 'cite-dataset-when-derived',
     dataset: 'ETOPO 2022 15 Arc-Second Global Relief Model',
     doi: '10.25921/fd45-gt74',
-    implementationNote: 'Current runtime uses a procedural approximation; measured elevation grids are not yet imported.'
+    implementationNote: 'Runtime accepts a compact NOAA-derived global grid; run npm run prepare:earth:etopo to create the optional 0.25-degree asset. The 60-arc-second source is downsampled for the global baseline; local 15-arc-second tiles are a later high-detail stage.',
+    runtimeAsset: 'public/earth/data/etopo2022-global-0.25deg.bin',
+    verticalDatum: 'EGM2008 geoid',
+    sourceResolution: '60 arc-seconds',
+    packagedResolution: '0.25 degrees',
+    doi: '10.25921/fd45-gt74'
   },
   {
     id: 'google-earth',

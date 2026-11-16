@@ -146,14 +146,44 @@ function makeRockAlbedo() {
   return canvas;
 }
 
+// Match the packaged NOAA ETOPO 0.25-degree grid across the entire globe.
+// A single global mesh avoids waiting for the ship to approach before relief appears.
+export const EARTH_GLOBAL_SURFACE_SEGMENTS = Object.freeze({ width: 1440, height: 720 });
+
+export function selectEarthLodLevel(distance, radius, currentLevel = null) {
+  if (!Number.isFinite(distance) || !Number.isFinite(radius) || radius <= 0) return 3;
+  const thresholds = [4.2, 2.2, 1.35];
+  if (!Number.isInteger(currentLevel) || currentLevel < 0 || currentLevel > 3) {
+    return distance > radius * thresholds[0] ? 0
+      : distance > radius * thresholds[1] ? 1
+      : distance > radius * thresholds[2] ? 2 : 3;
+  }
+  // Hysteresis prevents rapid LOD toggling when the camera sits on a boundary.
+  if (currentLevel < 3 && distance < radius * thresholds[currentLevel] * 0.92) {
+    return currentLevel + 1;
+  }
+  if (currentLevel > 0 && distance > radius * thresholds[currentLevel - 1] * 1.08) {
+    return currentLevel - 1;
+  }
+  return currentLevel;
+}
+
 export function createSurfaceRuntime({ group, options, layers }) {
-  let mesh, texture, geometry, material;
+  let mesh, texture, geometry, material, lodGeometries = [];
   return {
     initialize() {
       texture = new THREE.CanvasTexture(makeRockAlbedo());
       texture.colorSpace = THREE.SRGBColorSpace;
       texture.anisotropy = 4;
-      geometry = new THREE.SphereGeometry(options.radius, 320, 192);
+      // One ETOPO-aligned global mesh: the full planet carries terrain detail
+      // from the first frame, independent of the ship/camera distance.
+      // Collision queries use the same elevation sampler in terrain.js.
+      geometry = new THREE.SphereGeometry(
+        options.radius,
+        EARTH_GLOBAL_SURFACE_SEGMENTS.width,
+        EARTH_GLOBAL_SURFACE_SEGMENTS.height
+      );
+      lodGeometries = [geometry];
       material = new THREE.MeshStandardMaterial({
         map: texture,
         roughness: .96,
@@ -161,16 +191,21 @@ export function createSurfaceRuntime({ group, options, layers }) {
       });
       mesh = new THREE.Mesh(geometry, material);
       mesh.name = 'Earth-Continuous-Rocky-Globe';
+      mesh.userData.earthLodGeometries = lodGeometries;
+      mesh.userData.earthLodLevel = 3;
       mesh.rotation.z = THREE.MathUtils.degToRad(11.5);
       group.add(mesh);
       layers.surface = mesh;
     },
-    update(delta) {
-      if (mesh) mesh.rotation.y += Math.min(Math.max(delta || 0, 0), .1) * .012;
+    update(delta, context) {
+      if (!mesh) return;
+      mesh.rotation.y += Math.min(Math.max(delta || 0, 0), .1) * .012;
+      // Global terrain resolution is fixed; camera distance never downgrades the globe.
     },
     dispose() {
       if (mesh) group.remove(mesh);
-      geometry?.dispose();
+      lodGeometries.forEach(item => item.dispose());
+      lodGeometries = [];
       material?.dispose();
       texture?.dispose();
     }

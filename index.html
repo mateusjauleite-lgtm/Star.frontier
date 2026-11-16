@@ -334,8 +334,34 @@
           CÂMERA: 3ª PESSOA
         </button>
 
+        <button id="landing-btn" class="control-button landing-button" type="button">
+          ◉ POUSO · UYUNI
+        </button>
+
       </div>
 
+    </div>
+
+    <!-- DESTINO DE POUSO PREDEFINIDO -->
+    <div id="landing-modal" class="landing-modal hidden" aria-hidden="true">
+      <section class="landing-window" role="dialog" aria-modal="true" aria-labelledby="landing-title">
+        <header class="landing-header">
+          <div>
+            <span class="landing-kicker">NAVEGAÇÃO PLANETÁRIA</span>
+            <h2 id="landing-title">DESTINO DE POUSO</h2>
+          </div>
+          <button id="landing-close-btn" type="button" aria-label="Fechar destino">✕</button>
+        </header>
+        <article class="landing-site-card">
+          <b>SALAR DE UYUNI · BOLÍVIA</b>
+          <span>Referência GPS UY04 · WGS84</span>
+          <strong>20.211888829° S, 67.422529683° W</strong>
+          <span>Altitude de referência: 3.697,3 m</span>
+          <small>Local candidato. A base e a plataforma são referências visuais; relevo local, obstáculos, escala e corredor de aproximação ainda precisam ser validados antes de liberar o piloto automático.</small>
+        </article>
+        <p id="landing-status" class="landing-status">Destino disponível para seleção. Pouso automático ainda bloqueado para validação.</p>
+        <button id="landing-select-btn" class="primary landing-select-btn" type="button">MARCAR COMO DESTINO</button>
+      </section>
     </div>
 
     <!-- MENU DE PAUSA -->

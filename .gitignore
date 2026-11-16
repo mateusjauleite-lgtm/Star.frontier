@@ -1,0 +1,6 @@
+# Large source DEM is cached by CI and never committed.
+.cache/
+*.tmp
+
+# Generated compact ETOPO runtime asset is produced during the Android/web build.
+/public/earth/data/*.bin

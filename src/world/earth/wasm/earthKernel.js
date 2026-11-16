@@ -10,11 +10,25 @@ function sampleInJavaScript(grid, longitude, latitude) {
   const south = grid.south ?? -90, north = grid.north ?? 90;
   if (!(east > west) || !(north > south)) return null;
 
-  const u = Math.max(0, Math.min(1, (longitude - west) / (east - west))) * (grid.width - 1);
+  let x0, x1, tx;
+  if (grid.wrapLongitude === true) {
+    const period = grid.longitudePeriod ?? 360;
+    if (!Number.isFinite(period) || period <= 0) return null;
+    const offset = ((longitude - west) % period + period) % period;
+    const u = offset / (period / grid.width);
+    const base = Math.floor(u);
+    x0 = base % grid.width;
+    x1 = (x0 + 1) % grid.width;
+    tx = u - base;
+  } else {
+    const u = Math.max(0, Math.min(1, (longitude - west) / (east - west))) * (grid.width - 1);
+    x0 = Math.floor(u);
+    x1 = Math.min(grid.width - 1, x0 + 1);
+    tx = u - x0;
+  }
   const v = Math.max(0, Math.min(1, (north - latitude) / (north - south))) * (grid.height - 1);
-  const x0 = Math.floor(u), y0 = Math.floor(v);
-  const x1 = Math.min(grid.width - 1, x0 + 1), y1 = Math.min(grid.height - 1, y0 + 1);
-  const tx = u - x0, ty = v - y0;
+  const y0 = Math.floor(v), y1 = Math.min(grid.height - 1, y0 + 1);
+  const ty = v - y0;
   const values = [
     grid.values[y0 * grid.width + x0], grid.values[y0 * grid.width + x1],
     grid.values[y1 * grid.width + x0], grid.values[y1 * grid.width + x1]
@@ -47,7 +61,7 @@ export function createEarthKernelAdapter(module = null) {
         const result = module._earth_sample_bilinear(
           pointer, grid.width, grid.height, longitude, latitude,
           grid.west ?? -180, grid.east ?? 180, grid.south ?? -90, grid.north ?? 90,
-          grid.noDataValue ?? NaN
+          grid.noDataValue ?? NaN, grid.wrapLongitude ? (grid.longitudePeriod ?? 360) : 0
         );
         return finiteOrNull(result);
       } finally {
@@ -93,7 +107,7 @@ export function createEarthKernelAdapter(module = null) {
         module._earth_sample_bilinear_batch(
           gridPtr, grid.width, grid.height, lonPtr, latPtr, outPtr, count,
           grid.west ?? -180, grid.east ?? 180, grid.south ?? -90, grid.north ?? 90,
-          grid.noDataValue ?? NaN
+          grid.noDataValue ?? NaN, grid.wrapLongitude ? (grid.longitudePeriod ?? 360) : 0
         );
         return new Float32Array(module.HEAPF32.subarray(outPtr / 4, outPtr / 4 + count));
       } finally {
@@ -102,6 +116,13 @@ export function createEarthKernelAdapter(module = null) {
         module._free(latPtr);
         module._free(outPtr);
       }
+    },
+    proceduralDetailMeters(longitude, latitude, amplitudeMeters = 2600) {
+      if (disposed || !module || !Number.isFinite(longitude) ||
+          !Number.isFinite(latitude) || !Number.isFinite(amplitudeMeters)) return null;
+      return finiteOrNull(module._earth_procedural_detail_meters(
+        longitude, latitude, amplitudeMeters
+      ));
     },
     elevationMetersToUnits(meters, radius, meanRadiusKm, exaggeration) {
       if (disposed) return null;

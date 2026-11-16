@@ -1732,6 +1732,179 @@ body {
   inset: 0;
 }
 
+
+/* HUD de pilotagem compacto: agrupa os comandos e respeita a área útil do celular. */
+#flight-controls {
+  gap: 8px;
+  padding: 8px max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+}
+#flight-controls .control-label {
+  grid-column: 1 / -1;
+  margin-bottom: 1px;
+}
+#flight-controls .right-side {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  justify-items: stretch;
+  gap: 5px;
+  width: min(49vw, 310px);
+}
+#flight-controls .right-side .button-pair {
+  display: contents;
+}
+#flight-controls .right-side .control-button {
+  width: 100%;
+  min-width: 0;
+  min-height: clamp(34px, 7.2vh, 44px);
+  padding: 5px 4px;
+  font-size: clamp(9px, 1.7vw, 11px);
+  line-height: 1.1;
+  white-space: normal;
+}
+#flight-controls #nitro-btn,
+#flight-controls #camera-btn,
+#flight-controls #landing-btn {
+  grid-column: 1 / -1;
+}
+#flight-controls .left-side {
+  max-width: 38vw;
+}
+#flight-controls .left-side .stick {
+  width: clamp(76px, 17vw, 96px);
+  height: clamp(76px, 17vw, 96px);
+}
+#flight-controls #mine-btn {
+  min-width: 0;
+  width: 100%;
+}
+#hud .hud-card.right #leave-pilot-btn,
+#hud .hud-card.right #game-menu-btn {
+  pointer-events: auto;
+}
+#hud .hud-card.right #leave-pilot-btn {
+  min-height: 36px;
+  padding: 5px 9px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: rgba(5, 22, 42, 0.9);
+  color: var(--cyan);
+  font-size: 10px;
+}
+.landing-button {
+  border-color: rgba(84, 230, 160, 0.55);
+  color: #9af0c2;
+}
+.landing-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 24;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(12px, env(safe-area-inset-top)) 14px max(12px, env(safe-area-inset-bottom));
+  background: rgba(0, 5, 15, 0.82);
+  backdrop-filter: blur(7px);
+  pointer-events: auto;
+}
+.landing-window {
+  width: min(100%, 420px);
+  max-height: 90%;
+  overflow-y: auto;
+  padding: 16px;
+  border: 1px solid rgba(83, 190, 255, 0.36);
+  border-radius: 15px;
+  background: rgba(5, 17, 34, 0.98);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+}
+.landing-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.landing-kicker {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: bold;
+  letter-spacing: 1.2px;
+}
+.landing-header h2 {
+  margin: 5px 0 12px;
+  color: var(--cyan);
+  font-size: 17px;
+}
+#landing-close-btn {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: rgba(5, 22, 42, 0.9);
+}
+.landing-site-card {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: rgba(15, 38, 61, 0.72);
+}
+.landing-site-card b {
+  color: var(--cyan);
+  font-size: 12px;
+}
+.landing-site-card strong {
+  color: var(--text);
+  font-size: 13px;
+}
+.landing-site-card span,
+.landing-site-card small,
+.landing-status {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+.landing-site-card small {
+  margin-top: 4px;
+}
+.landing-status {
+  margin: 11px 2px;
+}
+.landing-select-btn {
+  width: 100%;
+  min-height: 42px;
+}
+@media (orientation: landscape) and (max-height: 600px) {
+  #flight-controls {
+    padding-top: 5px;
+    padding-bottom: max(5px, env(safe-area-inset-bottom));
+  }
+  #flight-controls .right-side {
+    width: min(46vw, 285px);
+    gap: 4px;
+  }
+  #flight-controls .right-side .control-button {
+    min-height: 32px;
+    padding: 4px 3px;
+    font-size: 9px;
+  }
+  #flight-controls .left-side .stick {
+    width: 78px;
+    height: 78px;
+  }
+  #flight-controls .control-label {
+    font-size: 8px;
+  }
+}
+@media (max-width: 420px) {
+  #flight-controls .right-side {
+    width: 51vw;
+  }
+  #flight-controls .left-side {
+    max-width: 35vw;
+  }
+}
+
 /* Ações de movimento do explorador: separadas da mira e do inventário. */
 .character-action-cluster {
   position: absolute;
