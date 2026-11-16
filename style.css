@@ -815,6 +815,43 @@ select:focus {
 }
 
 
+
+/* TELA DE ENTRADA ENTRE O CARREGAMENTO E O LOGIN */
+#startup-screen {
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 22px;
+  background:
+    radial-gradient(ellipse at 50% 42%, rgba(13, 91, 145, 0.24), transparent 48%),
+    linear-gradient(145deg, #061426, #020711 72%);
+}
+.startup-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.startup-message {
+  margin: 8px 0 10px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.startup-play-btn {
+  width: 100%;
+  min-height: 48px;
+  margin-top: 4px;
+  border-color: rgba(67, 217, 255, .58);
+  color: var(--cyan);
+  letter-spacing: 2px;
+  box-shadow: 0 0 20px rgba(67, 217, 255, .12);
+}
+.startup-play-btn:active {
+  transform: scale(.98);
+  border-color: var(--cyan);
+}
+
 /* TELA DE CARREGAMENTO DA MISSÃO */
 
 .loading-screen {
