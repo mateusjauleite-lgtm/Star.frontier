@@ -11,6 +11,9 @@ import { createCharacterCore } from './character/characterCore.js';
 import { createCharacterHUD } from './character/characterHUD.js';
 import { createCharacterModel } from './character/characterModel.js';
 import { createCharacterAnimator } from './character/characterAnimator.js';
+import { createCharacterWeaponController } from './character/characterWeaponController.js';
+import { createCharacterPhysics } from './character/characterPhysics.js';
+import { createCharacterEquipmentSystem } from './inventory/characterEquipment.js';
 import { isPilotConsoleInRange, attachCharacterToPilotConsole, returnCharacterToDeck } from './ships/bridge/commandBridge.js';
 import { saveState as save, loadState as load } from './core/storage.js';
 import { createShipComputer } from './ships/computer/shipComputer.js';
@@ -50,6 +53,8 @@ const characterHUD = createCharacterHUD(document);
 let characterCameraMode = 'third-person';
 let characterModel = null;
 let characterAnimator = null;
+let characterWeaponController = null;
+let characterPhysics = null;
 let characterYaw = 0;
 let characterPitch = 0;
 const characterForward = new THREE.Vector3();
@@ -57,12 +62,89 @@ const characterRight = new THREE.Vector3();
 const characterMove = new THREE.Vector3();
 const characterLookEuler = new THREE.Euler(0, 0, 0, 'YXZ');
 let characterMoveInput = { x: 0, y: 0 };
+let characterSprintHeld = false;
+let characterAnimationTestRemaining = 0;
+let characterAnimationTestIndex = -1;
+const characterAnimationTestPoses = ['walk', 'run', 'jump', 'fall', 'land', 'sit', 'stand', 'idle'];
+let characterJumpQueued = false;
+let characterStaminaAccumulator = 0;
+let characterStaminaHudTimer = 0;
+let phaserChargeRemaining = 0;
+let phaserShotFlashRemaining = 0;
+const PHASER_RECHARGE_SECONDS = 2.5;
+const PHASER_FLASH_SECONDS = 0.16;
 let pilotInteractionAvailable = false;
 const pilotPlayerWorldPosition = new THREE.Vector3();
 const characterCameraWorldPosition = new THREE.Vector3();
 const characterCameraWorldQuaternion = new THREE.Quaternion();
 const characterCameraForward = new THREE.Vector3();
 const characterCameraOffset = new THREE.Vector3();
+
+function isPhaserEquipped() {
+  return Boolean(characterEquipment?.equippedItem('weapon'));
+}
+
+function updatePhaserWeapon(dt) {
+  const button = $('character-phaser-btn');
+  const fill = $('phaser-charge-fill');
+  if (phaserChargeRemaining > 0) phaserChargeRemaining = Math.max(0, phaserChargeRemaining - dt);
+  if (phaserShotFlashRemaining > 0) {
+    phaserShotFlashRemaining = Math.max(0, phaserShotFlashRemaining - dt);
+    const phaser = characterModel?.wardrobe?.weapon?.userData?.phaser;
+    if (phaser) {
+      phaser.position.z = THREE.MathUtils.lerp(-0.105, -0.145, phaserShotFlashRemaining / PHASER_FLASH_SECONDS);
+      if (phaser.userData.muzzleLight) phaser.userData.muzzleLight.intensity = 4.5 * (phaserShotFlashRemaining / PHASER_FLASH_SECONDS);
+      if (phaser.userData.beam) phaser.userData.beam.visible = phaserShotFlashRemaining > 0;
+    }
+  } else {
+    const phaser = characterModel?.wardrobe?.weapon?.userData?.phaser;
+    if (phaser) {
+      phaser.position.z = -0.105;
+      if (phaser.userData.muzzleLight) phaser.userData.muzzleLight.intensity = 0;
+      if (phaser.userData.beam) phaser.userData.beam.visible = false;
+    }
+  }
+  const equipped = isPhaserEquipped();
+  if (button) {
+    button.disabled = !equipped;
+    button.classList.toggle('is-ready', equipped && phaserChargeRemaining <= 0);
+    button.classList.toggle('is-charging', equipped && phaserChargeRemaining > 0);
+    const label = button.querySelector('small');
+    if (label) {
+      const nextLabel = !equipped
+        ? 'SEM ARMA'
+        : phaserChargeRemaining > 0
+          ? 'RECARGA ' + phaserChargeRemaining.toFixed(1) + 's'
+          : 'PRONTO';
+      if (label.textContent !== nextLabel) label.textContent = nextLabel;
+    }
+  }
+  if (fill) fill.style.width = equipped
+    ? (100 * (1 - phaserChargeRemaining / PHASER_RECHARGE_SECONDS)) + '%'
+    : '0%';
+}
+
+function firePhaser() {
+  if (!isPhaserEquipped()) {
+    toast('Equipe o Phaser pelo inventário primeiro.');
+    return;
+  }
+  if (phaserChargeRemaining > 0) {
+    const label = $('character-phaser-btn')?.querySelector('small');
+    if (label) label.textContent = 'RECARGA ' + phaserChargeRemaining.toFixed(1) + 's';
+    return;
+  }
+  if (characterCore.snapshot().mode !== 'on-foot') {
+    toast('O Phaser só pode ser usado a pé nesta versão.');
+    return;
+  }
+  phaserChargeRemaining = PHASER_RECHARGE_SECONDS;
+  phaserShotFlashRemaining = PHASER_FLASH_SECONDS;
+  characterWeaponController?.fire();
+  const phaser = characterModel?.wardrobe?.weapon?.userData?.phaser;
+  if (phaser?.userData.muzzleLight) phaser.userData.muzzleLight.intensity = 4.5;
+  toast('Phaser disparado · recarga energética iniciada.');
+}
 
 function updateCharacterCameraButton() {
   const button = $('character-camera-btn');
@@ -494,6 +576,9 @@ async function startGame() {
 
     resetTransientState();
     characterCore.initialize();
+    characterCore.setStamina(100);
+    characterStaminaAccumulator = 0;
+    characterStaminaHudTimer = 0;
     characterCore.setMode('on-foot');
     updateCharacterHUD();
 
@@ -585,6 +670,7 @@ async function startGame() {
     starshipInterior = null;
     characterModel = null;
     characterAnimator = null;
+    characterPhysics = null;
     asteroids = [];
     engineFlames = [];
     engineLights = [];
@@ -683,13 +769,18 @@ async function init3D() {
   nearbyElevator = false;
 
   // Spawn inicial no Deck 1 — ponte de comando, dentro do casco.
-  characterModel = createCharacterModel({ suitColor: 0x263b50, accentColor: 0x36c9df });
+  characterModel = createCharacterModel({ clothingColor: 0x526879 });
+  characterEquipment.initialize();
   // O personagem pertence ao referencial da nave: acompanha translação e rotação
   // sem ficar para trás no espaço quando a Aurora-7 se movimenta.
   characterModel.group.position.set(0, 8.91, -18);
   characterModel.group.rotation.y = characterYaw;
   shipVisual.add(characterModel.group);
   characterAnimator = createCharacterAnimator(characterModel);
+  characterWeaponController = createCharacterWeaponController(characterModel);
+  characterPhysics = createCharacterPhysics();
+  characterPhysics.reset(characterModel.group.position.y);
+  characterCore.setGrounded(true);
   characterAnimator.play('idle');
 
   const npc = new THREE.Mesh(
@@ -962,11 +1053,32 @@ function updateCharacterMovement(dt) {
   const input = characterMoveInput;
   const magnitude = Math.min(1, Math.hypot(input.x, input.y));
   const deck = characterModel.group.position;
+  const stamina = characterCore.snapshot().stamina;
+  const sprinting = characterSprintHeld && magnitude > 0.08 && stamina > 0;
+  if (sprinting) characterStaminaAccumulator -= 22 * dt;
+  else if (stamina < 100) characterStaminaAccumulator += 13 * dt;
+
+  // Publica energia e atualiza o HUD em intervalos curtos, não a cada frame.
+  // Isso evita disparar eventos globais dezenas de vezes por segundo.
+  characterStaminaHudTimer += dt;
+  if (characterStaminaHudTimer >= 0.1) {
+    const staminaNow = THREE.MathUtils.clamp(
+      stamina + characterStaminaAccumulator, 0, 100
+    );
+    if (Math.abs(staminaNow - stamina) >= 0.05) characterCore.setStamina(staminaNow);
+    characterStaminaAccumulator = 0;
+    characterStaminaHudTimer = 0;
+    const displayedStamina = characterCore.snapshot().stamina;
+    if (displayedStamina <= 0 && characterSprintHeld) stopCharacterSprint();
+    const staminaFill = $('character-stamina');
+    const staminaLabel = $('character-stamina-value');
+    if (staminaFill) staminaFill.style.width = displayedStamina + '%';
+    if (staminaLabel) staminaLabel.textContent = Math.round(displayedStamina) + '%';
+  }
 
   if (magnitude > 0.08) {
-    // Usa a mesma rotação local aplicada ao modelo. O joystick e a posição
-    // estão no referencial do convés, portanto os eixos não dependem da
-    // rotação global, arfagem ou inclinação visual da nave.
+    // Movimento horizontal no referencial local da nave; a física vertical
+    // é independente da translação/rotação do casco.
     const yaw = characterModel.group.rotation.y;
     characterForward.set(0, 0, -1).applyAxisAngle(THREE.Object3D.DEFAULT_UP, yaw);
     characterRight.set(1, 0, 0).applyAxisAngle(THREE.Object3D.DEFAULT_UP, yaw);
@@ -975,24 +1087,62 @@ function updateCharacterMovement(dt) {
 
     if (characterMove.lengthSq() > 0) characterMove.normalize();
 
-    const step = 3.1 * magnitude * dt;
+    const step = (sprinting ? 5.0 : 3.1) * magnitude * dt;
     const previousX = deck.x;
     const previousZ = deck.z;
 
-    // Cada eixo é validado separadamente. Ao atingir a borda do piso ou uma
-    // parede, só esse componente é cancelado; o movimento tangencial continua.
+    // Colisão por eixo preserva o deslizamento junto às paredes.
     deck.x = previousX + characterMove.x * step;
-    if (isCharacterPositionBlocked(deck, activeDeckIndex)) deck.x = previousX;
+    if (isCharacterPositionBlocked(deck, activeDeckIndex) ||
+        !isCharacterInsideDeck(deck, activeDeckIndex)) {
+      deck.x = previousX;
+    }
 
     deck.z = previousZ + characterMove.z * step;
-    if (isCharacterPositionBlocked(deck, activeDeckIndex)) deck.z = previousZ;
+    if (isCharacterPositionBlocked(deck, activeDeckIndex) ||
+        !isCharacterInsideDeck(deck, activeDeckIndex)) {
+      deck.z = previousZ;
+    }
+  }
 
-    deck.y = starshipInterior.layout.decks[activeDeckIndex].y + 0.21;
-    characterAnimator?.play(magnitude > 0.72 ? 'run' : 'walk');
-  } else {
+  const floorY = starshipInterior.layout.decks[activeDeckIndex].y + 0.21;
+  if (characterJumpQueued) {
+    if (characterPhysics?.jump()) characterAnimator?.play('jump', { restart: true });
+    characterJumpQueued = false;
+  }
+
+  const physicsState = characterPhysics?.update(dt, {
+    position: deck,
+    floorY
+  });
+
+  if (physicsState && characterCore.snapshot().grounded !== physicsState.grounded) {
+    characterCore.setGrounded(physicsState.grounded);
+  }
+
+  if (characterAnimationTestRemaining > 0) {
+    characterAnimationTestRemaining = Math.max(0, characterAnimationTestRemaining - dt);
+  }
+  if (characterAnimationTestRemaining > 0) {
+    // Mantém a pose de teste sem alterar a física nem o deslocamento do personagem.
+  } else if (!physicsState?.grounded) {
+    characterAnimator?.play(physicsState.velocityY > 0 ? 'jump' : 'fall');
+  } else if (physicsState.justLanded) {
+    characterAnimator?.play('land', { restart: true });
+  } else if (magnitude > 0.08) {
+    characterAnimator?.play(sprinting ? 'run' : 'walk');
+  } else if (characterAnimator?.current !== 'land') {
     characterAnimator?.play('idle');
   }
+
   characterAnimator?.update(dt);
+  const animationButton = $('character-animation-btn');
+  if (animationButton) {
+    animationButton.classList.toggle('is-active', characterAnimationTestRemaining > 0);
+    if (characterAnimationTestRemaining <= 0) animationButton.querySelector('small').textContent = 'ANIMAÇÃO';
+  }
+  if (characterJumpButton) characterJumpButton.disabled = !characterPhysics?.grounded;
+  if (characterSprintButton) characterSprintButton.disabled = characterCore.snapshot().stamina <= 0;
 }
 
 function updateElevatorButtons() {
@@ -1037,6 +1187,9 @@ function moveElevator(direction) {
   updateDeck4Clearance();
   const deck = starshipInterior.layout.decks[activeDeckIndex];
   characterModel.group.position.set(0, deck.y + 0.21, 25);
+  characterPhysics?.reset(deck.y + 0.21);
+  characterCore.setGrounded(true);
+  characterAnimator?.play('idle', { restart: true });
   // O centro do elevador fica dentro da área livre dos quatro decks.
   // Não chamar resolveCharacterShipCollisions: essa função não existe no runtime.
   nearbyElevator = true;
@@ -1090,6 +1243,8 @@ function enterPilotMode() {
   }
 
   characterMoveInput = { x: 0, y: 0 };
+  characterJumpQueued = false;
+  stopCharacterSprint();
   characterCore.enterShipSeat();
   pilotInteractionAvailable = false;
   state.camera = 0;
@@ -1108,6 +1263,8 @@ function exitPilotMode() {
   characterCore.leaveShipSeat();
 
   characterMoveInput = { x: 0, y: 0 };
+  characterJumpQueued = false;
+  stopCharacterSprint();
   state.move.x = 0;
   state.move.y = 0;
   state.throttle = false;
@@ -1174,8 +1331,10 @@ function loop(now) {
   const dt = Math.min((now - last) / 1000, 0.04);
   last = now;
 
+  updatePhaserWeapon(dt);
   if (characterCore.snapshot().mode === 'on-foot') {
     updateCharacterMovement(dt);
+    updateCharacterWeapon(dt);
     updateElevatorInteraction();
     updatePilotInteraction();
     updateCharacterCamera();
@@ -1311,6 +1470,89 @@ if (characterStick) {
   );
 }
 
+// Controles exclusivos do personagem: salto por toque e corrida por pressão.
+const characterJumpButton = $('character-jump-btn');
+const characterSprintButton = $('character-sprint-btn');
+const characterAnimationButton = $('character-animation-btn');
+const characterPhaserButton = $('character-phaser-btn');
+const handlePhaserInput = event => {
+  if (event.type === 'click' && event.detail !== 0) return;
+  event.preventDefault();
+  event.stopPropagation();
+  firePhaser();
+};
+characterPhaserButton?.addEventListener('pointerup', handlePhaserInput);
+characterPhaserButton?.addEventListener('click', handlePhaserInput);
+const characterAimButton = $('character-aim-btn');
+characterAimButton?.addEventListener('click', () => {
+  if (!isPhaserEquipped() || characterCore.snapshot().mode !== 'on-foot') {
+    toast('Equipe o Phaser para usar a mira.');
+    return;
+  }
+  const aiming = characterWeaponController?.toggleAiming() ?? false;
+  toast(aiming ? 'Mira ativada.' : 'Arma abaixada.');
+});
+
+characterAnimationButton?.addEventListener('click', () => {
+  if (characterCore.snapshot().mode !== 'on-foot' || !characterAnimator) return;
+  characterAnimationTestIndex = (characterAnimationTestIndex + 1) % characterAnimationTestPoses.length;
+  const pose = characterAnimationTestPoses[characterAnimationTestIndex];
+  characterAnimationTestRemaining = pose === 'idle' ? 1.1 : 1.45;
+  characterAnimator.play(pose, { restart: true });
+  characterAnimationButton.classList.add('is-active');
+  characterAnimationButton.querySelector('small').textContent = pose.toUpperCase();
+  toast('Teste de animação: ' + pose.toUpperCase());
+});
+
+characterJumpButton?.addEventListener('pointerdown', event => {
+  event.preventDefault();
+  if (characterCore.snapshot().mode !== 'on-foot' || !characterPhysics?.grounded) return;
+  characterJumpQueued = true;
+});
+
+const stopCharacterSprint = () => {
+  characterSprintHeld = false;
+  characterSprintButton?.classList.remove('is-active');
+};
+characterSprintButton?.addEventListener('pointerdown', event => {
+  event.preventDefault();
+  if (characterCore.snapshot().mode !== 'on-foot') return;
+  characterSprintHeld = true;
+  characterSprintButton.classList.add('is-active');
+  characterSprintButton.setPointerCapture(event.pointerId);
+});
+['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type =>
+  characterSprintButton?.addEventListener(type, stopCharacterSprint)
+);
+
+window.addEventListener('keydown', event => {
+  if (characterCore.snapshot().mode !== 'on-foot' || event.repeat) return;
+  if (event.code === 'Space') {
+    event.preventDefault();
+    if (characterPhysics?.grounded) characterJumpQueued = true;
+  }
+  if (event.code === 'ShiftLeft' || event.code === 'ShiftRight') characterSprintHeld = true;
+});
+window.addEventListener('keyup', event => {
+  if (event.code === 'ShiftLeft' || event.code === 'ShiftRight') stopCharacterSprint();
+});
+window.addEventListener('blur', stopCharacterSprint);
+
+function updateCharacterWeapon(dt) {
+  const equipped = isPhaserEquipped();
+  if (!equipped) characterWeaponController?.reset();
+  const result = characterWeaponController?.update(dt, characterPitch);
+  const aimButton = $('character-aim-btn');
+  const reticle = $('character-aim-reticle');
+  if (aimButton) {
+    aimButton.disabled = !equipped;
+    aimButton.classList.toggle('is-active', Boolean(result?.aiming));
+    const label = aimButton.querySelector('small');
+    if (label) label.textContent = !equipped ? 'SEM ARMA' : result?.aiming ? 'MIRANDO' : 'MIRAR';
+  }
+  if (reticle) reticle.classList.toggle('is-visible', equipped && Boolean(result?.aiming));
+}
+
 const characterAim = $('character-aim-area');
 let characterAimPointer = null;
 let characterPreviousX = 0;
@@ -1367,19 +1609,55 @@ function showInventoryTab(tab) {
     button.classList.toggle('active', button.dataset.inventoryTab === tab);
   });
 }
+const characterEquipment = createCharacterEquipmentSystem(state, {
+  applyVisual(slot, itemId) {
+    if (characterModel) characterModel.setEquipment(slot, itemId);
+  },
+  onChange() {
+    renderClothing();
+    renderInventory();
+    characterCore.setEquipment('suit', characterEquipment.equippedItem('torso')?.itemId || null);
+    for (const slot of ['head', 'torso', 'hands', 'legs', 'feet', 'back', 'weapon']) {
+      characterCore.setEquipment(slot, characterEquipment.equippedItem(slot)?.itemId || null);
+    }
+  }
+});
+
+function renderClothing() {
+  const labels = { head: 'CABEÇA', torso: 'PEITORAL', hands: 'LUVAS', legs: 'CALÇAS', feet: 'BOTAS', back: 'COSTAS', weapon: 'ARMA' };
+  for (const [slot] of Object.entries(labels)) {
+    const button = document.querySelector(`[data-slot="${slot}"]`);
+    if (!button) continue;
+    const item = characterEquipment.equippedItem(slot);
+    const name = button.querySelector('b');
+    const status = button.querySelector('small');
+    if (name) name.textContent = item?.name || 'Vazio';
+    if (status) status.textContent = item ? 'EQUIPADO · TOQUE PARA REMOVER' : 'VAZIO · TOQUE PARA EQUIPAR';
+    button.classList.toggle('selected', Boolean(item));
+  }
+}
+
 function renderInventory() {
+  renderClothing();
   const grid = $('inventory-grid');
   if (!grid) return;
   const items = Array.isArray(state.inventory?.items) ? state.inventory.items : [];
   $('inventory-count').textContent = `${items.length} / 24`;
   grid.innerHTML = Array.from({ length: 24 }, (_, index) => {
     const item = items[index];
-    return `<div class="inventory-cell"><span>${item?.name || 'ESPAÇO LIVRE'}</span></div>`;
+    return item
+      ? `<button class="inventory-cell inventory-item-button" type="button" data-item-instance="${item.instanceId}"><span>${item.name}</span><small>TOQUE PARA EQUIPAR</small></button>`
+      : '<div class="inventory-cell"><span>ESPAÇO LIVRE</span></div>';
   }).join('');
   const equipment = state.inventory?.equipment || {};
   ['weapon', 'tool', 'machine'].forEach(slot => {
     const el = $('quick-' + slot);
-    if (el) el.textContent = equipment[slot] || 'VAZIO';
+    if (el) {
+      const equipped = Boolean(equipment[slot]);
+      el.textContent = equipment[slot]?.name || equipment[slot] || 'VAZIO';
+      el.closest('.quick-slot')?.classList.toggle('is-equipped', equipped);
+      el.closest('.quick-slot')?.setAttribute('aria-label', `${slot}: ${equipped ? el.textContent : 'vazio'}`);
+    }
   });
 }
 $('inventory-open-btn')?.addEventListener('click', () => {
@@ -1394,12 +1672,25 @@ document.querySelectorAll('[data-inventory-tab]').forEach(button => {
 $('inventory-modal')?.addEventListener('click', event => {
   if (event.target.id === 'inventory-modal') closeInventory();
 });
-document.querySelectorAll('[data-slot]').forEach(button => {
-  button.addEventListener('click', () => {
-    document.querySelectorAll('[data-slot]').forEach(slot => slot.classList.remove('selected'));
-    button.classList.add('selected');
-  });
+$('inventory-clothing-view')?.addEventListener('click', event => {
+  const button = event.target.closest('button[data-slot]');
+  if (!button || !event.currentTarget.contains(button)) return;
+  const result = characterEquipment.toggleSlot(button.dataset.slot);
+  if (!result.ok) toast(result.reason);
+  else {
+    save();
+    toast(result.item?.name ? result.item.name + ' atualizado.' : 'Equipamento atualizado.');
+  }
 });
+$('inventory-grid')?.addEventListener('click', event => {
+  const target = event.target.closest('[data-item-instance]');
+  if (!target) return;
+  const result = characterEquipment.equip(target.dataset.itemInstance);
+  if (!result.ok) toast(result.reason);
+  else { save(); toast(result.item.name + ' equipado no personagem.'); }
+});
+characterEquipment.initialize();
+save();
 renderInventory();
 $('leave-pilot-btn')?.addEventListener('click', exitPilotMode);
 
@@ -1639,6 +1930,120 @@ $('interact-btn')?.addEventListener('click', () => {
 
   npcReady = false;
 });
+
+
+/* Editor do HUD do personagem: não move nem modifica o HUD da nave. */
+const characterHudEditor = $('character-hud-editor');
+const characterHudEditable = [...document.querySelectorAll('[data-hud-editable]')];
+let characterHudEditing = false;
+let characterHudBeforeEdit = null;
+let characterHudDrag = null;
+
+function readCharacterHudLayout() {
+  return state.settings?.characterHudLayout && typeof state.settings.characterHudLayout === 'object'
+    ? structuredClone(state.settings.characterHudLayout)
+    : {};
+}
+
+function applyCharacterHudLayout(layout = {}) {
+  characterHudEditable.forEach(element => {
+    const saved = layout[element.dataset.hudEditable];
+    if (!saved || !Number.isFinite(saved.x) || !Number.isFinite(saved.y)) {
+      ['position', 'left', 'top', 'right', 'bottom', 'transform'].forEach(prop => element.style.removeProperty(prop));
+      return;
+    }
+    const rect = element.getBoundingClientRect();
+    const x = Math.max(0, Math.min(1, saved.x));
+    const y = Math.max(0, Math.min(1, saved.y));
+    element.style.position = 'fixed';
+    element.style.left = `${x * Math.max(1, window.innerWidth - rect.width)}px`;
+    element.style.top = `${y * Math.max(1, window.innerHeight - rect.height)}px`;
+    element.style.right = 'auto';
+    element.style.bottom = 'auto';
+    element.style.transform = 'none';
+  });
+}
+
+function captureCharacterHudLayout() {
+  const layout = {};
+  characterHudEditable.forEach(element => {
+    const rect = element.getBoundingClientRect();
+    layout[element.dataset.hudEditable] = {
+      x: Math.max(0, Math.min(1, rect.left / Math.max(1, window.innerWidth - rect.width))),
+      y: Math.max(0, Math.min(1, rect.top / Math.max(1, window.innerHeight - rect.height)))
+    };
+  });
+  return layout;
+}
+
+function finishCharacterHudEditing({ saveChanges = false, reset = false } = {}) {
+  if (!characterHudEditing) return;
+  state.settings ||= {};
+  if (reset) {
+    delete state.settings.characterHudLayout;
+    applyCharacterHudLayout({});
+  } else if (saveChanges) {
+    state.settings.characterHudLayout = captureCharacterHudLayout();
+    save();
+  } else {
+    applyCharacterHudLayout(characterHudBeforeEdit || {});
+  }
+  characterHudEditing = false;
+  characterHudDrag = null;
+  characterHudEditable.forEach(element => element.classList.remove('hud-editable-active'));
+  characterHudEditor?.classList.add('hidden');
+  characterHudEditor?.setAttribute('aria-hidden', 'true');
+  if (reset) save();
+}
+
+function startCharacterHudEditing() {
+  if (characterHudEditing) return;
+  characterHudBeforeEdit = readCharacterHudLayout();
+  applyCharacterHudLayout(characterHudBeforeEdit);
+  characterHudEditing = true;
+  $('game-menu-modal')?.classList.add('hidden');
+  characterHudEditor?.classList.remove('hidden');
+  characterHudEditor?.setAttribute('aria-hidden', 'false');
+  characterHudEditable.forEach(element => element.classList.add('hud-editable-active'));
+  toast('Arraste os elementos do HUD. Depois toque em SALVAR.');
+}
+
+characterHudEditable.forEach(element => {
+  element.addEventListener('pointerdown', event => {
+    if (!characterHudEditing || (event.target.closest('button') && element.dataset.hudEditable !== 'action')) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const rect = element.getBoundingClientRect();
+    element.style.position = 'fixed';
+    element.style.left = `${rect.left}px`;
+    element.style.top = `${rect.top}px`;
+    element.style.right = 'auto';
+    element.style.bottom = 'auto';
+    element.style.transform = 'none';
+    characterHudDrag = { element, pointerId: event.pointerId, offsetX: event.clientX - rect.left, offsetY: event.clientY - rect.top };
+    element.setPointerCapture?.(event.pointerId);
+  });
+  element.addEventListener('pointermove', event => {
+    if (!characterHudEditing || !characterHudDrag || characterHudDrag.element !== element || characterHudDrag.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    const rect = element.getBoundingClientRect();
+    const x = Math.max(0, Math.min(window.innerWidth - rect.width, event.clientX - characterHudDrag.offsetX));
+    const y = Math.max(0, Math.min(window.innerHeight - rect.height, event.clientY - characterHudDrag.offsetY));
+    element.style.left = `${x}px`;
+    element.style.top = `${y}px`;
+  });
+  const endDrag = event => {
+    if (characterHudDrag?.element === element && characterHudDrag.pointerId === event.pointerId) characterHudDrag = null;
+  };
+  element.addEventListener('pointerup', endDrag);
+  element.addEventListener('pointercancel', endDrag);
+});
+
+$('edit-character-hud-btn')?.addEventListener('click', startCharacterHudEditing);
+$('character-hud-save-btn')?.addEventListener('click', () => finishCharacterHudEditing({ saveChanges: true }));
+$('character-hud-cancel-btn')?.addEventListener('click', () => finishCharacterHudEditing());
+$('character-hud-reset-btn')?.addEventListener('click', () => finishCharacterHudEditing({ reset: true }));
+applyCharacterHudLayout(readCharacterHudLayout());
 
 /* MENU DE PAUSA */
 

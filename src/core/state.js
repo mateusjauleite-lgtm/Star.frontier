@@ -31,6 +31,7 @@ export const state = {
       gloves: null,
       legs: null,
       boots: null,
+      back: null,
       weapon: null,
       tool: null,
       machine: null

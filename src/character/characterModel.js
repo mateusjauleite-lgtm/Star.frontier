@@ -1,199 +1,333 @@
 // Modelo humanoide procedural do Star Frontier.
-// Estrutura independente da cena principal: pode ser anexada a qualquer nave,
-// estação ou ambiente sem alterar o sistema de pilotagem.
+// Corpo-base separado do vestuário: roupas são grupos independentes e removíveis.
 import * as THREE from 'three';
 
-const makeMaterial = (color, metalness = 0.25, roughness = 0.62) =>
-  new THREE.MeshStandardMaterial({ color, metalness, roughness });
+const material = (color, roughness = 0.78, metalness = 0.04) =>
+  new THREE.MeshStandardMaterial({ color, roughness, metalness });
 
-function addBox(parent, size, material, position, name) {
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(...size), material);
-  mesh.position.set(...position);
-  mesh.name = name;
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-  parent.add(mesh);
-  return mesh;
+function mesh(parent, geometry, mat, position, name) {
+  const object = new THREE.Mesh(geometry, mat);
+  object.position.set(...position);
+  object.name = name;
+  object.castShadow = true;
+  object.receiveShadow = true;
+  parent.add(object);
+  return object;
 }
 
-function addSphere(parent, radius, material, position, name, segments = 16) {
-  const mesh = new THREE.Mesh(
-    new THREE.SphereGeometry(radius, segments, Math.max(8, segments >> 1)),
-    material
-  );
-  mesh.position.set(...position);
-  mesh.name = name;
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-  parent.add(mesh);
-  return mesh;
+function box(parent, size, mat, position, name, bevel = 0) {
+  const geometry = bevel
+    ? new THREE.BoxGeometry(...size, 2, 2, 2)
+    : new THREE.BoxGeometry(...size);
+  return mesh(parent, geometry, mat, position, name);
 }
 
-function addLimb(parent, length, width, material, name) {
+function sphere(parent, radius, mat, position, name, width = 20, height = 14) {
+  return mesh(parent, new THREE.SphereGeometry(radius, width, height), mat, position, name);
+}
+
+function capsule(parent, radius, length, mat, position, name) {
+  return mesh(parent, new THREE.CapsuleGeometry(radius, length, 8, 12), mat, position, name);
+}
+
+function limbPivot(parent, length, radius, mat, name) {
   const pivot = new THREE.Group();
   pivot.name = name;
   parent.add(pivot);
-
-  const limb = addBox(
-    pivot,
-    [width, length, width],
-    material,
-    [0, -length * 0.5, 0],
-    name + '-mesh'
-  );
-  addSphere(pivot, width * 0.53, material, [0, -length, 0], name + '-joint', 12);
+  capsule(pivot, radius, Math.max(0.02, length - radius * 2), mat,
+    [0, -length * 0.5, 0], name + '-mesh');
+  sphere(pivot, radius * 0.98, mat, [0, -length, 0], name + '-joint', 14, 10);
   return pivot;
 }
 
+function makeClothingGroup(parent, name) {
+  const group = new THREE.Group();
+  group.name = name;
+  parent.add(group);
+  return group;
+}
+
 /**
- * Cria um personagem humanoide de aproximadamente 1,8 m.
- * A origem fica no chão, no centro dos pés; +Y é para cima e -Z é a frente.
+ * Personagem humano de aproximadamente 1,8 m.
+ * Origem no chão, entre os pés; +Y para cima e -Z para a frente.
+ *
+ * O corpo não depende das roupas. wardrobe contém peças visuais independentes,
+ * com IDs estáveis para futura ligação ao banco de itens/equipamentos.
  */
 export function createCharacterModel(options = {}) {
   const scale = Number.isFinite(options.scale) ? options.scale : 1;
-  const suitColor = options.suitColor ?? 0x263b50;
-  const accentColor = options.accentColor ?? 0x36c9df;
+  const skinColor = options.skinColor ?? 0xc88963;
+  const hairColor = options.hairColor ?? 0x30231e;
 
   const materials = {
-    suit: makeMaterial(suitColor, 0.32, 0.58),
-    dark: makeMaterial(0x101b28, 0.42, 0.5),
-    armor: makeMaterial(0x9aabb9, 0.62, 0.34),
-    accent: makeMaterial(accentColor, 0.48, 0.3),
-    visor: new THREE.MeshStandardMaterial({
-      color: 0x071b2c,
-      metalness: 0.82,
-      roughness: 0.16,
-      emissive: 0x06283a,
-      emissiveIntensity: 0.35
-    }),
-    glove: makeMaterial(0x17232e, 0.18, 0.72)
+    skin: material(skinColor, 0.88),
+    hair: material(hairColor, 0.94),
+    eyes: material(0x211b18, 0.3),
+    shirt: material(0x344b5b, 0.9),
+    jacket: material(options.clothingColor ?? 0x526879, 0.88),
+    trousers: material(0x303b48, 0.92),
+    boots: material(0x252a30, 0.72),
+    fabricTrim: material(0x9aa9ad, 0.68),
+    glove: material(0x343b40, 0.82),
+    pack: material(0x46515a, 0.9)
   };
 
   const root = new THREE.Group();
   root.name = 'character-root';
-
   const rig = new THREE.Group();
   rig.name = 'character-rig';
   root.add(rig);
 
   const parts = {};
+  const legGarments = [];
+  const footGarments = [];
+  const handGarments = [];
 
-  // Bacia e tronco.
+  // Pelve e tronco: volumes anatômicos arredondados, sem placas rígidas.
   parts.pelvis = new THREE.Group();
   parts.pelvis.name = 'pelvis';
   parts.pelvis.position.y = 0.91;
   rig.add(parts.pelvis);
-
-  addBox(parts.pelvis, [0.34, 0.22, 0.22], materials.dark, [0, 0, 0], 'pelvis-shell');
+  sphere(parts.pelvis, 0.185, materials.skin, [0, 0, 0], 'pelvis-body', 18, 12);
 
   parts.torso = new THREE.Group();
   parts.torso.name = 'torso';
   parts.torso.position.y = 0.08;
   parts.pelvis.add(parts.torso);
+  capsule(parts.torso, 0.205, 0.28, materials.skin, [0, 0.205, 0], 'torso-body');
+  sphere(parts.torso, 0.205, materials.skin, [0, 0.08, 0], 'abdomen-volume', 18, 12);
 
-  addBox(parts.torso, [0.43, 0.48, 0.25], materials.suit, [0, 0.22, 0], 'torso-shell');
-  addBox(parts.torso, [0.34, 0.13, 0.275], materials.armor, [0, 0.39, -0.005], 'chest-plate');
-  addBox(parts.torso, [0.12, 0.07, 0.286], materials.accent, [0, 0.39, -0.012], 'chest-insignia');
-  addBox(parts.torso, [0.18, 0.13, 0.16], materials.dark, [0, 0.04, 0.17], 'life-support-control');
+  // Roupa de base casual/de exploração: sem capacete e sem mochila obrigatórios.
+  const wardrobe = {
+    head: makeClothingGroup(parts.torso, 'wardrobe-head'),
+    torso: makeClothingGroup(parts.torso, 'wardrobe-torso'),
+    legs: makeClothingGroup(parts.pelvis, 'wardrobe-legs'),
+    hands: makeClothingGroup(rig, 'wardrobe-hands'),
+    feet: makeClothingGroup(rig, 'wardrobe-feet'),
+    back: makeClothingGroup(parts.torso, 'wardrobe-back'),
+    weapon: makeClothingGroup(rig, 'wardrobe-weapon')
+  };
 
-  // Mochila de suporte de vida.
-  parts.backpack = new THREE.Group();
-  parts.backpack.name = 'life-support-pack';
-  parts.backpack.position.set(0, 0.27, 0.19);
-  parts.torso.add(parts.backpack);
-  addBox(parts.backpack, [0.29, 0.38, 0.16], materials.dark, [0, 0, 0], 'backpack-shell');
-  addBox(parts.backpack, [0.22, 0.08, 0.18], materials.accent, [0, 0.12, 0], 'backpack-status');
-  addBox(parts.backpack, [0.08, 0.2, 0.08], materials.armor, [-0.19, -0.02, 0], 'left-canister');
-  addBox(parts.backpack, [0.08, 0.2, 0.08], materials.armor, [0.19, -0.02, 0], 'right-canister');
-
-  // Pescoço, cabeça e visor.
+  // Cabeça, pescoço, rosto e cabelo.
   parts.neck = new THREE.Group();
   parts.neck.name = 'neck';
-  parts.neck.position.set(0, 0.49, 0);
+  parts.neck.position.set(0, 0.47, 0);
   parts.torso.add(parts.neck);
-  addBox(parts.neck, [0.12, 0.12, 0.12], materials.dark, [0, 0.02, 0], 'neck-joint');
+  capsule(parts.neck, 0.065, 0.09, materials.skin, [0, 0.015, 0], 'neck-body');
 
   parts.head = new THREE.Group();
   parts.head.name = 'head';
   parts.head.position.y = 0.13;
   parts.neck.add(parts.head);
-  addSphere(parts.head, 0.145, materials.suit, [0, 0.015, 0], 'helmet-shell', 20);
-  addBox(parts.head, [0.205, 0.105, 0.075], materials.visor, [0, 0.025, -0.105], 'helmet-visor');
-  addBox(parts.head, [0.22, 0.025, 0.08], materials.armor, [0, 0.092, -0.075], 'helmet-brow');
-  addSphere(parts.head, 0.025, materials.accent, [0.13, 0.02, 0], 'helmet-side-light', 10);
-  addSphere(parts.head, 0.025, materials.accent, [-0.13, 0.02, 0], 'helmet-side-light-left', 10);
+  sphere(parts.head, 0.137, materials.skin, [0, 0.015, 0], 'head-face', 24, 18);
+  // Nariz, orelhas, olhos e sobrancelhas dão leitura facial em escala de jogo.
+  sphere(parts.head, 0.025, materials.skin, [0, -0.005, -0.128], 'nose', 12, 8);
+  for (const side of [-1, 1]) {
+    sphere(parts.head, 0.027, materials.skin, [side * 0.137, 0.015, 0], side < 0 ? 'left-ear' : 'right-ear', 12, 8);
+    sphere(parts.head, 0.009, materials.eyes, [side * 0.052, 0.035, -0.126], side < 0 ? 'left-eye' : 'right-eye', 10, 8);
+    box(parts.head, [0.035, 0.008, 0.008], materials.hair, [side * 0.052, 0.054, -0.127], side < 0 ? 'left-brow' : 'right-brow');
+  }
+  // Cabelo curto como parte estética do corpo; headwear continua sendo slot separado.
+  sphere(parts.head, 0.139, materials.hair, [0, 0.085, 0.018], 'hair-cap', 20, 12);
+  sphere(parts.head, 0.09, materials.hair, [0, 0.035, 0.095], 'rear-hair', 16, 10);
 
-  // Ombros, braços articulados, antebraços e luvas.
+  // Ombros, braços e mãos articulados. Mantidos os nomes consumidos pelo animator.
   for (const side of [-1, 1]) {
     const prefix = side < 0 ? 'left' : 'right';
     const shoulder = new THREE.Group();
     shoulder.name = prefix + '-shoulder';
-    shoulder.position.set(side * 0.255, 0.39, 0);
+    shoulder.position.set(side * 0.235, 0.365, 0);
     parts.torso.add(shoulder);
     parts[prefix + 'Shoulder'] = shoulder;
+    sphere(shoulder, 0.095, materials.skin, [0, 0, 0], prefix + '-shoulder-body', 16, 12);
 
-    addSphere(shoulder, 0.105, materials.armor, [0, 0, 0], prefix + '-shoulder-pad');
-    const upper = addLimb(shoulder, 0.31, 0.115, materials.suit, prefix + '-upper-arm');
-    upper.position.y = -0.055;
+    const upper = limbPivot(shoulder, 0.30, 0.078, materials.skin, prefix + '-upper-arm');
+    upper.position.y = -0.045;
     parts[prefix + 'UpperArm'] = upper;
 
     const elbow = new THREE.Group();
     elbow.name = prefix + '-elbow';
-    elbow.position.y = -0.31;
+    elbow.position.y = -0.30;
     upper.add(elbow);
     parts[prefix + 'Elbow'] = elbow;
 
-    const forearm = addLimb(elbow, 0.27, 0.095, materials.armor, prefix + '-forearm');
+    const forearm = limbPivot(elbow, 0.265, 0.066, materials.skin, prefix + '-forearm');
     parts[prefix + 'Forearm'] = forearm;
 
     const hand = new THREE.Group();
     hand.name = prefix + '-hand';
-    hand.position.y = -0.29;
+    hand.position.set(0, -0.275, -0.005);
     elbow.add(hand);
-    addBox(hand, [0.105, 0.105, 0.12], materials.glove, [0, -0.025, -0.005], prefix + '-glove');
+    sphere(hand, 0.055, materials.skin, [0, -0.02, 0], prefix + '-palm', 14, 10);
+    for (let finger = 0; finger < 4; finger++) {
+      capsule(hand, 0.012, 0.035, materials.skin,
+        [(finger - 1.5) * 0.022, -0.067, -0.012], prefix + '-finger-' + finger);
+    }
+    capsule(hand, 0.013, 0.04, materials.skin, [side * -0.045, -0.035, -0.025], prefix + '-thumb');
     parts[prefix + 'Hand'] = hand;
   }
 
-  // Pernas com quadril, joelho e tornozelo independentes.
+  // Quadris, coxas, joelhos, canelas, tornozelos e pés.
   for (const side of [-1, 1]) {
     const prefix = side < 0 ? 'left' : 'right';
     const hip = new THREE.Group();
     hip.name = prefix + '-hip';
-    hip.position.set(side * 0.115, -0.08, 0);
+    hip.position.set(side * 0.105, -0.075, 0);
     parts.pelvis.add(hip);
     parts[prefix + 'Hip'] = hip;
 
-    const thigh = addLimb(hip, 0.39, 0.145, materials.suit, prefix + '-thigh');
+    const thigh = limbPivot(hip, 0.39, 0.095, materials.skin, prefix + '-thigh');
     parts[prefix + 'Thigh'] = thigh;
 
     const knee = new THREE.Group();
     knee.name = prefix + '-knee';
     knee.position.y = -0.39;
     thigh.add(knee);
-    addBox(knee, [0.15, 0.12, 0.17], materials.armor, [0, -0.015, -0.005], prefix + '-knee-plate');
+    sphere(knee, 0.079, materials.skin, [0, -0.005, 0], prefix + '-knee-body', 14, 10);
     parts[prefix + 'Knee'] = knee;
 
-    const shin = addLimb(knee, 0.37, 0.115, materials.suit, prefix + '-shin');
+    const shin = limbPivot(knee, 0.365, 0.072, materials.skin, prefix + '-shin');
     parts[prefix + 'Shin'] = shin;
 
     const ankle = new THREE.Group();
     ankle.name = prefix + '-ankle';
-    ankle.position.y = -0.37;
+    ankle.position.y = -0.365;
     shin.add(ankle);
-    addBox(ankle, [0.14, 0.12, 0.23], materials.dark, [0, -0.02, -0.035], prefix + '-boot');
-    addBox(ankle, [0.145, 0.035, 0.24], materials.accent, [0, -0.075, -0.035], prefix + '-boot-sole');
+    sphere(ankle, 0.065, materials.skin, [0, -0.015, 0], prefix + '-ankle-body', 12, 8);
     parts[prefix + 'Ankle'] = ankle;
   }
 
-  // Pequenos detalhes luminosos no traje.
-  addBox(parts.torso, [0.045, 0.12, 0.025], materials.accent, [-0.16, 0.19, -0.135], 'left-chest-light');
-  addBox(parts.torso, [0.045, 0.12, 0.025], materials.accent, [0.16, 0.19, -0.135], 'right-chest-light');
+  // Peças adicionais para testar o sistema modular de equipamento.
+  const helmetMat = material(0x607b8b, 0.38, 0.42);
+  const visorMat = new THREE.MeshStandardMaterial({ color: 0x69dfff, roughness: 0.22, metalness: 0.55, transparent: true, opacity: 0.72 });
+  sphere(wardrobe.head, 0.151, helmetMat, [0, 0.72, 0.005], 'explorer-helmet-shell', 20, 14);
+  box(wardrobe.head, [0.22, 0.055, 0.16], helmetMat, [0, 0.665, -0.012], 'explorer-helmet-rim');
+  sphere(wardrobe.head, 0.105, visorMat, [0, 0.705, -0.105], 'explorer-helmet-visor', 18, 12);
+  for (const side of [-1, 1]) {
+    const hand = parts[side < 0 ? 'leftHand' : 'rightHand'];
+    const glove = new THREE.Group();
+    glove.name = (side < 0 ? 'left' : 'right') + '-glove';
+    hand.add(glove);
+    handGarments.push(glove);
+    sphere(glove, 0.058, materials.glove, [0, -0.018, 0], 'glove-palm', 14, 10);
+    for (let finger = 0; finger < 4; finger++) {
+      capsule(glove, 0.013, 0.04, materials.glove,
+        [(finger - 1.5) * 0.022, -0.067, -0.012], 'glove-finger-' + finger);
+    }
+  }
+  box(wardrobe.back, [0.29, 0.38, 0.14], materials.pack, [0, 0.22, 0.205], 'explorer-backpack');
+  box(wardrobe.back, [0.20, 0.12, 0.035], materials.fabricTrim, [0, 0.18, 0.285], 'backpack-panel');
+
+  // Phaser procedural, preso à mão direita para acompanhar o rig e as animações.
+  const phaserBody = material(0x354956, 0.32, 0.72);
+  const phaserMetal = material(0x9bb4c1, 0.28, 0.82);
+  const phaserEnergy = new THREE.MeshStandardMaterial({ color: 0x55dcff, emissive: 0x168eb8, emissiveIntensity: 1.8, metalness: 0.35, roughness: 0.2 });
+  const phaserHand = parts.rightHand;
+  const phaser = new THREE.Group();
+  phaser.name = 'phaser-weapon';
+  phaser.position.set(0, -0.035, -0.105);
+  phaser.rotation.x = -0.08;
+  wardrobe.weapon.add(phaser);
+  // Empunhadura e corpo apontam para a frente do personagem (-Z).
+  box(phaser, [0.075, 0.105, 0.25], phaserBody, [0, 0.005, -0.055], 'phaser-frame');
+  box(phaser, [0.052, 0.13, 0.085], phaserBody, [0, -0.105, 0.015], 'phaser-grip');
+  box(phaser, [0.09, 0.035, 0.12], phaserMetal, [0, 0.066, -0.055], 'phaser-top-rail');
+  const emitter = new THREE.Group();
+  emitter.position.set(0, 0.005, -0.19);
+  phaser.add(emitter);
+  sphere(emitter, 0.035, phaserEnergy, [0, 0, 0], 'phaser-emitter', 14, 10);
+  const muzzle = new THREE.PointLight(0x49dfff, 0, 1.6, 2);
+  muzzle.position.set(0, 0, -0.22);
+  phaser.add(muzzle);
+  phaser.userData.muzzleLight = muzzle;
+  phaser.userData.energyMaterial = phaserEnergy;
+  // A arma é anexada ao grupo da mão, não à tela/HUD.
+  wardrobe.weapon.userData.phaser = phaser;
+  phaserHand.add(wardrobe.weapon);
+  wardrobe.weapon.visible = false;
+
+  // Vestuário inicial independente: jaqueta leve, calça e botas.
+  // Nenhuma peça cobre a cabeça; luvas e mochila começam desequipadas.
+  const torsoClothes = wardrobe.torso;
+  capsule(torsoClothes, 0.214, 0.30, materials.shirt, [0, 0.205, -0.002], 'base-shirt');
+  capsule(torsoClothes, 0.222, 0.31, materials.jacket, [0, 0.215, -0.006], 'field-jacket');
+  box(torsoClothes, [0.012, 0.25, 0.012], materials.fabricTrim, [0, 0.21, -0.216], 'jacket-seam');
+  for (let i = 0; i < 3; i++) sphere(torsoClothes, 0.009, materials.fabricTrim,
+    [0, 0.29 - i * 0.075, -0.222], 'jacket-button-' + i, 8, 6);
+
+  for (const side of [-1, 1]) {
+    const prefix = side < 0 ? 'left' : 'right';
+    const hip = parts[prefix + 'Hip'];
+    const thighCloth = makeClothingGroup(hip, prefix + '-trouser-leg');
+    // A peça acompanha o pivô da coxa e preserva as articulações existentes.
+    legGarments.push(thighCloth);
+    capsule(thighCloth, 0.101, 0.34, materials.trousers, [0, -0.19, 0], prefix + '-trousers');
+    const kneeCloth = makeClothingGroup(parts[prefix + 'Knee'], prefix + '-trouser-knee');
+    legGarments.push(kneeCloth);
+    sphere(kneeCloth, 0.086, materials.trousers, [0, -0.012, 0], prefix + '-trouser-knee-cover', 16, 12);
+    const shinCloth = makeClothingGroup(parts[prefix + 'Knee'], prefix + '-trouser-shin');
+    legGarments.push(shinCloth);
+    capsule(shinCloth, 0.078, 0.31, materials.trousers, [0, -0.17, 0], prefix + '-lower-trousers');
+    // Mantém cada peça no pivô da articulação para acompanhar a animação.
+
+    const boot = makeClothingGroup(parts[prefix + 'Ankle'], prefix + '-boot-item');
+    footGarments.push(boot);
+    box(boot, [0.14, 0.12, 0.24], materials.boots, [0, -0.025, -0.035], prefix + '-boot-shoe');
+    box(boot, [0.145, 0.025, 0.245], materials.fabricTrim, [0, -0.087, -0.035], prefix + '-boot-sole');
+    // A bota permanece filha do tornozelo para acompanhar a passada.
+  }
+
+  const defaultEquipment = {
+    head: null,
+    torso: 'clothing.field-jacket',
+    legs: 'clothing.utility-trousers',
+    hands: null,
+    feet: 'clothing.exploration-boots',
+    back: null
+  };
+
+  const wardrobeState = { ...defaultEquipment };
+  const slotGroups = {
+    head: [wardrobe.head],
+    torso: [wardrobe.torso],
+    legs: legGarments,
+    hands: [wardrobe.hands, ...handGarments],
+    feet: footGarments,
+    back: [wardrobe.back],
+    weapon: [wardrobe.weapon]
+  };
+
+  function setEquipment(slot, itemId) {
+    if (!Object.hasOwn(slotGroups, slot)) {
+      throw new TypeError('Espaço de vestuário desconhecido: ' + slot);
+    }
+    wardrobeState[slot] = itemId ?? null;
+    const equipped = wardrobeState[slot] !== null;
+    for (const group of slotGroups[slot]) group.visible = equipped;
+    return { ...wardrobeState };
+  }
+
+  function getEquipment() {
+    return { ...wardrobeState };
+  }
+
+  // Slots começam com o conjunto padrão definido acima.
+  for (const slot of Object.keys(slotGroups)) {
+    for (const group of slotGroups[slot]) {
+      group.visible = wardrobeState[slot] !== null;
+    }
+  }
 
   root.scale.setScalar(scale);
   root.userData.characterType = 'humanoid-explorer';
   root.userData.height = 1.8 * scale;
   root.userData.parts = parts;
   root.userData.materials = materials;
+  root.userData.wardrobe = wardrobe;
+  root.userData.equipment = getEquipment;
 
-  return { group: root, rig, parts, materials };
+  return {
+    group: root, rig, parts, materials, wardrobe,
+    setEquipment, getEquipment, defaultEquipment: { ...defaultEquipment }
+  };
 }

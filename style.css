@@ -1183,6 +1183,42 @@ select:focus {
   pointer-events: auto;
   touch-action: none;
 }
+.character-aim-reticle {
+  position: absolute;
+  left: 50%;
+  top: 47%;
+  width: 34px;
+  height: 34px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  opacity: .88;
+  filter: drop-shadow(0 0 5px rgba(67,217,255,.75));
+}
+.character-aim-reticle.is-visible { display: flex; }
+.character-aim-reticle b {
+  width: 5px;
+  height: 5px;
+  border: 1px solid #d8f8ff;
+  border-radius: 50%;
+  background: rgba(67,217,255,.4);
+}
+.character-aim-reticle i {
+  position: absolute;
+  width: 8px;
+  height: 1px;
+  background: #67e4ff;
+}
+.character-aim-reticle i:first-child { transform: translateX(-11px); }
+.character-aim-reticle i:last-child { transform: translateX(11px); }
+.aim-btn.is-active {
+  border-color: rgba(84,230,160,.85);
+  color: var(--green);
+  box-shadow: 0 0 15px rgba(84,230,160,.24);
+}
+
 .character-move-stick {
   position: absolute;
   left: max(18px, env(safe-area-inset-left));
@@ -1455,8 +1491,24 @@ select:focus {
   background: rgba(5,17,33,.82);
   color: var(--text);
   text-align: left;
+  position: relative;
+  z-index: 1;
+  pointer-events: auto;
+  touch-action: manipulation;
+  cursor: pointer;
 }
-.inventory-cell { pointer-events: none; }
+.inventory-cell:not(.inventory-item-button) { pointer-events: none; }
+.inventory-item-button {
+  pointer-events: auto;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.inventory-window,
+.inventory-window * {
+  -webkit-tap-highlight-color: transparent;
+}
 .inventory-cell::before {
   content: '+';
   color: rgba(67,217,255,.45);
@@ -1481,9 +1533,33 @@ select:focus {
   font-weight: 700;
 }
 .inventory-slot.selected {
-  border-color: rgba(67,217,255,.75);
-  box-shadow: inset 0 0 14px rgba(67,217,255,.08);
+  border-color: rgba(84,230,160,.9);
+  background: linear-gradient(145deg, rgba(18,76,55,.88), rgba(5,28,27,.94));
+  box-shadow: inset 0 0 14px rgba(84,230,160,.16), 0 0 10px rgba(84,230,160,.10);
 }
+.inventory-slot.selected small { color: var(--green); }
+.inventory-item-button {
+  position: relative;
+  border-color: rgba(83,190,255,.30);
+  cursor: pointer;
+  text-align: left;
+}
+.inventory-item-button:active,
+.inventory-item-button:focus-visible {
+  border-color: rgba(84,230,160,.95);
+  background: linear-gradient(145deg, rgba(18,76,55,.9), rgba(5,28,27,.96));
+  box-shadow: inset 0 0 14px rgba(84,230,160,.18), 0 0 10px rgba(84,230,160,.12);
+  outline: none;
+}
+.inventory-item-button small { color: var(--muted); font-size: 8px; }
+.inventory-slot.weapon-inventory-slot { border-style: dashed; }
+.quick-slot.is-equipped {
+  border-color: rgba(84,230,160,.72);
+  background: linear-gradient(145deg, rgba(10,48,38,.88), rgba(3,18,27,.9));
+  box-shadow: inset 0 0 12px rgba(84,230,160,.10), 0 0 9px rgba(84,230,160,.08);
+}
+.quick-slot.is-equipped b { color: var(--green); }
+.quick-slot:not(.is-equipped) b { color: var(--muted); }
 .inventory-note {
   margin: 12px 0 0;
   color: var(--muted);
@@ -1618,3 +1694,93 @@ body {
   min-height: 100dvh;
   inset: 0;
 }
+
+/* Ações de movimento do explorador: separadas da mira e do inventário. */
+.character-action-cluster {
+  position: absolute;
+  right: max(18px, env(safe-area-inset-right));
+  bottom: max(150px, calc(env(safe-area-inset-bottom) + 138px));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  pointer-events: none;
+}
+.character-movement-btn {
+  width: 64px;
+  height: 64px;
+  border: 1px solid rgba(67,217,255,.62);
+  border-radius: 50%;
+  background: rgba(5,30,52,.9);
+  color: #d8edf7;
+  box-shadow: 0 0 14px rgba(67,217,255,.14);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  font-size: 24px;
+  font-weight: 700;
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
+}
+.character-movement-btn small {
+  font-size: 8px;
+  letter-spacing: .5px;
+}
+.character-movement-btn:active,
+.character-movement-btn.is-active {
+  transform: scale(.94);
+  background: rgba(15,75,104,.96);
+  border-color: #43d9ff;
+  box-shadow: 0 0 18px rgba(67,217,255,.38);
+}
+.character-movement-btn:disabled {
+  opacity: .42;
+}
+@media (orientation: landscape) and (max-height: 600px) {
+  .character-action-cluster {
+    right: max(12px, env(safe-area-inset-right));
+    bottom: max(112px, calc(env(safe-area-inset-bottom) + 100px));
+    gap: 8px;
+  }
+  .character-movement-btn { width: 54px; height: 54px; font-size: 20px; }
+}
+
+
+/* Botão temporário de teste das animações do personagem. */
+.animation-btn { border-color: rgba(255, 197, 92, .62); color: #ffd28a; }
+.animation-btn.is-active { background: rgba(100, 65, 20, .88); border-color: #ffd28a; box-shadow: 0 0 18px rgba(255, 197, 92, .32); }
+
+
+/* Editor e posições personalizadas do HUD do personagem (independente da nave). */
+.character-hud-editor { position: fixed; inset: 0; z-index: 60; pointer-events: none; background: rgba(0,5,15,.16); }
+.character-hud-editor-panel {
+  position: absolute; left: 50%; bottom: max(12px, env(safe-area-inset-bottom));
+  transform: translateX(-50%); display: grid; gap: 7px; width: min(94vw, 440px);
+  padding: 11px; border: 1px solid rgba(67,217,255,.55); border-radius: 12px;
+  background: rgba(3,12,26,.96); color: var(--text); text-align: center;
+  box-shadow: 0 8px 28px rgba(0,0,0,.42); pointer-events: auto;
+}
+.character-hud-editor-panel > b { color: var(--cyan); font-size: 11px; letter-spacing: .08em; }
+.character-hud-editor-panel > span { color: var(--muted); font-size: 10px; }
+.character-hud-editor-actions { display: flex; gap: 7px; }
+.character-hud-editor-actions button {
+  flex: 1; min-height: 38px; padding: 5px; border: 1px solid var(--border);
+  border-radius: 8px; background: rgba(9,35,57,.96); color: var(--cyan);
+  font-size: 10px; font-weight: 700; pointer-events: auto; touch-action: manipulation;
+}
+.character-hud-editor-actions #character-hud-save-btn { border-color: rgba(84,230,160,.65); color: #8ef0bd; }
+.hud-editable-active {
+  outline: 2px dashed rgba(67,217,255,.95) !important; outline-offset: 3px;
+  z-index: 55 !important; pointer-events: auto !important; touch-action: none !important; cursor: move;
+}
+
+
+/* Phaser portátil: botão, recarga energética e estado de disparo. */
+.phaser-btn { position: relative; z-index: 2; overflow: hidden; border-color: rgba(77,218,255,.65); color: #a5edff; touch-action: manipulation; user-select: none; -webkit-tap-highlight-color: transparent; }
+.phaser-btn:disabled { opacity: .42; }
+.phaser-btn.is-ready { box-shadow: 0 0 12px rgba(65,213,255,.32); }
+.phaser-btn i { position: absolute; left: 0; bottom: 0; height: 3px; width: 0; background: #57dcff; transition: width .08s linear; pointer-events: none; }
+.phaser-btn.is-charging i { box-shadow: 0 0 8px #57dcff; }
