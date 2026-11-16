@@ -653,6 +653,12 @@ async function startGame() {
     await new Promise(resolve => setTimeout(resolve, 350));
 
     loadingScreen?.classList.add('hidden');
+
+    // O HUD usa medidas do DOM. Só aplicar posições salvas depois que a tela
+    // do jogo estiver visível e o WebView concluir o layout em dois frames.
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    applyCharacterHudLayout(readCharacterHudLayout());
+
     active = true;
     last = performance.now();
 
@@ -845,6 +851,7 @@ function resize3D() {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
+  scheduleCharacterHudLayout();
 }
 
 /* MOVIMENTO */
@@ -1995,6 +2002,21 @@ function applyCharacterHudLayout(layout = {}) {
     element.style.bottom = 'auto';
     element.style.transform = 'none';
   });
+}
+
+function scheduleCharacterHudLayout() {
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const gameScreen = $('game-screen');
+    if (!gameScreen || gameScreen.classList.contains('hidden')) return;
+
+    const hasMeasuredHud = characterHudEditable.every(element => {
+      const rect = element.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    });
+    if (!hasMeasuredHud) return;
+
+    applyCharacterHudLayout(readCharacterHudLayout());
+  }));
 }
 
 function captureCharacterHudLayout() {
