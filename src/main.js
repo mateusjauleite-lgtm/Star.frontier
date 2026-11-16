@@ -172,7 +172,7 @@ state.ship = 'Nave exploradora';
 /* UTILITÁRIOS */
 
 function show(id) {
-  ['login-screen', 'menu-screen', 'game-screen'].forEach(name => {
+  ['startup-screen', 'login-screen', 'menu-screen', 'game-screen'].forEach(name => {
     $(name)?.classList.add('hidden');
   });
 
@@ -201,6 +201,10 @@ function updateWallet() {
 }
 
 /* LOGIN E PERFIL */
+
+$('startup-play-btn')?.addEventListener('click', () => {
+  show('login-screen');
+});
 
 $('login-btn')?.addEventListener('click', () => {
   const name = $('login-name')?.value.trim();
@@ -538,6 +542,35 @@ function loadingStep(percent, message) {
   return new Promise(resolve => {
     requestAnimationFrame(() => requestAnimationFrame(resolve));
   });
+}
+
+
+
+/* INICIALIZAÇÃO DO APLICATIVO: carregamento -> JOGAR -> LOGIN -> MENU */
+async function bootApplication() {
+  const loadingScreen = $('loading-screen');
+
+  // Reaproveita a mesma tela visual usada ao iniciar a missão após DECOLAR.
+  // Nesta etapa, o aplicativo prepara a interface e o menu; a cena 3D continua
+  // sendo inicializada no fluxo de DECOLAR, como já acontece atualmente.
+  show('game-screen');
+  loadingScreen?.classList.remove('hidden');
+
+  const stages = [
+    [8, 'Inicializando Star.frontier...'],
+    [28, 'Carregando os sistemas do jogo...'],
+    [54, 'Preparando a interface do piloto...'],
+    [78, 'Carregando o menu principal...'],
+    [100, 'Inicialização concluída.']
+  ];
+
+  for (const [percent, message] of stages) {
+    await loadingStep(percent, message);
+    await new Promise(resolve => setTimeout(resolve, 180));
+  }
+
+  loadingScreen?.classList.add('hidden');
+  show('startup-screen');
 }
 
 async function startGame() {
@@ -2171,3 +2204,6 @@ $('return-menu-btn')?.addEventListener('click', () => {
   updateWallet();
   last = performance.now();
 });
+
+// A tela de entrada é exibida somente depois que o carregamento inicial termina.
+bootApplication();
