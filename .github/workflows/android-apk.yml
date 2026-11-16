@@ -136,7 +136,7 @@ jobs:
           if bridge_import not in source:
               raise SystemExit("BridgeActivity import not found in MainActivity.java")
           if "import android.view.View;" not in source:
-              source = source.replace(bridge_import, "import android.view.View;\\n" + bridge_import)
+              source = source.replace(bridge_import, "import android.view.View;\n" + bridge_import)
           if "SYSTEM_UI_FLAG_IMMERSIVE_STICKY" not in source:
               method = """
               @Override
