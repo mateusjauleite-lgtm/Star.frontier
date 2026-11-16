@@ -146,6 +146,10 @@ function makeRockAlbedo() {
   return canvas;
 }
 
+// Match the packaged NOAA ETOPO 0.25-degree grid across the entire globe.
+// A single global mesh avoids waiting for the ship to approach before relief appears.
+export const EARTH_GLOBAL_SURFACE_SEGMENTS = Object.freeze({ width: 1440, height: 720 });
+
 export function selectEarthLodLevel(distance, radius, currentLevel = null) {
   if (!Number.isFinite(distance) || !Number.isFinite(radius) || radius <= 0) return 3;
   const thresholds = [4.2, 2.2, 1.35];
@@ -171,15 +175,15 @@ export function createSurfaceRuntime({ group, options, layers }) {
       texture = new THREE.CanvasTexture(makeRockAlbedo());
       texture.colorSpace = THREE.SRGBColorSpace;
       texture.anisotropy = 4;
-      // Four global LOD levels. The 640x384 level supports close approaches;
-      // ETOPO-aligned local patches provide the finer regional surface detail.
-      lodGeometries = [
-        new THREE.SphereGeometry(options.radius, 72, 48),
-        new THREE.SphereGeometry(options.radius, 144, 96),
-        new THREE.SphereGeometry(options.radius, 320, 192),
-        new THREE.SphereGeometry(options.radius, 640, 384)
-      ];
-      geometry = lodGeometries[3];
+      // One ETOPO-aligned global mesh: the full planet carries terrain detail
+      // from the first frame, independent of the ship/camera distance.
+      // Collision queries use the same elevation sampler in terrain.js.
+      geometry = new THREE.SphereGeometry(
+        options.radius,
+        EARTH_GLOBAL_SURFACE_SEGMENTS.width,
+        EARTH_GLOBAL_SURFACE_SEGMENTS.height
+      );
+      lodGeometries = [geometry];
       material = new THREE.MeshStandardMaterial({
         map: texture,
         roughness: .96,
@@ -196,16 +200,7 @@ export function createSurfaceRuntime({ group, options, layers }) {
     update(delta, context) {
       if (!mesh) return;
       mesh.rotation.y += Math.min(Math.max(delta || 0, 0), .1) * .012;
-      const camera = context?.camera;
-      if (!camera || lodGeometries.length !== 4) return;
-      const center = mesh.getWorldPosition(new THREE.Vector3());
-      const distance = camera.position.distanceTo(center);
-      const radius = options.radius;
-      const nextLevel = selectEarthLodLevel(distance, radius, mesh.userData.earthLodLevel);
-      if (nextLevel !== mesh.userData.earthLodLevel) {
-        mesh.geometry = lodGeometries[nextLevel];
-        mesh.userData.earthLodLevel = nextLevel;
-      }
+      // Global terrain resolution is fixed; camera distance never downgrades the globe.
     },
     dispose() {
       if (mesh) group.remove(mesh);

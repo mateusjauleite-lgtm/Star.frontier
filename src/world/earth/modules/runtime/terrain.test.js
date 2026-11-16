@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { sampleEarthElevationGrid, calculateEtopoPatchSegments } from './terrain.js';
-import { selectEarthLodLevel } from './surface.js';
+import { EARTH_GLOBAL_SURFACE_SEGMENTS, selectEarthLodLevel } from './surface.js';
 import { ETOPO_2022_GLOBAL_GRID, loadEtopo2022GlobalGrid, parseEtopo2022Grid } from '../../references/etopo2022.js';
 import { createEarthKernelAdapter } from '../../wasm/earthKernel.js';
 
@@ -164,6 +164,11 @@ test('sizes the regional terrain patch to the packaged ETOPO grid spacing', () =
   assert.equal(calculateEtopoPatchSegments(750, 0, etopoGrid), 27);
   assert.equal(calculateEtopoPatchSegments(750, 60, etopoGrid), 54);
   assert.equal(calculateEtopoPatchSegments(750, 80, etopoGrid), 128);
+});
+
+test('uses an ETOPO-aligned high-resolution mesh across the entire globe', () => {
+  assert.equal(EARTH_GLOBAL_SURFACE_SEGMENTS.width, ETOPO_2022_GLOBAL_GRID.width);
+  assert.equal(EARTH_GLOBAL_SURFACE_SEGMENTS.height, ETOPO_2022_GLOBAL_GRID.height);
 });
 
 test('keeps Earth LOD stable around transition thresholds', () => {
