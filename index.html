@@ -19,8 +19,18 @@
 
 <body>
 
+  <!-- TELA INICIAL: aparece depois do carregamento e antes do login -->
+  <section id="startup-screen" class="screen hidden" aria-label="Entrada do jogo">
+    <div class="loading-card startup-card">
+      <div class="loading-brand">STAR FRONTIER</div>
+      <div class="loading-kicker">SISTEMAS PRONTOS</div>
+      <p class="startup-message">Sua próxima jornada começa aqui.</p>
+      <button id="startup-play-btn" class="primary startup-play-btn" type="button">JOGAR</button>
+    </div>
+  </section>
+
   <!-- LOGIN -->
-  <section id="login-screen" class="screen">
+  <section id="login-screen" class="screen hidden">
     <div class="login-card">
       <div class="brand">STAR FRONTIER</div>
       <p class="subtitle">Uma nova fronteira espera por você.</p>
