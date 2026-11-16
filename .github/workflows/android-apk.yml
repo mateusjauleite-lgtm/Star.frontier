@@ -8,12 +8,18 @@ on:
       - integration/threejs-recovery
       - feature/earth-procedural-lod
       - feature/ship-orbital-landing-foundation
+      - feature/character-human-model-animation
+      - feature/startup-loading-login-flow
+      - fix/character-hud-startup-layout
   pull_request:
     branches:
       - main
       - architecture/modules-skeleton
       - integration/threejs-recovery
       - feature/earth-procedural-lod
+      - feature/character-human-model-animation
+      - feature/startup-loading-login-flow
+      - fix/character-hud-startup-layout
   workflow_dispatch:
 
 permissions:
@@ -130,7 +136,7 @@ jobs:
           if bridge_import not in source:
               raise SystemExit("BridgeActivity import not found in MainActivity.java")
           if "import android.view.View;" not in source:
-              source = source.replace(bridge_import, "import android.view.View;\n" + bridge_import)
+              source = source.replace(bridge_import, "import android.view.View;\\n" + bridge_import)
           if "SYSTEM_UI_FLAG_IMMERSIVE_STICKY" not in source:
               method = """
               @Override
