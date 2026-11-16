@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import { createEarthCore } from './world/earth/earthCore.js';
 import { createStation } from './world/station.js';
+import { getLandingSite } from './ships/flight/landingSites.js';
+import { createShipLandingAutopilot, createShipLandingMetricTelemetryAdapter, SHIP_MODEL_METERS_PER_UNIT } from './ships/flight/landingAutopilot.js';
+import { loadShipFlightKernel } from './ships/flight/shipFlightKernel.js';
 import { createOrbitSystem } from './world/orbits.js';
 import { createAsteroidField } from './world/asteroids.js';
 import { createSpaceLighting } from './world/lighting.js';
@@ -377,6 +380,15 @@ let ship;
 let stars;
 let earthSystem;
 let stationSystem;
+let landingBaseSystem;
+let selectedLandingSiteId = null;
+let shipFlightKernel = null;
+let shipLandingAutopilot = null;
+const shipLandingTelemetry = createShipLandingMetricTelemetryAdapter({
+  modelMetersPerUnit: SHIP_MODEL_METERS_PER_UNIT,
+  deckHeightMeters: 0.76,
+  deckRadiusMeters: 146
+});
 let orbitSystem;
 let asteroidSystem;
 let lightingSystem;
@@ -386,6 +398,8 @@ let activeDeckIndex = 0;
 let shipYaw;
 let shipPitch;
 let shipVisual;
+let shipLandingGear;
+let shipLandingGearContactPoints = [];
 
 // Estruturas externas da popa que invadem visualmente o espaço útil do Deck 4.
 // São ocultadas somente enquanto o personagem está no D4 e restauradas nos demais decks.
@@ -586,9 +600,18 @@ async function startGame() {
     shipYaw = null;
     shipPitch = null;
     shipVisual = null;
+    shipLandingGear = null;
+    shipLandingGearContactPoints = [];
     stars = null;
     earthSystem = null;
     stationSystem = null;
+    landingBaseSystem = null;
+    selectedLandingSiteId = null;
+    shipLandingAutopilot?.cancel?.();
+    shipLandingAutopilot = null;
+    shipFlightKernel?.dispose?.();
+    shipFlightKernel = null;
+    shipLandingTelemetry.reset();
     orbitSystem = null;
     asteroidSystem = null;
     lightingSystem = null;
@@ -667,6 +690,11 @@ async function init3D() {
   shipYaw = explorationShip.yaw;
   shipPitch = explorationShip.pitch;
   shipVisual = explorationShip.visual;
+  shipLandingGear = explorationShip.landingGear;
+  shipLandingGearContactPoints = explorationShip.landingGearContactPoints;
+  shipFlightKernel = await loadShipFlightKernel();
+  shipLandingAutopilot = createShipLandingAutopilot(shipFlightKernel);
+  shipLandingTelemetry.reset();
   updateDeck4Clearance();
   engineFlames = explorationShip.engineFlames;
   engineLights = explorationShip.engineLights;
@@ -741,6 +769,13 @@ function updateFlight(dt) {
   // Protege a simulação contra saltos de tempo quando o Android pausa ou atrasa um frame.
   const safeDt = THREE.MathUtils.clamp(Number.isFinite(dt) ? dt : 0, 0, 0.04);
   const sensitivity = Number(state.settings.sensitivity) || 1;
+  const manualOverride = Math.abs(state.move.x) > 0.015 || Math.abs(state.move.y) > 0.015 ||
+    state.throttle || state.braking || state.nitroButton;
+  if (manualOverride && shipLandingAutopilot?.snapshot?.().active) {
+    cancelLandingGuidance('manual-override');
+    if ($('landing-status')) $('landing-status').textContent = 'Comando manual assumido. A orientação foi cancelada e o botão POUSAR foi restaurado.';
+    toast('Orientação automática cancelada: controle manual assumido.');
+  }
 
   // Guinada sempre no eixo vertical global; arfagem sempre no eixo lateral local.
   // No joystick: puxar para cima (Y negativo) sobe; puxar para baixo (Y positivo) desce.
@@ -1143,6 +1178,7 @@ function enterPilotMode() {
 function exitPilotMode() {
   if (characterCore.snapshot().mode !== 'ship-control') return;
 
+  cancelLandingGuidance('pilot-disconnected');
   shipComputer.disconnectTerminal('pilot-console');
   characterYaw = returnCharacterToDeck(characterModel, shipVisual, scene);
   characterPitch = 0;
@@ -1226,6 +1262,10 @@ function loop(now) {
     updateCamera();
   }
   earthSystem?.update(dt, camera);
+  // A Earth é proprietária da infraestrutura; a gameplay consulta a base
+  // criada pelo módulo para contatos e estado de pouso.
+  landingBaseSystem = earthSystem?.getLandingBase?.() ?? null;
+  updateShipLandingGuidance(dt);
 
   // Mantém uma região local de maior densidade geométrica sob a nave
   // durante a aproximação. A consulta usa o mesmo sampler do relevo global.
@@ -1240,20 +1280,44 @@ function loop(now) {
 
       const sampleShipContacts = () => {
         shipVisual.updateWorldMatrix(true, true);
-        return shipEarthContactPoints.map(({ id, point }) => {
+        const pad = landingBaseSystem?.group;
+        if (pad) pad.updateWorldMatrix(true, false);
+        const probePoints = [...shipEarthContactPoints, ...shipLandingGearContactPoints];
+        return probePoints.map(({ id, point }) => {
           const worldPoint = shipVisual.localToWorld(point.clone());
-          const sample = collisionSurface.sampleWorldPosition?.(worldPoint);
-          if (!sample?.worldPosition || !sample?.worldNormal) {
-            return { id, valid: false };
+          const terrain = collisionSurface.sampleWorldPosition?.(worldPoint);
+          let chosen = terrain?.worldPosition && terrain?.worldNormal
+            ? { worldPosition: terrain.worldPosition, worldNormal: terrain.worldNormal, surface: 'etopo' }
+            : null;
+
+          // A face superior da plataforma entra na mesma consulta de contato do ETOPO.
+          // Não há um segundo motor físico: escolhemos a superfície mais alta sob a sonda.
+          if (pad) {
+            const padLocal = pad.worldToLocal(worldPoint.clone());
+            const insidePad = padLocal.x * padLocal.x + padLocal.z * padLocal.z <= 146 * 146;
+            if (insidePad) {
+              const padTop = pad.localToWorld(new THREE.Vector3(padLocal.x, 0.76, padLocal.z));
+              const padUp = new THREE.Vector3(0, 1, 0).transformDirection(pad.matrixWorld).normalize();
+              const padClearance = worldPoint.clone().sub(padTop).dot(padUp);
+              const terrainClearance = chosen
+                ? worldPoint.clone().sub(chosen.worldPosition).dot(chosen.worldNormal)
+                : Infinity;
+              if (padClearance < terrainClearance) {
+                chosen = { worldPosition: padTop, worldNormal: padUp, surface: 'landing-pad' };
+              }
+            }
           }
+
+          if (!chosen) return { id, valid: false };
           const clearanceUnits = worldPoint.clone()
-            .sub(sample.worldPosition)
-            .dot(sample.worldNormal);
+            .sub(chosen.worldPosition)
+            .dot(chosen.worldNormal);
           return {
             id,
             valid: Number.isFinite(clearanceUnits),
             clearanceUnits,
-            worldNormal: sample.worldNormal,
+            worldNormal: chosen.worldNormal,
+            surface: chosen.surface,
             penetrating: clearanceUnits < -0.05
           };
         });
@@ -1284,13 +1348,34 @@ function loop(now) {
       const minimumClearance = validContacts.length
         ? Math.min(...validContacts.map(contact => contact.clearanceUnits))
         : null;
+      const padUp = landingBaseSystem
+        ? new THREE.Vector3(0, 1, 0).transformDirection(landingBaseSystem.group.matrixWorld).normalize()
+        : null;
+      const shipUp = shipVisual.localToWorld(new THREE.Vector3(0, 1, 0))
+        .sub(shipVisual.getWorldPosition(new THREE.Vector3())).normalize();
+      const upAlignment = padUp ? THREE.MathUtils.clamp(shipUp.dot(padUp), -1, 1) : null;
+      const attitude = upAlignment === null ? 'unavailable'
+        : upAlignment >= Math.cos(THREE.MathUtils.degToRad(12)) ? 'upright'
+        : upAlignment <= -Math.cos(THREE.MathUtils.degToRad(12)) ? 'inverted'
+        : Math.abs(upAlignment) <= Math.sin(THREE.MathUtils.degToRad(12)) ? 'sideways'
+        : 'tilted';
+      const gearContacts = contacts.filter(contact =>
+        contact.id.startsWith('gear-') && contact.valid && contact.clearanceUnits <= 0.35
+      );
       ship.userData.earthLandingContacts = {
         status: validContacts.length !== contacts.length
           ? 'partial'
           : minimumClearance <= 0.35 ? 'contact' : 'clear',
         contacts,
         minimumClearanceUnits: minimumClearance,
-        physicsApplied: Boolean(ship.userData.earthCollisionResolved)
+        physicsApplied: Boolean(ship.userData.earthCollisionResolved),
+        landingGear: {
+          total: shipLandingGearContactPoints.length,
+          touching: gearContacts.length,
+          allTouching: gearContacts.length === shipLandingGearContactPoints.length
+        },
+        attitude,
+        landingComplete: false
       };
     } else {
       delete ship.userData.earthSurfaceSample;
@@ -1339,12 +1424,10 @@ function bindStick(id, key) {
 
     const nextX = x / max;
     const nextY = y / max;
-    if (key === 'move' && shipComputer.isTerminalConnected('pilot-console')) {
-      shipComputer.dispatch('pilot-console', 'flight', 'movement', { x: nextX, y: nextY });
-    } else {
-      state[key].x = nextX;
-      state[key].y = nextY;
-    }
+    // O joystick escreve diretamente no estado consumido por updateFlight.
+    // O computador da nave pode monitorar o voo, mas não pode bloquear a entrada.
+    state[key].x = nextX;
+    state[key].y = nextY;
 
     if (knob) {
       knob.style.transform = `translate(${x}px, ${y}px)`;
@@ -1370,12 +1453,8 @@ function bindStick(id, key) {
     if (pointer !== event.pointerId) return;
 
     pointer = null;
-    if (key === 'move' && shipComputer.isTerminalConnected('pilot-console')) {
-      shipComputer.dispatch('pilot-console', 'flight', 'movement', { x: 0, y: 0 });
-    } else {
-      state[key].x = 0;
-      state[key].y = 0;
-    }
+    state[key].x = 0;
+    state[key].y = 0;
 
     if (knob) knob.style.transform = 'translate(0,0)';
   };
@@ -1585,36 +1664,35 @@ if (aimArea) {
 function holdButton(id, key) {
   const button = $(id);
   if (!button) return;
+  let activePointer = null;
+
+  const stop = event => {
+    if (activePointer !== null && event?.pointerId !== undefined &&
+        event.pointerId !== activePointer) return;
+    activePointer = null;
+    state[key] = false;
+    button.classList.remove('active');
+  };
 
   button.addEventListener('pointerdown', event => {
+    if (activePointer !== null || (event.pointerType === 'mouse' && event.button !== 0)) return;
     event.preventDefault();
-
-    const flightCommand = { throttle: 'throttle', braking: 'brake', nitroButton: 'nitro' }[key];
-    if (flightCommand && shipComputer.isTerminalConnected('pilot-console')) {
-      shipComputer.dispatch('pilot-console', 'flight', flightCommand, true);
-    } else {
-      state[key] = true;
-    }
-
+    activePointer = event.pointerId;
+    // Propulsão, freio e nitro são entradas de tempo real: não dependem
+    // da disponibilidade do computador auxiliar nem do estado do terminal.
+    state[key] = true;
+    button.classList.add('active');
     try {
       button.setPointerCapture(event.pointerId);
-    } catch (error) {
-      // O botão continua funcionando mesmo sem captura.
+    } catch {
+      // A entrada permanece ativa; pointerup/blur ainda podem encerrá-la.
     }
   });
-
-  const stop = () => {
-    const flightCommand = { throttle: 'throttle', braking: 'brake', nitroButton: 'nitro' }[key];
-    if (flightCommand && shipComputer.isTerminalConnected('pilot-console')) {
-      shipComputer.dispatch('pilot-console', 'flight', flightCommand, false);
-    } else {
-      state[key] = false;
-    }
-  };
 
   ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type => {
     button.addEventListener(type, stop);
   });
+  window.addEventListener('blur', stop);
 }
 
 holdButton('throttle-btn', 'throttle');
@@ -1633,6 +1711,133 @@ document.addEventListener('selectstart', event => {
   if (event.target.closest('#flight-controls')) {
     event.preventDefault();
   }
+});
+
+function cancelLandingGuidance(reason = 'cancelled') {
+  shipLandingAutopilot?.cancel?.();
+  shipLandingTelemetry.reset();
+  selectedLandingSiteId = null;
+  if (ship) {
+    ship.userData.landingGuidance = null;
+    delete ship.userData.landingTelemetry;
+    delete ship.userData.landingGearMetricDiagnostics;
+    ship.userData.landingAutopilotState = reason;
+  }
+  const button = $('landing-btn');
+  if (button) button.textContent = '◉ POUSAR';
+}
+
+$('landing-btn')?.addEventListener('click', () => {
+  if (!active || characterCore.snapshot().mode !== 'ship-control') return;
+
+  if (shipLandingAutopilot?.snapshot?.().active) {
+    cancelLandingGuidance('standby');
+    if ($('landing-status')) $('landing-status').textContent = 'Orientação cancelada. Selecione novamente POUSAR para escolher um destino.';
+    toast('Guia de pouso cancelada.');
+    return;
+  }
+
+  if (selectedLandingSiteId && shipLandingAutopilot) {
+    const site = getLandingSite(selectedLandingSiteId);
+    if (!site || !shipLandingAutopilot.arm(site)) {
+      toast('Não foi possível ativar a orientação de pouso.');
+      return;
+    }
+    shipLandingTelemetry.reset();
+    ship.userData.landingAutopilotState = 'armed-guidance-only';
+    $('landing-status').textContent = 'Telemetria conectada. A orientação calcula a aproximação, mas não comanda a propulsão nesta versão.';
+    $('landing-btn').textContent = '✕ CANCELAR';
+    toast('Guia de pouso ativada. Propulsão automática permanece bloqueada.');
+    return;
+  }
+
+  $('landing-modal')?.classList.remove('hidden');
+  $('landing-modal')?.setAttribute('aria-hidden', 'false');
+});
+
+function updateShipLandingGuidance(dt) {
+  if (!ship || !shipVisual || !shipLandingAutopilot?.snapshot?.().active) return;
+  const platform = landingBaseSystem?.platform;
+  if (!platform || !shipFlightKernel) {
+    ship.userData.landingGuidance = null;
+    ship.userData.landingAutopilotState = 'waiting-for-landing-platform';
+    return;
+  }
+
+  // A inversão da matriz da plataforma desfaz também a escala métrica
+  // herdada pela raiz da base: o resultado já está em metros.
+  shipVisual.updateWorldMatrix(true, true);
+  platform.updateWorldMatrix(true, true);
+  const shipOriginWorld = shipVisual.getWorldPosition(new THREE.Vector3());
+  const shipOriginPlatformLocal = platform.worldToLocal(shipOriginWorld.clone());
+  const platformWorldQuaternion = platform.getWorldQuaternion(new THREE.Quaternion());
+  const shipWorldQuaternion = shipVisual.getWorldQuaternion(new THREE.Quaternion());
+  const shipRotationRelativeToPlatform = platformWorldQuaternion
+    .invert().multiply(shipWorldQuaternion).normalize();
+
+  const telemetry = shipLandingTelemetry.sample({
+    shipOriginPlatformLocalMeters: shipOriginPlatformLocal.toArray(),
+    shipRotationRelativeToPlatform: [
+      shipRotationRelativeToPlatform.x, shipRotationRelativeToPlatform.y,
+      shipRotationRelativeToPlatform.z, shipRotationRelativeToPlatform.w
+    ],
+    contactPoints: shipLandingGearContactPoints.map(({ id, point }) => ({
+      id, point: point.toArray()
+    })),
+    dt: Math.max(dt, 1 / 240)
+  });
+  if (!telemetry) {
+    ship.userData.landingGuidance = null;
+    ship.userData.landingAutopilotState = 'invalid-metric-telemetry';
+    return;
+  }
+
+  const guidance = shipLandingAutopilot.update(telemetry);
+  ship.userData.landingTelemetry = telemetry;
+  ship.userData.landingGearMetricDiagnostics = {
+    contactPoints: telemetry.contactPointsMeters,
+    allGearInsideDeck: telemetry.allGearInsideDeck,
+    minimumGearClearanceMeters: telemetry.minimumGearClearanceMeters,
+    maximumGearClearanceMeters: telemetry.maximumGearClearanceMeters,
+    modelMetersPerUnit: telemetry.modelMetersPerUnit,
+    coordinateFrame: telemetry.coordinateFrame
+  };
+  ship.userData.landingGuidance = guidance;
+  ship.userData.landingAutopilotState = guidance ? 'guidance-only' : 'guidance-unavailable';
+  if (guidance) {
+    guidance.backend = shipFlightKernel.backend;
+    guidance.actuationEnabled = false;
+    guidance.coordinateFrame = telemetry.coordinateFrame;
+    guidance.gearClearanceMeters = telemetry.minimumGearClearanceMeters;
+    guidance.allGearInsideDeck = telemetry.allGearInsideDeck;
+    guidance.scaleValidation = telemetry.scaleValidation;
+  }
+}
+
+function closeLandingPanel() {
+  $('landing-modal')?.classList.add('hidden');
+  $('landing-modal')?.setAttribute('aria-hidden', 'true');
+}
+
+$('landing-close-btn')?.addEventListener('click', closeLandingPanel);
+
+$('landing-select-btn')?.addEventListener('click', () => {
+  const site = getLandingSite('earth-salar-test-candidate');
+  if (!site || !ship) {
+    toast('O destino de pouso ainda não está disponível.');
+    return;
+  }
+  selectedLandingSiteId = site.id;
+  shipLandingAutopilot?.cancel?.();
+  shipLandingTelemetry.reset();
+  ship.userData.landingSiteId = site.id;
+  ship.userData.landingAutopilotState = 'target-selected';
+  const button = $('landing-btn');
+  if (button) button.textContent = '◎ ATIVAR GUIA DE POUSO';
+  const status = $('landing-status');
+  if (status) status.textContent = 'Destino marcado: Salar de Uyuni · UY04. Ative a guia quando estiver pronto. A orientação calcula a aproximação, mas ainda não comanda a propulsão.';
+  closeLandingPanel();
+  toast('Destino UY04 marcado. Telemetria pronta para conexão.');
 });
 
 /* CÂMERAS */

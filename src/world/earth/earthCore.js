@@ -9,6 +9,7 @@ import { createOceansRuntime } from './modules/runtime/oceans.js';
 import { createAtmosphereRuntime } from './modules/runtime/atmosphere.js';
 import { createCloudsRuntime } from './modules/runtime/clouds.js';
 import { createLightingRuntime } from './modules/runtime/lighting.js';
+import { createEarthInfrastructureRuntime } from './modules/runtime/infrastructure.js';
 import { createEarthPlanetaryProfile } from './planetaryProfile.js';
 
 const RUNTIME_FACTORIES = Object.freeze({
@@ -18,7 +19,8 @@ const RUNTIME_FACTORIES = Object.freeze({
   oceans: createOceansRuntime,
   atmosphere: createAtmosphereRuntime,
   clouds: createCloudsRuntime,
-  lighting: createLightingRuntime
+  lighting: createLightingRuntime,
+  infrastructure: createEarthInfrastructureRuntime
 });
 
 /**
@@ -63,6 +65,12 @@ export function createEarthCore(options = {}) {
     // elevation sampler that displaces the rendered Earth mesh.
     getCollisionSurface() {
       return layers.terrain?.collisionSurface ?? null;
+    },
+    getLandingBase() {
+      return layers.infrastructure?.getBase?.() ?? null;
+    },
+    getLandingSiteMarker() {
+      return layers.infrastructure?.getMarker?.() ?? null;
     },
     updateModules: EARTH_UPDATE_MODULES,
     attachUpdateModule(id, runtime) {

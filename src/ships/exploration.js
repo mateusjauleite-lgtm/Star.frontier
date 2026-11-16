@@ -327,5 +327,57 @@ export function createExplorationShip() {
     }
   }
 
-  return { group, yaw, pitch, visual, engineFlames, engineLights };
+
+  // Trem de pouso com quatro pernas independentes, distribuídas sob o casco.
+  // As sapatas ficam fora do eixo central para dar uma base larga de apoio.
+  const landingGear = new THREE.Group();
+  landingGear.name = 'Four-Point-Landing-Gear';
+  visual.add(landingGear);
+
+  const gearMetal = new THREE.MeshStandardMaterial({
+    color: 0x71899b, metalness: 0.86, roughness: 0.28
+  });
+  const gearJoint = new THREE.MeshStandardMaterial({
+    color: 0x263b4c, metalness: 0.82, roughness: 0.34
+  });
+  const gearPad = new THREE.MeshStandardMaterial({
+    color: 0x36caff, emissive: 0x075c80, emissiveIntensity: 0.28,
+    metalness: 0.58, roughness: 0.38
+  });
+
+  const landingGearContactPoints = [];
+  for (const side of [-1, 1]) {
+    for (const fore of [-1, 1]) {
+      const x = side * 18;
+      const z = fore * 30;
+      const upper = new THREE.Vector3(side * 13.5, -13.2, fore * 23);
+      const lower = new THREE.Vector3(x, -22.2, z);
+      const direction = lower.clone().sub(upper);
+      const leg = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.72, 1.05, direction.length(), 12),
+        gearMetal
+      );
+      leg.name = `Landing-Gear-Leg-${side}-${fore}`;
+      leg.position.copy(upper).add(lower).multiplyScalar(0.5);
+      leg.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.normalize());
+      landingGear.add(leg);
+
+      const joint = new THREE.Mesh(new THREE.SphereGeometry(1.25, 12, 10), gearJoint);
+      joint.name = `Landing-Gear-Hinge-${side}-${fore}`;
+      joint.position.copy(upper);
+      landingGear.add(joint);
+
+      const foot = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.6, 0.85, 16), gearPad);
+      foot.name = `Landing-Gear-Foot-${side}-${fore}`;
+      foot.position.set(x, -22.75, z);
+      landingGear.add(foot);
+
+      landingGearContactPoints.push({
+        id: `gear-${side < 0 ? 'port' : 'starboard'}-${fore < 0 ? 'fore' : 'aft'}`,
+        point: new THREE.Vector3(x, -23.18, z)
+      });
+    }
+  }
+
+  return { group, yaw, pitch, visual, engineFlames, engineLights, landingGear, landingGearContactPoints };
 }
