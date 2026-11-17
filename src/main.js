@@ -472,6 +472,9 @@ let landingBaseSystem;
 let selectedLandingSiteId = null;
 let shipFlightKernel = null;
 let gravityKernel = null;
+let characterInWorldFrame = false;
+const characterWorldVelocity = new THREE.Vector3();
+let characterWorldGrounded = false;
 let shipLandingAutopilot = null;
 const shipLandingTelemetry = createShipLandingMetricTelemetryAdapter({
   modelMetersPerUnit: SHIP_MODEL_METERS_PER_UNIT,
@@ -647,6 +650,17 @@ async function startGame() {
 
     if (!renderer) {
       await init3D();
+    }
+    if (characterInWorldFrame && characterModel?.group && shipVisual) {
+      scene.remove(characterModel.group);
+      shipVisual.add(characterModel.group);
+      characterModel.group.position.set(0, 8.91, -18);
+      characterModel.group.rotation.set(0, characterYaw, 0);
+      characterInWorldFrame = false;
+      characterWorldGrounded = false;
+      characterWorldVelocity.set(0, 0, 0);
+      characterPhysics?.reset(characterModel.group.position.y);
+      characterCore.setGrounded(true);
     }
 
     startupStage = 'integração do personagem e HUD';
@@ -860,6 +874,9 @@ async function init3D() {
   characterAnimator = createCharacterAnimator(characterModel);
   characterWeaponController = createCharacterWeaponController(characterModel);
   characterPhysics = createCharacterPhysics({ gravityKernel });
+  characterInWorldFrame = false;
+  characterWorldGrounded = false;
+  characterWorldVelocity.set(0, 0, 0);
   characterPhysics.reset(characterModel.group.position.y);
   characterCore.setGrounded(true);
   characterAnimator.play('idle');
@@ -1191,6 +1208,81 @@ function isCharacterPositionBlocked(position, deckIndex) {
   return false;
 }
 
+function transferCharacterToWorldFrame() {
+  if (!characterModel?.group || !shipVisual || !scene || characterInWorldFrame) return false;
+  const player = characterModel.group;
+  player.updateWorldMatrix(true, false);
+  const worldPosition = player.getWorldPosition(new THREE.Vector3());
+  const worldQuaternion = player.getWorldQuaternion(new THREE.Quaternion());
+  const worldScale = player.getWorldScale(new THREE.Vector3());
+
+  shipVisual.remove(player);
+  scene.add(player);
+  player.position.copy(worldPosition);
+  player.quaternion.copy(worldQuaternion);
+  player.scale.copy(worldScale);
+  player.updateWorldMatrix(true, false);
+
+  // O personagem sai com velocidade relativa zero: enquanto o jogador está
+  // a pé, a nave não executa updateFlight e portanto não há velocidade herdada.
+  characterWorldVelocity.set(0, 0, 0);
+  characterInWorldFrame = true;
+  characterWorldGrounded = false;
+  characterCore.setGrounded(false);
+  return true;
+}
+
+function updateCharacterWorldPhysics(deltaSeconds) {
+  if (!characterInWorldFrame || !characterModel?.group || characterWorldGrounded) return;
+  const dt = THREE.MathUtils.clamp(Number.isFinite(deltaSeconds) ? deltaSeconds : 0, 0, 0.05);
+  const player = characterModel.group;
+  const worldPosition = player.position;
+  const earthCenter = earthSystem?.group?.getWorldPosition(new THREE.Vector3());
+  const profile = earthSystem?.getPlanetaryProfile?.();
+  const radius = profile?.render?.visualRadiusUnits ?? 600;
+  const surfaceGravity = profile?.physical?.standardGravityMps2 ?? 9.80665;
+  const mu = surfaceGravity * radius * radius;
+
+  if (earthCenter && gravityKernel) {
+    const acceleration = gravityKernel.acceleration({
+      position: [worldPosition.x, worldPosition.y, worldPosition.z],
+      bodies: [{
+        position: [earthCenter.x, earthCenter.y, earthCenter.z],
+        mu
+      }]
+    });
+    if (acceleration) {
+      const nextVelocity = gravityKernel.integrateVelocity(
+        [characterWorldVelocity.x, characterWorldVelocity.y, characterWorldVelocity.z],
+        acceleration,
+        dt,
+        180
+      );
+      if (nextVelocity) characterWorldVelocity.set(...nextVelocity);
+    }
+  }
+
+  worldPosition.addScaledVector(characterWorldVelocity, dt);
+
+  // A mesma superfície ETOPO usada pelo mesh global fornece o contato.
+  // O personagem pousa sobre a normal local, inclusive em montanhas e vales.
+  const terrain = earthSystem?.getCollisionSurface?.()
+    ?.sampleWorldPosition?.(worldPosition);
+  if (terrain?.worldPosition && terrain?.worldNormal) {
+    const normal = terrain.worldNormal.clone().normalize();
+    const clearance = worldPosition.clone().sub(terrain.worldPosition).dot(normal);
+    const inwardSpeed = characterWorldVelocity.dot(normal);
+    if (clearance <= 0.21 && inwardSpeed < 0) {
+      worldPosition.copy(terrain.worldPosition).addScaledVector(normal, 0.21);
+      characterWorldVelocity.set(0, 0, 0);
+      player.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal);
+      characterWorldGrounded = true;
+      characterCore.setGrounded(true);
+      characterAnimator?.play('land', { restart: true });
+    }
+  }
+}
+
 function updateCharacterMovement(dt) {
   if (!characterModel || characterCore.snapshot().mode !== 'on-foot') return;
   const input = characterMoveInput;
@@ -1250,7 +1342,15 @@ function updateCharacterMovement(dt) {
 
   const leavingDeckThroughAft = activeDeckIndex === 3 &&
     isD4BeyondExitAperture(deck);
-  if (leavingDeckThroughAft) characterPhysics?.leaveGround();
+  if (leavingDeckThroughAft) {
+    characterPhysics?.leaveGround();
+    if (transferCharacterToWorldFrame()) {
+      updateCharacterWorldPhysics(dt);
+      characterAnimator?.play('fall', { restart: true });
+      characterAnimator?.update(dt);
+      return;
+    }
+  }
   const floorY = leavingDeckThroughAft
     ? -1000000
     : starshipInterior.layout.decks[activeDeckIndex].y + 0.21;
