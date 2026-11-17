@@ -1526,7 +1526,6 @@ function updateExternalElevatorAnimation(dt) {
   const reached = externalElevator.update(dt);
 
   if (externalElevatorRiding && !characterInWorldFrame && characterModel?.group) {
-    const deckY = starshipInterior.layout.decks[3].y;
     const feetY = externalElevator.group.position.y + externalElevator.platform.position.y + 0.21;
     characterModel.group.position.set(
       EXTERNAL_ELEVATOR_CONFIG.x,
@@ -1643,8 +1642,9 @@ function updateExternalElevatorInteraction() {
       characterCore.setInteractionTarget('ELEVADOR EXTERNO');
       updateCharacterHUD();
     }
-  } else if (changed) {
+  } else if (changed || button.textContent === 'ELEVADOR...') {
     button.classList.remove('available');
+    button.classList.toggle('hidden', nearbyElevator);
     button.disabled = !pilotInteractionAvailable;
     button.textContent = pilotInteractionAvailable ? '◎ PILOTAR' : 'AÇÃO';
     if (nearbyElevator) {
