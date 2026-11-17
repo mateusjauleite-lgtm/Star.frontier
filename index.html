@@ -194,9 +194,30 @@
           <button class="inventory-tab" type="button" data-inventory-tab="clothing">VESTUÁRIO</button>
         </nav>
         <div id="inventory-items-view" class="inventory-view">
-          <div class="inventory-section-heading"><b>MOCHILA</b><span id="inventory-count">0 / 24</span></div>
-          <div id="inventory-grid" class="inventory-grid"></div>
-          <p class="inventory-note">Os itens coletados e recursos encontrados aparecerão aqui.</p>
+          <div class="inventory-items-layout">
+            <aside class="inventory-backpack-panel">
+              <div class="inventory-backpack-visual" aria-hidden="true"><span></span><i></i></div>
+              <span class="inventory-panel-kicker">MOCHILA EQUIPADA</span>
+              <b id="inventory-backpack-name">SEM MOCHILA</b>
+              <small id="inventory-backpack-code">CAPACIDADE BASE</small>
+              <div class="inventory-capacity-readout">
+                <b id="inventory-backpack-capacity">12 ESPAÇOS</b>
+                <span id="inventory-backpack-weight">0 / 60 KG</span>
+              </div>
+              <div class="inventory-section-heading inventory-backpack-heading"><b>ESPAÇOS</b><span id="inventory-count">0 / 12</span></div>
+              <p class="inventory-note">A capacidade acompanha o modelo de mochila equipado.</p>
+            </aside>
+            <section class="inventory-items-panel">
+              <div class="inventory-section-heading"><b>ITENS ARMAZENADOS</b><span>TOQUE PARA SELECIONAR</span></div>
+              <div id="inventory-grid" class="inventory-grid"></div>
+              <div id="inventory-overflow-panel" class="inventory-overflow-panel hidden">
+                <div class="inventory-section-heading"><b>ARMAZENAMENTO TEMPORÁRIO</b><span><span id="inventory-overflow-count">0</span> ITENS</span></div>
+                <p>Itens preservados quando a mochila fica sem espaço. Toque para restaurar ou selecione equipamentos para equipar diretamente.</p>
+                <div id="inventory-overflow-grid" class="inventory-overflow-grid"></div>
+              </div>
+              <p class="inventory-note">Todos os tipos de item podem ser guardados. Itens compatíveis também podem ser equipados.</p>
+            </section>
+          </div>
         </div>
         <div id="inventory-clothing-view" class="inventory-view hidden">
           <div class="inventory-section-heading"><b>ROUPAS E PROTEÇÃO</b><span>EQUIPAMENTO DO EXPLORADOR</span></div>
