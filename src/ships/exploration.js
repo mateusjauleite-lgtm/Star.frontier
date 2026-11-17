@@ -101,7 +101,7 @@ export function createExplorationShip() {
   // inferior na região central traseira, acompanhando a curvatura do casco.
   // O recorte usa coordenadas normalizadas da esfera, como a janela frontal.
   const lowerHullSource = new THREE.SphereGeometry(
-    1, 48, 24, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2
+    1, 96, 48, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2
   );
   const lowerPositions = lowerHullSource.attributes.position;
   const lowerSourceIndices = lowerHullSource.index.array;
@@ -126,7 +126,17 @@ export function createExplorationShip() {
       Math.abs(centerX) < 0.36 &&
       centerY > -0.76 && centerY < -0.18;
 
-    if (!isAftHangarOpening) lowerHullIndices.push(a, b, c);
+    // Recorte circular no casco inferior, alinhado ao poço do elevador
+    // externo do Deck 4 (coordenadas locais da nave).
+    const elevatorDx = centerX * 27.2 - 8;
+    const elevatorDz = centerZ * 50 - 25;
+    const isExternalElevatorOpening =
+      elevatorDx * elevatorDx + elevatorDz * elevatorDz < 2.75 * 2.75 &&
+      centerY < -0.68;
+
+    if (!isAftHangarOpening && !isExternalElevatorOpening) {
+      lowerHullIndices.push(a, b, c);
+    }
   }
 
   const lowerHullGeometry = lowerHullSource.clone();
