@@ -117,6 +117,13 @@ export function createStarshipInterior(options = {}) {
     // Planta elíptica acompanha o casco arredondado, sem criar uma moldura retangular.
     const shape = new THREE.Shape();
     shape.absellipse(0, 0, width / 2, length / 2, 0, Math.PI * 2, false, 0);
+    if (name === 'D4-Floor') {
+      // Abertura exclusiva do elevador externo; o piso original permanece
+      // contínuo no restante do Deck 4.
+      const elevatorHatch = new THREE.Path();
+      elevatorHatch.absellipse(8, 25 - centerZ, 2.15, 2.15, 0, Math.PI * 2, true, 0);
+      shape.holes.push(elevatorHatch);
+    }
     const geometry = new THREE.ExtrudeGeometry(shape, {
       depth: thickness, bevelEnabled: false, curveSegments: 48
     });
