@@ -1583,6 +1583,7 @@ function activateExternalElevator() {
     characterInWorldFrame = false;
     characterWorldGrounded = false;
     characterWorldVelocity.set(0, 0, 0);
+    characterCore.setGrounded(false);
     externalElevatorRiding = true;
     const feetY = externalElevator.group.position.y + externalElevator.platform.position.y + 0.21;
     characterModel.group.position.set(EXTERNAL_ELEVATOR_CONFIG.x, feetY, EXTERNAL_ELEVATOR_CONFIG.z);
