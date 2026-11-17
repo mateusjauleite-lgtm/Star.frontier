@@ -1320,6 +1320,27 @@ function updateCharacterWorldPhysics(deltaSeconds) {
 
   worldPosition.addScaledVector(characterWorldVelocity, dt);
 
+  // O piso do elevador externo tem contato próprio, restrito à sua face
+  // superior e somente quando a plataforma está parada no nível terrestre.
+  // Isso impede atravessamento sem adicionar colisores laterais ou no casco.
+  if (externalElevator?.phase === 'bottom') {
+    const platformContact = externalElevator.getPlatformContact?.(worldPosition);
+    if (platformContact?.inside && platformContact.clearance <= 0.21 &&
+        characterWorldVelocity.dot(platformContact.normal) < 0) {
+      worldPosition.copy(platformContact.surfacePoint)
+        .addScaledVector(platformContact.normal, 0.21);
+      characterWorldVelocity.set(0, 0, 0);
+      player.quaternion.setFromUnitVectors(
+        new THREE.Vector3(0, 1, 0),
+        platformContact.normal
+      );
+      characterWorldGrounded = true;
+      characterCore.setGrounded(true);
+      characterAnimator?.play('land', { restart: true });
+      return;
+    }
+  }
+
   // A mesma superfície ETOPO usada pelo mesh global fornece o contato.
   // O personagem pousa sobre a normal local, inclusive em montanhas e vales.
   const terrain = earthSystem?.getCollisionSurface?.()
