@@ -101,7 +101,7 @@ export function createExplorationShip() {
   // inferior na região central traseira, acompanhando a curvatura do casco.
   // O recorte usa coordenadas normalizadas da esfera, como a janela frontal.
   const lowerHullSource = new THREE.SphereGeometry(
-    1, 96, 48, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2
+    1, 64, 32, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2
   );
   const lowerPositions = lowerHullSource.attributes.position;
   const lowerSourceIndices = lowerHullSource.index.array;
