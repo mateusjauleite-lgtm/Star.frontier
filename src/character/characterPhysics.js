@@ -31,6 +31,14 @@ export function createCharacterPhysics(options = {}) {
     return true;
   }
 
+  function leaveGround() {
+    if (!grounded) return false;
+    grounded = false;
+    velocityY = 0;
+    justLanded = false;
+    return true;
+  }
+
   function update(deltaSeconds, { position, floorY } = {}) {
     if (!position || !Number.isFinite(position.y) || !Number.isFinite(floorY)) {
       throw new TypeError('A física do personagem exige posição e altura do piso válidas.');
@@ -64,6 +72,7 @@ export function createCharacterPhysics(options = {}) {
   return Object.freeze({
     reset,
     jump,
+    leaveGround,
     update,
     get grounded() { return grounded; },
     get velocityY() { return velocityY; }
