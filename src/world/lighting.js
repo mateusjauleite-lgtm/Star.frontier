@@ -5,8 +5,8 @@ export function createSpaceLighting(scene, options = {}) {
   const ambientLight = new THREE.HemisphereLight(0x9acfff, 0x111827, 0.75);
   scene.add(ambientLight);
 
-  const sunPosition = new THREE.Vector3(-420, 220, -1250);
-  const sunLight = new THREE.PointLight(0xffd6a0, 260, 1800, 1.15);
+  const sunPosition = new THREE.Vector3(-4200, 2200, -12500);
+  const sunLight = new THREE.PointLight(0xffd6a0, 260, 18000, 1.15);
   sunLight.position.copy(sunPosition);
   scene.add(sunLight);
 
@@ -23,13 +23,13 @@ export function createSpaceLighting(scene, options = {}) {
   scene.add(sun);
 
   const sunCore = new THREE.Mesh(
-    new THREE.SphereGeometry(22, 48, 32),
+    new THREE.SphereGeometry(60, 48, 32),
     new THREE.MeshBasicMaterial({ color: 0xffc45c })
   );
   sun.add(sunCore);
 
   const sunGlow = new THREE.Mesh(
-    new THREE.SphereGeometry(29, 40, 28),
+    new THREE.SphereGeometry(78, 40, 28),
     new THREE.MeshBasicMaterial({
       color: 0xff9e35,
       transparent: true,
@@ -41,7 +41,7 @@ export function createSpaceLighting(scene, options = {}) {
   sun.add(sunGlow);
 
   const sunHalo = new THREE.Mesh(
-    new THREE.SphereGeometry(37, 40, 28),
+    new THREE.SphereGeometry(100, 40, 28),
     new THREE.MeshBasicMaterial({
       color: 0xff6b28,
       transparent: true,
