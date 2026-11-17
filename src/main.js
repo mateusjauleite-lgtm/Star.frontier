@@ -1922,7 +1922,7 @@ function loop(now) {
         : null;
       const padUp = landingBaseSystem
         ? new THREE.Vector3(0, 1, 0).transformDirection(landingBaseSystem.group.matrixWorld).normalize()
-        : null;
+        : ship.userData.earthSurfaceSample?.worldNormal?.clone?.().normalize() ?? null;
       const shipUp = shipVisual.localToWorld(new THREE.Vector3(0, 1, 0))
         .sub(shipVisual.getWorldPosition(new THREE.Vector3())).normalize();
       const upAlignment = padUp ? THREE.MathUtils.clamp(shipUp.dot(padUp), -1, 1) : null;
