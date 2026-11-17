@@ -1124,30 +1124,51 @@ function isCharacterInsideDeck(position, deckIndex) {
     D1: [50, 82, -2],
     D2: [50, 94, -2],
     D3: [53, 102, -2],
-    // D4 acompanha a pista de hangar até a abertura traseira.
     D4: [48, 110, 5.5]
   };
   const footprint = footprints[deck.id];
   if (!footprint) return false;
 
-  // Reserva uma margem para o raio do personagem, evitando que os pés
-  // atravessem a borda mesmo quando o centro ainda está sobre o piso.
+  // Reserva uma margem para o raio do personagem nas bordas do convés.
   const [width, length, centerZ = -2] = footprint;
   const playerRadius = 0.62;
   const radiusX = width * 0.5 - playerRadius;
   const radiusZ = length * 0.5 - playerRadius;
   const normalizedX = position.x / radiusX;
   const normalizedZ = (position.z - centerZ) / radiusZ;
-  return normalizedX * normalizedX + normalizedZ * normalizedZ <= 1;
+  const insideDeckEllipse =
+    normalizedX * normalizedX + normalizedZ * normalizedZ <= 1;
+
+  if (deck.id !== 'D4') return insideDeckEllipse;
+
+  // Saída traseira do D4: meia-lua para fora do fim do piso.
+  // A garganta curta une a elipse do convés à meia-lua sem criar frestas
+  // nas laterais; a abertura tem 16 m de largura e só existe na popa.
+  const exitRadius = 8;
+  const aftEdgeZ = centerZ + length * 0.5;
+  const absX = Math.abs(position.x);
+  if (absX <= exitRadius) {
+    const ellipseEdgeZ = centerZ + radiusZ * Math.sqrt(
+      Math.max(0, 1 - (position.x * position.x) / (radiusX * radiusX))
+    );
+    const exitThroat = position.z >= ellipseEdgeZ && position.z <= aftEdgeZ;
+    const exitHalfMoon =
+      position.z >= aftEdgeZ &&
+      position.x * position.x + (position.z - aftEdgeZ) ** 2 <= exitRadius ** 2;
+    if (exitThroat || exitHalfMoon) return true;
+  }
+
+  return insideDeckEllipse;
 }
 
 function isCharacterPositionBlocked(position, deckIndex) {
   const deck = starshipInterior?.layout?.decks?.[deckIndex];
   if (!deck || !isCharacterInsideDeck(position, deckIndex)) return true;
 
-  // D1 e o corredor central do hangar D4 são áreas abertas.
-  // O corredor traseiro não herda colisores antigos de paredes/anteparas.
+  // D1 e a abertura traseira do D4 não bloqueiam a passagem do personagem.
   if (deck.id === 'D1') return false;
+  if (deck.id === 'D4' && Math.abs(position.x) <= 8 && position.z >= 60.5 &&
+      position.x * position.x + (position.z - 60.5) ** 2 <= 64) return false;
   if (deck.id === 'D4' && position.z >= 27 && Math.abs(position.x) <= 10.4) return false;
 
   const playerRadius = 0.48;
