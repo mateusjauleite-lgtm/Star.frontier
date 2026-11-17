@@ -802,7 +802,7 @@ async function init3D() {
     70,
     innerWidth / innerHeight,
     0.1,
-    2500
+    20000
   );
 
   renderer = new THREE.WebGLRenderer({
