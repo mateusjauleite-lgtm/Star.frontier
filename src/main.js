@@ -1270,27 +1270,6 @@ function updateCharacterWorldPhysics(deltaSeconds) {
 
   worldPosition.addScaledVector(characterWorldVelocity, dt);
 
-  // A plataforma externa também é uma superfície física enquanto está parada
-  // na posição inferior. Assim o personagem não atravessa o elevador ao sair.
-  if (externalElevator?.phase === 'bottom') {
-    const surface = externalElevator.getPlatformSurfaceWorld();
-    const offset = worldPosition.clone().sub(surface.center);
-    const clearance = offset.dot(surface.normal);
-    const planar = offset.clone().addScaledVector(surface.normal, -clearance)
-      .applyQuaternion(surface.quaternion.clone().invert());
-    const inwardSpeed = characterWorldVelocity.dot(surface.normal);
-    if (Math.abs(planar.x) <= surface.halfSize && Math.abs(planar.z) <= surface.halfSize &&
-        clearance <= 0.21 && inwardSpeed < 0) {
-      worldPosition.copy(surface.center).addScaledVector(surface.normal, 0.04);
-      characterWorldVelocity.set(0, 0, 0);
-      characterModel.group.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), surface.normal);
-      characterWorldGrounded = true;
-      characterCore.setGrounded(true);
-      characterAnimator?.play('land', { restart: true });
-      return;
-    }
-  }
-
   // A mesma superfície ETOPO usada pelo mesh global fornece o contato.
   // O personagem pousa sobre a normal local, inclusive em montanhas e vales.
   const terrain = earthSystem?.getCollisionSurface?.()
