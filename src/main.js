@@ -8,6 +8,7 @@ import { createOrbitSystem } from './world/orbits.js';
 import { createAsteroidField } from './world/asteroids.js';
 import { createSpaceLighting } from './world/lighting.js';
 import { createStarshipInterior } from './ships/interior.js';
+import { createExternalElevator, EXTERNAL_ELEVATOR_CONFIG } from './ships/externalElevator.js';
 import { createExplorationShip } from './ships/exploration.js';
 import { state, resetTransientState } from './core/state.js';
 import { createCharacterCore } from './character/characterCore.js';
@@ -485,6 +486,9 @@ let orbitSystem;
 let asteroidSystem;
 let lightingSystem;
 let starshipInterior;
+let externalElevator = null;
+let externalElevatorRiding = false;
+let externalElevatorActionAvailable = false;
 let nearbyElevator = false;
 let activeDeckIndex = 0;
 let shipYaw;
@@ -860,6 +864,8 @@ async function init3D() {
   await loadingStep(90, 'Integrando os quatro decks ao casco da nave...');
   starshipInterior = createStarshipInterior({ position: [0, 0, 0] });
   shipVisual.add(starshipInterior.group);
+  externalElevator = createExternalElevator({ deckY: starshipInterior.layout.decks[3].y });
+  shipVisual.add(externalElevator.group);
   activeDeckIndex = 0;
   nearbyElevator = false;
 
@@ -1264,6 +1270,27 @@ function updateCharacterWorldPhysics(deltaSeconds) {
 
   worldPosition.addScaledVector(characterWorldVelocity, dt);
 
+  // A plataforma externa também é uma superfície física enquanto está parada
+  // na posição inferior. Assim o personagem não atravessa o elevador ao sair.
+  if (externalElevator?.phase === 'bottom') {
+    const surface = externalElevator.getPlatformSurfaceWorld();
+    const offset = worldPosition.clone().sub(surface.center);
+    const clearance = offset.dot(surface.normal);
+    const planar = offset.clone().addScaledVector(surface.normal, -clearance)
+      .applyQuaternion(surface.quaternion.clone().invert());
+    const inwardSpeed = characterWorldVelocity.dot(surface.normal);
+    if (Math.abs(planar.x) <= surface.halfSize && Math.abs(planar.z) <= surface.halfSize &&
+        clearance <= 0.21 && inwardSpeed < 0) {
+      worldPosition.copy(surface.center).addScaledVector(surface.normal, 0.21);
+      characterWorldVelocity.set(0, 0, 0);
+      characterModel.group.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), surface.normal);
+      characterWorldGrounded = true;
+      characterCore.setGrounded(true);
+      characterAnimator?.play('land', { restart: true });
+      return;
+    }
+  }
+
   // A mesma superfície ETOPO usada pelo mesh global fornece o contato.
   // O personagem pousa sobre a normal local, inclusive em montanhas e vales.
   const terrain = earthSystem?.getCollisionSurface?.()
@@ -1285,6 +1312,12 @@ function updateCharacterWorldPhysics(deltaSeconds) {
 
 function updateCharacterMovement(dt) {
   if (!characterModel || characterCore.snapshot().mode !== 'on-foot') return;
+  if (externalElevator?.moving && externalElevatorRiding) {
+    characterAnimator?.play('idle');
+    characterAnimator?.update(dt);
+    if (characterJumpButton) characterJumpButton.disabled = true;
+    return;
+  }
   if (characterInWorldFrame) {
     updateCharacterWorldPhysics(dt);
     if (!characterWorldGrounded) characterAnimator?.play('fall');
@@ -1456,6 +1489,141 @@ function moveElevator(direction) {
   return true;
 }
 
+function updateExternalElevatorAnimation(dt) {
+  if (!externalElevator?.moving) return;
+  const reached = externalElevator.update(dt);
+
+  if (externalElevatorRiding && !characterInWorldFrame && characterModel?.group) {
+    const deckY = starshipInterior.layout.decks[3].y;
+    const feetY = externalElevator.group.position.y + externalElevator.platform.position.y + 0.21;
+    characterModel.group.position.set(
+      EXTERNAL_ELEVATOR_CONFIG.x,
+      feetY,
+      EXTERNAL_ELEVATOR_CONFIG.z
+    );
+    characterModel.group.rotation.y = characterYaw;
+    characterPhysics?.reset(feetY);
+  }
+
+  if (reached === 'bottom') {
+    externalElevatorRiding = false;
+    transferCharacterToWorldFrame();
+    characterWorldVelocity.set(0, 0, 0);
+    characterWorldGrounded = false;
+    characterCore.setGrounded(false);
+    characterCore.setInteractionTarget('ELEVADOR EXTERNO');
+    updateCharacterHUD();
+    toast('Você chegou ao exterior da nave.');
+  } else if (reached === 'top') {
+    externalElevatorRiding = false;
+    characterInWorldFrame = false;
+    characterWorldGrounded = false;
+    characterWorldVelocity.set(0, 0, 0);
+    const deckY = starshipInterior.layout.decks[3].y;
+    const feetY = deckY + 0.21;
+    characterModel.group.position.set(EXTERNAL_ELEVATOR_CONFIG.x, feetY, EXTERNAL_ELEVATOR_CONFIG.z);
+    characterPhysics?.reset(feetY);
+    characterCore.setGrounded(true);
+    characterAnimator?.play('idle', { restart: true });
+    characterCore.setInteractionTarget('ELEVADOR EXTERNO');
+    updateCharacterHUD();
+    toast('Retorno ao Deck 4 concluído.');
+  }
+}
+
+function activateExternalElevator() {
+  if (!externalElevatorActionAvailable || !externalElevator || externalElevator.moving) return false;
+
+  if (externalElevator.phase === 'top') {
+    if (characterInWorldFrame || activeDeckIndex !== 3) return false;
+    externalElevatorRiding = true;
+    const deckY = starshipInterior.layout.decks[3].y;
+    characterModel.group.position.set(EXTERNAL_ELEVATOR_CONFIG.x, deckY + 0.21, EXTERNAL_ELEVATOR_CONFIG.z);
+    characterPhysics?.reset(deckY + 0.21);
+    if (!externalElevator.begin('down')) {
+      externalElevatorRiding = false;
+      return false;
+    }
+    toast('Elevador externo descendo.');
+  } else if (externalElevator.phase === 'bottom') {
+    if (!characterInWorldFrame) return false;
+    // Reanexa o personagem à nave preservando a posição mundial no início da subida.
+    shipVisual.attach(characterModel.group);
+    characterInWorldFrame = false;
+    characterWorldGrounded = false;
+    characterWorldVelocity.set(0, 0, 0);
+    externalElevatorRiding = true;
+    const feetY = externalElevator.group.position.y + externalElevator.platform.position.y + 0.21;
+    characterModel.group.position.set(EXTERNAL_ELEVATOR_CONFIG.x, feetY, EXTERNAL_ELEVATOR_CONFIG.z);
+    characterPhysics?.reset(feetY);
+    if (!externalElevator.begin('up')) {
+      externalElevatorRiding = false;
+      return false;
+    }
+    toast('Elevador externo subindo.');
+  }
+  externalElevatorActionAvailable = false;
+  updateExternalElevatorInteraction();
+  return true;
+}
+
+function updateExternalElevatorInteraction() {
+  if (!characterModel || characterCore.snapshot().mode !== 'on-foot' || !externalElevator) return;
+  const button = $('character-action-btn');
+  if (!button) return;
+
+  if (externalElevator.moving) {
+    externalElevatorActionAvailable = false;
+    button.classList.remove('hidden');
+    button.disabled = true;
+    button.textContent = 'ELEVADOR...';
+    button.classList.add('available');
+    characterCore.setInteractionTarget('ELEVADOR EM MOVIMENTO');
+    return;
+  }
+
+  let available = false;
+  if (externalElevator.phase === 'top' && !characterInWorldFrame && activeDeckIndex === 3) {
+    const p = characterModel.group.position;
+    const dx = p.x - EXTERNAL_ELEVATOR_CONFIG.x;
+    const dz = p.z - EXTERNAL_ELEVATOR_CONFIG.z;
+    const deckY = starshipInterior.layout.decks[3].y;
+    available = dx * dx + dz * dz <= EXTERNAL_ELEVATOR_CONFIG.interactionRadius ** 2 &&
+      Math.abs(p.y - (deckY + 0.21)) <= 2.0;
+  } else if (externalElevator.phase === 'bottom' && characterInWorldFrame) {
+    characterModel.group.getWorldPosition(pilotPlayerWorldPosition);
+    const surface = externalElevator.getPlatformSurfaceWorld();
+    const offset = pilotPlayerWorldPosition.clone().sub(surface.center);
+    const normalDistance = offset.dot(surface.normal);
+    const planarDistance = offset.addScaledVector(surface.normal, -normalDistance).length();
+    available = planarDistance <= EXTERNAL_ELEVATOR_CONFIG.interactionRadius &&
+      Math.abs(normalDistance) <= 3.2;
+  }
+
+  const changed = available !== externalElevatorActionAvailable;
+  externalElevatorActionAvailable = available;
+  if (available) {
+    button.classList.remove('hidden');
+    button.disabled = false;
+    button.textContent = externalElevator.phase === 'bottom' ? 'SUBIR' : 'DESCER';
+    button.classList.add('available');
+    if (changed) {
+      characterCore.setInteractionTarget('ELEVADOR EXTERNO');
+      updateCharacterHUD();
+    }
+  } else if (changed) {
+    button.classList.remove('available');
+    button.disabled = !pilotInteractionAvailable;
+    button.textContent = pilotInteractionAvailable ? '◎ PILOTAR' : 'AÇÃO';
+    if (nearbyElevator) {
+      characterCore.setInteractionTarget('ELEVADOR INTERNO');
+    } else {
+      characterCore.setInteractionTarget(pilotInteractionAvailable ? 'PILOTAGEM DISPONÍVEL' : null);
+    }
+    updateCharacterHUD();
+  }
+}
+
 function updatePilotInteraction() {
   if (!characterModel || !shipVisual || characterCore.snapshot().mode !== 'on-foot') return;
 
@@ -1593,8 +1761,10 @@ function loop(now) {
   if (characterCore.snapshot().mode === 'on-foot') {
     updateCharacterMovement(dt);
     updateCharacterWeapon(dt);
+    updateExternalElevatorAnimation(dt);
     updateElevatorInteraction();
     updatePilotInteraction();
+    updateExternalElevatorInteraction();
     updateCharacterCamera();
   } else {
     updateFlight(dt);
@@ -1957,7 +2127,10 @@ if (characterAim) {
   );
 }
 
-$('character-action-btn')?.addEventListener('click', enterPilotMode);
+$('character-action-btn')?.addEventListener('click', () => {
+  if (externalElevatorActionAvailable) activateExternalElevator();
+  else enterPilotMode();
+});
 $('elevator-up-btn')?.addEventListener('click', () => moveElevator(-1));
 $('elevator-down-btn')?.addEventListener('click', () => moveElevator(1));
 
