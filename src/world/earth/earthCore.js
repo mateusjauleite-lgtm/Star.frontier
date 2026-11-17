@@ -66,6 +66,16 @@ export function createEarthCore(options = {}) {
     getCollisionSurface() {
       return layers.terrain?.collisionSurface ?? null;
     },
+    // Exposes the rendered axial spin so grounded world objects can share
+    // the same angular transform without becoming children of the Earth mesh.
+    getSurfaceRotationState() {
+      const surface = layers.surface;
+      if (!surface) return null;
+      return {
+        rotationY: surface.rotation.y,
+        localAxis: new THREE.Vector3(0, 1, 0).applyQuaternion(surface.quaternion)
+      };
+    },
     getLandingBase() {
       return layers.infrastructure?.getBase?.() ?? null;
     },
