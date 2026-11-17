@@ -165,14 +165,15 @@ jobs:
           print(f"Immersive fullscreen configured: {path}")
           PY
 
-      - name: Cache Gradle dependencies
-        uses: actions/cache@v4
+      - name: Restore Gradle dependencies cache
+        uses: actions/cache/restore@v4
         with:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('android/**/*.gradle*', 'android/gradle/wrapper/gradle-wrapper.properties', 'package-lock.json') }}
+          key: ${{ runner.os }}-gradle-${{ hashFiles('android/**/*.gradle*', 'android/gradle/wrapper/gradle-wrapper.properties', 'package-lock.json') }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
+            ${{ runner.os }}-gradle-${{ hashFiles('android/**/*.gradle*', 'android/gradle/wrapper/gradle-wrapper.properties', 'package-lock.json') }}-
             ${{ runner.os }}-gradle-
 
       - name: Compile Android APK
@@ -181,16 +182,26 @@ jobs:
         run: |
           for attempt in 1 2 3; do
             echo "Gradle build attempt ${attempt}/3"
-            if ./gradlew --no-daemon --stacktrace assembleDebug; then
+            if ./gradlew --no-daemon --stacktrace --max-workers=2 assembleDebug; then
               exit 0
             fi
             if [ "${attempt}" -lt 3 ]; then
-              echo "Gradle dependency/build attempt failed; waiting 20 seconds before retry."
-              sleep 20
+              wait_seconds=$((attempt * 30))
+              echo "Gradle build attempt failed; waiting ${wait_seconds} seconds before retry."
+              sleep "${wait_seconds}"
             fi
           done
           echo "Gradle build failed after 3 attempts."
           exit 1
+
+      - name: Save Gradle dependencies cache (including partial downloads)
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('android/**/*.gradle*', 'android/gradle/wrapper/gradle-wrapper.properties', 'package-lock.json') }}-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
