@@ -121,7 +121,7 @@ export function createStarshipInterior(options = {}) {
       // Abertura exclusiva do elevador externo; o piso original permanece
       // contínuo no restante do Deck 4.
       const elevatorHatch = new THREE.Path();
-      elevatorHatch.absellipse(8, 25 - centerZ, 2.65, 2.65, 0, Math.PI * 2, true, 0);
+      elevatorHatch.absellipse(8.5, 25 - centerZ, 2.65, 2.65, 0, Math.PI * 2, true, 0);
       shape.holes.push(elevatorHatch);
     }
     const geometry = new THREE.ExtrudeGeometry(shape, {
