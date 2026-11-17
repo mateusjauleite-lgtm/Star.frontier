@@ -12,7 +12,7 @@ export const EXTERNAL_ELEVATOR_CONFIG = Object.freeze({
 export function createExternalElevator({ deckY = -8.7 } = {}) {
   const group = new THREE.Group();
   group.name = 'Deck4-External-Elevator';
-  group.position.set(EXTERNAL_ELEVATOR_CONFIG.x, deckY + 0.18, EXTERNAL_ELEVATOR_CONFIG.z);
+  group.position.set(EXTERNAL_ELEVATOR_CONFIG.x, deckY + 0.01, EXTERNAL_ELEVATOR_CONFIG.z);
 
   const frameMaterial = new THREE.MeshStandardMaterial({
     color: 0x71899b, metalness: 0.86, roughness: 0.3
@@ -26,12 +26,12 @@ export function createExternalElevator({ deckY = -8.7 } = {}) {
   const lightMaterial = new THREE.MeshBasicMaterial({ color: 0x39c9f2 });
 
   const hatch = new THREE.Mesh(
-    new THREE.TorusGeometry(2.05, 0.12, 10, 40),
+    new THREE.TorusGeometry(2.55, 0.12, 10, 40),
     lightMaterial
   );
   hatch.name = 'External-Elevator-Hatch-Rim';
   hatch.rotation.x = Math.PI / 2;
-  hatch.position.y = -0.02;
+  hatch.position.y = 0.17;
   group.add(hatch);
 
   // Guias verticais fixas; a plataforma corre entre elas sem atravessar o casco.
@@ -121,7 +121,7 @@ export function createExternalElevator({ deckY = -8.7 } = {}) {
   function getPlatformSurfaceWorld() {
     group.updateWorldMatrix(true, true);
     platform.updateWorldMatrix(true, false);
-    const topCenter = platform.localToWorld(new THREE.Vector3(0, 0.19, 0));
+    const topCenter = platform.localToWorld(new THREE.Vector3(0, 0.17, 0));
     const quaternion = platform.getWorldQuaternion(new THREE.Quaternion());
     const normal = new THREE.Vector3(0, 1, 0).applyQuaternion(quaternion).normalize();
     return {
