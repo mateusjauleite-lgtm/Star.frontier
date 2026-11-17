@@ -1115,6 +1115,22 @@ function updateCharacterCamera() {
   }
 }
 
+function isD4ExitAperture(position) {
+  const radius = 8;
+  const aftEdgeZ = 5.5 + 110 * 0.5;
+  return position.z >= aftEdgeZ &&
+    position.x * position.x + (position.z - aftEdgeZ) ** 2 <= radius ** 2;
+}
+
+function isD4BeyondExitAperture(position) {
+  const radius = 8;
+  const aftEdgeZ = 5.5 + 110 * 0.5;
+  const absX = Math.abs(position.x);
+  if (absX > radius) return false;
+  const outerZ = aftEdgeZ + Math.sqrt(Math.max(0, radius ** 2 - position.x ** 2));
+  return position.z > outerZ;
+}
+
 function isCharacterInsideDeck(position, deckIndex) {
   const deck = starshipInterior?.layout?.decks?.[deckIndex];
   if (!deck) return false;
@@ -1141,24 +1157,11 @@ function isCharacterInsideDeck(position, deckIndex) {
 
   if (deck.id !== 'D4') return insideDeckEllipse;
 
-  // Saída traseira do D4: meia-lua para fora do fim do piso.
-  // A garganta curta une a elipse do convés à meia-lua sem criar frestas
-  // nas laterais; a abertura tem 16 m de largura e só existe na popa.
-  const exitRadius = 8;
-  const aftEdgeZ = centerZ + length * 0.5;
-  const absX = Math.abs(position.x);
-  if (absX <= exitRadius) {
-    const ellipseEdgeZ = centerZ + radiusZ * Math.sqrt(
-      Math.max(0, 1 - (position.x * position.x) / (radiusX * radiusX))
-    );
-    const exitThroat = position.z >= ellipseEdgeZ && position.z <= aftEdgeZ;
-    const exitHalfMoon =
-      position.z >= aftEdgeZ &&
-      position.x * position.x + (position.z - aftEdgeZ) ** 2 <= exitRadius ** 2;
-    if (exitThroat || exitHalfMoon) return true;
-  }
-
-  return insideDeckEllipse;
+  // A meia-lua fica exclusivamente para fora da extremidade traseira do D4.
+  // Depois de atravessar sua borda externa, o personagem está fora do piso
+  // e pode continuar para fora da nave, entrando em queda livre.
+  return insideDeckEllipse || isD4ExitAperture(position) ||
+    isD4BeyondExitAperture(position);
 }
 
 function isCharacterPositionBlocked(position, deckIndex) {
@@ -1166,9 +1169,8 @@ function isCharacterPositionBlocked(position, deckIndex) {
   if (!deck || !isCharacterInsideDeck(position, deckIndex)) return true;
 
   // D1 e a abertura traseira do D4 não bloqueiam a passagem do personagem.
-  if (deck.id === 'D1') return false;
-  if (deck.id === 'D4' && Math.abs(position.x) <= 8 && position.z >= 60.5 &&
-      position.x * position.x + (position.z - 60.5) ** 2 <= 64) return false;
+  if (deck.id === 'D1' || (deck.id === 'D4' &&
+      (isD4ExitAperture(position) || isD4BeyondExitAperture(position)))) return false;
   if (deck.id === 'D4' && position.z >= 27 && Math.abs(position.x) <= 10.4) return false;
 
   const playerRadius = 0.48;
@@ -1243,7 +1245,12 @@ function updateCharacterMovement(dt) {
     }
   }
 
-  const floorY = starshipInterior.layout.decks[activeDeckIndex].y + 0.21;
+  const leavingDeckThroughAft = activeDeckIndex === 3 &&
+    isD4BeyondExitAperture(deck);
+  if (leavingDeckThroughAft) characterPhysics?.leaveGround();
+  const floorY = leavingDeckThroughAft
+    ? -1000000
+    : starshipInterior.layout.decks[activeDeckIndex].y + 0.21;
   if (characterJumpQueued) {
     if (characterPhysics?.jump()) characterAnimator?.play('jump', { restart: true });
     characterJumpQueued = false;
