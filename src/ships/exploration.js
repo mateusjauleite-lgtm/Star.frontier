@@ -131,7 +131,7 @@ export function createExplorationShip() {
     const elevatorDx = centerX * 27.2 - 8;
     const elevatorDz = centerZ * 50 - 25;
     const isExternalElevatorOpening =
-      elevatorDx * elevatorDx + elevatorDz * elevatorDz < 2.75 * 2.75 &&
+      elevatorDx * elevatorDx + elevatorDz * elevatorDz < 3.2 * 3.2 &&
       centerY < -0.68;
 
     if (!isAftHangarOpening && !isExternalElevatorOpening) {
