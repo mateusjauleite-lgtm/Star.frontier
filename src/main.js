@@ -848,6 +848,7 @@ async function init3D() {
 
   // Spawn inicial no Deck 1 — ponte de comando, dentro do casco.
   characterModel = createCharacterModel({ clothingColor: 0x526879 });
+  characterEquipment.initialize();
   // O personagem pertence ao referencial da nave: acompanha translação e rotação
   // sem ficar para trás no espaço quando a Aurora-7 se movimenta.
   characterModel.group.position.set(0, 8.91, -18);
@@ -1986,7 +1987,6 @@ $('inventory-overflow-grid')?.addEventListener('click', event => {
   else { save(); toast('Item restaurado para a mochila.'); }
   renderInventory();
 });
-characterEquipment.initialize();
 save();
 renderInventory();
 $('leave-pilot-btn')?.addEventListener('click', exitPilotMode);
