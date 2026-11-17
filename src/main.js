@@ -1320,7 +1320,39 @@ function updateCharacterMovement(dt) {
   }
   if (characterInWorldFrame) {
     updateCharacterWorldPhysics(dt);
+    const worldInput = characterMoveInput;
+    const worldMagnitude = Math.min(1, Math.hypot(worldInput.x, worldInput.y));
+    let worldMoving = false;
+
+    // No exterior, o movimento acompanha o plano local do terreno ou da
+    // plataforma. Ao sair da plataforma, a gravidade terrestre volta a atuar.
+    if (characterWorldGrounded && worldMagnitude > 0.08) {
+      const player = characterModel.group;
+      const worldPosition = player.position;
+      let up = new THREE.Vector3(0, 1, 0).applyQuaternion(player.quaternion).normalize();
+      const terrain = earthSystem?.getCollisionSurface?.()?.sampleWorldPosition?.(worldPosition);
+      if (terrain?.worldNormal) up.copy(terrain.worldNormal).normalize();
+      else {
+        const earthCenter = earthSystem?.group?.getWorldPosition(new THREE.Vector3());
+        if (earthCenter) up.copy(worldPosition).sub(earthCenter).normalize();
+      }
+      const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(player.quaternion)
+        .projectOnPlane(up).normalize();
+      const right = new THREE.Vector3(1, 0, 0).applyQuaternion(player.quaternion)
+        .projectOnPlane(up).normalize();
+      const direction = forward.multiplyScalar(-worldInput.y).addScaledVector(right, worldInput.x);
+      if (direction.lengthSq() > 0) {
+        direction.normalize();
+        worldPosition.addScaledVector(direction, 3.1 * worldMagnitude * dt);
+        characterWorldGrounded = false;
+        characterWorldVelocity.set(0, 0, 0);
+        characterCore.setGrounded(false);
+        worldMoving = true;
+      }
+    }
+
     if (!characterWorldGrounded) characterAnimator?.play('fall');
+    else if (worldMoving) characterAnimator?.play('walk');
     else if (characterAnimator?.current !== 'land') characterAnimator?.play('idle');
     characterAnimator?.update(dt);
     if (characterJumpButton) characterJumpButton.disabled = true;
