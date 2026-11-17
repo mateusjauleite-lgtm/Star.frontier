@@ -1285,6 +1285,14 @@ function updateCharacterWorldPhysics(deltaSeconds) {
 
 function updateCharacterMovement(dt) {
   if (!characterModel || characterCore.snapshot().mode !== 'on-foot') return;
+  if (characterInWorldFrame) {
+    updateCharacterWorldPhysics(dt);
+    if (!characterWorldGrounded) characterAnimator?.play('fall');
+    else if (characterAnimator?.current !== 'land') characterAnimator?.play('idle');
+    characterAnimator?.update(dt);
+    if (characterJumpButton) characterJumpButton.disabled = true;
+    return;
+  }
   const input = characterMoveInput;
   const magnitude = Math.min(1, Math.hypot(input.x, input.y));
   const deck = characterModel.group.position;
