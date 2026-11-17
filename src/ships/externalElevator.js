@@ -144,6 +144,34 @@ export function createExternalElevator({ deckY = -8.7 } = {}) {
     };
   }
 
+  // Contato invisível limitado à face superior do piso da plataforma.
+  // Não cria paredes laterais nem interfere nas colisões do casco.
+  function getPlatformContact(worldPosition) {
+    if (!worldPosition?.isVector3) return null;
+    group.updateWorldMatrix(true, true);
+    platform.updateWorldMatrix(true, false);
+    const localPosition = platform.worldToLocal(worldPosition.clone());
+    const halfX = 1.775;
+    const halfZ = 1.775;
+    const topY = 0.17;
+    const inside = Math.abs(localPosition.x) <= halfX &&
+      Math.abs(localPosition.z) <= halfZ;
+    if (!inside) return { inside: false, localPosition };
+
+    const surfacePoint = platform.localToWorld(
+      new THREE.Vector3(localPosition.x, topY, localPosition.z)
+    );
+    const normal = new THREE.Vector3(0, 1, 0)
+      .applyQuaternion(platform.getWorldQuaternion(new THREE.Quaternion()))
+      .normalize();
+    return {
+      inside: true,
+      surfacePoint,
+      normal,
+      clearance: worldPosition.clone().sub(surfacePoint).dot(normal)
+    };
+  }
+
   return {
     group,
     platform,
