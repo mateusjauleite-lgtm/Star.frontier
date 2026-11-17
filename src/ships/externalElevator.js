@@ -180,6 +180,7 @@ export function createExternalElevator({ deckY = -8.7 } = {}) {
     get phase() { return phase; },
     get moving() { return phase === 'moving'; },
     getPlatformSurfaceWorld,
+    getPlatformContact,
     dispose() {
       group.traverse(object => {
         if (!object.isMesh) return;
