@@ -165,9 +165,32 @@ jobs:
           print(f"Immersive fullscreen configured: {path}")
           PY
 
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('android/**/*.gradle*', 'android/gradle/wrapper/gradle-wrapper.properties', 'package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
       - name: Compile Android APK
         working-directory: android
-        run: ./gradlew --no-daemon assembleDebug
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            echo "Gradle build attempt ${attempt}/3"
+            if ./gradlew --no-daemon --stacktrace assembleDebug; then
+              exit 0
+            fi
+            if [ "${attempt}" -lt 3 ]; then
+              echo "Gradle dependency/build attempt failed; waiting 20 seconds before retry."
+              sleep 20
+            fi
+          done
+          echo "Gradle build failed after 3 attempts."
+          exit 1
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
