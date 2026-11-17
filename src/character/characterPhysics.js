@@ -11,6 +11,7 @@ export function createCharacterPhysics(options = {}) {
   const maxFallSpeed = Number.isFinite(options.maxFallSpeed)
     ? Math.max(0, options.maxFallSpeed)
     : MAX_FALL_SPEED;
+  const gravityKernel = options.gravityKernel ?? null;
 
   let velocityY = 0;
   let grounded = true;
@@ -39,7 +40,7 @@ export function createCharacterPhysics(options = {}) {
     return true;
   }
 
-  function update(deltaSeconds, { position, floorY } = {}) {
+  function update(deltaSeconds, { position, floorY, gravityField = null } = {}) {
     if (!position || !Number.isFinite(position.y) || !Number.isFinite(floorY)) {
       throw new TypeError('A física do personagem exige posição e altura do piso válidas.');
     }
@@ -53,7 +54,19 @@ export function createCharacterPhysics(options = {}) {
       position.y = floorY;
       velocityY = 0;
     } else {
-      velocityY = Math.max(-maxFallSpeed, velocityY - gravity * dt);
+      const fieldPosition = gravityField?.position ?? [0, position.y, 0];
+      const acceleration = gravityKernel?.acceleration?.({
+        position: fieldPosition,
+        uniformAcceleration: gravityField?.uniformAcceleration ?? [0, -gravity, 0],
+        bodies: gravityField?.bodies ?? []
+      });
+      const gravityY = Number.isFinite(acceleration?.[1]) ? acceleration[1] : -gravity;
+      const integratedVelocity = gravityKernel?.integrateVelocity?.(
+        [0, velocityY, 0], [0, gravityY, 0], dt, maxFallSpeed
+      );
+      velocityY = Number.isFinite(integratedVelocity?.[1])
+        ? integratedVelocity[1]
+        : Math.max(-maxFallSpeed, velocityY + gravityY * dt);
       const nextY = position.y + velocityY * dt;
 
       if (nextY <= floorY + EPSILON && velocityY <= 0) {
