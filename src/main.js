@@ -1281,7 +1281,7 @@ function updateCharacterWorldPhysics(deltaSeconds) {
     const inwardSpeed = characterWorldVelocity.dot(surface.normal);
     if (Math.abs(planar.x) <= surface.halfSize && Math.abs(planar.z) <= surface.halfSize &&
         clearance <= 0.21 && inwardSpeed < 0) {
-      worldPosition.copy(surface.center).addScaledVector(surface.normal, 0.21);
+      worldPosition.copy(surface.center).addScaledVector(surface.normal, 0.04);
       characterWorldVelocity.set(0, 0, 0);
       characterModel.group.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), surface.normal);
       characterWorldGrounded = true;
