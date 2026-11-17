@@ -5,7 +5,7 @@ export const EXTERNAL_ELEVATOR_CONFIG = Object.freeze({
   z: 25,
   interactionRadius: 5.2,
   travelDistance: 6.4,
-  travelSeconds: 2.4,
+  travelSeconds: 4.0,
   platformHalfSize: 1.9
 });
 
@@ -70,17 +70,29 @@ export function createExternalElevator({ deckY = -8.7 } = {}) {
   underside.position.y = -0.29;
   platform.add(underside);
 
-  // Guarda-corpos baixos deixam a plataforma legível sem fechar a saída.
-  for (const side of [-1, 1]) {
-    const rail = new THREE.Mesh(
-      new THREE.BoxGeometry(3.45, 0.72, 0.09),
+  // Guarda-corpo traseiro fechado; a frente (+Z) fica com uma abertura
+  // central ampla para o personagem desembarcar sem atravessar a estrutura.
+  const rearRail = new THREE.Mesh(
+    new THREE.BoxGeometry(3.45, 0.72, 0.09),
+    frameMaterial
+  );
+  rearRail.position.set(0, 0.42, -1.72);
+  platform.add(rearRail);
+
+  // Na frente, dois trechos laterais preservam proteção sem bloquear a saída.
+  for (const x of [-1.28, 1.28]) {
+    const frontSegment = new THREE.Mesh(
+      new THREE.BoxGeometry(0.89, 0.72, 0.09),
       frameMaterial
     );
-    rail.position.set(0, 0.42, side * 1.72);
-    platform.add(rail);
-    for (const x of [-1.65, 1.65]) {
+    frontSegment.position.set(x, 0.42, 1.72);
+    platform.add(frontSegment);
+  }
+
+  for (const x of [-1.65, 1.65]) {
+    for (const z of [-1.72, 1.72]) {
       const post = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.72, 0.09), frameMaterial);
-      post.position.set(x, 0.42, side * 1.72);
+      post.position.set(x, 0.42, z);
       platform.add(post);
     }
   }
