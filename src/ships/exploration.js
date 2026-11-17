@@ -128,7 +128,7 @@ export function createExplorationShip() {
 
     // Recorte circular no casco inferior, alinhado ao poço do elevador
     // externo do Deck 4 (coordenadas locais da nave).
-    const elevatorDx = centerX * 27.2 - 8;
+    const elevatorDx = centerX * 27.2 - 8.5;
     const elevatorDz = centerZ * 50 - 25;
     const isExternalElevatorOpening =
       elevatorDx * elevatorDx + elevatorDz * elevatorDz < 3.2 * 3.2 &&
