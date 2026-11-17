@@ -16,6 +16,7 @@ import { createCharacterModel } from './character/characterModel.js';
 import { createCharacterAnimator } from './character/characterAnimator.js';
 import { createCharacterWeaponController } from './character/characterWeaponController.js';
 import { createCharacterPhysics } from './character/characterPhysics.js';
+import { loadGravityKernel } from './physics/gravityKernel.js';
 import { createCharacterEquipmentSystem } from './inventory/characterEquipment.js';
 import { isPilotConsoleInRange, attachCharacterToPilotConsole, returnCharacterToDeck } from './ships/bridge/commandBridge.js';
 import { saveState as save, loadState as load } from './core/storage.js';
@@ -470,6 +471,7 @@ let stationSystem;
 let landingBaseSystem;
 let selectedLandingSiteId = null;
 let shipFlightKernel = null;
+let gravityKernel = null;
 let shipLandingAutopilot = null;
 const shipLandingTelemetry = createShipLandingMetricTelemetryAdapter({
   modelMetersPerUnit: SHIP_MODEL_METERS_PER_UNIT,
@@ -819,6 +821,7 @@ async function init3D() {
   shipLandingGear = explorationShip.landingGear;
   shipLandingGearContactPoints = explorationShip.landingGearContactPoints;
   shipFlightKernel = await loadShipFlightKernel();
+  gravityKernel = await loadGravityKernel();
   shipLandingAutopilot = createShipLandingAutopilot(shipFlightKernel);
   shipLandingTelemetry.reset();
   updateDeck4Clearance();
@@ -856,7 +859,7 @@ async function init3D() {
   shipVisual.add(characterModel.group);
   characterAnimator = createCharacterAnimator(characterModel);
   characterWeaponController = createCharacterWeaponController(characterModel);
-  characterPhysics = createCharacterPhysics();
+  characterPhysics = createCharacterPhysics({ gravityKernel });
   characterPhysics.reset(characterModel.group.position.y);
   characterCore.setGrounded(true);
   characterAnimator.play('idle');
