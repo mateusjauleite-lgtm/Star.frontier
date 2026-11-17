@@ -1,0 +1,153 @@
+import * as THREE from 'three';
+
+export const EXTERNAL_ELEVATOR_CONFIG = Object.freeze({
+  x: 8,
+  z: 25,
+  interactionRadius: 5.2,
+  travelDistance: 6.4,
+  travelSeconds: 2.4,
+  platformHalfSize: 1.9
+});
+
+export function createExternalElevator({ deckY = -8.7 } = {}) {
+  const group = new THREE.Group();
+  group.name = 'Deck4-External-Elevator';
+  group.position.set(EXTERNAL_ELEVATOR_CONFIG.x, deckY + 0.18, EXTERNAL_ELEVATOR_CONFIG.z);
+
+  const frameMaterial = new THREE.MeshStandardMaterial({
+    color: 0x71899b, metalness: 0.86, roughness: 0.3
+  });
+  const darkMaterial = new THREE.MeshStandardMaterial({
+    color: 0x172737, metalness: 0.78, roughness: 0.38
+  });
+  const deckMaterial = new THREE.MeshStandardMaterial({
+    color: 0x8fa4b5, metalness: 0.76, roughness: 0.34
+  });
+  const lightMaterial = new THREE.MeshBasicMaterial({ color: 0x39c9f2 });
+
+  const hatch = new THREE.Mesh(
+    new THREE.TorusGeometry(2.05, 0.12, 10, 40),
+    lightMaterial
+  );
+  hatch.name = 'External-Elevator-Hatch-Rim';
+  hatch.rotation.x = Math.PI / 2;
+  hatch.position.y = -0.02;
+  group.add(hatch);
+
+  // Guias verticais fixas; a plataforma corre entre elas sem atravessar o casco.
+  for (const x of [-1.82, 1.82]) {
+    const rail = new THREE.Mesh(
+      new THREE.BoxGeometry(0.16, EXTERNAL_ELEVATOR_CONFIG.travelDistance + 0.55, 0.18),
+      frameMaterial
+    );
+    rail.name = 'External-Elevator-Guide-Rail';
+    rail.position.set(x, -EXTERNAL_ELEVATOR_CONFIG.travelDistance / 2, 0);
+    group.add(rail);
+
+    for (const y of [-0.28, -EXTERNAL_ELEVATOR_CONFIG.travelDistance + 0.25]) {
+      const bracket = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.18, 0.34), darkMaterial);
+      bracket.position.set(x, y, 0);
+      group.add(bracket);
+    }
+  }
+
+  const platform = new THREE.Group();
+  platform.name = 'External-Elevator-Platform';
+  group.add(platform);
+
+  const platformDeck = new THREE.Mesh(
+    new THREE.BoxGeometry(3.55, 0.38, 3.55),
+    deckMaterial
+  );
+  platformDeck.name = 'External-Elevator-Platform-Deck';
+  platformDeck.position.y = -0.02;
+  platform.add(platformDeck);
+
+  const underside = new THREE.Mesh(
+    new THREE.BoxGeometry(3.1, 0.22, 3.1),
+    darkMaterial
+  );
+  underside.position.y = -0.29;
+  platform.add(underside);
+
+  // Guarda-corpos baixos deixam a plataforma legível sem fechar a saída.
+  for (const side of [-1, 1]) {
+    const rail = new THREE.Mesh(
+      new THREE.BoxGeometry(3.45, 0.72, 0.09),
+      frameMaterial
+    );
+    rail.position.set(0, 0.42, side * 1.72);
+    platform.add(rail);
+    for (const x of [-1.65, 1.65]) {
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.72, 0.09), frameMaterial);
+      post.position.set(x, 0.42, side * 1.72);
+      platform.add(post);
+    }
+  }
+
+  for (const x of [-1.45, 1.45]) {
+    const status = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.06, 0.16), lightMaterial);
+    status.position.set(x, 0.205, -1.42);
+    platform.add(status);
+  }
+
+  let phase = 'top';
+  let elapsed = 0;
+  let startY = 0;
+  let targetY = 0;
+
+  function begin(direction) {
+    if (phase === 'moving' || (direction === 'down' && phase !== 'top') ||
+        (direction === 'up' && phase !== 'bottom')) return false;
+    phase = 'moving';
+    elapsed = 0;
+    startY = platform.position.y;
+    targetY = direction === 'down' ? -EXTERNAL_ELEVATOR_CONFIG.travelDistance : 0;
+    return true;
+  }
+
+  function update(dt) {
+    if (phase !== 'moving') return null;
+    elapsed = Math.min(EXTERNAL_ELEVATOR_CONFIG.travelSeconds, elapsed + Math.max(0, dt));
+    const t = THREE.MathUtils.clamp(elapsed / EXTERNAL_ELEVATOR_CONFIG.travelSeconds, 0, 1);
+    const eased = t * t * (3 - 2 * t);
+    platform.position.y = THREE.MathUtils.lerp(startY, targetY, eased);
+    if (t < 1) return null;
+    platform.position.y = targetY;
+    phase = targetY < 0 ? 'bottom' : 'top';
+    return phase;
+  }
+
+  function getPlatformSurfaceWorld() {
+    group.updateWorldMatrix(true, true);
+    platform.updateWorldMatrix(true, false);
+    const topCenter = platform.localToWorld(new THREE.Vector3(0, 0.19, 0));
+    const quaternion = platform.getWorldQuaternion(new THREE.Quaternion());
+    const normal = new THREE.Vector3(0, 1, 0).applyQuaternion(quaternion).normalize();
+    return {
+      center: topCenter,
+      normal,
+      quaternion,
+      halfSize: EXTERNAL_ELEVATOR_CONFIG.platformHalfSize
+    };
+  }
+
+  return {
+    group,
+    platform,
+    begin,
+    update,
+    get phase() { return phase; },
+    get moving() { return phase === 'moving'; },
+    getPlatformSurfaceWorld,
+    dispose() {
+      group.traverse(object => {
+        if (!object.isMesh) return;
+        object.geometry?.dispose();
+        if (Array.isArray(object.material)) object.material.forEach(material => material.dispose());
+        else object.material?.dispose();
+      });
+      [frameMaterial, darkMaterial, deckMaterial, lightMaterial].forEach(material => material.dispose());
+    }
+  };
+}
