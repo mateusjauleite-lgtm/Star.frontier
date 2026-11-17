@@ -468,6 +468,7 @@ let renderer;
 let ship;
 let stars;
 let earthSystem;
+let lastEarthSurfaceRotationY = null;
 let stationSystem;
 let landingBaseSystem;
 let selectedLandingSiteId = null;
@@ -754,6 +755,7 @@ async function startGame() {
     selectedLandingSiteId = null;
     shipLandingAutopilot?.cancel?.();
     shipLandingAutopilot = null;
+    lastEarthSurfaceRotationY = null;
     shipFlightKernel?.dispose?.();
     shipFlightKernel = null;
     shipLandingTelemetry.reset();
@@ -921,6 +923,51 @@ function resize3D() {
 
 /* MOVIMENTO */
 
+function applyEarthSurfaceRotation(deltaSeconds) {
+  const rotationState = earthSystem?.getSurfaceRotationState?.();
+  if (!rotationState || !Number.isFinite(rotationState.rotationY)) {
+    lastEarthSurfaceRotationY = null;
+    return;
+  }
+
+  const currentRotation = rotationState.rotationY;
+  if (lastEarthSurfaceRotationY === null) {
+    lastEarthSurfaceRotationY = currentRotation;
+    return;
+  }
+
+  const deltaRotation = THREE.MathUtils.euclideanModulo(
+    currentRotation - lastEarthSurfaceRotationY + Math.PI,
+    Math.PI * 2
+  ) - Math.PI;
+  lastEarthSurfaceRotationY = currentRotation;
+  if (Math.abs(deltaRotation) < 1e-9) return;
+
+  const earthCenter = earthSystem.group.getWorldPosition(new THREE.Vector3());
+  const earthWorldQuaternion = earthSystem.group.getWorldQuaternion(new THREE.Quaternion());
+  const axis = rotationState.localAxis.clone().applyQuaternion(earthWorldQuaternion).normalize();
+  const rotation = new THREE.Quaternion().setFromAxisAngle(axis, deltaRotation);
+
+  const rotateObjectInWorld = object => {
+    if (!object?.parent) return;
+    object.updateWorldMatrix(true, false);
+    const worldPosition = object.getWorldPosition(new THREE.Vector3());
+    const worldQuaternion = object.getWorldQuaternion(new THREE.Quaternion());
+    worldPosition.sub(earthCenter).applyQuaternion(rotation).add(earthCenter);
+    worldQuaternion.premultiply(rotation);
+
+    object.parent.updateWorldMatrix(true, false);
+    object.position.copy(object.parent.worldToLocal(worldPosition));
+    const parentQuaternion = object.parent.getWorldQuaternion(new THREE.Quaternion());
+    object.quaternion.copy(parentQuaternion.invert().multiply(worldQuaternion));
+  };
+
+  if (ship?.userData?.earthSurfaceAnchored) rotateObjectInWorld(ship);
+  if (characterInWorldFrame && characterWorldGrounded && characterModel?.group) {
+    rotateObjectInWorld(characterModel.group);
+  }
+}
+
 function updateFlight(dt) {
   if (!ship || !shipYaw || !shipPitch || !shipVisual) return;
 
@@ -929,6 +976,9 @@ function updateFlight(dt) {
   const sensitivity = Number(state.settings.sensitivity) || 1;
   const manualOverride = Math.abs(state.move.x) > 0.015 || Math.abs(state.move.y) > 0.015 ||
     state.throttle || state.braking || state.nitroButton;
+  if (manualOverride && ship.userData.earthSurfaceAnchored) {
+    ship.userData.earthSurfaceAnchored = false;
+  }
   if (manualOverride && shipLandingAutopilot?.snapshot?.().active) {
     cancelLandingGuidance('manual-override');
     if ($('landing-status')) $('landing-status').textContent = 'Comando manual assumido. A orientação foi cancelada e o botão POUSAR foi restaurado.';
@@ -1767,6 +1817,8 @@ function loop(now) {
 
   const dt = Math.min((now - last) / 1000, 0.04);
   last = now;
+  earthSystem?.update(dt, camera);
+  applyEarthSurfaceRotation(dt);
   if (ship) ship.userData.earthCollisionResolved = false;
 
   updatePhaserWeapon(dt);
@@ -1782,7 +1834,6 @@ function loop(now) {
     updateFlight(dt);
     updateCamera();
   }
-  earthSystem?.update(dt, camera);
   // A Earth é proprietária da infraestrutura; a gameplay consulta a base
   // criada pelo módulo para contatos e estado de pouso.
   landingBaseSystem = earthSystem?.getLandingBase?.() ?? null;
@@ -1883,6 +1934,12 @@ function loop(now) {
       const gearContacts = contacts.filter(contact =>
         contact.id.startsWith('gear-') && contact.valid && contact.clearanceUnits <= 0.35
       );
+      if (shipLandingGearContactPoints.length > 0 &&
+          gearContacts.length === shipLandingGearContactPoints.length &&
+          attitude === 'upright' && minimumClearance !== null &&
+          minimumClearance <= 0.35 && Math.abs(state.speed) <= 1.5) {
+        ship.userData.earthSurfaceAnchored = true;
+      }
       ship.userData.earthLandingContacts = {
         status: validContacts.length !== contacts.length
           ? 'partial'
