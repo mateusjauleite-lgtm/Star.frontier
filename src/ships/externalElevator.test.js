@@ -36,3 +36,21 @@ test('external elevator rejects travel commands that do not match its stop', () 
     elevator.dispose();
   }
 });
+
+test('external elevator exposes a top-only contact area matching its moving platform', () => {
+  const elevator = createExternalElevator({ deckY: -8.7 });
+  try {
+    elevator.begin('down');
+    elevator.update(EXTERNAL_ELEVATOR_CONFIG.travelSeconds);
+    const surface = elevator.getPlatformSurfaceWorld();
+    const pointAboveDeck = surface.center.clone().addScaledVector(surface.normal, 0.12);
+    const contact = elevator.getPlatformContact(pointAboveDeck);
+    assert.equal(contact.inside, true);
+    assert.ok(Math.abs(contact.clearance - 0.12) < 1e-6);
+
+    const pointOutside = surface.center.clone().add(new (surface.center.constructor)(2.2, 0, 0));
+    assert.equal(elevator.getPlatformContact(pointOutside).inside, false);
+  } finally {
+    elevator.dispose();
+  }
+});
