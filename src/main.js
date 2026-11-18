@@ -11,6 +11,7 @@ import { createCharacterCore } from './character/characterCore.js';
 import { createCharacterHUD } from './character/characterHUD.js';
 import { createCharacterModel } from './character/characterModel.js';
 import { createCharacterAnimator } from './character/characterAnimator.js';
+import { createCharacterAudio } from './character/characterAudio.js';
 import { createCharacterWeaponController } from './character/characterWeaponController.js';
 import { createCharacterPhysics } from './character/characterPhysics.js';
 import { createCharacterEquipmentSystem } from './inventory/characterEquipment.js';
@@ -22,6 +23,8 @@ import { registerShipComputerSystems } from './ships/computer/shipComputerSystem
 const $ = id => document.getElementById(id);
 
 const characterCore = createCharacterCore();
+const characterAudio = createCharacterAudio({ core: characterCore });
+characterAudio.attach();
 const shipComputer = createShipComputer();
 shipComputer.registerSystem('flight', {
   name: 'Controle de voo',
@@ -62,6 +65,7 @@ const characterRight = new THREE.Vector3();
 const characterMove = new THREE.Vector3();
 const characterLookEuler = new THREE.Euler(0, 0, 0, 'YXZ');
 let characterMoveInput = { x: 0, y: 0 };
+let characterFootstepTimer = 0;
 let characterSprintHeld = false;
 let characterAnimationTestRemaining = 0;
 let characterAnimationTestIndex = -1;
@@ -141,6 +145,7 @@ function firePhaser() {
   phaserChargeRemaining = PHASER_RECHARGE_SECONDS;
   phaserShotFlashRemaining = PHASER_FLASH_SECONDS;
   characterWeaponController?.fire();
+  characterAudio.playPhaser();
   const phaser = characterModel?.wardrobe?.weapon?.userData?.phaser;
   if (phaser?.userData.muzzleLight) phaser.userData.muzzleLight.intensity = 4.5;
   toast('Phaser disparado · recarga energética iniciada.');
@@ -589,6 +594,9 @@ async function startGame() {
   loadingScreen?.classList.remove('hidden');
 
   try {
+    // O primeiro toque do jogador libera o AudioContext no Android/WebView.
+    void characterAudio.unlock();
+
     // O fullscreen precisa abranger o documento inteiro, não apenas a gameplay.
     // Assim, ao voltar ao menu principal, os botões continuam dentro da área
     // fullscreen e não ficam atrás de um elemento fullscreen oculto.
@@ -1147,7 +1155,10 @@ function updateCharacterMovement(dt) {
 
   const floorY = starshipInterior.layout.decks[activeDeckIndex].y + 0.21;
   if (characterJumpQueued) {
-    if (characterPhysics?.jump()) characterAnimator?.play('jump', { restart: true });
+    if (characterPhysics?.jump()) {
+      characterAnimator?.play('jump', { restart: true });
+      characterAudio.playJump();
+    }
     characterJumpQueued = false;
   }
 
@@ -1155,6 +1166,18 @@ function updateCharacterMovement(dt) {
     position: deck,
     floorY
   });
+
+  // Passos só são emitidos quando o personagem está no chão; corrida acelera o ritmo.
+  if (magnitude > 0.08 && physicsState?.grounded) {
+    characterFootstepTimer += dt;
+    const stepInterval = sprinting ? 0.29 : 0.43;
+    if (characterFootstepTimer >= stepInterval) {
+      characterFootstepTimer = 0;
+      characterAudio.playFootstep();
+    }
+  } else {
+    characterFootstepTimer = 0;
+  }
 
   if (physicsState && characterCore.snapshot().grounded !== physicsState.grounded) {
     characterCore.setGrounded(physicsState.grounded);
@@ -1230,6 +1253,7 @@ function moveElevator(direction) {
   characterPhysics?.reset(deck.y + 0.21);
   characterCore.setGrounded(true);
   characterAnimator?.play('idle', { restart: true });
+  characterAudio.playElevator();
   // O centro do elevador fica dentro da área livre dos quatro decks.
   // Não chamar resolveCharacterShipCollisions: essa função não existe no runtime.
   nearbyElevator = true;
@@ -1654,6 +1678,7 @@ const characterEquipment = createCharacterEquipmentSystem(state, {
     if (characterModel) characterModel.setEquipment(slot, itemId);
   },
   onChange() {
+    characterAudio.playEquip();
     renderClothing();
     renderInventory();
     characterCore.setEquipment('suit', characterEquipment.equippedItem('torso')?.itemId || null);
@@ -1921,6 +1946,7 @@ $('interact-btn')?.addEventListener('click', () => {
     return;
   }
 
+  characterAudio.playInteract();
   const bubble = $('npc-bubble');
 
   if (!npcReady) {
