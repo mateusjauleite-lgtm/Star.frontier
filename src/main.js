@@ -1,18 +1,26 @@
 import * as THREE from 'three';
+import { createEarthReferenceFrames } from './world/earth/earthReferenceFrames.js';
 import { createEarthCore } from './world/earth/earthCore.js';
 import { createStation } from './world/station.js';
+import { getLandingSite } from './ships/flight/landingSites.js';
+import { createShipLandingAutopilot, createShipLandingMetricTelemetryAdapter, SHIP_MODEL_METERS_PER_UNIT } from './ships/flight/landingAutopilot.js';
+import { loadShipFlightKernel } from './ships/flight/shipFlightKernel.js';
 import { createOrbitSystem } from './world/orbits.js';
 import { createAsteroidField } from './world/asteroids.js';
 import { createSpaceLighting } from './world/lighting.js';
 import { createStarshipInterior } from './ships/interior.js';
+import { createExternalElevator, EXTERNAL_ELEVATOR_CONFIG } from './ships/externalElevator.js';
 import { createExplorationShip } from './ships/exploration.js';
 import { state, resetTransientState } from './core/state.js';
 import { createCharacterCore } from './character/characterCore.js';
 import { createCharacterHUD } from './character/characterHUD.js';
 import { createCharacterModel } from './character/characterModel.js';
 import { createCharacterAnimator } from './character/characterAnimator.js';
+import { createCharacterAudio } from './character/characterAudio.js';
+import { createShipAudio } from './ships/shipAudio.js';
 import { createCharacterWeaponController } from './character/characterWeaponController.js';
 import { createCharacterPhysics } from './character/characterPhysics.js';
+import { loadGravityKernel } from './physics/gravityKernel.js';
 import { createCharacterEquipmentSystem } from './inventory/characterEquipment.js';
 import { isPilotConsoleInRange, attachCharacterToPilotConsole, returnCharacterToDeck } from './ships/bridge/commandBridge.js';
 import { saveState as save, loadState as load } from './core/storage.js';
@@ -20,8 +28,12 @@ import { createShipComputer } from './ships/computer/shipComputer.js';
 import { registerShipComputerSystems } from './ships/computer/shipComputerSystems.js';
 
 const $ = id => document.getElementById(id);
+const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 
 const characterCore = createCharacterCore();
+const characterAudio = createCharacterAudio({ core: characterCore });
+characterAudio.attach();
+const shipAudio = createShipAudio();
 const shipComputer = createShipComputer();
 shipComputer.registerSystem('flight', {
   name: 'Controle de voo',
@@ -462,16 +474,36 @@ let renderer;
 let ship;
 let stars;
 let earthSystem;
+let earthReferenceFrames = null;
+let lastEarthSurfaceRotationY = null;
 let stationSystem;
+let landingBaseSystem;
+let selectedLandingSiteId = null;
+let shipFlightKernel = null;
+let gravityKernel = null;
+let characterInWorldFrame = false;
+const characterWorldVelocity = new THREE.Vector3();
+let characterWorldGrounded = false;
+let shipLandingAutopilot = null;
+const shipLandingTelemetry = createShipLandingMetricTelemetryAdapter({
+  modelMetersPerUnit: SHIP_MODEL_METERS_PER_UNIT,
+  deckHeightMeters: 0.76,
+  deckRadiusMeters: 146
+});
 let orbitSystem;
 let asteroidSystem;
 let lightingSystem;
 let starshipInterior;
+let externalElevator = null;
+let externalElevatorRiding = false;
+let externalElevatorActionAvailable = false;
 let nearbyElevator = false;
 let activeDeckIndex = 0;
 let shipYaw;
 let shipPitch;
 let shipVisual;
+let shipLandingGear;
+let shipLandingGearContactPoints = [];
 
 // Estruturas externas da popa que invadem visualmente o espaço útil do Deck 4.
 // São ocultadas somente enquanto o personagem está no D4 e restauradas nos demais decks.
@@ -499,6 +531,16 @@ let pitchAngle = 0;
 let asteroids = [];
 let engineFlames = [];
 let engineLights = [];
+
+// Pontos de referência na concha inferior do casco. Servem primeiro para
+// medir folga/contato com o relevo; não aplicam forças nem alteram a trajetória.
+const shipEarthContactPoints = [
+  { id: 'keel', point: new THREE.Vector3(0, -15.2, 0) },
+  { id: 'fore-port', point: new THREE.Vector3(-12, -11.89, -22) },
+  { id: 'fore-starboard', point: new THREE.Vector3(12, -11.89, -22) },
+  { id: 'aft-port', point: new THREE.Vector3(-12, -11.89, 22) },
+  { id: 'aft-starboard', point: new THREE.Vector3(12, -11.89, 22) }
+];
 
 let last = performance.now();
 let active = false;
@@ -589,6 +631,10 @@ async function startGame() {
   loadingScreen?.classList.remove('hidden');
 
   try {
+    // O primeiro toque do jogador libera o AudioContext no Android/WebView.
+    void characterAudio.unlock();
+    void shipAudio.unlock();
+
     // O fullscreen precisa abranger o documento inteiro, não apenas a gameplay.
     // Assim, ao voltar ao menu principal, os botões continuam dentro da área
     // fullscreen e não ficam atrás de um elemento fullscreen oculto.
@@ -620,6 +666,17 @@ async function startGame() {
 
     if (!renderer) {
       await init3D();
+    }
+    if (characterInWorldFrame && characterModel?.group && shipVisual) {
+      scene.remove(characterModel.group);
+      shipVisual.add(characterModel.group);
+      characterModel.group.position.set(0, 8.91, -18);
+      characterModel.group.rotation.set(0, characterYaw, 0);
+      characterInWorldFrame = false;
+      characterWorldGrounded = false;
+      characterWorldVelocity.set(0, 0, 0);
+      characterPhysics?.reset(characterModel.group.position.y);
+      characterCore.setGrounded(true);
     }
 
     startupStage = 'integração do personagem e HUD';
@@ -700,9 +757,20 @@ async function startGame() {
     shipYaw = null;
     shipPitch = null;
     shipVisual = null;
+    shipLandingGear = null;
+    shipLandingGearContactPoints = [];
     stars = null;
     earthSystem = null;
+    earthReferenceFrames = null;
     stationSystem = null;
+    landingBaseSystem = null;
+    selectedLandingSiteId = null;
+    shipLandingAutopilot?.cancel?.();
+    shipLandingAutopilot = null;
+    lastEarthSurfaceRotationY = null;
+    shipFlightKernel?.dispose?.();
+    shipFlightKernel = null;
+    shipLandingTelemetry.reset();
     orbitSystem = null;
     asteroidSystem = null;
     lightingSystem = null;
@@ -743,12 +811,13 @@ async function init3D() {
   // Terra em posição distante, visível à frente da nave.
   earthSystem = createEarthCore({ radius: 600, position: [0, 0, -850] });
   scene.add(earthSystem.group);
+  earthReferenceFrames = createEarthReferenceFrames({ globalFrame: scene, terrestrialFrame: earthSystem.getSurfaceFrame() });
 
   camera = new THREE.PerspectiveCamera(
     70,
     innerWidth / innerHeight,
     0.1,
-    2500
+    20000
   );
 
   renderer = new THREE.WebGLRenderer({
@@ -782,6 +851,12 @@ async function init3D() {
   shipYaw = explorationShip.yaw;
   shipPitch = explorationShip.pitch;
   shipVisual = explorationShip.visual;
+  shipLandingGear = explorationShip.landingGear;
+  shipLandingGearContactPoints = explorationShip.landingGearContactPoints;
+  shipFlightKernel = await loadShipFlightKernel();
+  gravityKernel = await loadGravityKernel();
+  shipLandingAutopilot = createShipLandingAutopilot(shipFlightKernel);
+  shipLandingTelemetry.reset();
   updateDeck4Clearance();
   engineFlames = explorationShip.engineFlames;
   engineLights = explorationShip.engineLights;
@@ -804,6 +879,8 @@ async function init3D() {
   await loadingStep(90, 'Integrando os quatro decks ao casco da nave...');
   starshipInterior = createStarshipInterior({ position: [0, 0, 0] });
   shipVisual.add(starshipInterior.group);
+  externalElevator = createExternalElevator({ deckY: starshipInterior.layout.decks[3].y });
+  shipVisual.add(externalElevator.group);
   activeDeckIndex = 0;
   nearbyElevator = false;
 
@@ -817,7 +894,10 @@ async function init3D() {
   shipVisual.add(characterModel.group);
   characterAnimator = createCharacterAnimator(characterModel);
   characterWeaponController = createCharacterWeaponController(characterModel);
-  characterPhysics = createCharacterPhysics();
+  characterPhysics = createCharacterPhysics({ gravityKernel });
+  characterInWorldFrame = false;
+  characterWorldGrounded = false;
+  characterWorldVelocity.set(0, 0, 0);
   characterPhysics.reset(characterModel.group.position.y);
   characterCore.setGrounded(true);
   characterAnimator.play('idle');
@@ -856,12 +936,64 @@ function resize3D() {
 
 /* MOVIMENTO */
 
+function applyEarthSurfaceRotation(deltaSeconds) {
+  const rotationState = earthSystem?.getSurfaceRotationState?.();
+  if (!rotationState || !Number.isFinite(rotationState.rotationY)) {
+    lastEarthSurfaceRotationY = null;
+    return;
+  }
+
+  const currentRotation = rotationState.rotationY;
+  if (lastEarthSurfaceRotationY === null) {
+    lastEarthSurfaceRotationY = currentRotation;
+    return;
+  }
+
+  const deltaRotation = THREE.MathUtils.euclideanModulo(
+    currentRotation - lastEarthSurfaceRotationY + Math.PI,
+    Math.PI * 2
+  ) - Math.PI;
+  lastEarthSurfaceRotationY = currentRotation;
+  if (Math.abs(deltaRotation) < 1e-9) return;
+
+  const earthCenter = earthSystem.group.getWorldPosition(new THREE.Vector3());
+  const earthWorldQuaternion = earthSystem.group.getWorldQuaternion(new THREE.Quaternion());
+  const axis = rotationState.localAxis.clone().applyQuaternion(earthWorldQuaternion).normalize();
+  const rotation = new THREE.Quaternion().setFromAxisAngle(axis, deltaRotation);
+
+  const rotateObjectInWorld = object => {
+    if (!object?.parent) return;
+    object.updateWorldMatrix(true, false);
+    const worldPosition = object.getWorldPosition(new THREE.Vector3());
+    const worldQuaternion = object.getWorldQuaternion(new THREE.Quaternion());
+    worldPosition.sub(earthCenter).applyQuaternion(rotation).add(earthCenter);
+    worldQuaternion.premultiply(rotation);
+
+    object.parent.updateWorldMatrix(true, false);
+    object.position.copy(object.parent.worldToLocal(worldPosition));
+    const parentQuaternion = object.parent.getWorldQuaternion(new THREE.Quaternion());
+    object.quaternion.copy(parentQuaternion.invert().multiply(worldQuaternion));
+  };
+
+  if (ship?.userData?.earthSurfaceAnchored) rotateObjectInWorld(ship);
+}
+
 function updateFlight(dt) {
   if (!ship || !shipYaw || !shipPitch || !shipVisual) return;
 
   // Protege a simulação contra saltos de tempo quando o Android pausa ou atrasa um frame.
   const safeDt = THREE.MathUtils.clamp(Number.isFinite(dt) ? dt : 0, 0, 0.04);
   const sensitivity = Number(state.settings.sensitivity) || 1;
+  const manualOverride = Math.abs(state.move.x) > 0.015 || Math.abs(state.move.y) > 0.015 ||
+    state.throttle || state.braking || state.nitroButton;
+  if (manualOverride && ship.userData.earthSurfaceAnchored) {
+    ship.userData.earthSurfaceAnchored = false;
+  }
+  if (manualOverride && shipLandingAutopilot?.snapshot?.().active) {
+    cancelLandingGuidance('manual-override');
+    if ($('landing-status')) $('landing-status').textContent = 'Comando manual assumido. A orientação foi cancelada e o botão POUSAR foi restaurado.';
+    toast('Orientação automática cancelada: controle manual assumido.');
+  }
 
   // Guinada sempre no eixo vertical global; arfagem sempre no eixo lateral local.
   // No joystick: puxar para cima (Y negativo) sobe; puxar para baixo (Y positivo) desce.
@@ -916,6 +1048,16 @@ function updateFlight(dt) {
     state.speed = Math.max(0, state.speed - 1.4 * safeDt);
   }
 
+  shipAudio.updateFlight({
+    throttle: Boolean(state.throttle && state.fuel > 0),
+    boosting,
+    braking: Boolean(state.braking),
+    moveX: state.move.x,
+    moveY: state.move.y,
+    speed: state.speed,
+    dt: safeDt
+  });
+
   /* DESLOCAMENTO */
 
   shipPitch.getWorldQuaternion(flightQuaternion);
@@ -967,6 +1109,37 @@ function updateFlight(dt) {
     state.speed = Math.min(state.speed, 8);
   }
 
+  // Primeira resposta física da nave ao relevo real da Earth.
+  // A consulta usa a mesma superfície ETOPO que alimenta o mesh visível.
+  ship.userData.earthCollisionResolved = false;
+  const earthCollisionSurface = earthSystem?.getCollisionSurface?.();
+  ship.updateWorldMatrix(true, false);
+  const shipWorldPosition = ship.getWorldPosition(new THREE.Vector3());
+  const terrainContact = earthCollisionSurface?.sampleWorldPosition?.(shipWorldPosition);
+  if (terrainContact?.worldPosition && terrainContact?.worldNormal) {
+    const signedClearance = shipWorldPosition.clone()
+      .sub(terrainContact.worldPosition)
+      .dot(terrainContact.worldNormal);
+    const minimumHullClearance = 18;
+    if (Number.isFinite(signedClearance) && signedClearance < minimumHullClearance) {
+      const correctedWorldPosition = shipWorldPosition.addScaledVector(
+        terrainContact.worldNormal,
+        minimumHullClearance - signedClearance
+      );
+      if (ship.parent) {
+        ship.parent.updateWorldMatrix(true, false);
+        ship.position.copy(ship.parent.worldToLocal(correctedWorldPosition));
+      } else {
+        ship.position.copy(correctedWorldPosition);
+      }
+      // Cancela apenas a aproximação contra a superfície; o piloto pode
+      // voltar a acelerar para se afastar e decolar.
+      if (forwardVector.dot(terrainContact.worldNormal) < 0) state.speed = 0;
+      ship.userData.earthCollisionResolved = true;
+      ship.userData.earthCollisionClearanceUnits = minimumHullClearance;
+    }
+  }
+  
   /* EFEITOS DAS NACELLES */
 
   const enginePower = boosting ? 2.5 : (state.throttle ? 1.25 : 0.65);
@@ -1017,25 +1190,48 @@ function updateCharacterCamera() {
   player.getWorldQuaternion(characterCameraWorldQuaternion);
   characterCameraForward.set(0, 0, -1).applyQuaternion(characterCameraWorldQuaternion).normalize();
 
-  const target = characterCameraWorldPosition.clone().add(new THREE.Vector3(0, 1.25, 0));
+  // A câmera exterior usa o eixo local do terreno; a câmera interna usa o convés.
+  const cameraUp = characterInWorldFrame
+    ? new THREE.Vector3(0, 1, 0).applyQuaternion(characterCameraWorldQuaternion).normalize()
+    : new THREE.Vector3(0, 1, 0);
+  if (characterInWorldFrame && !characterWorldGrounded) {
+    const earthCenter = earthSystem?.group?.getWorldPosition(new THREE.Vector3());
+    if (earthCenter) cameraUp.copy(characterCameraWorldPosition).sub(earthCenter).normalize();
+  }
+  camera.up.copy(cameraUp);
+  const target = characterCameraWorldPosition.clone().addScaledVector(cameraUp, 1.25);
 
   if (characterCameraMode === 'first-person') {
-    characterCameraOffset.set(0, 1.62, 0).applyQuaternion(characterCameraWorldQuaternion);
+    characterCameraOffset.copy(cameraUp).multiplyScalar(1.62);
     camera.position.copy(characterCameraWorldPosition).add(characterCameraOffset);
     characterLookEuler.set(characterPitch, 0, 0, 'YXZ');
     camera.quaternion.copy(characterCameraWorldQuaternion).multiply(
       new THREE.Quaternion().setFromEuler(characterLookEuler)
     );
   } else {
-    // Ombro/costas calculado no referencial mundial, acompanhando a nave.
     characterCameraOffset.set(0, 2.35, 5.2).applyQuaternion(characterCameraWorldQuaternion);
     const desired = characterCameraWorldPosition.clone().add(characterCameraOffset);
     camera.position.lerp(desired, 0.22);
     const lookTarget = target.addScaledVector(characterCameraForward, 1.4);
-    // O arrasto vertical da mira também inclina o ponto observado em terceira pessoa.
-    lookTarget.y += Math.sin(characterPitch) * 4.2;
+    lookTarget.addScaledVector(cameraUp, Math.sin(characterPitch) * 4.2);
     camera.lookAt(lookTarget);
   }
+}
+
+function isD4ExitAperture(position) {
+  const radius = 8;
+  const aftEdgeZ = 5.5 + 110 * 0.5;
+  return position.z >= aftEdgeZ &&
+    position.x * position.x + (position.z - aftEdgeZ) ** 2 <= radius ** 2;
+}
+
+function isD4BeyondExitAperture(position) {
+  const radius = 8;
+  const aftEdgeZ = 5.5 + 110 * 0.5;
+  const absX = Math.abs(position.x);
+  if (absX > radius) return false;
+  const outerZ = aftEdgeZ + Math.sqrt(Math.max(0, radius ** 2 - position.x ** 2));
+  return position.z > outerZ;
 }
 
 function isCharacterInsideDeck(position, deckIndex) {
@@ -1047,30 +1243,37 @@ function isCharacterInsideDeck(position, deckIndex) {
     D1: [50, 82, -2],
     D2: [50, 94, -2],
     D3: [53, 102, -2],
-    // D4 acompanha a pista de hangar até a abertura traseira.
     D4: [48, 110, 5.5]
   };
   const footprint = footprints[deck.id];
   if (!footprint) return false;
 
-  // Reserva uma margem para o raio do personagem, evitando que os pés
-  // atravessem a borda mesmo quando o centro ainda está sobre o piso.
+  // Reserva uma margem para o raio do personagem nas bordas do convés.
   const [width, length, centerZ = -2] = footprint;
   const playerRadius = 0.62;
   const radiusX = width * 0.5 - playerRadius;
   const radiusZ = length * 0.5 - playerRadius;
   const normalizedX = position.x / radiusX;
   const normalizedZ = (position.z - centerZ) / radiusZ;
-  return normalizedX * normalizedX + normalizedZ * normalizedZ <= 1;
+  const insideDeckEllipse =
+    normalizedX * normalizedX + normalizedZ * normalizedZ <= 1;
+
+  if (deck.id !== 'D4') return insideDeckEllipse;
+
+  // A meia-lua fica exclusivamente para fora da extremidade traseira do D4.
+  // Depois de atravessar sua borda externa, o personagem está fora do piso
+  // e pode continuar para fora da nave, entrando em queda livre.
+  return insideDeckEllipse || isD4ExitAperture(position) ||
+    isD4BeyondExitAperture(position);
 }
 
 function isCharacterPositionBlocked(position, deckIndex) {
   const deck = starshipInterior?.layout?.decks?.[deckIndex];
   if (!deck || !isCharacterInsideDeck(position, deckIndex)) return true;
 
-  // D1 e o corredor central do hangar D4 são áreas abertas.
-  // O corredor traseiro não herda colisores antigos de paredes/anteparas.
-  if (deck.id === 'D1') return false;
+  // D1 e a abertura traseira do D4 não bloqueiam a passagem do personagem.
+  if (deck.id === 'D1' || (deck.id === 'D4' &&
+      (isD4ExitAperture(position) || isD4BeyondExitAperture(position)))) return false;
   if (deck.id === 'D4' && position.z >= 27 && Math.abs(position.x) <= 10.4) return false;
 
   const playerRadius = 0.48;
@@ -1088,8 +1291,174 @@ function isCharacterPositionBlocked(position, deckIndex) {
   return false;
 }
 
+function transferCharacterToWorldFrame() {
+  if (!characterModel?.group || !shipVisual || !scene || characterInWorldFrame) return false;
+  const player = characterModel.group;
+  if (earthReferenceFrames) earthReferenceFrames.attachToGlobal(player);
+  else scene.attach(player);
+  characterWorldVelocity.set(0, 0, 0);
+  characterInWorldFrame = true;
+  characterWorldGrounded = false;
+  characterCore.setGrounded(false);
+  return true;
+}
+
+function anchorCharacterToTerrestrialFrame(player, worldNormal) {
+  if (!player || !worldNormal?.isVector3) return false;
+  const worldQuaternion = player.getWorldQuaternion(new THREE.Quaternion());
+  const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(worldQuaternion);
+  if (earthReferenceFrames) {
+    earthReferenceFrames.alignToSurface(player, worldNormal, forward);
+    earthReferenceFrames.attachToSurface(player);
+  } else {
+    player.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), worldNormal);
+  }
+  characterWorldGrounded = true;
+  characterWorldVelocity.set(0, 0, 0);
+  characterCore.setGrounded(true);
+  return true;
+}
+
+function updateCharacterWorldPhysics(deltaSeconds) {
+  if (!characterInWorldFrame || !characterModel?.group || characterWorldGrounded) return;
+  const dt = THREE.MathUtils.clamp(Number.isFinite(deltaSeconds) ? deltaSeconds : 0, 0, 0.05);
+  const player = characterModel.group;
+  const worldPosition = player.position;
+  const earthCenter = earthSystem?.group?.getWorldPosition(new THREE.Vector3());
+  const profile = earthSystem?.getPlanetaryProfile?.();
+  const radius = profile?.render?.visualRadiusUnits ?? 600;
+  const surfaceGravity = profile?.physical?.standardGravityMps2 ?? 9.80665;
+  const mu = surfaceGravity * radius * radius;
+
+  if (earthCenter && gravityKernel) {
+    const acceleration = gravityKernel.acceleration({
+      position: [worldPosition.x, worldPosition.y, worldPosition.z],
+      bodies: [{
+        position: [earthCenter.x, earthCenter.y, earthCenter.z],
+        mu
+      }]
+    });
+    if (acceleration) {
+      const nextVelocity = gravityKernel.integrateVelocity(
+        [characterWorldVelocity.x, characterWorldVelocity.y, characterWorldVelocity.z],
+        acceleration,
+        dt,
+        180
+      );
+      if (nextVelocity) characterWorldVelocity.set(...nextVelocity);
+    }
+  }
+
+  worldPosition.addScaledVector(characterWorldVelocity, dt);
+
+  // O piso do elevador externo tem contato próprio, restrito à sua face
+  // superior e somente quando a plataforma está parada no nível terrestre.
+  // Isso impede atravessamento sem adicionar colisores laterais ou no casco.
+  if (externalElevator?.phase === 'bottom') {
+    const platformContact = externalElevator.getPlatformContact?.(worldPosition);
+    if (platformContact?.inside && platformContact.clearance <= 0.21 &&
+        characterWorldVelocity.dot(platformContact.normal) < 0) {
+      worldPosition.copy(platformContact.surfacePoint)
+        .addScaledVector(platformContact.normal, 0.21);
+      characterWorldVelocity.set(0, 0, 0);
+      anchorCharacterToTerrestrialFrame(player, platformContact.normal);
+      characterAnimator?.play('land', { restart: true });
+      return;
+    }
+  }
+
+  // A mesma superfície ETOPO usada pelo mesh global fornece o contato.
+  // O personagem pousa sobre a normal local, inclusive em montanhas e vales.
+  const terrain = earthSystem?.getCollisionSurface?.()
+    ?.sampleWorldPosition?.(worldPosition);
+  if (terrain?.worldPosition && terrain?.worldNormal) {
+    const normal = terrain.worldNormal.clone().normalize();
+    const clearance = worldPosition.clone().sub(terrain.worldPosition).dot(normal);
+    const inwardSpeed = characterWorldVelocity.dot(normal);
+    if (clearance <= 0.21 && inwardSpeed < 0) {
+      worldPosition.copy(terrain.worldPosition).addScaledVector(normal, 0.21);
+      characterWorldVelocity.set(0, 0, 0);
+      anchorCharacterToTerrestrialFrame(player, normal);
+      characterAnimator?.play('land', { restart: true });
+    }
+  }
+}
+
 function updateCharacterMovement(dt) {
   if (!characterModel || characterCore.snapshot().mode !== 'on-foot') return;
+  if (externalElevator?.moving && externalElevatorRiding) {
+    characterAnimator?.play('idle');
+    characterAnimator?.update(dt);
+    if (characterJumpButton) characterJumpButton.disabled = true;
+    return;
+  }
+  if (characterInWorldFrame) {
+    updateCharacterWorldPhysics(dt);
+    const worldInput = characterMoveInput;
+    const worldMagnitude = Math.min(1, Math.hypot(worldInput.x, worldInput.y));
+    let worldMoving = false;
+
+    // O personagem fica no referencial terrestre enquanto caminha. O passo é
+    // tangente à superfície e usa o mesmo sampler ETOPO do contato físico.
+    if (characterWorldGrounded && worldMagnitude > 0.08) {
+      const player = characterModel.group;
+      const worldPosition = player.getWorldPosition(new THREE.Vector3());
+      const worldQuaternion = player.getWorldQuaternion(new THREE.Quaternion());
+      let up = new THREE.Vector3(0, 1, 0).applyQuaternion(worldQuaternion).normalize();
+      const currentTerrain = earthSystem?.getCollisionSurface?.()?.sampleWorldPosition?.(worldPosition);
+      if (currentTerrain?.worldNormal) up.copy(currentTerrain.worldNormal).normalize();
+
+      const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(worldQuaternion).projectOnPlane(up).normalize();
+      const right = new THREE.Vector3(1, 0, 0).applyQuaternion(worldQuaternion).projectOnPlane(up).normalize();
+      const direction = forward.multiplyScalar(-worldInput.y).addScaledVector(right, worldInput.x);
+
+      if (direction.lengthSq() > 1e-8) {
+        direction.normalize();
+        const candidate = worldPosition.clone().addScaledVector(direction, 3.1 * worldMagnitude * dt);
+        let contact = null;
+
+        if (externalElevator?.phase === 'bottom') {
+          const platformContact = externalElevator.getPlatformContact?.(candidate);
+          if (platformContact?.inside && Math.abs(platformContact.clearance) <= 0.85) {
+            contact = { worldPosition: platformContact.surfacePoint, worldNormal: platformContact.normal };
+          }
+        }
+        if (!contact) {
+          const terrain = earthSystem?.getCollisionSurface?.()?.sampleWorldPosition?.(candidate);
+          if (terrain?.worldPosition && terrain?.worldNormal) {
+            const normal = terrain.worldNormal.clone().normalize();
+            const clearance = candidate.clone().sub(terrain.worldPosition).dot(normal);
+            if (clearance >= -0.45 && clearance <= 1.25) {
+              contact = { worldPosition: terrain.worldPosition, worldNormal: normal };
+            }
+          }
+        }
+
+        if (contact) {
+          const normal = contact.worldNormal.clone().normalize();
+          const groundedPosition = contact.worldPosition.clone().addScaledVector(normal, 0.21);
+          earthReferenceFrames?.setWorldPosition(player, groundedPosition);
+          earthReferenceFrames?.alignToSurface(player, normal, forward);
+          characterWorldGrounded = true;
+          characterCore.setGrounded(true);
+        } else {
+          earthReferenceFrames?.attachToGlobal(player);
+          earthReferenceFrames?.setWorldPosition(player, candidate);
+          characterWorldGrounded = false;
+          characterWorldVelocity.set(0, 0, 0);
+          characterCore.setGrounded(false);
+        }
+        worldMoving = true;
+      }
+    }
+
+    if (!characterWorldGrounded) characterAnimator?.play('fall');
+    else if (worldMoving) characterAnimator?.play('walk');
+    else if (characterAnimator?.current !== 'land') characterAnimator?.play('idle');
+    characterAnimator?.update(dt);
+    if (characterJumpButton) characterJumpButton.disabled = true;
+    return;
+  }
   const input = characterMoveInput;
   const magnitude = Math.min(1, Math.hypot(input.x, input.y));
   const deck = characterModel.group.position;
@@ -1145,7 +1514,20 @@ function updateCharacterMovement(dt) {
     }
   }
 
-  const floorY = starshipInterior.layout.decks[activeDeckIndex].y + 0.21;
+  const leavingDeckThroughAft = activeDeckIndex === 3 &&
+    isD4BeyondExitAperture(deck);
+  if (leavingDeckThroughAft) {
+    characterPhysics?.leaveGround();
+    if (transferCharacterToWorldFrame()) {
+      updateCharacterWorldPhysics(dt);
+      characterAnimator?.play('fall', { restart: true });
+      characterAnimator?.update(dt);
+      return;
+    }
+  }
+  const floorY = leavingDeckThroughAft
+    ? -1000000
+    : starshipInterior.layout.decks[activeDeckIndex].y + 0.21;
   if (characterJumpQueued) {
     if (characterPhysics?.jump()) characterAnimator?.play('jump', { restart: true });
     characterJumpQueued = false;
@@ -1230,6 +1612,7 @@ function moveElevator(direction) {
   characterPhysics?.reset(deck.y + 0.21);
   characterCore.setGrounded(true);
   characterAnimator?.play('idle', { restart: true });
+  shipAudio.playElevator();
   // O centro do elevador fica dentro da área livre dos quatro decks.
   // Não chamar resolveCharacterShipCollisions: essa função não existe no runtime.
   nearbyElevator = true;
@@ -1238,6 +1621,143 @@ function moveElevator(direction) {
   updateCharacterHUD();
   toast('Acesso ao ' + deck.name + ' liberado.');
   return true;
+}
+
+function updateExternalElevatorAnimation(dt) {
+  if (!externalElevator?.moving) return;
+  const reached = externalElevator.update(dt);
+
+  if (externalElevatorRiding && !characterInWorldFrame && characterModel?.group) {
+    const feetY = externalElevator.group.position.y + externalElevator.platform.position.y + 0.21;
+    characterModel.group.position.set(
+      EXTERNAL_ELEVATOR_CONFIG.x,
+      feetY,
+      EXTERNAL_ELEVATOR_CONFIG.z
+    );
+    characterModel.group.rotation.y = characterYaw;
+    characterPhysics?.reset(feetY);
+  }
+
+  if (reached === 'bottom') {
+    externalElevatorRiding = false;
+    transferCharacterToWorldFrame();
+    characterWorldVelocity.set(0, 0, 0);
+    characterWorldGrounded = false;
+    characterCore.setGrounded(false);
+    characterCore.setInteractionTarget('ELEVADOR EXTERNO');
+    updateCharacterHUD();
+    toast('Você chegou ao exterior da nave.');
+  } else if (reached === 'top') {
+    externalElevatorRiding = false;
+    characterInWorldFrame = false;
+    characterWorldGrounded = false;
+    characterWorldVelocity.set(0, 0, 0);
+    const deckY = starshipInterior.layout.decks[3].y;
+    const feetY = deckY + 0.21;
+    characterModel.group.position.set(EXTERNAL_ELEVATOR_CONFIG.x, feetY, EXTERNAL_ELEVATOR_CONFIG.z);
+    characterPhysics?.reset(feetY);
+    characterCore.setGrounded(true);
+    characterAnimator?.play('idle', { restart: true });
+    characterCore.setInteractionTarget('ELEVADOR EXTERNO');
+    updateCharacterHUD();
+    toast('Retorno ao Deck 4 concluído.');
+  }
+}
+
+function activateExternalElevator() {
+  if (!externalElevatorActionAvailable || !externalElevator || externalElevator.moving) return false;
+
+  if (externalElevator.phase === 'top') {
+    if (characterInWorldFrame || activeDeckIndex !== 3) return false;
+    externalElevatorRiding = true;
+    const deckY = starshipInterior.layout.decks[3].y;
+    characterModel.group.position.set(EXTERNAL_ELEVATOR_CONFIG.x, deckY + 0.21, EXTERNAL_ELEVATOR_CONFIG.z);
+    characterPhysics?.reset(deckY + 0.21);
+    if (!externalElevator.begin('down')) {
+      externalElevatorRiding = false;
+      return false;
+    }
+    toast('Elevador externo descendo.');
+  } else if (externalElevator.phase === 'bottom') {
+    if (!characterInWorldFrame) return false;
+    // Reanexa o personagem à nave preservando a posição mundial no início da subida.
+    shipVisual.attach(characterModel.group);
+    characterInWorldFrame = false;
+    characterWorldGrounded = false;
+    characterWorldVelocity.set(0, 0, 0);
+    characterCore.setGrounded(false);
+    externalElevatorRiding = true;
+    const feetY = externalElevator.group.position.y + externalElevator.platform.position.y + 0.21;
+    characterModel.group.position.set(EXTERNAL_ELEVATOR_CONFIG.x, feetY, EXTERNAL_ELEVATOR_CONFIG.z);
+    characterPhysics?.reset(feetY);
+    if (!externalElevator.begin('up')) {
+      externalElevatorRiding = false;
+      return false;
+    }
+    toast('Elevador externo subindo.');
+  }
+  shipAudio.playElevator();
+  externalElevatorActionAvailable = false;
+  updateExternalElevatorInteraction();
+  return true;
+}
+
+function updateExternalElevatorInteraction() {
+  if (!characterModel || characterCore.snapshot().mode !== 'on-foot' || !externalElevator) return;
+  const button = $('character-action-btn');
+  if (!button) return;
+
+  if (externalElevator.moving) {
+    externalElevatorActionAvailable = false;
+    button.classList.remove('hidden');
+    button.disabled = true;
+    button.textContent = 'ELEVADOR...';
+    button.classList.add('available');
+    characterCore.setInteractionTarget('ELEVADOR EM MOVIMENTO');
+    return;
+  }
+
+  let available = false;
+  if (externalElevator.phase === 'top' && !characterInWorldFrame && activeDeckIndex === 3) {
+    const p = characterModel.group.position;
+    const dx = p.x - EXTERNAL_ELEVATOR_CONFIG.x;
+    const dz = p.z - EXTERNAL_ELEVATOR_CONFIG.z;
+    const deckY = starshipInterior.layout.decks[3].y;
+    available = dx * dx + dz * dz <= EXTERNAL_ELEVATOR_CONFIG.interactionRadius ** 2 &&
+      Math.abs(p.y - (deckY + 0.21)) <= 2.0;
+  } else if (externalElevator.phase === 'bottom' && characterInWorldFrame) {
+    characterModel.group.getWorldPosition(pilotPlayerWorldPosition);
+    const surface = externalElevator.getPlatformSurfaceWorld();
+    const offset = pilotPlayerWorldPosition.clone().sub(surface.center);
+    const normalDistance = offset.dot(surface.normal);
+    const planarDistance = offset.addScaledVector(surface.normal, -normalDistance).length();
+    available = planarDistance <= EXTERNAL_ELEVATOR_CONFIG.interactionRadius &&
+      Math.abs(normalDistance) <= 3.2;
+  }
+
+  const changed = available !== externalElevatorActionAvailable;
+  externalElevatorActionAvailable = available;
+  if (available) {
+    button.classList.remove('hidden');
+    button.disabled = false;
+    button.textContent = externalElevator.phase === 'bottom' ? 'SUBIR' : 'DESCER';
+    button.classList.add('available');
+    if (changed) {
+      characterCore.setInteractionTarget('ELEVADOR EXTERNO');
+      updateCharacterHUD();
+    }
+  } else if (changed || button.textContent === 'ELEVADOR...') {
+    button.classList.remove('available');
+    button.classList.toggle('hidden', nearbyElevator);
+    button.disabled = !pilotInteractionAvailable;
+    button.textContent = pilotInteractionAvailable ? '◎ PILOTAR' : 'AÇÃO';
+    if (nearbyElevator) {
+      characterCore.setInteractionTarget('ELEVADOR INTERNO');
+    } else {
+      characterCore.setInteractionTarget(pilotInteractionAvailable ? 'PILOTAGEM DISPONÍVEL' : null);
+    }
+    updateCharacterHUD();
+  }
 }
 
 function updatePilotInteraction() {
@@ -1297,6 +1817,7 @@ function enterPilotMode() {
 function exitPilotMode() {
   if (characterCore.snapshot().mode !== 'ship-control') return;
 
+  cancelLandingGuidance('pilot-disconnected');
   shipComputer.disconnectTerminal('pilot-console');
   characterYaw = returnCharacterToDeck(characterModel, shipVisual, scene);
   characterPitch = 0;
@@ -1324,6 +1845,7 @@ function exitPilotMode() {
 
 function updateCamera() {
   if (!camera || !ship || !shipVisual) return;
+  camera.up.set(0, 1, 0);
 
   viewEuler.set(
     state.view.x,
@@ -1370,22 +1892,152 @@ function loop(now) {
 
   const dt = Math.min((now - last) / 1000, 0.04);
   last = now;
+  earthSystem?.update(dt, camera);
+  applyEarthSurfaceRotation(dt);
+  if (ship) ship.userData.earthCollisionResolved = false;
 
   updatePhaserWeapon(dt);
   if (characterCore.snapshot().mode === 'on-foot') {
     updateCharacterMovement(dt);
     updateCharacterWeapon(dt);
+    updateExternalElevatorAnimation(dt);
     updateElevatorInteraction();
     updatePilotInteraction();
+    updateExternalElevatorInteraction();
     updateCharacterCamera();
   } else {
     updateFlight(dt);
     updateCamera();
   }
-  earthSystem?.update(dt);
+  // A Earth é proprietária da infraestrutura; a gameplay consulta a base
+  // criada pelo módulo para contatos e estado de pouso.
+  landingBaseSystem = earthSystem?.getLandingBase?.() ?? null;
+  updateShipLandingGuidance(dt);
+
+  // Mantém uma região local de maior densidade geométrica sob a nave
+  // durante a aproximação. A consulta usa o mesmo sampler do relevo global.
+  if (ship) {
+    const collisionSurface = earthSystem?.getCollisionSurface?.();
+    const landingPatch = collisionSurface?.updateHighResolutionPatch?.(ship.position);
+    if (landingPatch) {
+      // Record the center sample and probe five lower-hull points after
+      // updateFlight has applied any required terrain-clearance correction.
+      ship.userData.earthSurfaceSample =
+        collisionSurface.sampleWorldPosition?.(ship.position) ?? null;
+
+      const sampleShipContacts = () => {
+        shipVisual.updateWorldMatrix(true, true);
+        const pad = landingBaseSystem?.group;
+        if (pad) pad.updateWorldMatrix(true, false);
+        const probePoints = [...shipEarthContactPoints, ...shipLandingGearContactPoints];
+        return probePoints.map(({ id, point }) => {
+          const worldPoint = shipVisual.localToWorld(point.clone());
+          const terrain = collisionSurface.sampleWorldPosition?.(worldPoint);
+          let chosen = terrain?.worldPosition && terrain?.worldNormal
+            ? { worldPosition: terrain.worldPosition, worldNormal: terrain.worldNormal, surface: 'etopo' }
+            : null;
+
+          // A face superior da plataforma entra na mesma consulta de contato do ETOPO.
+          // Não há um segundo motor físico: escolhemos a superfície mais alta sob a sonda.
+          if (pad) {
+            const padLocal = pad.worldToLocal(worldPoint.clone());
+            const insidePad = padLocal.x * padLocal.x + padLocal.z * padLocal.z <= 146 * 146;
+            if (insidePad) {
+              const padTop = pad.localToWorld(new THREE.Vector3(padLocal.x, 0.76, padLocal.z));
+              const padUp = new THREE.Vector3(0, 1, 0).transformDirection(pad.matrixWorld).normalize();
+              const padClearance = worldPoint.clone().sub(padTop).dot(padUp);
+              const terrainClearance = chosen
+                ? worldPoint.clone().sub(chosen.worldPosition).dot(chosen.worldNormal)
+                : Infinity;
+              if (padClearance < terrainClearance) {
+                chosen = { worldPosition: padTop, worldNormal: padUp, surface: 'landing-pad' };
+              }
+            }
+          }
+
+          if (!chosen) return { id, valid: false };
+          const clearanceUnits = worldPoint.clone()
+            .sub(chosen.worldPosition)
+            .dot(chosen.worldNormal);
+          return {
+            id,
+            valid: Number.isFinite(clearanceUnits),
+            clearanceUnits,
+            worldNormal: chosen.worldNormal,
+            surface: chosen.surface,
+            penetrating: clearanceUnits < -0.05
+          };
+        });
+      };
+
+      let contacts = sampleShipContacts();
+      const worstPenetration = contacts
+        .filter(contact => contact.valid && contact.clearanceUnits < -0.05)
+        .sort((a, b) => a.clearanceUnits - b.clearanceUnits)[0];
+      if (worstPenetration) {
+        // Resolve the deepest hull contact, not just the ship's center point.
+        const correctedWorldPosition = ship.getWorldPosition(new THREE.Vector3())
+          .addScaledVector(worstPenetration.worldNormal, -worstPenetration.clearanceUnits + 0.05);
+        if (ship.parent) {
+          ship.parent.updateWorldMatrix(true, false);
+          ship.position.copy(ship.parent.worldToLocal(correctedWorldPosition));
+        } else {
+          ship.position.copy(correctedWorldPosition);
+        }
+        if (forwardVector.dot(worstPenetration.worldNormal) < 0) state.speed = 0;
+        ship.userData.earthCollisionResolved = true;
+        contacts = sampleShipContacts();
+      }
+
+      const validContacts = contacts.filter(contact =>
+        contact.valid && Number.isFinite(contact.clearanceUnits)
+      );
+      const minimumClearance = validContacts.length
+        ? Math.min(...validContacts.map(contact => contact.clearanceUnits))
+        : null;
+      const padUp = landingBaseSystem
+        ? new THREE.Vector3(0, 1, 0).transformDirection(landingBaseSystem.group.matrixWorld).normalize()
+        : ship.userData.earthSurfaceSample?.worldNormal?.clone?.().normalize() ?? null;
+      const shipUp = shipVisual.localToWorld(new THREE.Vector3(0, 1, 0))
+        .sub(shipVisual.getWorldPosition(new THREE.Vector3())).normalize();
+      const upAlignment = padUp ? THREE.MathUtils.clamp(shipUp.dot(padUp), -1, 1) : null;
+      const attitude = upAlignment === null ? 'unavailable'
+        : upAlignment >= Math.cos(THREE.MathUtils.degToRad(12)) ? 'upright'
+        : upAlignment <= -Math.cos(THREE.MathUtils.degToRad(12)) ? 'inverted'
+        : Math.abs(upAlignment) <= Math.sin(THREE.MathUtils.degToRad(12)) ? 'sideways'
+        : 'tilted';
+      const gearContacts = contacts.filter(contact =>
+        contact.id.startsWith('gear-') && contact.valid && contact.clearanceUnits <= 0.35
+      );
+      if (shipLandingGearContactPoints.length > 0 &&
+          gearContacts.length === shipLandingGearContactPoints.length &&
+          attitude === 'upright' && minimumClearance !== null &&
+          minimumClearance <= 0.35 && Math.abs(state.speed) <= 1.5) {
+        ship.userData.earthSurfaceAnchored = true;
+      }
+      ship.userData.earthLandingContacts = {
+        status: validContacts.length !== contacts.length
+          ? 'partial'
+          : minimumClearance <= 0.35 ? 'contact' : 'clear',
+        contacts,
+        minimumClearanceUnits: minimumClearance,
+        physicsApplied: Boolean(ship.userData.earthCollisionResolved),
+        landingGear: {
+          total: shipLandingGearContactPoints.length,
+          touching: gearContacts.length,
+          allTouching: gearContacts.length === shipLandingGearContactPoints.length
+        },
+        attitude,
+        landingComplete: false
+      };
+    } else {
+      delete ship.userData.earthSurfaceSample;
+      delete ship.userData.earthLandingContacts;
+    }
+  }
   orbitSystem?.update(dt);
   asteroidSystem?.update(dt);
-  lightingSystem?.update(dt);
+  lightingSystem?.update(dt, camera?.position);
 
   renderer.render(scene, camera);
 
@@ -1425,12 +2077,10 @@ function bindStick(id, key) {
 
     const nextX = x / max;
     const nextY = y / max;
-    if (key === 'move' && shipComputer.isTerminalConnected('pilot-console')) {
-      shipComputer.dispatch('pilot-console', 'flight', 'movement', { x: nextX, y: nextY });
-    } else {
-      state[key].x = nextX;
-      state[key].y = nextY;
-    }
+    // O joystick escreve diretamente no estado consumido por updateFlight.
+    // O computador da nave pode monitorar o voo, mas não pode bloquear a entrada.
+    state[key].x = nextX;
+    state[key].y = nextY;
 
     if (knob) {
       knob.style.transform = `translate(${x}px, ${y}px)`;
@@ -1456,12 +2106,8 @@ function bindStick(id, key) {
     if (pointer !== event.pointerId) return;
 
     pointer = null;
-    if (key === 'move' && shipComputer.isTerminalConnected('pilot-console')) {
-      shipComputer.dispatch('pilot-console', 'flight', 'movement', { x: 0, y: 0 });
-    } else {
-      state[key].x = 0;
-      state[key].y = 0;
-    }
+    state[key].x = 0;
+    state[key].y = 0;
 
     if (knob) knob.style.transform = 'translate(0,0)';
   };
@@ -1612,10 +2258,21 @@ if (characterAim) {
     const dy = event.clientY - characterPreviousY;
     characterPreviousX = event.clientX;
     characterPreviousY = event.clientY;
-    characterYaw -= dx * 0.005;
+    const yawDelta = -dx * 0.005;
+    characterYaw += yawDelta;
     characterPitch = THREE.MathUtils.clamp(characterPitch - dy * 0.004, -0.65, 0.65);
-    // Atualiza a orientação imediatamente, mesmo quando o personagem está parado.
-    if (characterModel?.group) characterModel.group.rotation.y = characterYaw;
+    // A guinada exterior gira ao redor da normal local, nunca do Y global.
+    if (characterModel?.group && characterInWorldFrame) {
+      const player = characterModel.group;
+      const worldPosition = player.getWorldPosition(new THREE.Vector3());
+      const earthCenter = earthSystem?.group?.getWorldPosition(new THREE.Vector3());
+      const up = characterWorldGrounded
+        ? new THREE.Vector3(0, 1, 0).applyQuaternion(player.getWorldQuaternion(new THREE.Quaternion())).normalize()
+        : earthCenter ? worldPosition.sub(earthCenter).normalize() : new THREE.Vector3(0, 1, 0);
+      earthReferenceFrames?.rotateAroundWorldAxis(player, up, yawDelta);
+    } else if (characterModel?.group) {
+      characterModel.group.rotation.y = characterYaw;
+    }
   });
   const endCharacterAim = event => {
     if (characterAimPointer === event.pointerId) characterAimPointer = null;
@@ -1625,7 +2282,10 @@ if (characterAim) {
   );
 }
 
-$('character-action-btn')?.addEventListener('click', enterPilotMode);
+$('character-action-btn')?.addEventListener('click', () => {
+  if (externalElevatorActionAvailable) activateExternalElevator();
+  else enterPilotMode();
+});
 $('elevator-up-btn')?.addEventListener('click', () => moveElevator(-1));
 $('elevator-down-btn')?.addEventListener('click', () => moveElevator(1));
 
@@ -1660,6 +2320,7 @@ const characterEquipment = createCharacterEquipmentSystem(state, {
     for (const slot of ['head', 'torso', 'hands', 'legs', 'feet', 'back', 'weapon']) {
       characterCore.setEquipment(slot, characterEquipment.equippedItem(slot)?.itemId || null);
     }
+    save();
   }
 });
 
@@ -1677,18 +2338,54 @@ function renderClothing() {
   }
 }
 
+let pendingInventoryEquipId = null;
+
 function renderInventory() {
   renderClothing();
   const grid = $('inventory-grid');
   if (!grid) return;
-  const items = Array.isArray(state.inventory?.items) ? state.inventory.items : [];
-  $('inventory-count').textContent = `${items.length} / 24`;
-  grid.innerHTML = Array.from({ length: 24 }, (_, index) => {
+  const snapshot = characterEquipment.snapshot();
+  const items = snapshot.items || [];
+  const overflowItems = snapshot.overflowItems || [];
+  const capacity = snapshot.capacity || 12;
+  const backpack = characterEquipment.equippedItem('back');
+  const usedWeight = snapshot.usedWeight || 0;
+  const maxWeight = snapshot.maxWeight ?? 60;
+
+  $('inventory-count').textContent = `${items.length} / ${capacity}`;
+  $('inventory-count').title = `Peso: ${usedWeight.toFixed(1)} / ${maxWeight} kg`;
+  if ($('inventory-backpack-name')) $('inventory-backpack-name').textContent = backpack?.name || 'SEM MOCHILA';
+  if ($('inventory-backpack-code')) $('inventory-backpack-code').textContent = backpack?.code || 'CAPACIDADE BASE';
+  if ($('inventory-backpack-capacity')) $('inventory-backpack-capacity').textContent = `${capacity} ESPAÇOS`;
+  if ($('inventory-backpack-weight')) $('inventory-backpack-weight').textContent = `${usedWeight.toFixed(1)} / ${maxWeight} KG`;
+  if ($('inventory-overflow-count')) $('inventory-overflow-count').textContent = String(overflowItems.length);
+  $('inventory-overflow-panel')?.classList.toggle('hidden', overflowItems.length === 0);
+
+  grid.innerHTML = Array.from({ length: capacity }, (_, index) => {
     const item = items[index];
-    return item
-      ? `<button class="inventory-cell inventory-item-button" type="button" data-item-instance="${item.instanceId}"><span>${item.name}</span><small>TOQUE PARA EQUIPAR</small></button>`
-      : '<div class="inventory-cell"><span>ESPAÇO LIVRE</span></div>';
+    if (!item) return '<div class="inventory-cell empty"><span>ESPAÇO LIVRE</span></div>';
+    const name = escapeHtml(item.name || item.itemId || item.definitionId);
+    const category = escapeHtml(item.category || 'ITEM').toUpperCase();
+    const quantity = item.quantity > 1 ? ` ×${item.quantity}` : '';
+    return `<button class="inventory-cell inventory-item-button" type="button" data-item-instance="${escapeHtml(item.instanceId)}">
+      <span>${name}${quantity}</span><small>${category} · TOQUE PARA EQUIPAR</small>
+    </button>`;
   }).join('');
+
+  const overflowGrid = $('inventory-overflow-grid');
+  if (overflowGrid) {
+    overflowGrid.innerHTML = overflowItems.map(item => {
+      const name = escapeHtml(item.name || item.itemId || item.definitionId);
+      const quantity = item.quantity > 1 ? ` ×${item.quantity}` : '';
+      const equipable = ['head', 'torso', 'hands', 'legs', 'feet', 'back', 'weapon'].includes(item.slot);
+      const pending = pendingInventoryEquipId === item.instanceId;
+      const action = equipable ? (pending ? 'EQUIPAR AGORA' : 'TOQUE PARA SELECIONAR') : 'TOQUE PARA RESTAURAR';
+      return `<button type="button" class="inventory-overflow-item${pending ? ' item-pending-equip' : ''}" data-overflow-instance-id="${escapeHtml(item.instanceId)}">
+        <b>${name}${quantity}</b><small>${action}</small>
+      </button>`;
+    }).join('');
+  }
+
   const equipment = state.inventory?.equipment || {};
   ['weapon', 'tool', 'machine'].forEach(slot => {
     const el = $('quick-' + slot);
@@ -1726,10 +2423,37 @@ $('inventory-grid')?.addEventListener('click', event => {
   const target = event.target.closest('[data-item-instance]');
   if (!target) return;
   const result = characterEquipment.equip(target.dataset.itemInstance);
+  pendingInventoryEquipId = null;
   if (!result.ok) toast(result.reason);
   else { save(); toast(result.item.name + ' equipado no personagem.'); }
+  renderInventory();
 });
-characterEquipment.initialize();
+$('inventory-overflow-grid')?.addEventListener('click', event => {
+  const target = event.target.closest('[data-overflow-instance-id]');
+  if (!target) return;
+  const instanceId = target.dataset.overflowInstanceId;
+  const item = characterEquipment.snapshot().overflowItems.find(entry => entry.instanceId === instanceId);
+  if (!item) return;
+  const equipable = ['head', 'torso', 'hands', 'legs', 'feet', 'back', 'weapon'].includes(item.slot);
+  if (equipable) {
+    if (pendingInventoryEquipId !== instanceId) {
+      pendingInventoryEquipId = instanceId;
+      renderInventory();
+      return;
+    }
+    const result = characterEquipment.equip(instanceId);
+    pendingInventoryEquipId = null;
+    if (!result.ok) toast(result.reason);
+    else { save(); toast(result.item.name + ' equipado no personagem.'); }
+    renderInventory();
+    return;
+  }
+  pendingInventoryEquipId = null;
+  const result = characterEquipment.moveOverflowToInventory(instanceId);
+  if (!result.ok) toast('Ainda não há espaço ou peso disponível na mochila.');
+  else { save(); toast('Item restaurado para a mochila.'); }
+  renderInventory();
+});
 save();
 renderInventory();
 $('leave-pilot-btn')?.addEventListener('click', exitPilotMode);
@@ -1803,36 +2527,35 @@ if (aimArea) {
 function holdButton(id, key) {
   const button = $(id);
   if (!button) return;
+  let activePointer = null;
+
+  const stop = event => {
+    if (activePointer !== null && event?.pointerId !== undefined &&
+        event.pointerId !== activePointer) return;
+    activePointer = null;
+    state[key] = false;
+    button.classList.remove('active');
+  };
 
   button.addEventListener('pointerdown', event => {
+    if (activePointer !== null || (event.pointerType === 'mouse' && event.button !== 0)) return;
     event.preventDefault();
-
-    const flightCommand = { throttle: 'throttle', braking: 'brake', nitroButton: 'nitro' }[key];
-    if (flightCommand && shipComputer.isTerminalConnected('pilot-console')) {
-      shipComputer.dispatch('pilot-console', 'flight', flightCommand, true);
-    } else {
-      state[key] = true;
-    }
-
+    activePointer = event.pointerId;
+    // Propulsão, freio e nitro são entradas de tempo real: não dependem
+    // da disponibilidade do computador auxiliar nem do estado do terminal.
+    state[key] = true;
+    button.classList.add('active');
     try {
       button.setPointerCapture(event.pointerId);
-    } catch (error) {
-      // O botão continua funcionando mesmo sem captura.
+    } catch {
+      // A entrada permanece ativa; pointerup/blur ainda podem encerrá-la.
     }
   });
-
-  const stop = () => {
-    const flightCommand = { throttle: 'throttle', braking: 'brake', nitroButton: 'nitro' }[key];
-    if (flightCommand && shipComputer.isTerminalConnected('pilot-console')) {
-      shipComputer.dispatch('pilot-console', 'flight', flightCommand, false);
-    } else {
-      state[key] = false;
-    }
-  };
 
   ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type => {
     button.addEventListener(type, stop);
   });
+  window.addEventListener('blur', stop);
 }
 
 holdButton('throttle-btn', 'throttle');
@@ -1851,6 +2574,135 @@ document.addEventListener('selectstart', event => {
   if (event.target.closest('#flight-controls')) {
     event.preventDefault();
   }
+});
+
+function cancelLandingGuidance(reason = 'cancelled') {
+  shipLandingAutopilot?.cancel?.();
+  shipLandingTelemetry.reset();
+  selectedLandingSiteId = null;
+  if (ship) {
+    ship.userData.landingGuidance = null;
+    delete ship.userData.landingTelemetry;
+    delete ship.userData.landingGearMetricDiagnostics;
+    ship.userData.landingAutopilotState = reason;
+  }
+  const button = $('landing-btn');
+  if (button) button.textContent = '◉ POUSAR';
+}
+
+$('landing-btn')?.addEventListener('click', () => {
+  if (!active || characterCore.snapshot().mode !== 'ship-control') return;
+
+  if (shipLandingAutopilot?.snapshot?.().active) {
+    cancelLandingGuidance('standby');
+    shipAudio.playConsole();
+    if ($('landing-status')) $('landing-status').textContent = 'Orientação cancelada. Selecione novamente POUSAR para escolher um destino.';
+    toast('Guia de pouso cancelada.');
+    return;
+  }
+
+  if (selectedLandingSiteId && shipLandingAutopilot) {
+    const site = getLandingSite(selectedLandingSiteId);
+    if (!site || !shipLandingAutopilot.arm(site)) {
+      toast('Não foi possível ativar a orientação de pouso.');
+      return;
+    }
+    shipLandingTelemetry.reset();
+    ship.userData.landingAutopilotState = 'armed-guidance-only';
+    shipAudio.playLandingAlert();
+    $('landing-status').textContent = 'Telemetria conectada. A orientação calcula a aproximação, mas não comanda a propulsão nesta versão.';
+    $('landing-btn').textContent = '✕ CANCELAR';
+    toast('Guia de pouso ativada. Propulsão automática permanece bloqueada.');
+    return;
+  }
+
+  $('landing-modal')?.classList.remove('hidden');
+  $('landing-modal')?.setAttribute('aria-hidden', 'false');
+});
+
+function updateShipLandingGuidance(dt) {
+  if (!ship || !shipVisual || !shipLandingAutopilot?.snapshot?.().active) return;
+  const platform = landingBaseSystem?.platform;
+  if (!platform || !shipFlightKernel) {
+    ship.userData.landingGuidance = null;
+    ship.userData.landingAutopilotState = 'waiting-for-landing-platform';
+    return;
+  }
+
+  // A inversão da matriz da plataforma desfaz também a escala métrica
+  // herdada pela raiz da base: o resultado já está em metros.
+  shipVisual.updateWorldMatrix(true, true);
+  platform.updateWorldMatrix(true, true);
+  const shipOriginWorld = shipVisual.getWorldPosition(new THREE.Vector3());
+  const shipOriginPlatformLocal = platform.worldToLocal(shipOriginWorld.clone());
+  const platformWorldQuaternion = platform.getWorldQuaternion(new THREE.Quaternion());
+  const shipWorldQuaternion = shipVisual.getWorldQuaternion(new THREE.Quaternion());
+  const shipRotationRelativeToPlatform = platformWorldQuaternion
+    .invert().multiply(shipWorldQuaternion).normalize();
+
+  const telemetry = shipLandingTelemetry.sample({
+    shipOriginPlatformLocalMeters: shipOriginPlatformLocal.toArray(),
+    shipRotationRelativeToPlatform: [
+      shipRotationRelativeToPlatform.x, shipRotationRelativeToPlatform.y,
+      shipRotationRelativeToPlatform.z, shipRotationRelativeToPlatform.w
+    ],
+    contactPoints: shipLandingGearContactPoints.map(({ id, point }) => ({
+      id, point: point.toArray()
+    })),
+    dt: Math.max(dt, 1 / 240)
+  });
+  if (!telemetry) {
+    ship.userData.landingGuidance = null;
+    ship.userData.landingAutopilotState = 'invalid-metric-telemetry';
+    return;
+  }
+
+  const guidance = shipLandingAutopilot.update(telemetry);
+  ship.userData.landingTelemetry = telemetry;
+  ship.userData.landingGearMetricDiagnostics = {
+    contactPoints: telemetry.contactPointsMeters,
+    allGearInsideDeck: telemetry.allGearInsideDeck,
+    minimumGearClearanceMeters: telemetry.minimumGearClearanceMeters,
+    maximumGearClearanceMeters: telemetry.maximumGearClearanceMeters,
+    modelMetersPerUnit: telemetry.modelMetersPerUnit,
+    coordinateFrame: telemetry.coordinateFrame
+  };
+  ship.userData.landingGuidance = guidance;
+  ship.userData.landingAutopilotState = guidance ? 'guidance-only' : 'guidance-unavailable';
+  if (guidance) {
+    guidance.backend = shipFlightKernel.backend;
+    guidance.actuationEnabled = false;
+    guidance.coordinateFrame = telemetry.coordinateFrame;
+    guidance.gearClearanceMeters = telemetry.minimumGearClearanceMeters;
+    guidance.allGearInsideDeck = telemetry.allGearInsideDeck;
+    guidance.scaleValidation = telemetry.scaleValidation;
+  }
+}
+
+function closeLandingPanel() {
+  $('landing-modal')?.classList.add('hidden');
+  $('landing-modal')?.setAttribute('aria-hidden', 'true');
+}
+
+$('landing-close-btn')?.addEventListener('click', closeLandingPanel);
+
+$('landing-select-btn')?.addEventListener('click', () => {
+  const site = getLandingSite('earth-salar-test-candidate');
+  if (!site || !ship) {
+    toast('O destino de pouso ainda não está disponível.');
+    return;
+  }
+  selectedLandingSiteId = site.id;
+  shipLandingAutopilot?.cancel?.();
+  shipLandingTelemetry.reset();
+  ship.userData.landingSiteId = site.id;
+  ship.userData.landingAutopilotState = 'target-selected';
+  const button = $('landing-btn');
+  if (button) button.textContent = '◎ ATIVAR GUIA DE POUSO';
+  const status = $('landing-status');
+  if (status) status.textContent = 'Destino marcado: Salar de Uyuni · UY04. Ative a guia quando estiver pronto. A orientação calcula a aproximação, mas ainda não comanda a propulsão.';
+  closeLandingPanel();
+  toast('Destino UY04 marcado. Telemetria pronta para conexão.');
 });
 
 /* CÂMERAS */
@@ -1897,6 +2749,7 @@ $('mine-btn')?.addEventListener('click', () => {
 
   save();
   updateWallet();
+  shipAudio.playMining();
 
   toast(`Extração concluída: +${amount} unidades de minério.`);
 });
@@ -1921,6 +2774,7 @@ $('interact-btn')?.addEventListener('click', () => {
     return;
   }
 
+  shipAudio.playConsole();
   const bubble = $('npc-bubble');
 
   if (!npcReady) {
