@@ -1983,7 +1983,7 @@ function loop(now) {
   }
   orbitSystem?.update(dt);
   asteroidSystem?.update(dt);
-  lightingSystem?.update(dt);
+  lightingSystem?.update(dt, camera?.position);
 
   renderer.render(scene, camera);
 
