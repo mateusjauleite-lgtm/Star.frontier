@@ -1057,6 +1057,7 @@ function updateFlight(dt) {
     moveX: state.move.x,
     moveY: state.move.y,
     speed: state.speed,
+    nacellesLit: engineLights.some(light => light.visible && light.intensity > 2),
     dt: safeDt
   });
 
