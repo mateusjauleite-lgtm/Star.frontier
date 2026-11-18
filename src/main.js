@@ -1,20 +1,191 @@
 import * as THREE from 'three';
-import { createEarth } from './world/earth.js';
+import { createEarthReferenceFrames } from './world/earth/earthReferenceFrames.js';
+import { createEarthCore } from './world/earth/earthCore.js';
 import { createStation } from './world/station.js';
+import { getLandingSite } from './ships/flight/landingSites.js';
+import { createShipLandingAutopilot, createShipLandingMetricTelemetryAdapter, SHIP_MODEL_METERS_PER_UNIT } from './ships/flight/landingAutopilot.js';
+import { loadShipFlightKernel } from './ships/flight/shipFlightKernel.js';
 import { createOrbitSystem } from './world/orbits.js';
 import { createAsteroidField } from './world/asteroids.js';
 import { createSpaceLighting } from './world/lighting.js';
-import { state } from './core/state.js';
+import { createStarshipInterior } from './ships/interior.js';
+import { createExternalElevator, EXTERNAL_ELEVATOR_CONFIG } from './ships/externalElevator.js';
+import { createExplorationShip } from './ships/exploration.js';
+import { state, resetTransientState } from './core/state.js';
+import { createCharacterCore } from './character/characterCore.js';
+import { createCharacterHUD } from './character/characterHUD.js';
+import { createCharacterModel } from './character/characterModel.js';
+import { createCharacterAnimator } from './character/characterAnimator.js';
+import { createCharacterAudio } from './character/characterAudio.js';
+import { createShipAudio } from './ships/shipAudio.js';
+import { createCharacterWeaponController } from './character/characterWeaponController.js';
+import { createCharacterPhysics } from './character/characterPhysics.js';
+import { loadGravityKernel } from './physics/gravityKernel.js';
+import { createCharacterEquipmentSystem } from './inventory/characterEquipment.js';
+import { isPilotConsoleInRange, attachCharacterToPilotConsole, returnCharacterToDeck } from './ships/bridge/commandBridge.js';
 import { saveState as save, loadState as load } from './core/storage.js';
+import { createShipComputer } from './ships/computer/shipComputer.js';
+import { registerShipComputerSystems } from './ships/computer/shipComputerSystems.js';
 
 const $ = id => document.getElementById(id);
+const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+
+const characterCore = createCharacterCore();
+const characterAudio = createCharacterAudio({ core: characterCore });
+characterAudio.attach();
+const shipAudio = createShipAudio();
+const shipComputer = createShipComputer();
+shipComputer.registerSystem('flight', {
+  name: 'Controle de voo',
+  commands: {
+    throttle: value => { state.throttle = Boolean(value); return state.throttle; },
+    brake: value => { state.braking = Boolean(value); return state.braking; },
+    nitro: value => { state.nitroButton = Boolean(value); return state.nitroButton; },
+    movement: value => {
+      if (!value || !Number.isFinite(value.x) || !Number.isFinite(value.y)) return false;
+      state.move.x = THREE.MathUtils.clamp(value.x, -1, 1);
+      state.move.y = THREE.MathUtils.clamp(value.y, -1, 1);
+      return true;
+    },
+    look: value => {
+      if (!value || !Number.isFinite(value.x) || !Number.isFinite(value.y)) return false;
+      state.view.x = THREE.MathUtils.clamp(value.x, -1.15, 1.15);
+      state.view.y = THREE.MathUtils.euclideanModulo(value.y + Math.PI, Math.PI * 2) - Math.PI;
+      return true;
+    }
+  },
+  getStatus: () => characterCore.snapshot().mode === 'ship-control' ? 'active' : 'standby'
+});
+shipComputer.registerTerminal({
+  id: 'pilot-console',
+  name: 'Console de pilotagem',
+  systems: ['flight', 'navigation', 'sensors', 'power']
+});
+const characterHUD = createCharacterHUD(document);
+let characterCameraMode = 'third-person';
+let characterModel = null;
+let characterAnimator = null;
+let characterWeaponController = null;
+let characterPhysics = null;
+let characterYaw = 0;
+let characterPitch = 0;
+const characterForward = new THREE.Vector3();
+const characterRight = new THREE.Vector3();
+const characterMove = new THREE.Vector3();
+const characterLookEuler = new THREE.Euler(0, 0, 0, 'YXZ');
+let characterMoveInput = { x: 0, y: 0 };
+let characterFootstepTimer = 0;
+let characterSprintHeld = false;
+let characterAnimationTestRemaining = 0;
+let characterAnimationTestIndex = -1;
+const characterAnimationTestPoses = ['walk', 'run', 'jump', 'fall', 'land', 'sit', 'stand', 'idle'];
+let characterJumpQueued = false;
+let characterStaminaAccumulator = 0;
+let characterStaminaHudTimer = 0;
+let phaserChargeRemaining = 0;
+let phaserShotFlashRemaining = 0;
+const PHASER_RECHARGE_SECONDS = 2.5;
+const PHASER_FLASH_SECONDS = 0.16;
+let pilotInteractionAvailable = false;
+const pilotPlayerWorldPosition = new THREE.Vector3();
+const characterCameraWorldPosition = new THREE.Vector3();
+const characterCameraWorldQuaternion = new THREE.Quaternion();
+const characterCameraForward = new THREE.Vector3();
+const characterCameraOffset = new THREE.Vector3();
+
+function isPhaserEquipped() {
+  return Boolean(characterEquipment?.equippedItem('weapon'));
+}
+
+function updatePhaserWeapon(dt) {
+  const button = $('character-phaser-btn');
+  const fill = $('phaser-charge-fill');
+  if (phaserChargeRemaining > 0) phaserChargeRemaining = Math.max(0, phaserChargeRemaining - dt);
+  if (phaserShotFlashRemaining > 0) {
+    phaserShotFlashRemaining = Math.max(0, phaserShotFlashRemaining - dt);
+    const phaser = characterModel?.wardrobe?.weapon?.userData?.phaser;
+    if (phaser) {
+      phaser.position.z = THREE.MathUtils.lerp(-0.105, -0.145, phaserShotFlashRemaining / PHASER_FLASH_SECONDS);
+      if (phaser.userData.muzzleLight) phaser.userData.muzzleLight.intensity = 4.5 * (phaserShotFlashRemaining / PHASER_FLASH_SECONDS);
+      if (phaser.userData.beam) phaser.userData.beam.visible = phaserShotFlashRemaining > 0;
+    }
+  } else {
+    const phaser = characterModel?.wardrobe?.weapon?.userData?.phaser;
+    if (phaser) {
+      phaser.position.z = -0.105;
+      if (phaser.userData.muzzleLight) phaser.userData.muzzleLight.intensity = 0;
+      if (phaser.userData.beam) phaser.userData.beam.visible = false;
+    }
+  }
+  const equipped = isPhaserEquipped();
+  if (button) {
+    button.disabled = !equipped;
+    button.classList.toggle('is-ready', equipped && phaserChargeRemaining <= 0);
+    button.classList.toggle('is-charging', equipped && phaserChargeRemaining > 0);
+    const label = button.querySelector('small');
+    if (label) {
+      const nextLabel = !equipped
+        ? 'SEM ARMA'
+        : phaserChargeRemaining > 0
+          ? 'RECARGA ' + phaserChargeRemaining.toFixed(1) + 's'
+          : 'PRONTO';
+      if (label.textContent !== nextLabel) label.textContent = nextLabel;
+    }
+  }
+  if (fill) fill.style.width = equipped
+    ? (100 * (1 - phaserChargeRemaining / PHASER_RECHARGE_SECONDS)) + '%'
+    : '0%';
+}
+
+function firePhaser() {
+  if (!isPhaserEquipped()) {
+    toast('Equipe o Phaser pelo inventário primeiro.');
+    return;
+  }
+  if (phaserChargeRemaining > 0) {
+    const label = $('character-phaser-btn')?.querySelector('small');
+    if (label) label.textContent = 'RECARGA ' + phaserChargeRemaining.toFixed(1) + 's';
+    return;
+  }
+  if (characterCore.snapshot().mode !== 'on-foot') {
+    toast('O Phaser só pode ser usado a pé nesta versão.');
+    return;
+  }
+  phaserChargeRemaining = PHASER_RECHARGE_SECONDS;
+  phaserShotFlashRemaining = PHASER_FLASH_SECONDS;
+  characterWeaponController?.fire();
+  characterAudio.playPhaser();
+  const phaser = characterModel?.wardrobe?.weapon?.userData?.phaser;
+  if (phaser?.userData.muzzleLight) phaser.userData.muzzleLight.intensity = 4.5;
+  toast('Phaser disparado · recarga energética iniciada.');
+}
+
+function updateCharacterCameraButton() {
+  const button = $('character-camera-btn');
+  if (!button) return;
+  button.textContent = characterCameraMode === 'first-person'
+    ? 'CÂMERA: 1ª PESSOA'
+    : 'CÂMERA: 3ª PESSOA';
+}
+
+function updateCharacterHUD() {
+  const planetaryProfile = earthSystem?.getPlanetaryProfile?.();
+  characterHUD.update({
+    ...characterCore.snapshot(),
+    name: state.user || state.character || 'EXPLORADOR',
+    environment: planetaryProfile ? {
+      label: `${planetaryProfile.displayName} • R MÉDIO ${Math.round(planetaryProfile.physical.meanRadiusKm).toLocaleString('pt-BR')} KM`
+    } : null
+  });
+}
 
 load();
+state.ship = 'Nave exploradora';
 
 /* UTILITÁRIOS */
 
 function show(id) {
-  ['login-screen', 'menu-screen', 'game-screen'].forEach(name => {
+  ['startup-screen', 'login-screen', 'menu-screen', 'game-screen'].forEach(name => {
     $(name)?.classList.add('hidden');
   });
 
@@ -43,6 +214,10 @@ function updateWallet() {
 }
 
 /* LOGIN E PERFIL */
+
+$('startup-play-btn')?.addEventListener('click', () => {
+  show('login-screen');
+});
 
 $('login-btn')?.addEventListener('click', () => {
   const name = $('login-name')?.value.trim();
@@ -161,7 +336,7 @@ function renderPanel(key) {
   if (key === 'ships') {
     add(`
       <div class="option-card">
-        <b>Aurora-7</b>
+        <b>Nave exploradora — quatro decks</b>
         <small>Nave exploradora: equilíbrio entre velocidade e capacidade de carga.</small>
       </div>
       <div class="option-card">
@@ -301,14 +476,73 @@ let renderer;
 let ship;
 let stars;
 let earthSystem;
+let earthReferenceFrames = null;
+let lastEarthSurfaceRotationY = null;
 let stationSystem;
+let landingBaseSystem;
+let selectedLandingSiteId = null;
+let shipFlightKernel = null;
+let gravityKernel = null;
+let characterInWorldFrame = false;
+const characterWorldVelocity = new THREE.Vector3();
+let characterWorldGrounded = false;
+let shipLandingAutopilot = null;
+const shipLandingTelemetry = createShipLandingMetricTelemetryAdapter({
+  modelMetersPerUnit: SHIP_MODEL_METERS_PER_UNIT,
+  deckHeightMeters: 0.76,
+  deckRadiusMeters: 146
+});
 let orbitSystem;
 let asteroidSystem;
 let lightingSystem;
+let starshipInterior;
+let externalElevator = null;
+let externalElevatorRiding = false;
+let externalElevatorActionAvailable = false;
+let nearbyElevator = false;
+let activeDeckIndex = 0;
+let shipYaw;
+let shipPitch;
+let shipVisual;
+let shipLandingGear;
+let shipLandingGearContactPoints = [];
+
+// Estruturas externas da popa que invadem visualmente o espaço útil do Deck 4.
+// São ocultadas somente enquanto o personagem está no D4 e restauradas nos demais decks.
+const deck4ClearanceNames = new Set([
+  'Engineering-Secondary-Hull',
+  'Integrated-Aft-Engineering-Pod',
+  'Aft-Hangar-Nacelle-Junction',
+  'Central-Hangar-Upper-Lip',
+  'Central-Hangar-Lower-Lip'
+]);
+
+function updateDeck4Clearance() {
+  if (!shipVisual) return;
+  const deck4Active = activeDeckIndex === 3;
+  shipVisual.traverse(object => {
+    if (deck4ClearanceNames.has(object.name)) {
+      object.visible = !deck4Active;
+    }
+  });
+}
+
+const flightQuaternion = new THREE.Quaternion();
+let pitchAngle = 0;
 
 let asteroids = [];
 let engineFlames = [];
 let engineLights = [];
+
+// Pontos de referência na concha inferior do casco. Servem primeiro para
+// medir folga/contato com o relevo; não aplicam forças nem alteram a trajetória.
+const shipEarthContactPoints = [
+  { id: 'keel', point: new THREE.Vector3(0, -15.2, 0) },
+  { id: 'fore-port', point: new THREE.Vector3(-12, -11.89, -22) },
+  { id: 'fore-starboard', point: new THREE.Vector3(12, -11.89, -22) },
+  { id: 'aft-port', point: new THREE.Vector3(-12, -11.89, 22) },
+  { id: 'aft-starboard', point: new THREE.Vector3(12, -11.89, 22) }
+];
 
 let last = performance.now();
 let active = false;
@@ -325,6 +559,19 @@ const cameraViewQuaternion = new THREE.Quaternion();
 const forwardVector = new THREE.Vector3();
 
 let launching = false;
+let shipComputerSystemsRegistered = false;
+
+function registerComputerSubsystems() {
+  if (shipComputerSystemsRegistered) return;
+  registerShipComputerSystems(shipComputer, {
+    state,
+    getShip: () => ship,
+    getShipYaw: () => shipYaw?.rotation.y ?? 0,
+    getPitchAngle: () => pitchAngle,
+    getAsteroids: () => asteroids
+  });
+  shipComputerSystemsRegistered = true;
+}
 
 function loadingStep(percent, message) {
   const fill = $('loading-progress-fill');
@@ -340,36 +587,209 @@ function loadingStep(percent, message) {
   });
 }
 
+
+
+/* INICIALIZAÇÃO DO APLICATIVO: carregamento -> JOGAR -> LOGIN -> MENU */
+async function bootApplication() {
+  const loadingScreen = $('loading-screen');
+
+  // Reaproveita a mesma tela visual usada ao iniciar a missão após DECOLAR.
+  // Nesta etapa, o aplicativo prepara a interface e o menu; a cena 3D continua
+  // sendo inicializada no fluxo de DECOLAR, como já acontece atualmente.
+  show('game-screen');
+  loadingScreen?.classList.remove('hidden');
+
+  const stages = [
+    [8, 'Inicializando Star.frontier...'],
+    [28, 'Carregando os sistemas do jogo...'],
+    [54, 'Preparando a interface do piloto...'],
+    [78, 'Carregando o menu principal...'],
+    [100, 'Inicialização concluída.']
+  ];
+
+  for (const [percent, message] of stages) {
+    await loadingStep(percent, message);
+    await new Promise(resolve => setTimeout(resolve, 180));
+  }
+
+  loadingScreen?.classList.add('hidden');
+  show('startup-screen');
+}
+
 async function startGame() {
   if (launching) return;
 
   launching = true;
   active = false;
-  show('game-screen');
 
+  const gameScreen = $('game-screen');
   const loadingScreen = $('loading-screen');
+  let startupStage = 'preparação do personagem';
+
+  // O menu é HTML/CSS; a cena e a gameplay são renderizadas pelo Three.js.
+  // Mostra a tela antes de pedir fullscreen, pois elementos ocultos não
+  // podem entrar em fullscreen em vários navegadores/WebViews.
+  show('game-screen');
   loadingScreen?.classList.remove('hidden');
 
   try {
+    // O primeiro toque do jogador libera o AudioContext no Android/WebView.
+    void characterAudio.unlock();
+    void shipAudio.unlock();
+
+    // O fullscreen precisa abranger o documento inteiro, não apenas a gameplay.
+    // Assim, ao voltar ao menu principal, os botões continuam dentro da área
+    // fullscreen e não ficam atrás de um elemento fullscreen oculto.
+    const fullscreenRoot = document.documentElement;
+    const requestFullscreen = fullscreenRoot?.requestFullscreen || fullscreenRoot?.webkitRequestFullscreen;
+    if (requestFullscreen && !document.fullscreenElement && !document.webkitFullscreenElement) {
+      try {
+        const result = requestFullscreen.call(fullscreenRoot, { navigationUI: 'hide' });
+        result?.catch?.(() => {});
+      } catch (error) {
+        console.info('Fullscreen do navegador indisponível; mantendo a janela nativa do APK.', error);
+      }
+    }
+
+    try {
+      window.screen?.orientation?.lock?.('landscape')?.catch?.(() => {});
+    } catch {}
+
+    resetTransientState();
+    characterCore.initialize();
+    characterCore.setStamina(100);
+    characterStaminaAccumulator = 0;
+    characterStaminaHudTimer = 0;
+    characterCore.setMode('on-foot');
+    updateCharacterHUD();
+
+    startupStage = 'inicialização do mundo Three.js';
     await loadingStep(6, 'Iniciando sistemas da missão...');
 
     if (!renderer) {
       await init3D();
     }
+    if (characterInWorldFrame && characterModel?.group && shipVisual) {
+      scene.remove(characterModel.group);
+      shipVisual.add(characterModel.group);
+      characterModel.group.position.set(0, 8.91, -18);
+      characterModel.group.rotation.set(0, characterYaw, 0);
+      characterInWorldFrame = false;
+      characterWorldGrounded = false;
+      characterWorldVelocity.set(0, 0, 0);
+      characterPhysics?.reset(characterModel.group.position.y);
+      characterCore.setGrounded(true);
+    }
 
+    startupStage = 'integração do personagem e HUD';
+    updateCharacterHUD();
+
+    // O computador da nave é um subsistema. Uma falha nele não deve cancelar
+    // a entrada na gameplay nem desativar os controles básicos do personagem.
+    startupStage = 'registro do computador da nave';
+    if (!shipComputerSystemsRegistered) {
+      try {
+        registerComputerSubsystems();
+        shipComputerSystemsRegistered = true;
+      } catch (error) {
+        // Pode ter havido registro parcial; não repetir os mesmos IDs na próxima
+        // tentativa. Os controles Three.js continuam usando o estado principal.
+        shipComputerSystemsRegistered = true;
+        console.error('Subsistemas auxiliares do computador indisponíveis:', error);
+        toast('Computador auxiliar indisponível; controles básicos mantidos.');
+      }
+    }
+
+    try {
+      shipComputer.boot();
+    } catch (error) {
+      console.error('Não foi possível ativar o computador auxiliar:', error);
+      toast('Computador auxiliar offline; gameplay mantida.');
+    }
+
+    startupStage = 'finalização da gameplay';
     await loadingStep(100, 'Todos os sistemas prontos. Boa viagem, piloto.');
     await new Promise(resolve => setTimeout(resolve, 350));
 
     loadingScreen?.classList.add('hidden');
+
+    // O HUD usa medidas do DOM. Só aplicar posições salvas depois que a tela
+    // do jogo estiver visível e o WebView concluir o layout em dois frames.
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    applyCharacterHudLayout(readCharacterHudLayout());
+
     active = true;
     last = performance.now();
 
     updateWallet();
     toast('Setor Orion: aproxime-se dos asteroides para minerar.');
   } catch (error) {
-    console.error('Falha ao iniciar Star Frontier:', error);
+    console.error(`Falha ao iniciar Star Frontier na etapa: ${startupStage}`, error);
+
+    active = false;
+    loadingScreen?.classList.add('hidden');
+
+    if (scene) {
+      scene.traverse(object => {
+        if (!object.isMesh && !object.isLine && !object.isPoints) return;
+        object.geometry?.dispose?.();
+        const materials = Array.isArray(object.material)
+          ? object.material
+          : object.material ? [object.material] : [];
+        materials.forEach(material => material?.dispose?.());
+      });
+    }
+
+    if (renderer) {
+      renderer.dispose();
+      renderer.forceContextLoss?.();
+      renderer.domElement?.remove();
+    }
+
+    try {
+      shipComputer.shutdown();
+    } catch (shutdownError) {
+      console.warn('Não foi possível desligar o computador auxiliar:', shutdownError);
+    }
+
+    renderer = null;
+    scene = null;
+    camera = null;
+    ship = null;
+    shipYaw = null;
+    shipPitch = null;
+    shipVisual = null;
+    shipLandingGear = null;
+    shipLandingGearContactPoints = [];
+    stars = null;
+    earthSystem = null;
+    earthReferenceFrames = null;
+    stationSystem = null;
+    landingBaseSystem = null;
+    selectedLandingSiteId = null;
+    shipLandingAutopilot?.cancel?.();
+    shipLandingAutopilot = null;
+    lastEarthSurfaceRotationY = null;
+    shipFlightKernel?.dispose?.();
+    shipFlightKernel = null;
+    shipLandingTelemetry.reset();
+    orbitSystem = null;
+    asteroidSystem = null;
+    lightingSystem = null;
+    starshipInterior = null;
+    characterModel = null;
+    characterAnimator = null;
+    characterPhysics = null;
+    asteroids = [];
+    engineFlames = [];
+    engineLights = [];
+    nearbyElevator = false;
+    activeDeckIndex = 0;
+    npcReady = false;
+
     show('menu-screen');
-    alert('Não foi possível carregar o jogo. Tente decolar novamente.');
+    const detail = error?.message ? ` Detalhe: ${error.message}` : '';
+    alert(`Não foi possível carregar a gameplay Three.js. Etapa: ${startupStage}.${detail} Você pode tentar novamente.`);
   } finally {
     launching = false;
   }
@@ -388,17 +808,18 @@ function addShipBox(parent, geometry, material, position, rotation = { x: 0, y: 
 async function init3D() {
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x020817);
-  scene.fog = new THREE.FogExp2(0x020817, 0.0011);
+  scene.fog = new THREE.FogExp2(0x020817, 0.00055);
 
   // Terra em posição distante, visível à frente da nave.
-  earthSystem = createEarth({ radius: 78, position: [0, 0, -240] });
+  earthSystem = createEarthCore({ radius: 600, position: [0, 0, -850] });
   scene.add(earthSystem.group);
+  earthReferenceFrames = createEarthReferenceFrames({ globalFrame: scene, terrestrialFrame: earthSystem.getSurfaceFrame() });
 
   camera = new THREE.PerspectiveCamera(
     70,
     innerWidth / innerHeight,
     0.1,
-    2500
+    20000
   );
 
   renderer = new THREE.WebGLRenderer({
@@ -423,260 +844,31 @@ async function init3D() {
   lightingSystem = createSpaceLighting(scene);
   stars = lightingSystem.stars;
 
-  await loadingStep(42, 'Montando a nave Aurora-7...');
+  await loadingStep(42, 'Montando a nave exploradora de quatro decks...');
 
-  /* AURORA-7 */
+  /* NAVE PRINCIPAL — CASCO, NACELLES E ESTRUTURA DE VOO */
 
-  ship = new THREE.Group();
+  const explorationShip = createExplorationShip();
+  ship = explorationShip.group;
+  shipYaw = explorationShip.yaw;
+  shipPitch = explorationShip.pitch;
+  shipVisual = explorationShip.visual;
+  shipLandingGear = explorationShip.landingGear;
+  shipLandingGearContactPoints = explorationShip.landingGearContactPoints;
+  shipFlightKernel = await loadShipFlightKernel();
+  gravityKernel = await loadGravityKernel();
+  shipLandingAutopilot = createShipLandingAutopilot(shipFlightKernel);
+  shipLandingTelemetry.reset();
+  updateDeck4Clearance();
+  engineFlames = explorationShip.engineFlames;
+  engineLights = explorationShip.engineLights;
   scene.add(ship);
-
-  const hullMat = new THREE.MeshStandardMaterial({
-    color: 0xaec5d8,
-    metalness: 0.78,
-    roughness: 0.27
-  });
-
-  const darkMat = new THREE.MeshStandardMaterial({
-    color: 0x263e55,
-    metalness: 0.8,
-    roughness: 0.3
-  });
-
-  const blueMat = new THREE.MeshStandardMaterial({
-    color: 0x357cae,
-    metalness: 0.65,
-    roughness: 0.25
-  });
-
-  const glassMat = new THREE.MeshStandardMaterial({
-    color: 0x43baff,
-    metalness: 0.5,
-    roughness: 0.12,
-    emissive: 0x07518b,
-    emissiveIntensity: 0.65
-  });
-
-  const goldMat = new THREE.MeshStandardMaterial({
-    color: 0xc18b42,
-    metalness: 0.75,
-    roughness: 0.3
-  });
-
-  const engineMat = new THREE.MeshBasicMaterial({
-    color: 0x29cfff
-  });
-
-  /* CASCO */
-
-  const core = new THREE.Mesh(
-    new THREE.CapsuleGeometry(0.9, 3.5, 6, 12),
-    hullMat
-  );
-
-  core.rotation.x = Math.PI / 2;
-  ship.add(core);
-
-  const nose = new THREE.Mesh(
-    new THREE.ConeGeometry(0.9, 2.5, 10),
-    blueMat
-  );
-
-  nose.rotation.x = -Math.PI / 2;
-  nose.position.z = -3;
-  ship.add(nose);
-
-  addShipBox(
-    ship,
-    new THREE.BoxGeometry(0.9, 0.16, 0.75),
-    glassMat,
-    { x: 0, y: 0.65, z: -1.65 }
-  );
-
-  const cockpit = new THREE.Mesh(
-    new THREE.SphereGeometry(0.72, 20, 12),
-    glassMat
-  );
-
-  cockpit.scale.set(1.05, 0.48, 1.3);
-  cockpit.position.set(0, 0.78, -0.85);
-  ship.add(cockpit);
-
-  addShipBox(
-    ship,
-    new THREE.BoxGeometry(1.2, 0.2, 2.1),
-    darkMat,
-    { x: 0, y: 1.02, z: 0.65 }
-  );
-
-  addShipBox(
-    ship,
-    new THREE.BoxGeometry(1.1, 0.3, 2.3),
-    blueMat,
-    { x: 0, y: -0.72, z: 0.7 }
-  );
-
-  /* ASAS E NACELLES */
-
-  for (const side of [-1, 1]) {
-    const wing = new THREE.Mesh(
-      new THREE.BoxGeometry(2.5, 0.18, 2.3),
-      hullMat
-    );
-
-    wing.position.set(side * 1.75, -0.08, 0.05);
-    wing.rotation.y = side * 0.12;
-    ship.add(wing);
-
-    const wingTip = new THREE.Mesh(
-      new THREE.BoxGeometry(0.38, 0.24, 1.6),
-      blueMat
-    );
-
-    wingTip.position.set(side * 2.85, -0.02, 0.15);
-    ship.add(wingTip);
-
-    const pylon = new THREE.Mesh(
-      new THREE.BoxGeometry(0.3, 0.45, 1.5),
-      darkMat
-    );
-
-    pylon.position.set(side * 1.45, 0.05, 0.55);
-    ship.add(pylon);
-
-    const nacelle = new THREE.Group();
-    nacelle.position.set(side * 2.45, 0.12, 0.75);
-    ship.add(nacelle);
-
-    const nacBody = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.34, 0.43, 3.4, 16),
-      darkMat
-    );
-
-    nacBody.rotation.x = Math.PI / 2;
-    nacelle.add(nacBody);
-
-    const nacTop = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.38, 0.38, 0.18, 16),
-      goldMat
-    );
-
-    nacTop.rotation.x = Math.PI / 2;
-    nacTop.position.z = -1.55;
-    nacelle.add(nacTop);
-
-    const engineRing = new THREE.Mesh(
-      new THREE.TorusGeometry(0.34, 0.09, 8, 20),
-      blueMat
-    );
-
-    engineRing.position.z = 1.72;
-    nacelle.add(engineRing);
-
-    const engineCore = new THREE.Mesh(
-      new THREE.SphereGeometry(0.27, 16, 12),
-      engineMat
-    );
-
-    engineCore.position.z = 1.77;
-    engineCore.scale.z = 0.55;
-    nacelle.add(engineCore);
-
-    const flameMaterial = new THREE.MeshBasicMaterial({
-      color: 0x29cfff,
-      transparent: true,
-      opacity: 0.4
-    });
-
-    const flame = new THREE.Mesh(
-      new THREE.ConeGeometry(0.28, 1.5, 12),
-      flameMaterial
-    );
-
-    flame.rotation.x = Math.PI / 2;
-    flame.position.z = 2.45;
-    nacelle.add(flame);
-    engineFlames.push(flame);
-
-    const engineLight = new THREE.PointLight(0x21bfff, 1.5, 15);
-    engineLight.position.set(0, 0, 2.1);
-    nacelle.add(engineLight);
-    engineLights.push(engineLight);
-  }
-
-  /* DETALHES */
-
-  for (const side of [-1, 1]) {
-    for (let i = 0; i < 3; i++) {
-      const windowMesh = new THREE.Mesh(
-        new THREE.BoxGeometry(0.13, 0.09, 0.3),
-        glassMat
-      );
-
-      windowMesh.position.set(side * 0.62, 0.63, -0.3 + i * 0.55);
-      ship.add(windowMesh);
-    }
-
-    const sidePanel = new THREE.Mesh(
-      new THREE.BoxGeometry(0.13, 0.4, 1.4),
-      blueMat
-    );
-
-    sidePanel.position.set(side * 0.92, -0.05, 0.8);
-    ship.add(sidePanel);
-  }
-
-  /* CARGA */
-
-  const cargoBay = new THREE.Mesh(
-    new THREE.BoxGeometry(1.25, 0.55, 1.45),
-    darkMat
-  );
-
-  cargoBay.position.set(0, -0.55, 1.5);
-  ship.add(cargoBay);
-
-  const hangarDoor = new THREE.Mesh(
-    new THREE.BoxGeometry(0.9, 0.08, 0.9),
-    goldMat
-  );
-
-  hangarDoor.position.set(0, -0.86, 1.5);
-  ship.add(hangarDoor);
-
-  /* LUZES DE POSIÇÃO */
-
-  for (const side of [-1, 1]) {
-    const navLight = new THREE.Mesh(
-      new THREE.SphereGeometry(0.13, 10, 8),
-      new THREE.MeshBasicMaterial({
-        color: side === -1 ? 0xff4545 : 0x35ff9a
-      })
-    );
-
-    navLight.position.set(side * 2.8, 0.2, -0.6);
-    ship.add(navLight);
-  }
-
-  /* ESCUDO */
-
-  const shieldMesh = new THREE.Mesh(
-    new THREE.SphereGeometry(4.5, 32, 20),
-    new THREE.MeshBasicMaterial({
-      color: 0x168bff,
-      wireframe: true,
-      transparent: true,
-      opacity: 0.055
-    })
-  );
-
-  shieldMesh.scale.set(1.05, 0.62, 1.45);
-  ship.add(shieldMesh);
 
   await loadingStep(70, 'Carregando campo de asteroides...');
 
   /* CAMPO DE ASTEROIDES */
 
-  asteroidSystem = createAsteroidField(scene, { count: 32 });
+  asteroidSystem = createAsteroidField(scene, { count: 24, center: [310, 0, -300], spread: [190, 100, 160] });
   asteroids = asteroidSystem.asteroids;
 
   await loadingStep(84, 'Carregando estação orbital e observatório...');
@@ -685,6 +877,32 @@ async function init3D() {
 
   stationSystem = createStation({ position: [24, 3, -65] });
   scene.add(stationSystem.group);
+
+  await loadingStep(90, 'Integrando os quatro decks ao casco da nave...');
+  starshipInterior = createStarshipInterior({ position: [0, 0, 0] });
+  shipVisual.add(starshipInterior.group);
+  externalElevator = createExternalElevator({ deckY: starshipInterior.layout.decks[3].y });
+  shipVisual.add(externalElevator.group);
+  activeDeckIndex = 0;
+  nearbyElevator = false;
+
+  // Spawn inicial no Deck 1 — ponte de comando, dentro do casco.
+  characterModel = createCharacterModel({ clothingColor: 0x526879 });
+  characterEquipment.initialize();
+  // O personagem pertence ao referencial da nave: acompanha translação e rotação
+  // sem ficar para trás no espaço quando a Aurora-7 se movimenta.
+  characterModel.group.position.set(0, 8.91, -18);
+  characterModel.group.rotation.y = characterYaw;
+  shipVisual.add(characterModel.group);
+  characterAnimator = createCharacterAnimator(characterModel);
+  characterWeaponController = createCharacterWeaponController(characterModel);
+  characterPhysics = createCharacterPhysics({ gravityKernel });
+  characterInWorldFrame = false;
+  characterWorldGrounded = false;
+  characterWorldVelocity.set(0, 0, 0);
+  characterPhysics.reset(characterModel.group.position.y);
+  characterCore.setGrounded(true);
+  characterAnimator.play('idle');
 
   const npc = new THREE.Mesh(
     new THREE.SphereGeometry(1.3, 16, 12),
@@ -697,7 +915,7 @@ async function init3D() {
   npc.position.set(24, 3, -77);
   scene.add(npc);
 
-  orbitSystem = createOrbitSystem({ center: [0, 0, -240], radius: 177 });
+  orbitSystem = createOrbitSystem({ center: [0, 0, -850], radius: 960 });
   scene.add(orbitSystem.group);
 
   await loadingStep(96, 'Finalizando cenário e sistemas de voo...');
@@ -715,40 +933,96 @@ function resize3D() {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
+  scheduleCharacterHudLayout();
 }
 
 /* MOVIMENTO */
 
+function applyEarthSurfaceRotation(deltaSeconds) {
+  const rotationState = earthSystem?.getSurfaceRotationState?.();
+  if (!rotationState || !Number.isFinite(rotationState.rotationY)) {
+    lastEarthSurfaceRotationY = null;
+    return;
+  }
+
+  const currentRotation = rotationState.rotationY;
+  if (lastEarthSurfaceRotationY === null) {
+    lastEarthSurfaceRotationY = currentRotation;
+    return;
+  }
+
+  const deltaRotation = THREE.MathUtils.euclideanModulo(
+    currentRotation - lastEarthSurfaceRotationY + Math.PI,
+    Math.PI * 2
+  ) - Math.PI;
+  lastEarthSurfaceRotationY = currentRotation;
+  if (Math.abs(deltaRotation) < 1e-9) return;
+
+  const earthCenter = earthSystem.group.getWorldPosition(new THREE.Vector3());
+  const earthWorldQuaternion = earthSystem.group.getWorldQuaternion(new THREE.Quaternion());
+  const axis = rotationState.localAxis.clone().applyQuaternion(earthWorldQuaternion).normalize();
+  const rotation = new THREE.Quaternion().setFromAxisAngle(axis, deltaRotation);
+
+  const rotateObjectInWorld = object => {
+    if (!object?.parent) return;
+    object.updateWorldMatrix(true, false);
+    const worldPosition = object.getWorldPosition(new THREE.Vector3());
+    const worldQuaternion = object.getWorldQuaternion(new THREE.Quaternion());
+    worldPosition.sub(earthCenter).applyQuaternion(rotation).add(earthCenter);
+    worldQuaternion.premultiply(rotation);
+
+    object.parent.updateWorldMatrix(true, false);
+    object.position.copy(object.parent.worldToLocal(worldPosition));
+    const parentQuaternion = object.parent.getWorldQuaternion(new THREE.Quaternion());
+    object.quaternion.copy(parentQuaternion.invert().multiply(worldQuaternion));
+  };
+
+  if (ship?.userData?.earthSurfaceAnchored) rotateObjectInWorld(ship);
+}
+
 function updateFlight(dt) {
-  if (!ship) return;
+  if (!ship || !shipYaw || !shipPitch || !shipVisual) return;
 
+  // Protege a simulação contra saltos de tempo quando o Android pausa ou atrasa um frame.
+  const safeDt = THREE.MathUtils.clamp(Number.isFinite(dt) ? dt : 0, 0, 0.04);
   const sensitivity = Number(state.settings.sensitivity) || 1;
+  const manualOverride = Math.abs(state.move.x) > 0.015 || Math.abs(state.move.y) > 0.015 ||
+    state.throttle || state.braking || state.nitroButton;
+  if (manualOverride && ship.userData.earthSurfaceAnchored) {
+    ship.userData.earthSurfaceAnchored = false;
+  }
+  if (manualOverride && shipLandingAutopilot?.snapshot?.().active) {
+    cancelLandingGuidance('manual-override');
+    if ($('landing-status')) $('landing-status').textContent = 'Comando manual assumido. A orientação foi cancelada e o botão POUSAR foi restaurado.';
+    toast('Orientação automática cancelada: controle manual assumido.');
+  }
 
-  ship.rotation.y -= state.move.x * 1.25 * dt * sensitivity;
+  // Guinada sempre no eixo vertical global; arfagem sempre no eixo lateral local.
+  // No joystick: puxar para cima (Y negativo) sobe; puxar para baixo (Y positivo) desce.
+  shipYaw.rotation.y -= state.move.x * 1.25 * safeDt * sensitivity;
 
-  // Mantém o eixo vertical no sentido intuitivo e impede capotamento acumulado.
-  // No joystick, y negativo = puxar para cima; y positivo = puxar para baixo.
-  const pitchInput = state.move.y * 1.0 * dt * sensitivity;
+  const pitchInput = state.move.y * safeDt * sensitivity;
   const maxPitch = THREE.MathUtils.degToRad(65);
-  ship.rotation.x = THREE.MathUtils.clamp(
-    ship.rotation.x - pitchInput,
+  pitchAngle = THREE.MathUtils.clamp(
+    pitchAngle - pitchInput,
     -maxPitch,
     maxPitch
   );
+  shipPitch.rotation.x = pitchAngle;
 
+  // A inclinação visual é isolada da orientação usada para navegar.
   const targetRoll = -state.move.x * 0.25;
-
-  ship.rotation.z = THREE.MathUtils.lerp(
-    ship.rotation.z,
+  shipVisual.rotation.z = THREE.MathUtils.lerp(
+    shipVisual.rotation.z,
     targetRoll,
-    Math.min(1, dt * 3)
+    Math.min(1, safeDt * 3)
   );
 
   /* ACELERAÇÃO */
 
   if (state.throttle && state.fuel > 0) {
-    state.speed = Math.min(75, state.speed + 18 * dt);
-    state.fuel = Math.max(0, state.fuel - 0.28 * dt);
+    state.speed = Math.min(75, state.speed + 18 * safeDt);
+    state.fuel = Math.max(0, state.fuel - 0.28 * safeDt);
   }
 
   /* NITRO */
@@ -759,33 +1033,45 @@ function updateFlight(dt) {
     state.fuel > 0;
 
   if (boosting) {
-    state.speed = Math.min(115, state.speed + 55 * dt);
-    state.nitro = Math.max(0, state.nitro - 28 * dt);
-    state.fuel = Math.max(0, state.fuel - 0.55 * dt);
+    state.speed = Math.min(115, state.speed + 55 * safeDt);
+    state.nitro = Math.max(0, state.nitro - 28 * safeDt);
+    state.fuel = Math.max(0, state.fuel - 0.55 * safeDt);
   } else {
-    state.nitro = Math.min(100, state.nitro + 12 * dt);
+    state.nitro = Math.min(100, state.nitro + 12 * safeDt);
   }
 
   /* FREIO */
 
   if (state.braking) {
-    state.speed = Math.max(0, state.speed - 30 * dt);
+    state.speed = Math.max(0, state.speed - 30 * safeDt);
   }
 
   if (!state.throttle && !boosting) {
-    state.speed = Math.max(0, state.speed - 1.4 * dt);
+    state.speed = Math.max(0, state.speed - 1.4 * safeDt);
   }
+
+  shipAudio.updateFlight({
+    throttle: Boolean(state.throttle && state.fuel > 0),
+    boosting,
+    braking: Boolean(state.braking),
+    moveX: state.move.x,
+    moveY: state.move.y,
+    speed: state.speed,
+    nacellesLit: engineLights.some(light => light.visible && light.intensity > 2),
+    dt: safeDt
+  });
 
   /* DESLOCAMENTO */
 
+  shipPitch.getWorldQuaternion(flightQuaternion);
   forwardVector
     .set(0, 0, -1)
-    .applyQuaternion(ship.quaternion)
+    .applyQuaternion(flightQuaternion)
     .normalize();
 
-  ship.position.addScaledVector(forwardVector, state.speed * dt * 0.45);
+  ship.position.addScaledVector(forwardVector, state.speed * safeDt * 0.45);
 
-  // Colisão da plataforma e do observatório para a Aurora-7.
+  // Colisão da plataforma e do observatório para a nave exploradora.
   // A abertura e a escadaria continuam livres para o personagem,
   // mas são tratadas como piso sólido para a nave.
   const stationCenter = new THREE.Vector3(24, 3, -65);
@@ -826,6 +1112,37 @@ function updateFlight(dt) {
     state.speed = Math.min(state.speed, 8);
   }
 
+  // Primeira resposta física da nave ao relevo real da Earth.
+  // A consulta usa a mesma superfície ETOPO que alimenta o mesh visível.
+  ship.userData.earthCollisionResolved = false;
+  const earthCollisionSurface = earthSystem?.getCollisionSurface?.();
+  ship.updateWorldMatrix(true, false);
+  const shipWorldPosition = ship.getWorldPosition(new THREE.Vector3());
+  const terrainContact = earthCollisionSurface?.sampleWorldPosition?.(shipWorldPosition);
+  if (terrainContact?.worldPosition && terrainContact?.worldNormal) {
+    const signedClearance = shipWorldPosition.clone()
+      .sub(terrainContact.worldPosition)
+      .dot(terrainContact.worldNormal);
+    const minimumHullClearance = 18;
+    if (Number.isFinite(signedClearance) && signedClearance < minimumHullClearance) {
+      const correctedWorldPosition = shipWorldPosition.addScaledVector(
+        terrainContact.worldNormal,
+        minimumHullClearance - signedClearance
+      );
+      if (ship.parent) {
+        ship.parent.updateWorldMatrix(true, false);
+        ship.position.copy(ship.parent.worldToLocal(correctedWorldPosition));
+      } else {
+        ship.position.copy(correctedWorldPosition);
+      }
+      // Cancela apenas a aproximação contra a superfície; o piloto pode
+      // voltar a acelerar para se afastar e decolar.
+      if (forwardVector.dot(terrainContact.worldNormal) < 0) state.speed = 0;
+      ship.userData.earthCollisionResolved = true;
+      ship.userData.earthCollisionClearanceUnits = minimumHullClearance;
+    }
+  }
+  
   /* EFEITOS DAS NACELLES */
 
   const enginePower = boosting ? 2.5 : (state.throttle ? 1.25 : 0.65);
@@ -867,10 +1184,696 @@ function updateFlight(dt) {
   $('nitro-btn')?.classList.toggle('active', boosting);
 }
 
+/* CÂMERA DO PERSONAGEM — sempre dentro da nave */
+
+function updateCharacterCamera() {
+  if (!camera || !characterModel) return;
+  const player = characterModel.group;
+  player.getWorldPosition(characterCameraWorldPosition);
+  player.getWorldQuaternion(characterCameraWorldQuaternion);
+  characterCameraForward.set(0, 0, -1).applyQuaternion(characterCameraWorldQuaternion).normalize();
+
+  // A câmera exterior usa o eixo local do terreno; a câmera interna usa o convés.
+  const cameraUp = characterInWorldFrame
+    ? new THREE.Vector3(0, 1, 0).applyQuaternion(characterCameraWorldQuaternion).normalize()
+    : new THREE.Vector3(0, 1, 0);
+  if (characterInWorldFrame && !characterWorldGrounded) {
+    const earthCenter = earthSystem?.group?.getWorldPosition(new THREE.Vector3());
+    if (earthCenter) cameraUp.copy(characterCameraWorldPosition).sub(earthCenter).normalize();
+  }
+  camera.up.copy(cameraUp);
+  const target = characterCameraWorldPosition.clone().addScaledVector(cameraUp, 1.25);
+
+  if (characterCameraMode === 'first-person') {
+    characterCameraOffset.copy(cameraUp).multiplyScalar(1.62);
+    camera.position.copy(characterCameraWorldPosition).add(characterCameraOffset);
+    characterLookEuler.set(characterPitch, 0, 0, 'YXZ');
+    camera.quaternion.copy(characterCameraWorldQuaternion).multiply(
+      new THREE.Quaternion().setFromEuler(characterLookEuler)
+    );
+  } else {
+    characterCameraOffset.set(0, 2.35, 5.2).applyQuaternion(characterCameraWorldQuaternion);
+    const desired = characterCameraWorldPosition.clone().add(characterCameraOffset);
+    camera.position.lerp(desired, 0.22);
+    const lookTarget = target.addScaledVector(characterCameraForward, 1.4);
+    lookTarget.addScaledVector(cameraUp, Math.sin(characterPitch) * 4.2);
+    camera.lookAt(lookTarget);
+  }
+}
+
+function isD4ExitAperture(position) {
+  const radius = 8;
+  const aftEdgeZ = 5.5 + 110 * 0.5;
+  return position.z >= aftEdgeZ &&
+    position.x * position.x + (position.z - aftEdgeZ) ** 2 <= radius ** 2;
+}
+
+function isD4BeyondExitAperture(position) {
+  const radius = 8;
+  const aftEdgeZ = 5.5 + 110 * 0.5;
+  const absX = Math.abs(position.x);
+  if (absX > radius) return false;
+  const outerZ = aftEdgeZ + Math.sqrt(Math.max(0, radius ** 2 - position.x ** 2));
+  return position.z > outerZ;
+}
+
+function isCharacterInsideDeck(position, deckIndex) {
+  const deck = starshipInterior?.layout?.decks?.[deckIndex];
+  if (!deck) return false;
+
+  // Medidas dos pisos elípticos (largura, comprimento e centro longitudinal).
+  const footprints = {
+    D1: [50, 82, -2],
+    D2: [50, 94, -2],
+    D3: [53, 102, -2],
+    D4: [48, 110, 5.5]
+  };
+  const footprint = footprints[deck.id];
+  if (!footprint) return false;
+
+  // Reserva uma margem para o raio do personagem nas bordas do convés.
+  const [width, length, centerZ = -2] = footprint;
+  const playerRadius = 0.62;
+  const radiusX = width * 0.5 - playerRadius;
+  const radiusZ = length * 0.5 - playerRadius;
+  const normalizedX = position.x / radiusX;
+  const normalizedZ = (position.z - centerZ) / radiusZ;
+  const insideDeckEllipse =
+    normalizedX * normalizedX + normalizedZ * normalizedZ <= 1;
+
+  if (deck.id !== 'D4') return insideDeckEllipse;
+
+  // A meia-lua fica exclusivamente para fora da extremidade traseira do D4.
+  // Depois de atravessar sua borda externa, o personagem está fora do piso
+  // e pode continuar para fora da nave, entrando em queda livre.
+  return insideDeckEllipse || isD4ExitAperture(position) ||
+    isD4BeyondExitAperture(position);
+}
+
+function isCharacterPositionBlocked(position, deckIndex) {
+  const deck = starshipInterior?.layout?.decks?.[deckIndex];
+  if (!deck || !isCharacterInsideDeck(position, deckIndex)) return true;
+
+  // D1 e a abertura traseira do D4 não bloqueiam a passagem do personagem.
+  if (deck.id === 'D1' || (deck.id === 'D4' &&
+      (isD4ExitAperture(position) || isD4BeyondExitAperture(position)))) return false;
+  if (deck.id === 'D4' && position.z >= 27 && Math.abs(position.x) <= 10.4) return false;
+
+  const playerRadius = 0.48;
+  const feetY = deck.y + 0.21;
+  for (const wall of starshipInterior.collisionBoxes || []) {
+    if (feetY + 1.8 < wall.y - wall.halfY || feetY > wall.y + wall.halfY) continue;
+
+    const nearestX = THREE.MathUtils.clamp(position.x, wall.x - wall.halfX, wall.x + wall.halfX);
+    const nearestZ = THREE.MathUtils.clamp(position.z, wall.z - wall.halfZ, wall.z + wall.halfZ);
+    const dx = position.x - nearestX;
+    const dz = position.z - nearestZ;
+
+    if (Math.abs(dx) < playerRadius && Math.abs(dz) < playerRadius) return true;
+  }
+  return false;
+}
+
+function transferCharacterToWorldFrame() {
+  if (!characterModel?.group || !shipVisual || !scene || characterInWorldFrame) return false;
+  const player = characterModel.group;
+  if (earthReferenceFrames) earthReferenceFrames.attachToGlobal(player);
+  else scene.attach(player);
+  characterWorldVelocity.set(0, 0, 0);
+  characterInWorldFrame = true;
+  characterWorldGrounded = false;
+  characterCore.setGrounded(false);
+  return true;
+}
+
+function anchorCharacterToTerrestrialFrame(player, worldNormal) {
+  if (!player || !worldNormal?.isVector3) return false;
+  const worldQuaternion = player.getWorldQuaternion(new THREE.Quaternion());
+  const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(worldQuaternion);
+  if (earthReferenceFrames) {
+    earthReferenceFrames.alignToSurface(player, worldNormal, forward);
+    earthReferenceFrames.attachToSurface(player);
+  } else {
+    player.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), worldNormal);
+  }
+  characterWorldGrounded = true;
+  characterWorldVelocity.set(0, 0, 0);
+  characterCore.setGrounded(true);
+  return true;
+}
+
+function updateCharacterWorldPhysics(deltaSeconds) {
+  if (!characterInWorldFrame || !characterModel?.group || characterWorldGrounded) return;
+  const dt = THREE.MathUtils.clamp(Number.isFinite(deltaSeconds) ? deltaSeconds : 0, 0, 0.05);
+  const player = characterModel.group;
+  const worldPosition = player.position;
+  const earthCenter = earthSystem?.group?.getWorldPosition(new THREE.Vector3());
+  const profile = earthSystem?.getPlanetaryProfile?.();
+  const radius = profile?.render?.visualRadiusUnits ?? 600;
+  const surfaceGravity = profile?.physical?.standardGravityMps2 ?? 9.80665;
+  const mu = surfaceGravity * radius * radius;
+
+  if (earthCenter && gravityKernel) {
+    const acceleration = gravityKernel.acceleration({
+      position: [worldPosition.x, worldPosition.y, worldPosition.z],
+      bodies: [{
+        position: [earthCenter.x, earthCenter.y, earthCenter.z],
+        mu
+      }]
+    });
+    if (acceleration) {
+      const nextVelocity = gravityKernel.integrateVelocity(
+        [characterWorldVelocity.x, characterWorldVelocity.y, characterWorldVelocity.z],
+        acceleration,
+        dt,
+        180
+      );
+      if (nextVelocity) characterWorldVelocity.set(...nextVelocity);
+    }
+  }
+
+  worldPosition.addScaledVector(characterWorldVelocity, dt);
+
+  // O piso do elevador externo tem contato próprio, restrito à sua face
+  // superior e somente quando a plataforma está parada no nível terrestre.
+  // Isso impede atravessamento sem adicionar colisores laterais ou no casco.
+  if (externalElevator?.phase === 'bottom') {
+    const platformContact = externalElevator.getPlatformContact?.(worldPosition);
+    if (platformContact?.inside && platformContact.clearance <= 0.21 &&
+        characterWorldVelocity.dot(platformContact.normal) < 0) {
+      worldPosition.copy(platformContact.surfacePoint)
+        .addScaledVector(platformContact.normal, 0.21);
+      characterWorldVelocity.set(0, 0, 0);
+      anchorCharacterToTerrestrialFrame(player, platformContact.normal);
+      characterAnimator?.play('land', { restart: true });
+      return;
+    }
+  }
+
+  // A mesma superfície ETOPO usada pelo mesh global fornece o contato.
+  // O personagem pousa sobre a normal local, inclusive em montanhas e vales.
+  const terrain = earthSystem?.getCollisionSurface?.()
+    ?.sampleWorldPosition?.(worldPosition);
+  if (terrain?.worldPosition && terrain?.worldNormal) {
+    const normal = terrain.worldNormal.clone().normalize();
+    const clearance = worldPosition.clone().sub(terrain.worldPosition).dot(normal);
+    const inwardSpeed = characterWorldVelocity.dot(normal);
+    if (clearance <= 0.21 && inwardSpeed < 0) {
+      worldPosition.copy(terrain.worldPosition).addScaledVector(normal, 0.21);
+      characterWorldVelocity.set(0, 0, 0);
+      anchorCharacterToTerrestrialFrame(player, normal);
+      characterAnimator?.play('land', { restart: true });
+    }
+  }
+}
+
+function updateCharacterMovement(dt) {
+  if (!characterModel || characterCore.snapshot().mode !== 'on-foot') return;
+  if (externalElevator?.moving && externalElevatorRiding) {
+    characterAnimator?.play('idle');
+    characterAnimator?.update(dt);
+    if (characterJumpButton) characterJumpButton.disabled = true;
+    return;
+  }
+  if (characterInWorldFrame) {
+    updateCharacterWorldPhysics(dt);
+    const worldInput = characterMoveInput;
+    const worldMagnitude = Math.min(1, Math.hypot(worldInput.x, worldInput.y));
+    let worldMoving = false;
+
+    // O personagem fica no referencial terrestre enquanto caminha. O passo é
+    // tangente à superfície e usa o mesmo sampler ETOPO do contato físico.
+    if (characterWorldGrounded && worldMagnitude > 0.08) {
+      const player = characterModel.group;
+      const worldPosition = player.getWorldPosition(new THREE.Vector3());
+      const worldQuaternion = player.getWorldQuaternion(new THREE.Quaternion());
+      let up = new THREE.Vector3(0, 1, 0).applyQuaternion(worldQuaternion).normalize();
+      const currentTerrain = earthSystem?.getCollisionSurface?.()?.sampleWorldPosition?.(worldPosition);
+      if (currentTerrain?.worldNormal) up.copy(currentTerrain.worldNormal).normalize();
+
+      const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(worldQuaternion).projectOnPlane(up).normalize();
+      const right = new THREE.Vector3(1, 0, 0).applyQuaternion(worldQuaternion).projectOnPlane(up).normalize();
+      const direction = forward.multiplyScalar(-worldInput.y).addScaledVector(right, worldInput.x);
+
+      if (direction.lengthSq() > 1e-8) {
+        direction.normalize();
+        const candidate = worldPosition.clone().addScaledVector(direction, 3.1 * worldMagnitude * dt);
+        let contact = null;
+
+        if (externalElevator?.phase === 'bottom') {
+          const platformContact = externalElevator.getPlatformContact?.(candidate);
+          if (platformContact?.inside && Math.abs(platformContact.clearance) <= 0.85) {
+            contact = { worldPosition: platformContact.surfacePoint, worldNormal: platformContact.normal };
+          }
+        }
+        if (!contact) {
+          const terrain = earthSystem?.getCollisionSurface?.()?.sampleWorldPosition?.(candidate);
+          if (terrain?.worldPosition && terrain?.worldNormal) {
+            const normal = terrain.worldNormal.clone().normalize();
+            const clearance = candidate.clone().sub(terrain.worldPosition).dot(normal);
+            if (clearance >= -0.45 && clearance <= 1.25) {
+              contact = { worldPosition: terrain.worldPosition, worldNormal: normal };
+            }
+          }
+        }
+
+        if (contact) {
+          const normal = contact.worldNormal.clone().normalize();
+          const groundedPosition = contact.worldPosition.clone().addScaledVector(normal, 0.21);
+          earthReferenceFrames?.setWorldPosition(player, groundedPosition);
+          earthReferenceFrames?.alignToSurface(player, normal, forward);
+          characterWorldGrounded = true;
+          characterCore.setGrounded(true);
+        } else {
+          earthReferenceFrames?.attachToGlobal(player);
+          earthReferenceFrames?.setWorldPosition(player, candidate);
+          characterWorldGrounded = false;
+          characterWorldVelocity.set(0, 0, 0);
+          characterCore.setGrounded(false);
+        }
+        worldMoving = true;
+      }
+    }
+
+    if (worldMoving && characterWorldGrounded) {
+      characterFootstepTimer += dt;
+      if (characterFootstepTimer >= 0.43) {
+        characterFootstepTimer = 0;
+        characterAudio.playFootstep();
+      }
+    } else if (!characterWorldGrounded) {
+      characterFootstepTimer = 0;
+    }
+    if (!characterWorldGrounded) characterAnimator?.play('fall');
+    else if (worldMoving) characterAnimator?.play('walk');
+    else if (characterAnimator?.current !== 'land') characterAnimator?.play('idle');
+    characterAnimator?.update(dt);
+    if (characterJumpButton) characterJumpButton.disabled = true;
+    return;
+  }
+  const input = characterMoveInput;
+  const magnitude = Math.min(1, Math.hypot(input.x, input.y));
+  const deck = characterModel.group.position;
+  let movedHorizontally = false;
+  const stamina = characterCore.snapshot().stamina;
+  const sprinting = characterSprintHeld && magnitude > 0.08 && stamina > 0;
+  if (sprinting) characterStaminaAccumulator -= 22 * dt;
+  else if (stamina < 100) characterStaminaAccumulator += 13 * dt;
+
+  // Publica energia e atualiza o HUD em intervalos curtos, não a cada frame.
+  // Isso evita disparar eventos globais dezenas de vezes por segundo.
+  characterStaminaHudTimer += dt;
+  if (characterStaminaHudTimer >= 0.1) {
+    const staminaNow = THREE.MathUtils.clamp(
+      stamina + characterStaminaAccumulator, 0, 100
+    );
+    if (Math.abs(staminaNow - stamina) >= 0.05) characterCore.setStamina(staminaNow);
+    characterStaminaAccumulator = 0;
+    characterStaminaHudTimer = 0;
+    const displayedStamina = characterCore.snapshot().stamina;
+    if (displayedStamina <= 0 && characterSprintHeld) stopCharacterSprint();
+    const staminaFill = $('character-stamina');
+    const staminaLabel = $('character-stamina-value');
+    if (staminaFill) staminaFill.style.width = displayedStamina + '%';
+    if (staminaLabel) staminaLabel.textContent = Math.round(displayedStamina) + '%';
+  }
+
+  if (magnitude > 0.08) {
+    // Movimento horizontal no referencial local da nave; a física vertical
+    // é independente da translação/rotação do casco.
+    const yaw = characterModel.group.rotation.y;
+    characterForward.set(0, 0, -1).applyAxisAngle(THREE.Object3D.DEFAULT_UP, yaw);
+    characterRight.set(1, 0, 0).applyAxisAngle(THREE.Object3D.DEFAULT_UP, yaw);
+    characterMove.copy(characterForward).multiplyScalar(-input.y)
+      .addScaledVector(characterRight, input.x);
+
+    if (characterMove.lengthSq() > 0) characterMove.normalize();
+
+    const step = (sprinting ? 5.0 : 3.1) * magnitude * dt;
+    const previousX = deck.x;
+    const previousZ = deck.z;
+
+    // Colisão por eixo preserva o deslizamento junto às paredes.
+    deck.x = previousX + characterMove.x * step;
+    if (isCharacterPositionBlocked(deck, activeDeckIndex) ||
+        !isCharacterInsideDeck(deck, activeDeckIndex)) {
+      deck.x = previousX;
+    }
+
+    deck.z = previousZ + characterMove.z * step;
+    if (isCharacterPositionBlocked(deck, activeDeckIndex) ||
+        !isCharacterInsideDeck(deck, activeDeckIndex)) {
+      deck.z = previousZ;
+    }
+    movedHorizontally = Math.hypot(deck.x - previousX, deck.z - previousZ) > 0.0005;
+  }
+
+  const leavingDeckThroughAft = activeDeckIndex === 3 &&
+    isD4BeyondExitAperture(deck);
+  if (leavingDeckThroughAft) {
+    characterPhysics?.leaveGround();
+    if (transferCharacterToWorldFrame()) {
+      updateCharacterWorldPhysics(dt);
+      characterAnimator?.play('fall', { restart: true });
+      characterAnimator?.update(dt);
+      return;
+    }
+  }
+  const floorY = leavingDeckThroughAft
+    ? -1000000
+    : starshipInterior.layout.decks[activeDeckIndex].y + 0.21;
+  if (characterJumpQueued) {
+    if (characterPhysics?.jump()) {
+      characterAnimator?.play('jump', { restart: true });
+      characterAudio.playJump();
+    }
+    characterJumpQueued = false;
+  }
+
+  const physicsState = characterPhysics?.update(dt, {
+    position: deck,
+    floorY
+  });
+
+  if (magnitude > 0.08 && movedHorizontally && physicsState?.grounded) {
+    characterFootstepTimer += dt;
+    const stepInterval = sprinting ? 0.29 : 0.43;
+    if (characterFootstepTimer >= stepInterval) {
+      characterFootstepTimer = 0;
+      characterAudio.playFootstep();
+    }
+  } else {
+    characterFootstepTimer = 0;
+  }
+
+  if (physicsState && characterCore.snapshot().grounded !== physicsState.grounded) {
+    characterCore.setGrounded(physicsState.grounded);
+  }
+
+  if (characterAnimationTestRemaining > 0) {
+    characterAnimationTestRemaining = Math.max(0, characterAnimationTestRemaining - dt);
+  }
+  if (characterAnimationTestRemaining > 0) {
+    // Mantém a pose de teste sem alterar a física nem o deslocamento do personagem.
+  } else if (!physicsState?.grounded) {
+    characterAnimator?.play(physicsState.velocityY > 0 ? 'jump' : 'fall');
+  } else if (physicsState.justLanded) {
+    characterAnimator?.play('land', { restart: true });
+  } else if (magnitude > 0.08) {
+    characterAnimator?.play(sprinting ? 'run' : 'walk');
+  } else if (characterAnimator?.current !== 'land') {
+    characterAnimator?.play('idle');
+  }
+
+  characterAnimator?.update(dt);
+  const animationButton = $('character-animation-btn');
+  if (animationButton) {
+    animationButton.classList.toggle('is-active', characterAnimationTestRemaining > 0);
+    if (characterAnimationTestRemaining <= 0) animationButton.querySelector('small').textContent = 'ANIMAÇÃO';
+  }
+  if (characterJumpButton) characterJumpButton.disabled = !characterPhysics?.grounded;
+  if (characterSprintButton) characterSprintButton.disabled = characterCore.snapshot().stamina <= 0;
+}
+
+function updateElevatorButtons() {
+  const up = $('elevator-up-btn');
+  const down = $('elevator-down-btn');
+  const action = $('character-action-btn');
+  if (!up || !down || !action) return;
+
+  up.classList.toggle('hidden', !nearbyElevator || activeDeckIndex === 0);
+  down.classList.toggle('hidden', !nearbyElevator || activeDeckIndex === 3);
+  up.disabled = !nearbyElevator || activeDeckIndex === 0;
+  down.disabled = !nearbyElevator || activeDeckIndex === 3;
+  action.classList.toggle('hidden', nearbyElevator);
+}
+
+function updateElevatorInteraction() {
+  if (!characterModel || characterCore.snapshot().mode !== 'on-foot') return;
+  const p = characterModel.group.position;
+  const inLift = Math.abs(p.x) <= 2.9 && p.z >= 22.1 && p.z <= 27.9;
+  const changed = inLift !== nearbyElevator;
+  nearbyElevator = inLift;
+  if (changed) {
+    if (inLift) {
+      characterCore.setInteractionTarget('ELEVADOR INTERNO');
+      updateCharacterHUD();
+    } else {
+      pilotInteractionAvailable = false;
+      characterCore.setInteractionTarget(null);
+      updateCharacterHUD();
+      updatePilotInteraction();
+    }
+    updateElevatorButtons();
+  }
+}
+
+function moveElevator(direction) {
+  if (!nearbyElevator || !characterModel || characterCore.snapshot().mode !== 'on-foot') return false;
+  const nextIndex = activeDeckIndex + direction;
+  if (nextIndex < 0 || nextIndex > 3) return false;
+
+  activeDeckIndex = nextIndex;
+  updateDeck4Clearance();
+  const deck = starshipInterior.layout.decks[activeDeckIndex];
+  characterModel.group.position.set(0, deck.y + 0.21, 25);
+  characterPhysics?.reset(deck.y + 0.21);
+  characterCore.setGrounded(true);
+  characterAnimator?.play('idle', { restart: true });
+  shipAudio.playElevator();
+  // O centro do elevador fica dentro da área livre dos quatro decks.
+  // Não chamar resolveCharacterShipCollisions: essa função não existe no runtime.
+  nearbyElevator = true;
+  characterCore.setInteractionTarget('ELEVADOR INTERNO');
+  updateElevatorButtons();
+  updateCharacterHUD();
+  toast('Acesso ao ' + deck.name + ' liberado.');
+  return true;
+}
+
+function updateExternalElevatorAnimation(dt) {
+  if (!externalElevator?.moving) return;
+  const reached = externalElevator.update(dt);
+
+  if (externalElevatorRiding && !characterInWorldFrame && characterModel?.group) {
+    const feetY = externalElevator.group.position.y + externalElevator.platform.position.y + 0.21;
+    characterModel.group.position.set(
+      EXTERNAL_ELEVATOR_CONFIG.x,
+      feetY,
+      EXTERNAL_ELEVATOR_CONFIG.z
+    );
+    characterModel.group.rotation.y = characterYaw;
+    characterPhysics?.reset(feetY);
+  }
+
+  if (reached === 'bottom') {
+    externalElevatorRiding = false;
+    transferCharacterToWorldFrame();
+    characterWorldVelocity.set(0, 0, 0);
+    characterWorldGrounded = false;
+    characterCore.setGrounded(false);
+    characterCore.setInteractionTarget('ELEVADOR EXTERNO');
+    updateCharacterHUD();
+    toast('Você chegou ao exterior da nave.');
+  } else if (reached === 'top') {
+    externalElevatorRiding = false;
+    characterInWorldFrame = false;
+    characterWorldGrounded = false;
+    characterWorldVelocity.set(0, 0, 0);
+    const deckY = starshipInterior.layout.decks[3].y;
+    const feetY = deckY + 0.21;
+    characterModel.group.position.set(EXTERNAL_ELEVATOR_CONFIG.x, feetY, EXTERNAL_ELEVATOR_CONFIG.z);
+    characterPhysics?.reset(feetY);
+    characterCore.setGrounded(true);
+    characterAnimator?.play('idle', { restart: true });
+    characterCore.setInteractionTarget('ELEVADOR EXTERNO');
+    updateCharacterHUD();
+    toast('Retorno ao Deck 4 concluído.');
+  }
+}
+
+function activateExternalElevator() {
+  if (!externalElevatorActionAvailable || !externalElevator || externalElevator.moving) return false;
+
+  if (externalElevator.phase === 'top') {
+    if (characterInWorldFrame || activeDeckIndex !== 3) return false;
+    externalElevatorRiding = true;
+    const deckY = starshipInterior.layout.decks[3].y;
+    characterModel.group.position.set(EXTERNAL_ELEVATOR_CONFIG.x, deckY + 0.21, EXTERNAL_ELEVATOR_CONFIG.z);
+    characterPhysics?.reset(deckY + 0.21);
+    if (!externalElevator.begin('down')) {
+      externalElevatorRiding = false;
+      return false;
+    }
+    toast('Elevador externo descendo.');
+  } else if (externalElevator.phase === 'bottom') {
+    if (!characterInWorldFrame) return false;
+    // Reanexa o personagem à nave preservando a posição mundial no início da subida.
+    shipVisual.attach(characterModel.group);
+    characterInWorldFrame = false;
+    characterWorldGrounded = false;
+    characterWorldVelocity.set(0, 0, 0);
+    characterCore.setGrounded(false);
+    externalElevatorRiding = true;
+    const feetY = externalElevator.group.position.y + externalElevator.platform.position.y + 0.21;
+    characterModel.group.position.set(EXTERNAL_ELEVATOR_CONFIG.x, feetY, EXTERNAL_ELEVATOR_CONFIG.z);
+    characterPhysics?.reset(feetY);
+    if (!externalElevator.begin('up')) {
+      externalElevatorRiding = false;
+      return false;
+    }
+    toast('Elevador externo subindo.');
+  }
+  shipAudio.playElevator();
+  externalElevatorActionAvailable = false;
+  updateExternalElevatorInteraction();
+  return true;
+}
+
+function updateExternalElevatorInteraction() {
+  if (!characterModel || characterCore.snapshot().mode !== 'on-foot' || !externalElevator) return;
+  const button = $('character-action-btn');
+  if (!button) return;
+
+  if (externalElevator.moving) {
+    externalElevatorActionAvailable = false;
+    button.classList.remove('hidden');
+    button.disabled = true;
+    button.textContent = 'ELEVADOR...';
+    button.classList.add('available');
+    characterCore.setInteractionTarget('ELEVADOR EM MOVIMENTO');
+    return;
+  }
+
+  let available = false;
+  if (externalElevator.phase === 'top' && !characterInWorldFrame && activeDeckIndex === 3) {
+    const p = characterModel.group.position;
+    const dx = p.x - EXTERNAL_ELEVATOR_CONFIG.x;
+    const dz = p.z - EXTERNAL_ELEVATOR_CONFIG.z;
+    const deckY = starshipInterior.layout.decks[3].y;
+    available = dx * dx + dz * dz <= EXTERNAL_ELEVATOR_CONFIG.interactionRadius ** 2 &&
+      Math.abs(p.y - (deckY + 0.21)) <= 2.0;
+  } else if (externalElevator.phase === 'bottom' && characterInWorldFrame) {
+    characterModel.group.getWorldPosition(pilotPlayerWorldPosition);
+    const surface = externalElevator.getPlatformSurfaceWorld();
+    const offset = pilotPlayerWorldPosition.clone().sub(surface.center);
+    const normalDistance = offset.dot(surface.normal);
+    const planarDistance = offset.addScaledVector(surface.normal, -normalDistance).length();
+    available = planarDistance <= EXTERNAL_ELEVATOR_CONFIG.interactionRadius &&
+      Math.abs(normalDistance) <= 3.2;
+  }
+
+  const changed = available !== externalElevatorActionAvailable;
+  externalElevatorActionAvailable = available;
+  if (available) {
+    button.classList.remove('hidden');
+    button.disabled = false;
+    button.textContent = externalElevator.phase === 'bottom' ? 'SUBIR' : 'DESCER';
+    button.classList.add('available');
+    if (changed) {
+      characterCore.setInteractionTarget('ELEVADOR EXTERNO');
+      updateCharacterHUD();
+    }
+  } else if (changed || button.textContent === 'ELEVADOR...') {
+    button.classList.remove('available');
+    button.classList.toggle('hidden', nearbyElevator);
+    button.disabled = !pilotInteractionAvailable;
+    button.textContent = pilotInteractionAvailable ? '◎ PILOTAR' : 'AÇÃO';
+    if (nearbyElevator) {
+      characterCore.setInteractionTarget('ELEVADOR INTERNO');
+    } else {
+      characterCore.setInteractionTarget(pilotInteractionAvailable ? 'PILOTAGEM DISPONÍVEL' : null);
+    }
+    updateCharacterHUD();
+  }
+}
+
+function updatePilotInteraction() {
+  if (!characterModel || !shipVisual || characterCore.snapshot().mode !== 'on-foot') return;
+
+  characterModel.group.getWorldPosition(pilotPlayerWorldPosition);
+  const available = isPilotConsoleInRange(pilotPlayerWorldPosition, shipVisual);
+  if (nearbyElevator) return;
+  if (available === pilotInteractionAvailable) return;
+
+  pilotInteractionAvailable = available;
+  const button = $('character-action-btn');
+  if (button) {
+    button.disabled = !available;
+    button.textContent = available ? '◎ PILOTAR' : 'AÇÃO';
+    button.classList.toggle('available', available);
+  }
+
+  characterCore.setInteractionTarget(available ? 'PILOTAGEM DISPONÍVEL' : null);
+  updateCharacterHUD();
+}
+
+function setPilotInterface(activePilot) {
+  characterHUD.show(!activePilot);
+  ['hud', 'nitro-display', 'flight-controls'].forEach(id => {
+    $(id)?.classList.toggle('hidden', !activePilot);
+  });
+}
+
+function enterPilotMode() {
+  if (!pilotInteractionAvailable || characterCore.snapshot().mode !== 'on-foot') {
+    toast('Aproxime-se do ponto de pilotagem na ponte.');
+    return;
+  }
+
+  if (!shipComputer.connectTerminal('pilot-console', state.user || 'PILOTO')) {
+    toast('Computador da nave indisponível ou console ocupado.');
+    return;
+  }
+  if (!attachCharacterToPilotConsole(characterModel, shipVisual)) {
+    shipComputer.disconnectTerminal('pilot-console');
+    return;
+  }
+
+  characterMoveInput = { x: 0, y: 0 };
+  characterJumpQueued = false;
+  stopCharacterSprint();
+  characterCore.enterShipSeat();
+  pilotInteractionAvailable = false;
+  state.camera = 0;
+  state.view.x = 0;
+  state.view.y = 0;
+  setPilotInterface(true);
+  toast('Comando da Aurora-7 assumido.');
+}
+
+function exitPilotMode() {
+  if (characterCore.snapshot().mode !== 'ship-control') return;
+
+  cancelLandingGuidance('pilot-disconnected');
+  shipComputer.disconnectTerminal('pilot-console');
+  characterYaw = returnCharacterToDeck(characterModel, shipVisual, scene);
+  characterPitch = 0;
+  characterCore.leaveShipSeat();
+
+  characterMoveInput = { x: 0, y: 0 };
+  characterJumpQueued = false;
+  stopCharacterSprint();
+  state.move.x = 0;
+  state.move.y = 0;
+  state.throttle = false;
+  state.braking = false;
+  state.nitroButton = false;
+
+  const flightStick = $('move-stick')?.querySelector('.knob');
+  if (flightStick) flightStick.style.transform = 'translate(0,0)';
+
+  setPilotInterface(false);
+  updateCharacterHUD();
+  updatePilotInteraction();
+  toast('Você deixou o comando da nave.');
+}
+
 /* CÂMERA */
 
 function updateCamera() {
-  if (!camera || !ship) return;
+  if (!camera || !ship || !shipVisual) return;
+  camera.up.set(0, 1, 0);
 
   viewEuler.set(
     state.view.x,
@@ -880,30 +1883,31 @@ function updateCamera() {
   );
 
   cameraViewQuaternion.setFromEuler(viewEuler);
-
-  const finalQuaternion = ship.quaternion.clone()
-    .multiply(cameraViewQuaternion);
+  shipVisual.getWorldQuaternion(flightQuaternion);
+  const finalQuaternion = flightQuaternion.clone().multiply(cameraViewQuaternion);
 
   if (state.camera === 0) {
-    const offset = new THREE.Vector3(0, 0.45, -0.65)
-      .applyQuaternion(ship.quaternion);
+    // Ponto de visão dentro da ponte, no deck superior.
+    const offset = new THREE.Vector3(0, 11.1, -30)
+      .applyQuaternion(flightQuaternion);
 
     camera.position.copy(ship.position).add(offset);
     camera.quaternion.copy(finalQuaternion);
   } else if (state.camera === 1) {
-    const offset = new THREE.Vector3(0, 0.45, 0.25)
-      .applyQuaternion(ship.quaternion);
+    const offset = new THREE.Vector3(0, 10.8, -20)
+      .applyQuaternion(flightQuaternion);
 
     camera.position.copy(ship.position).add(offset);
     camera.quaternion.copy(finalQuaternion);
   } else {
-    const offset = new THREE.Vector3(0, 4.5, 13)
-      .applyQuaternion(ship.quaternion);
+    // Câmera externa mais próxima, orbitando a nave com o arrasto da mira.
+    const offset = new THREE.Vector3(0, 28, 112)
+      .applyQuaternion(flightQuaternion)
+      .applyQuaternion(cameraViewQuaternion);
 
     const desiredPosition = ship.position.clone().add(offset);
-
-    camera.position.lerp(desiredPosition, 0.09);
-    camera.quaternion.copy(finalQuaternion);
+    camera.position.lerp(desiredPosition, 0.12);
+    camera.lookAt(ship.position);
   }
 }
 
@@ -916,13 +1920,152 @@ function loop(now) {
 
   const dt = Math.min((now - last) / 1000, 0.04);
   last = now;
+  earthSystem?.update(dt, camera);
+  applyEarthSurfaceRotation(dt);
+  if (ship) ship.userData.earthCollisionResolved = false;
 
-  updateFlight(dt);
-  updateCamera();
-  earthSystem?.update(dt);
+  updatePhaserWeapon(dt);
+  if (characterCore.snapshot().mode === 'on-foot') {
+    updateCharacterMovement(dt);
+    updateCharacterWeapon(dt);
+    updateExternalElevatorAnimation(dt);
+    updateElevatorInteraction();
+    updatePilotInteraction();
+    updateExternalElevatorInteraction();
+    updateCharacterCamera();
+  } else {
+    updateFlight(dt);
+    updateCamera();
+  }
+  // A Earth é proprietária da infraestrutura; a gameplay consulta a base
+  // criada pelo módulo para contatos e estado de pouso.
+  landingBaseSystem = earthSystem?.getLandingBase?.() ?? null;
+  updateShipLandingGuidance(dt);
+
+  // Mantém uma região local de maior densidade geométrica sob a nave
+  // durante a aproximação. A consulta usa o mesmo sampler do relevo global.
+  if (ship) {
+    const collisionSurface = earthSystem?.getCollisionSurface?.();
+    const landingPatch = collisionSurface?.updateHighResolutionPatch?.(ship.position);
+    if (landingPatch) {
+      // Record the center sample and probe five lower-hull points after
+      // updateFlight has applied any required terrain-clearance correction.
+      ship.userData.earthSurfaceSample =
+        collisionSurface.sampleWorldPosition?.(ship.position) ?? null;
+
+      const sampleShipContacts = () => {
+        shipVisual.updateWorldMatrix(true, true);
+        const pad = landingBaseSystem?.group;
+        if (pad) pad.updateWorldMatrix(true, false);
+        const probePoints = [...shipEarthContactPoints, ...shipLandingGearContactPoints];
+        return probePoints.map(({ id, point }) => {
+          const worldPoint = shipVisual.localToWorld(point.clone());
+          const terrain = collisionSurface.sampleWorldPosition?.(worldPoint);
+          let chosen = terrain?.worldPosition && terrain?.worldNormal
+            ? { worldPosition: terrain.worldPosition, worldNormal: terrain.worldNormal, surface: 'etopo' }
+            : null;
+
+          // A face superior da plataforma entra na mesma consulta de contato do ETOPO.
+          // Não há um segundo motor físico: escolhemos a superfície mais alta sob a sonda.
+          if (pad) {
+            const padLocal = pad.worldToLocal(worldPoint.clone());
+            const insidePad = padLocal.x * padLocal.x + padLocal.z * padLocal.z <= 146 * 146;
+            if (insidePad) {
+              const padTop = pad.localToWorld(new THREE.Vector3(padLocal.x, 0.76, padLocal.z));
+              const padUp = new THREE.Vector3(0, 1, 0).transformDirection(pad.matrixWorld).normalize();
+              const padClearance = worldPoint.clone().sub(padTop).dot(padUp);
+              const terrainClearance = chosen
+                ? worldPoint.clone().sub(chosen.worldPosition).dot(chosen.worldNormal)
+                : Infinity;
+              if (padClearance < terrainClearance) {
+                chosen = { worldPosition: padTop, worldNormal: padUp, surface: 'landing-pad' };
+              }
+            }
+          }
+
+          if (!chosen) return { id, valid: false };
+          const clearanceUnits = worldPoint.clone()
+            .sub(chosen.worldPosition)
+            .dot(chosen.worldNormal);
+          return {
+            id,
+            valid: Number.isFinite(clearanceUnits),
+            clearanceUnits,
+            worldNormal: chosen.worldNormal,
+            surface: chosen.surface,
+            penetrating: clearanceUnits < -0.05
+          };
+        });
+      };
+
+      let contacts = sampleShipContacts();
+      const worstPenetration = contacts
+        .filter(contact => contact.valid && contact.clearanceUnits < -0.05)
+        .sort((a, b) => a.clearanceUnits - b.clearanceUnits)[0];
+      if (worstPenetration) {
+        // Resolve the deepest hull contact, not just the ship's center point.
+        const correctedWorldPosition = ship.getWorldPosition(new THREE.Vector3())
+          .addScaledVector(worstPenetration.worldNormal, -worstPenetration.clearanceUnits + 0.05);
+        if (ship.parent) {
+          ship.parent.updateWorldMatrix(true, false);
+          ship.position.copy(ship.parent.worldToLocal(correctedWorldPosition));
+        } else {
+          ship.position.copy(correctedWorldPosition);
+        }
+        if (forwardVector.dot(worstPenetration.worldNormal) < 0) state.speed = 0;
+        ship.userData.earthCollisionResolved = true;
+        contacts = sampleShipContacts();
+      }
+
+      const validContacts = contacts.filter(contact =>
+        contact.valid && Number.isFinite(contact.clearanceUnits)
+      );
+      const minimumClearance = validContacts.length
+        ? Math.min(...validContacts.map(contact => contact.clearanceUnits))
+        : null;
+      const padUp = landingBaseSystem
+        ? new THREE.Vector3(0, 1, 0).transformDirection(landingBaseSystem.group.matrixWorld).normalize()
+        : ship.userData.earthSurfaceSample?.worldNormal?.clone?.().normalize() ?? null;
+      const shipUp = shipVisual.localToWorld(new THREE.Vector3(0, 1, 0))
+        .sub(shipVisual.getWorldPosition(new THREE.Vector3())).normalize();
+      const upAlignment = padUp ? THREE.MathUtils.clamp(shipUp.dot(padUp), -1, 1) : null;
+      const attitude = upAlignment === null ? 'unavailable'
+        : upAlignment >= Math.cos(THREE.MathUtils.degToRad(12)) ? 'upright'
+        : upAlignment <= -Math.cos(THREE.MathUtils.degToRad(12)) ? 'inverted'
+        : Math.abs(upAlignment) <= Math.sin(THREE.MathUtils.degToRad(12)) ? 'sideways'
+        : 'tilted';
+      const gearContacts = contacts.filter(contact =>
+        contact.id.startsWith('gear-') && contact.valid && contact.clearanceUnits <= 0.35
+      );
+      if (shipLandingGearContactPoints.length > 0 &&
+          gearContacts.length === shipLandingGearContactPoints.length &&
+          attitude === 'upright' && minimumClearance !== null &&
+          minimumClearance <= 0.35 && Math.abs(state.speed) <= 1.5) {
+        ship.userData.earthSurfaceAnchored = true;
+      }
+      ship.userData.earthLandingContacts = {
+        status: validContacts.length !== contacts.length
+          ? 'partial'
+          : minimumClearance <= 0.35 ? 'contact' : 'clear',
+        contacts,
+        minimumClearanceUnits: minimumClearance,
+        physicsApplied: Boolean(ship.userData.earthCollisionResolved),
+        landingGear: {
+          total: shipLandingGearContactPoints.length,
+          touching: gearContacts.length,
+          allTouching: gearContacts.length === shipLandingGearContactPoints.length
+        },
+        attitude,
+        landingComplete: false
+      };
+    } else {
+      delete ship.userData.earthSurfaceSample;
+      delete ship.userData.earthLandingContacts;
+    }
+  }
   orbitSystem?.update(dt);
   asteroidSystem?.update(dt);
-  lightingSystem?.update(dt);
+  lightingSystem?.update(dt, camera?.position);
 
   renderer.render(scene, camera);
 
@@ -960,8 +2103,12 @@ function bindStick(id, key) {
       y *= max / length;
     }
 
-    state[key].x = x / max;
-    state[key].y = y / max;
+    const nextX = x / max;
+    const nextY = y / max;
+    // O joystick escreve diretamente no estado consumido por updateFlight.
+    // O computador da nave pode monitorar o voo, mas não pode bloquear a entrada.
+    state[key].x = nextX;
+    state[key].y = nextY;
 
     if (knob) {
       knob.style.transform = `translate(${x}px, ${y}px)`;
@@ -1000,6 +2147,353 @@ function bindStick(id, key) {
 
 bindStick('move-stick', 'move');
 
+// Joystick exclusivo do personagem; não altera os comandos de voo.
+const characterStick = $('character-move-stick');
+if (characterStick) {
+  const knob = characterStick.querySelector('.character-move-knob');
+  let pointer = null;
+  const moveCharacterStick = event => {
+    const rect = characterStick.getBoundingClientRect();
+    let x = event.clientX - rect.left - rect.width / 2;
+    let y = event.clientY - rect.top - rect.height / 2;
+    const max = rect.width * 0.31;
+    const length = Math.hypot(x, y);
+    if (length > max) { x *= max / length; y *= max / length; }
+    characterMoveInput = { x: x / max, y: y / max };
+    if (knob) knob.style.transform = `translate(${x}px, ${y}px)`;
+  };
+  characterStick.addEventListener('pointerdown', event => {
+    event.preventDefault();
+    pointer = event.pointerId;
+    characterStick.setPointerCapture(pointer);
+    moveCharacterStick(event);
+  });
+  characterStick.addEventListener('pointermove', event => {
+    if (pointer !== event.pointerId) return;
+    event.preventDefault();
+    moveCharacterStick(event);
+  });
+  const endCharacterMove = event => {
+    if (pointer !== event.pointerId) return;
+    pointer = null;
+    characterMoveInput = { x: 0, y: 0 };
+    if (knob) knob.style.transform = 'translate(0,0)';
+  };
+  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type =>
+    characterStick.addEventListener(type, endCharacterMove)
+  );
+}
+
+// Controles exclusivos do personagem: salto por toque e corrida por pressão.
+const characterJumpButton = $('character-jump-btn');
+const characterSprintButton = $('character-sprint-btn');
+const characterAnimationButton = $('character-animation-btn');
+const characterPhaserButton = $('character-phaser-btn');
+const handlePhaserInput = event => {
+  if (event.type === 'click' && event.detail !== 0) return;
+  event.preventDefault();
+  event.stopPropagation();
+  firePhaser();
+};
+characterPhaserButton?.addEventListener('pointerup', handlePhaserInput);
+characterPhaserButton?.addEventListener('click', handlePhaserInput);
+const characterAimButton = $('character-aim-btn');
+characterAimButton?.addEventListener('click', () => {
+  if (!isPhaserEquipped() || characterCore.snapshot().mode !== 'on-foot') {
+    toast('Equipe o Phaser para usar a mira.');
+    return;
+  }
+  const aiming = characterWeaponController?.toggleAiming() ?? false;
+  toast(aiming ? 'Mira ativada.' : 'Arma abaixada.');
+});
+
+characterAnimationButton?.addEventListener('click', () => {
+  if (characterCore.snapshot().mode !== 'on-foot' || !characterAnimator) return;
+  characterAnimationTestIndex = (characterAnimationTestIndex + 1) % characterAnimationTestPoses.length;
+  const pose = characterAnimationTestPoses[characterAnimationTestIndex];
+  characterAnimationTestRemaining = pose === 'idle' ? 1.1 : 1.45;
+  characterAnimator.play(pose, { restart: true });
+  characterAnimationButton.classList.add('is-active');
+  characterAnimationButton.querySelector('small').textContent = pose.toUpperCase();
+  toast('Teste de animação: ' + pose.toUpperCase());
+});
+
+characterJumpButton?.addEventListener('pointerdown', event => {
+  event.preventDefault();
+  if (characterCore.snapshot().mode !== 'on-foot' || !characterPhysics?.grounded) return;
+  characterJumpQueued = true;
+});
+
+const stopCharacterSprint = () => {
+  characterSprintHeld = false;
+  characterSprintButton?.classList.remove('is-active');
+};
+characterSprintButton?.addEventListener('pointerdown', event => {
+  event.preventDefault();
+  if (characterCore.snapshot().mode !== 'on-foot') return;
+  characterSprintHeld = true;
+  characterSprintButton.classList.add('is-active');
+  characterSprintButton.setPointerCapture(event.pointerId);
+});
+['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type =>
+  characterSprintButton?.addEventListener(type, stopCharacterSprint)
+);
+
+window.addEventListener('keydown', event => {
+  if (characterCore.snapshot().mode !== 'on-foot' || event.repeat) return;
+  if (event.code === 'Space') {
+    event.preventDefault();
+    if (characterPhysics?.grounded) characterJumpQueued = true;
+  }
+  if (event.code === 'ShiftLeft' || event.code === 'ShiftRight') characterSprintHeld = true;
+});
+window.addEventListener('keyup', event => {
+  if (event.code === 'ShiftLeft' || event.code === 'ShiftRight') stopCharacterSprint();
+});
+window.addEventListener('blur', stopCharacterSprint);
+
+function updateCharacterWeapon(dt) {
+  const equipped = isPhaserEquipped();
+  if (!equipped) characterWeaponController?.reset();
+  const result = characterWeaponController?.update(dt, characterPitch);
+  const aimButton = $('character-aim-btn');
+  const reticle = $('character-aim-reticle');
+  if (aimButton) {
+    aimButton.disabled = !equipped;
+    aimButton.classList.toggle('is-active', Boolean(result?.aiming));
+    const label = aimButton.querySelector('small');
+    if (label) label.textContent = !equipped ? 'SEM ARMA' : result?.aiming ? 'MIRANDO' : 'MIRAR';
+  }
+  if (reticle) reticle.classList.toggle('is-visible', equipped && Boolean(result?.aiming));
+}
+
+const characterAim = $('character-aim-area');
+let characterAimPointer = null;
+let characterPreviousX = 0;
+let characterPreviousY = 0;
+if (characterAim) {
+  characterAim.addEventListener('pointerdown', event => {
+    event.preventDefault();
+    characterAimPointer = event.pointerId;
+    characterPreviousX = event.clientX;
+    characterPreviousY = event.clientY;
+    characterAim.setPointerCapture(characterAimPointer);
+  });
+  characterAim.addEventListener('pointermove', event => {
+    if (characterAimPointer !== event.pointerId) return;
+    event.preventDefault();
+    const dx = event.clientX - characterPreviousX;
+    const dy = event.clientY - characterPreviousY;
+    characterPreviousX = event.clientX;
+    characterPreviousY = event.clientY;
+    const yawDelta = -dx * 0.005;
+    characterYaw += yawDelta;
+    characterPitch = THREE.MathUtils.clamp(characterPitch - dy * 0.004, -0.65, 0.65);
+    // A guinada exterior gira ao redor da normal local, nunca do Y global.
+    if (characterModel?.group && characterInWorldFrame) {
+      const player = characterModel.group;
+      const worldPosition = player.getWorldPosition(new THREE.Vector3());
+      const earthCenter = earthSystem?.group?.getWorldPosition(new THREE.Vector3());
+      const up = characterWorldGrounded
+        ? new THREE.Vector3(0, 1, 0).applyQuaternion(player.getWorldQuaternion(new THREE.Quaternion())).normalize()
+        : earthCenter ? worldPosition.sub(earthCenter).normalize() : new THREE.Vector3(0, 1, 0);
+      earthReferenceFrames?.rotateAroundWorldAxis(player, up, yawDelta);
+    } else if (characterModel?.group) {
+      characterModel.group.rotation.y = characterYaw;
+    }
+  });
+  const endCharacterAim = event => {
+    if (characterAimPointer === event.pointerId) characterAimPointer = null;
+  };
+  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type =>
+    characterAim.addEventListener(type, endCharacterAim)
+  );
+}
+
+$('character-action-btn')?.addEventListener('click', () => {
+  if (externalElevatorActionAvailable) activateExternalElevator();
+  else enterPilotMode();
+});
+$('elevator-up-btn')?.addEventListener('click', () => moveElevator(-1));
+$('elevator-down-btn')?.addEventListener('click', () => moveElevator(1));
+
+function closeInventory() {
+  const modal = $('inventory-modal');
+  modal?.classList.add('hidden');
+  modal?.setAttribute('aria-hidden', 'true');
+}
+function openInventory() {
+  const modal = $('inventory-modal');
+  if (!modal) return;
+  modal.classList.remove('hidden');
+  modal.setAttribute('aria-hidden', 'false');
+  showInventoryTab('items');
+}
+function showInventoryTab(tab) {
+  const items = tab === 'items';
+  $('inventory-items-view')?.classList.toggle('hidden', !items);
+  $('inventory-clothing-view')?.classList.toggle('hidden', items);
+  document.querySelectorAll('[data-inventory-tab]').forEach(button => {
+    button.classList.toggle('active', button.dataset.inventoryTab === tab);
+  });
+}
+const characterEquipment = createCharacterEquipmentSystem(state, {
+  applyVisual(slot, itemId) {
+    if (characterModel) characterModel.setEquipment(slot, itemId);
+  },
+  onChange() {
+    characterAudio.playEquip();
+    renderClothing();
+    renderInventory();
+    characterCore.setEquipment('suit', characterEquipment.equippedItem('torso')?.itemId || null);
+    for (const slot of ['head', 'torso', 'hands', 'legs', 'feet', 'back', 'weapon']) {
+      characterCore.setEquipment(slot, characterEquipment.equippedItem(slot)?.itemId || null);
+    }
+    save();
+  }
+});
+
+function renderClothing() {
+  const labels = { head: 'CABEÇA', torso: 'PEITORAL', hands: 'LUVAS', legs: 'CALÇAS', feet: 'BOTAS', back: 'COSTAS', weapon: 'ARMA' };
+  for (const [slot] of Object.entries(labels)) {
+    const button = document.querySelector(`[data-slot="${slot}"]`);
+    if (!button) continue;
+    const item = characterEquipment.equippedItem(slot);
+    const name = button.querySelector('b');
+    const status = button.querySelector('small');
+    if (name) name.textContent = item?.name || 'Vazio';
+    if (status) status.textContent = item ? 'EQUIPADO · TOQUE PARA REMOVER' : 'VAZIO · TOQUE PARA EQUIPAR';
+    button.classList.toggle('selected', Boolean(item));
+  }
+}
+
+let pendingInventoryEquipId = null;
+
+function renderInventory() {
+  renderClothing();
+  const grid = $('inventory-grid');
+  if (!grid) return;
+  const snapshot = characterEquipment.snapshot();
+  const items = snapshot.items || [];
+  const overflowItems = snapshot.overflowItems || [];
+  const capacity = snapshot.capacity || 12;
+  const backpack = characterEquipment.equippedItem('back');
+  const usedWeight = snapshot.usedWeight || 0;
+  const maxWeight = snapshot.maxWeight ?? 60;
+
+  $('inventory-count').textContent = `${items.length} / ${capacity}`;
+  $('inventory-count').title = `Peso: ${usedWeight.toFixed(1)} / ${maxWeight} kg`;
+  if ($('inventory-backpack-name')) $('inventory-backpack-name').textContent = backpack?.name || 'SEM MOCHILA';
+  if ($('inventory-backpack-code')) $('inventory-backpack-code').textContent = backpack?.code || 'CAPACIDADE BASE';
+  if ($('inventory-backpack-capacity')) $('inventory-backpack-capacity').textContent = `${capacity} ESPAÇOS`;
+  if ($('inventory-backpack-weight')) $('inventory-backpack-weight').textContent = `${usedWeight.toFixed(1)} / ${maxWeight} KG`;
+  if ($('inventory-overflow-count')) $('inventory-overflow-count').textContent = String(overflowItems.length);
+  $('inventory-overflow-panel')?.classList.toggle('hidden', overflowItems.length === 0);
+
+  grid.innerHTML = Array.from({ length: capacity }, (_, index) => {
+    const item = items[index];
+    if (!item) return '<div class="inventory-cell empty"><span>ESPAÇO LIVRE</span></div>';
+    const name = escapeHtml(item.name || item.itemId || item.definitionId);
+    const category = escapeHtml(item.category || 'ITEM').toUpperCase();
+    const quantity = item.quantity > 1 ? ` ×${item.quantity}` : '';
+    return `<button class="inventory-cell inventory-item-button" type="button" data-item-instance="${escapeHtml(item.instanceId)}">
+      <span>${name}${quantity}</span><small>${category} · TOQUE PARA EQUIPAR</small>
+    </button>`;
+  }).join('');
+
+  const overflowGrid = $('inventory-overflow-grid');
+  if (overflowGrid) {
+    overflowGrid.innerHTML = overflowItems.map(item => {
+      const name = escapeHtml(item.name || item.itemId || item.definitionId);
+      const quantity = item.quantity > 1 ? ` ×${item.quantity}` : '';
+      const equipable = ['head', 'torso', 'hands', 'legs', 'feet', 'back', 'weapon'].includes(item.slot);
+      const pending = pendingInventoryEquipId === item.instanceId;
+      const action = equipable ? (pending ? 'EQUIPAR AGORA' : 'TOQUE PARA SELECIONAR') : 'TOQUE PARA RESTAURAR';
+      return `<button type="button" class="inventory-overflow-item${pending ? ' item-pending-equip' : ''}" data-overflow-instance-id="${escapeHtml(item.instanceId)}">
+        <b>${name}${quantity}</b><small>${action}</small>
+      </button>`;
+    }).join('');
+  }
+
+  const equipment = state.inventory?.equipment || {};
+  ['weapon', 'tool', 'machine'].forEach(slot => {
+    const el = $('quick-' + slot);
+    if (el) {
+      const equipped = Boolean(equipment[slot]);
+      el.textContent = equipment[slot]?.name || equipment[slot] || 'VAZIO';
+      el.closest('.quick-slot')?.classList.toggle('is-equipped', equipped);
+      el.closest('.quick-slot')?.setAttribute('aria-label', `${slot}: ${equipped ? el.textContent : 'vazio'}`);
+    }
+  });
+}
+$('inventory-open-btn')?.addEventListener('click', () => {
+  renderInventory();
+  openInventory();
+});
+$('inventory-close-btn')?.addEventListener('click', closeInventory);
+$('inventory-done-btn')?.addEventListener('click', closeInventory);
+document.querySelectorAll('[data-inventory-tab]').forEach(button => {
+  button.addEventListener('click', () => showInventoryTab(button.dataset.inventoryTab));
+});
+$('inventory-modal')?.addEventListener('click', event => {
+  if (event.target.id === 'inventory-modal') closeInventory();
+});
+$('inventory-clothing-view')?.addEventListener('click', event => {
+  const button = event.target.closest('button[data-slot]');
+  if (!button || !event.currentTarget.contains(button)) return;
+  const result = characterEquipment.toggleSlot(button.dataset.slot);
+  if (!result.ok) toast(result.reason);
+  else {
+    save();
+    toast(result.item?.name ? result.item.name + ' atualizado.' : 'Equipamento atualizado.');
+  }
+});
+$('inventory-grid')?.addEventListener('click', event => {
+  const target = event.target.closest('[data-item-instance]');
+  if (!target) return;
+  const result = characterEquipment.equip(target.dataset.itemInstance);
+  pendingInventoryEquipId = null;
+  if (!result.ok) toast(result.reason);
+  else { save(); toast(result.item.name + ' equipado no personagem.'); }
+  renderInventory();
+});
+$('inventory-overflow-grid')?.addEventListener('click', event => {
+  const target = event.target.closest('[data-overflow-instance-id]');
+  if (!target) return;
+  const instanceId = target.dataset.overflowInstanceId;
+  const item = characterEquipment.snapshot().overflowItems.find(entry => entry.instanceId === instanceId);
+  if (!item) return;
+  const equipable = ['head', 'torso', 'hands', 'legs', 'feet', 'back', 'weapon'].includes(item.slot);
+  if (equipable) {
+    if (pendingInventoryEquipId !== instanceId) {
+      pendingInventoryEquipId = instanceId;
+      renderInventory();
+      return;
+    }
+    const result = characterEquipment.equip(instanceId);
+    pendingInventoryEquipId = null;
+    if (!result.ok) toast(result.reason);
+    else { save(); toast(result.item.name + ' equipado no personagem.'); }
+    renderInventory();
+    return;
+  }
+  pendingInventoryEquipId = null;
+  const result = characterEquipment.moveOverflowToInventory(instanceId);
+  if (!result.ok) toast('Ainda não há espaço ou peso disponível na mochila.');
+  else { save(); toast('Item restaurado para a mochila.'); }
+  renderInventory();
+});
+save();
+renderInventory();
+$('leave-pilot-btn')?.addEventListener('click', exitPilotMode);
+
+if ($('character-action-btn')) $('character-action-btn').disabled = true;
+
+// Ao perder foco no Android, zera entradas para impedir joystick ou aceleração presos.
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) resetTransientState();
+});
+
 /* MIRA POR ARRASTO */
 
 const aimArea = $('aim-touch-area');
@@ -1030,11 +2524,20 @@ if (aimArea) {
     previousTouchX = event.clientX;
     previousTouchY = event.clientY;
 
-    state.view.x -= dy * 0.004;
-    state.view.y -= dx * 0.004;
-
-    state.view.x = THREE.MathUtils.clamp(state.view.x, -1.15, 1.15);
-    state.view.y = THREE.MathUtils.clamp(state.view.y, -1.15, 1.15);
+    const nextView = {
+      x: THREE.MathUtils.clamp(state.view.x - dy * 0.004, -1.15, 1.15),
+      // A rotação horizontal é contínua: permite completar voltas de 360°.
+      y: THREE.MathUtils.euclideanModulo(
+        state.view.y - dx * 0.004 + Math.PI,
+        Math.PI * 2
+      ) - Math.PI
+    };
+    if (shipComputer.isTerminalConnected('pilot-console')) {
+      shipComputer.dispatch('pilot-console', 'flight', 'look', nextView);
+    } else {
+      state.view.x = nextView.x;
+      state.view.y = nextView.y;
+    }
   });
 
   const endAim = event => {
@@ -1053,26 +2556,35 @@ if (aimArea) {
 function holdButton(id, key) {
   const button = $(id);
   if (!button) return;
+  let activePointer = null;
+
+  const stop = event => {
+    if (activePointer !== null && event?.pointerId !== undefined &&
+        event.pointerId !== activePointer) return;
+    activePointer = null;
+    state[key] = false;
+    button.classList.remove('active');
+  };
 
   button.addEventListener('pointerdown', event => {
+    if (activePointer !== null || (event.pointerType === 'mouse' && event.button !== 0)) return;
     event.preventDefault();
-
+    activePointer = event.pointerId;
+    // Propulsão, freio e nitro são entradas de tempo real: não dependem
+    // da disponibilidade do computador auxiliar nem do estado do terminal.
     state[key] = true;
-
+    button.classList.add('active');
     try {
       button.setPointerCapture(event.pointerId);
-    } catch (error) {
-      // O botão continua funcionando mesmo sem captura.
+    } catch {
+      // A entrada permanece ativa; pointerup/blur ainda podem encerrá-la.
     }
   });
-
-  const stop = () => {
-    state[key] = false;
-  };
 
   ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type => {
     button.addEventListener(type, stop);
   });
+  window.addEventListener('blur', stop);
 }
 
 holdButton('throttle-btn', 'throttle');
@@ -1091,6 +2603,135 @@ document.addEventListener('selectstart', event => {
   if (event.target.closest('#flight-controls')) {
     event.preventDefault();
   }
+});
+
+function cancelLandingGuidance(reason = 'cancelled') {
+  shipLandingAutopilot?.cancel?.();
+  shipLandingTelemetry.reset();
+  selectedLandingSiteId = null;
+  if (ship) {
+    ship.userData.landingGuidance = null;
+    delete ship.userData.landingTelemetry;
+    delete ship.userData.landingGearMetricDiagnostics;
+    ship.userData.landingAutopilotState = reason;
+  }
+  const button = $('landing-btn');
+  if (button) button.textContent = '◉ POUSAR';
+}
+
+$('landing-btn')?.addEventListener('click', () => {
+  if (!active || characterCore.snapshot().mode !== 'ship-control') return;
+
+  if (shipLandingAutopilot?.snapshot?.().active) {
+    cancelLandingGuidance('standby');
+    shipAudio.playConsole();
+    if ($('landing-status')) $('landing-status').textContent = 'Orientação cancelada. Selecione novamente POUSAR para escolher um destino.';
+    toast('Guia de pouso cancelada.');
+    return;
+  }
+
+  if (selectedLandingSiteId && shipLandingAutopilot) {
+    const site = getLandingSite(selectedLandingSiteId);
+    if (!site || !shipLandingAutopilot.arm(site)) {
+      toast('Não foi possível ativar a orientação de pouso.');
+      return;
+    }
+    shipLandingTelemetry.reset();
+    ship.userData.landingAutopilotState = 'armed-guidance-only';
+    shipAudio.playLandingAlert();
+    $('landing-status').textContent = 'Telemetria conectada. A orientação calcula a aproximação, mas não comanda a propulsão nesta versão.';
+    $('landing-btn').textContent = '✕ CANCELAR';
+    toast('Guia de pouso ativada. Propulsão automática permanece bloqueada.');
+    return;
+  }
+
+  $('landing-modal')?.classList.remove('hidden');
+  $('landing-modal')?.setAttribute('aria-hidden', 'false');
+});
+
+function updateShipLandingGuidance(dt) {
+  if (!ship || !shipVisual || !shipLandingAutopilot?.snapshot?.().active) return;
+  const platform = landingBaseSystem?.platform;
+  if (!platform || !shipFlightKernel) {
+    ship.userData.landingGuidance = null;
+    ship.userData.landingAutopilotState = 'waiting-for-landing-platform';
+    return;
+  }
+
+  // A inversão da matriz da plataforma desfaz também a escala métrica
+  // herdada pela raiz da base: o resultado já está em metros.
+  shipVisual.updateWorldMatrix(true, true);
+  platform.updateWorldMatrix(true, true);
+  const shipOriginWorld = shipVisual.getWorldPosition(new THREE.Vector3());
+  const shipOriginPlatformLocal = platform.worldToLocal(shipOriginWorld.clone());
+  const platformWorldQuaternion = platform.getWorldQuaternion(new THREE.Quaternion());
+  const shipWorldQuaternion = shipVisual.getWorldQuaternion(new THREE.Quaternion());
+  const shipRotationRelativeToPlatform = platformWorldQuaternion
+    .invert().multiply(shipWorldQuaternion).normalize();
+
+  const telemetry = shipLandingTelemetry.sample({
+    shipOriginPlatformLocalMeters: shipOriginPlatformLocal.toArray(),
+    shipRotationRelativeToPlatform: [
+      shipRotationRelativeToPlatform.x, shipRotationRelativeToPlatform.y,
+      shipRotationRelativeToPlatform.z, shipRotationRelativeToPlatform.w
+    ],
+    contactPoints: shipLandingGearContactPoints.map(({ id, point }) => ({
+      id, point: point.toArray()
+    })),
+    dt: Math.max(dt, 1 / 240)
+  });
+  if (!telemetry) {
+    ship.userData.landingGuidance = null;
+    ship.userData.landingAutopilotState = 'invalid-metric-telemetry';
+    return;
+  }
+
+  const guidance = shipLandingAutopilot.update(telemetry);
+  ship.userData.landingTelemetry = telemetry;
+  ship.userData.landingGearMetricDiagnostics = {
+    contactPoints: telemetry.contactPointsMeters,
+    allGearInsideDeck: telemetry.allGearInsideDeck,
+    minimumGearClearanceMeters: telemetry.minimumGearClearanceMeters,
+    maximumGearClearanceMeters: telemetry.maximumGearClearanceMeters,
+    modelMetersPerUnit: telemetry.modelMetersPerUnit,
+    coordinateFrame: telemetry.coordinateFrame
+  };
+  ship.userData.landingGuidance = guidance;
+  ship.userData.landingAutopilotState = guidance ? 'guidance-only' : 'guidance-unavailable';
+  if (guidance) {
+    guidance.backend = shipFlightKernel.backend;
+    guidance.actuationEnabled = false;
+    guidance.coordinateFrame = telemetry.coordinateFrame;
+    guidance.gearClearanceMeters = telemetry.minimumGearClearanceMeters;
+    guidance.allGearInsideDeck = telemetry.allGearInsideDeck;
+    guidance.scaleValidation = telemetry.scaleValidation;
+  }
+}
+
+function closeLandingPanel() {
+  $('landing-modal')?.classList.add('hidden');
+  $('landing-modal')?.setAttribute('aria-hidden', 'true');
+}
+
+$('landing-close-btn')?.addEventListener('click', closeLandingPanel);
+
+$('landing-select-btn')?.addEventListener('click', () => {
+  const site = getLandingSite('earth-salar-test-candidate');
+  if (!site || !ship) {
+    toast('O destino de pouso ainda não está disponível.');
+    return;
+  }
+  selectedLandingSiteId = site.id;
+  shipLandingAutopilot?.cancel?.();
+  shipLandingTelemetry.reset();
+  ship.userData.landingSiteId = site.id;
+  ship.userData.landingAutopilotState = 'target-selected';
+  const button = $('landing-btn');
+  if (button) button.textContent = '◎ ATIVAR GUIA DE POUSO';
+  const status = $('landing-status');
+  if (status) status.textContent = 'Destino marcado: Salar de Uyuni · UY04. Ative a guia quando estiver pronto. A orientação calcula a aproximação, mas ainda não comanda a propulsão.';
+  closeLandingPanel();
+  toast('Destino UY04 marcado. Telemetria pronta para conexão.');
 });
 
 /* CÂMERAS */
@@ -1137,6 +2778,7 @@ $('mine-btn')?.addEventListener('click', () => {
 
   save();
   updateWallet();
+  shipAudio.playMining();
 
   toast(`Extração concluída: +${amount} unidades de minério.`);
 });
@@ -1161,6 +2803,8 @@ $('interact-btn')?.addEventListener('click', () => {
     return;
   }
 
+  characterAudio.playInteract();
+  shipAudio.playConsole();
   const bubble = $('npc-bubble');
 
   if (!npcReady) {
@@ -1211,7 +2855,149 @@ $('interact-btn')?.addEventListener('click', () => {
   npcReady = false;
 });
 
+
+/* Editor do HUD do personagem: não move nem modifica o HUD da nave. */
+const characterHudEditor = $('character-hud-editor');
+const characterHudEditable = [...document.querySelectorAll('[data-hud-editable]')];
+let characterHudEditing = false;
+let characterHudBeforeEdit = null;
+let characterHudDrag = null;
+
+function readCharacterHudLayout() {
+  return state.settings?.characterHudLayout && typeof state.settings.characterHudLayout === 'object'
+    ? structuredClone(state.settings.characterHudLayout)
+    : {};
+}
+
+function applyCharacterHudLayout(layout = {}) {
+  characterHudEditable.forEach(element => {
+    const saved = layout[element.dataset.hudEditable];
+    if (!saved || !Number.isFinite(saved.x) || !Number.isFinite(saved.y)) {
+      ['position', 'left', 'top', 'right', 'bottom', 'transform'].forEach(prop => element.style.removeProperty(prop));
+      return;
+    }
+    const rect = element.getBoundingClientRect();
+    const x = Math.max(0, Math.min(1, saved.x));
+    const y = Math.max(0, Math.min(1, saved.y));
+    element.style.position = 'fixed';
+    element.style.left = `${x * Math.max(1, window.innerWidth - rect.width)}px`;
+    element.style.top = `${y * Math.max(1, window.innerHeight - rect.height)}px`;
+    element.style.right = 'auto';
+    element.style.bottom = 'auto';
+    element.style.transform = 'none';
+  });
+}
+
+function scheduleCharacterHudLayout() {
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const gameScreen = $('game-screen');
+    if (!gameScreen || gameScreen.classList.contains('hidden')) return;
+
+    const hasMeasuredHud = characterHudEditable.every(element => {
+      const rect = element.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    });
+    if (!hasMeasuredHud) return;
+
+    applyCharacterHudLayout(readCharacterHudLayout());
+  }));
+}
+
+function captureCharacterHudLayout() {
+  const layout = {};
+  characterHudEditable.forEach(element => {
+    const rect = element.getBoundingClientRect();
+    layout[element.dataset.hudEditable] = {
+      x: Math.max(0, Math.min(1, rect.left / Math.max(1, window.innerWidth - rect.width))),
+      y: Math.max(0, Math.min(1, rect.top / Math.max(1, window.innerHeight - rect.height)))
+    };
+  });
+  return layout;
+}
+
+function finishCharacterHudEditing({ saveChanges = false, reset = false } = {}) {
+  if (!characterHudEditing) return;
+  state.settings ||= {};
+  if (reset) {
+    delete state.settings.characterHudLayout;
+    applyCharacterHudLayout({});
+  } else if (saveChanges) {
+    state.settings.characterHudLayout = captureCharacterHudLayout();
+    save();
+  } else {
+    applyCharacterHudLayout(characterHudBeforeEdit || {});
+  }
+  characterHudEditing = false;
+  characterHudDrag = null;
+  characterHudEditable.forEach(element => element.classList.remove('hud-editable-active'));
+  characterHudEditor?.classList.add('hidden');
+  characterHudEditor?.setAttribute('aria-hidden', 'true');
+  if (reset) save();
+}
+
+function startCharacterHudEditing() {
+  if (characterHudEditing) return;
+  characterHudBeforeEdit = readCharacterHudLayout();
+  applyCharacterHudLayout(characterHudBeforeEdit);
+  characterHudEditing = true;
+  $('game-menu-modal')?.classList.add('hidden');
+  characterHudEditor?.classList.remove('hidden');
+  characterHudEditor?.setAttribute('aria-hidden', 'false');
+  characterHudEditable.forEach(element => element.classList.add('hud-editable-active'));
+  toast('Arraste os elementos do HUD. Depois toque em SALVAR.');
+}
+
+characterHudEditable.forEach(element => {
+  element.addEventListener('pointerdown', event => {
+    if (!characterHudEditing || (event.target.closest('button') && element.dataset.hudEditable !== 'action')) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const rect = element.getBoundingClientRect();
+    element.style.position = 'fixed';
+    element.style.left = `${rect.left}px`;
+    element.style.top = `${rect.top}px`;
+    element.style.right = 'auto';
+    element.style.bottom = 'auto';
+    element.style.transform = 'none';
+    characterHudDrag = { element, pointerId: event.pointerId, offsetX: event.clientX - rect.left, offsetY: event.clientY - rect.top };
+    element.setPointerCapture?.(event.pointerId);
+  });
+  element.addEventListener('pointermove', event => {
+    if (!characterHudEditing || !characterHudDrag || characterHudDrag.element !== element || characterHudDrag.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    const rect = element.getBoundingClientRect();
+    const x = Math.max(0, Math.min(window.innerWidth - rect.width, event.clientX - characterHudDrag.offsetX));
+    const y = Math.max(0, Math.min(window.innerHeight - rect.height, event.clientY - characterHudDrag.offsetY));
+    element.style.left = `${x}px`;
+    element.style.top = `${y}px`;
+  });
+  const endDrag = event => {
+    if (characterHudDrag?.element === element && characterHudDrag.pointerId === event.pointerId) characterHudDrag = null;
+  };
+  element.addEventListener('pointerup', endDrag);
+  element.addEventListener('pointercancel', endDrag);
+});
+
+$('edit-character-hud-btn')?.addEventListener('click', startCharacterHudEditing);
+$('character-hud-save-btn')?.addEventListener('click', () => finishCharacterHudEditing({ saveChanges: true }));
+$('character-hud-cancel-btn')?.addEventListener('click', () => finishCharacterHudEditing());
+$('character-hud-reset-btn')?.addEventListener('click', () => finishCharacterHudEditing({ reset: true }));
+applyCharacterHudLayout(readCharacterHudLayout());
+
 /* MENU DE PAUSA */
+
+$('character-camera-btn')?.addEventListener('click', () => {
+  characterCameraMode = characterCameraMode === 'first-person'
+    ? 'third-person'
+    : 'first-person';
+  updateCharacterCameraButton();
+  if (camera && characterModel) updateCharacterCamera();
+});
+updateCharacterCameraButton();
+
+$('character-menu-btn')?.addEventListener('click', () => {
+  $('game-menu-modal')?.classList.remove('hidden');
+});
 
 $('game-menu-btn')?.addEventListener('click', () => {
   state.throttle = false;
@@ -1227,17 +3013,37 @@ $('resume-btn')?.addEventListener('click', () => {
 });
 
 $('return-menu-btn')?.addEventListener('click', () => {
-  active = false;
+  // Nunca abandonar a sessão enquanto o personagem ainda estiver sentado
+  // no console: libera o terminal, devolve o personagem ao convés e
+  // restaura o HUD a pé antes de ocultar a tela do jogo.
+  if (characterCore.snapshot().mode === 'ship-control') {
+    exitPilotMode();
+  } else {
+    // Recupera também uma eventual conexão órfã do computador da nave.
+    shipComputer.disconnectTerminal('pilot-console');
+  }
 
-  state.throttle = false;
-  state.braking = false;
-  state.nitroButton = false;
-  state.move = { x: 0, y: 0 };
-  state.view = { x: 0, y: 0 };
+  active = false;
+  resetTransientState();
+  characterMoveInput = { x: 0, y: 0 };
+
+  const characterStickKnob = $('character-move-stick')?.querySelector('.character-move-knob');
+  if (characterStickKnob) characterStickKnob.style.transform = 'translate(0,0)';
 
   $('game-menu-modal')?.classList.add('hidden');
+  $('inventory-modal')?.classList.add('hidden');
+  $('loading-screen')?.classList.add('hidden');
+  $('npc-bubble')?.classList.add('hidden');
+  $('toast')?.classList.add('hidden');
 
   save();
+  // Reconstrói o painel Jogar para garantir que o botão DECOLAR e seus
+  // eventos estejam ativos após qualquer retorno da gameplay.
+  renderPanel('play');
   show('menu-screen');
   updateWallet();
+  last = performance.now();
 });
+
+// A tela de entrada é exibida somente depois que o carregamento inicial termina.
+bootApplication();

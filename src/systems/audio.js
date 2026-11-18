@@ -342,6 +342,48 @@ export function createAudioCore(options = {}) {
     return true;
   }
 
+  async function playTone(options = {}) {
+    try {
+      const audioContext = ensureContext();
+      if (audioContext.state !== 'running') await unlock();
+
+      const duration = clamp(options.duration ?? 0.14, 0.025, 2);
+      const volume = clamp(options.volume ?? 0.1, 0, 1);
+      const frequency = clamp(options.frequency ?? 440, 30, 4000);
+      const endFrequency = clamp(options.endFrequency ?? frequency, 30, 8000);
+      const attack = Math.min(duration * 0.35, clamp(options.attack ?? 0.008, 0.002, 0.08));
+      const now = audioContext.currentTime;
+      const oscillator = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+
+      oscillator.type = ['sine', 'square', 'triangle', 'sawtooth'].includes(options.waveform)
+        ? options.waveform
+        : 'sine';
+      oscillator.frequency.setValueAtTime(frequency, now);
+      if (endFrequency !== frequency) {
+        oscillator.frequency.exponentialRampToValueAtTime(endFrequency, now + duration);
+      }
+
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.linearRampToValueAtTime(Math.max(0.0001, volume), now + attack);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+      oscillator.connect(gain);
+      gain.connect(getBus(options.bus || 'sfx'));
+      oscillator.start(now);
+      oscillator.stop(now + duration + 0.015);
+      oscillator.onended = () => {
+        try { oscillator.disconnect(); } catch {}
+        try { gain.disconnect(); } catch {}
+      };
+      return true;
+    } catch (error) {
+      emit('error', { id: 'procedural-tone', error });
+      console.warn('[Star Frontier Audio] Não foi possível gerar efeito sonoro:', error);
+      return false;
+    }
+  }
+
   async function dispose() {
     if (disposed) return;
     stopAll();
@@ -365,6 +407,7 @@ export function createAudioCore(options = {}) {
     registerSound,
     load,
     play,
+    playTone,
     stop,
     stopBySound,
     stopAll,

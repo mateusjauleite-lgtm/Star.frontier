@@ -19,8 +19,18 @@
 
 <body>
 
+  <!-- TELA INICIAL: aparece depois do carregamento e antes do login -->
+  <section id="startup-screen" class="screen hidden" aria-label="Entrada do jogo">
+    <div class="loading-card startup-card">
+      <div class="loading-brand">STAR FRONTIER</div>
+      <div class="loading-kicker">SISTEMAS PRONTOS</div>
+      <p class="startup-message">Sua próxima jornada começa aqui.</p>
+      <button id="startup-play-btn" class="primary startup-play-btn" type="button">JOGAR</button>
+    </div>
+  </section>
+
   <!-- LOGIN -->
-  <section id="login-screen" class="screen">
+  <section id="login-screen" class="screen hidden">
     <div class="login-card">
       <div class="brand">STAR FRONTIER</div>
       <p class="subtitle">Uma nova fronteira espera por você.</p>
@@ -112,6 +122,122 @@
 
     <div id="game-root"></div>
 
+    <!-- HUD 1: PERSONAGEM -->
+    <div id="character-hud" class="character-hud">
+      <div class="character-hud-top" data-hud-editable="top">
+        <div class="character-identity">
+          <span class="character-kicker">STAR FRONTIER // EXPLORAÇÃO</span>
+          <b id="character-name">EXPLORADOR</b>
+          <small id="character-mode">A PÉ</small>
+          <small id="character-world-context" class="character-world-context">AMBIENTE PLANETÁRIO</small>
+        </div>
+        <div class="character-top-actions">
+          <button id="character-camera-btn" class="character-camera-btn" type="button">CÂMERA: 1ª PESSOA</button>
+          <button id="character-action-btn" class="character-action-btn" type="button" disabled>◎ AÇÃO</button>
+          <button id="elevator-up-btn" class="character-action-btn hidden" type="button" disabled>↑ SUBIR</button>
+          <button id="elevator-down-btn" class="character-action-btn hidden" type="button" disabled>↓ DESCER</button>
+          <button id="inventory-open-btn" class="character-inventory-btn" type="button">INVENTÁRIO</button>
+          <button id="character-menu-btn" class="character-menu-btn" aria-label="Abrir menu">☰</button>
+        </div>
+      </div>
+
+      <div class="character-status" data-hud-editable="status">
+        <div class="character-stat">
+          <div class="character-stat-heading"><span>SAÚDE</span><b id="character-health-value">100%</b></div>
+          <div class="character-track"><div id="character-health" class="character-fill health-fill"></div></div>
+        </div>
+        <div class="character-stat">
+          <div class="character-stat-heading"><span>ENERGIA</span><b id="character-stamina-value">100%</b></div>
+          <div class="character-track"><div id="character-stamina" class="character-fill stamina-fill"></div></div>
+        </div>
+      </div>
+
+      <div class="character-quick-equipment" data-hud-editable="equipment" aria-label="Equipamento rápido">
+        <div class="quick-slot"><span>ARMA</span><b id="quick-weapon">VAZIO</b></div>
+        <div class="quick-slot"><span>FERRAMENTA</span><b id="quick-tool">VAZIO</b></div>
+        <div class="quick-slot"><span>MÁQUINA</span><b id="quick-machine">VAZIO</b></div>
+      </div>
+
+      <div class="character-interaction" data-hud-editable="interaction">
+        <span>INTERAÇÃO</span>
+        <b id="character-interaction">SEM ALVO PRÓXIMO</b>
+      </div>
+
+      <!-- CONTROLES DO PERSONAGEM: independentes dos controles da nave -->
+      <div id="character-controls" class="character-controls">
+        <div id="character-aim-area" class="character-aim-area" aria-label="Arraste para olhar ao redor"></div>
+        <div id="character-aim-reticle" class="character-aim-reticle" aria-hidden="true"><i></i><b></b><i></i></div>
+        <div id="character-move-stick" data-hud-editable="move" class="character-move-stick" aria-label="Movimentar personagem">
+          <span class="character-move-knob"></span>
+          <small>MOVER</small>
+        </div>
+        <div class="character-action-cluster" data-hud-editable="action" aria-label="Ações de movimento">
+          <button id="character-jump-btn" class="character-movement-btn jump-btn" type="button" aria-label="Pular">↑<small>PULAR</small></button>
+          <button id="character-sprint-btn" class="character-movement-btn sprint-btn" type="button" aria-label="Correr">»<small>CORRER</small></button>
+          <button id="character-animation-btn" class="character-movement-btn animation-btn" type="button" aria-label="Testar animação">✦<small>ANIMAÇÃO</small></button>
+          <button id="character-aim-btn" class="character-movement-btn aim-btn" type="button" aria-label="Ativar mira" disabled>⌖<small>MIRAR</small></button>
+          <button id="character-phaser-btn" class="character-movement-btn phaser-btn" type="button" aria-label="Disparar Phaser" disabled>⚡<small>PHASER</small><i id="phaser-charge-fill"></i></button>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- INVENTÁRIO E VESTUÁRIO DO PERSONAGEM -->
+    <div id="inventory-modal" class="inventory-modal hidden" aria-hidden="true">
+      <section class="inventory-window" role="dialog" aria-modal="true" aria-labelledby="inventory-title">
+        <header class="inventory-header">
+          <div><span class="inventory-kicker">SISTEMA DO EXPLORADOR</span><h2 id="inventory-title">INVENTÁRIO</h2></div>
+          <button id="inventory-close-btn" class="inventory-close-btn" type="button" aria-label="Fechar inventário">✕</button>
+        </header>
+        <nav class="inventory-tabs" aria-label="Seções do inventário">
+          <button class="inventory-tab active" type="button" data-inventory-tab="items">ITENS</button>
+          <button class="inventory-tab" type="button" data-inventory-tab="clothing">VESTUÁRIO</button>
+        </nav>
+        <div id="inventory-items-view" class="inventory-view">
+          <div class="inventory-items-layout">
+            <aside class="inventory-backpack-panel">
+              <div class="inventory-backpack-visual" aria-hidden="true"><span></span><i></i></div>
+              <span class="inventory-panel-kicker">MOCHILA EQUIPADA</span>
+              <b id="inventory-backpack-name">SEM MOCHILA</b>
+              <small id="inventory-backpack-code">CAPACIDADE BASE</small>
+              <div class="inventory-capacity-readout">
+                <b id="inventory-backpack-capacity">12 ESPAÇOS</b>
+                <span id="inventory-backpack-weight">0 / 60 KG</span>
+              </div>
+              <div class="inventory-section-heading inventory-backpack-heading"><b>ESPAÇOS</b><span id="inventory-count">0 / 12</span></div>
+              <p class="inventory-note">A capacidade acompanha o modelo de mochila equipado.</p>
+            </aside>
+            <section class="inventory-items-panel">
+              <div class="inventory-section-heading"><b>ITENS ARMAZENADOS</b><span>TOQUE PARA SELECIONAR</span></div>
+              <div id="inventory-grid" class="inventory-grid"></div>
+              <div id="inventory-overflow-panel" class="inventory-overflow-panel hidden">
+                <div class="inventory-section-heading"><b>ARMAZENAMENTO TEMPORÁRIO</b><span><span id="inventory-overflow-count">0</span> ITENS</span></div>
+                <p>Itens preservados quando a mochila fica sem espaço. Toque para restaurar ou selecione equipamentos para equipar diretamente.</p>
+                <div id="inventory-overflow-grid" class="inventory-overflow-grid"></div>
+              </div>
+              <p class="inventory-note">Todos os tipos de item podem ser guardados. Itens compatíveis também podem ser equipados.</p>
+            </section>
+          </div>
+        </div>
+        <div id="inventory-clothing-view" class="inventory-view hidden">
+          <div class="inventory-section-heading"><b>ROUPAS E PROTEÇÃO</b><span>EQUIPAMENTO DO EXPLORADOR</span></div>
+          <div class="clothing-grid">
+            <button class="inventory-slot" type="button" data-slot="head"><span>CABEÇA</span><b>Vazio</b><small>VAZIO</small></button>
+            <button class="inventory-slot" type="button" data-slot="torso"><span>PEITORAL</span><b>Vazio</b><small>VAZIO</small></button>
+            <button class="inventory-slot" type="button" data-slot="hands"><span>LUVAS</span><b>Vazio</b><small>VAZIO</small></button>
+            <button class="inventory-slot" type="button" data-slot="legs"><span>CALÇAS</span><b>Vazio</b><small>VAZIO</small></button>
+            <button class="inventory-slot" type="button" data-slot="feet"><span>BOTAS</span><b>Vazio</b><small>VAZIO</small></button>
+            <button class="inventory-slot" type="button" data-slot="back"><span>COSTAS</span><b>Vazio</b><small>VAZIO</small></button>
+            <button class="inventory-slot weapon-inventory-slot" type="button" data-slot="weapon"><span>ARMA</span><b>Vazio</b><small>VAZIO · TOQUE PARA EQUIPAR</small></button>
+          </div>
+        </div>
+        <footer class="inventory-footer">
+          <div class="inventory-equipment-summary"><span>ACESSO RÁPIDO</span><b>Arma · Ferramenta · Máquina</b></div>
+          <button id="inventory-done-btn" class="inventory-done-btn" type="button">CONCLUÍDO</button>
+        </footer>
+      </section>
+    </div>
+
     <!-- TELA DE CARREGAMENTO -->
     <div id="loading-screen" class="loading-screen hidden">
       <div class="loading-card">
@@ -133,7 +259,7 @@
     </div>
 
     <!-- HUD -->
-    <div id="hud">
+    <div id="hud" class="ship-interface hidden">
 
       <div class="hud-card">
         <b id="hud-user">PILOTO</b>
@@ -147,6 +273,7 @@
 
       <div class="hud-card right">
         <span>Créditos: <b id="hud-credits">0</b></span>
+        <button id="leave-pilot-btn" class="hud-menu" type="button">SAIR</button>
         <button id="game-menu-btn" class="hud-menu">
           ☰ MENU
         </button>
@@ -155,7 +282,7 @@
     </div>
 
     <!-- INDICADOR DE NITRO -->
-    <div id="nitro-display" class="nitro-display">
+    <div id="nitro-display" class="nitro-display ship-interface hidden">
 
       <div class="nitro-heading">
         <span>ENERGIA DO NITRO</span>
@@ -173,7 +300,7 @@
     <div id="toast" class="toast hidden"></div>
 
     <!-- CONTROLES DE VOO -->
-    <div id="flight-controls">
+    <div id="flight-controls" class="ship-interface hidden">
 
       <div
         id="aim-touch-area"
@@ -228,8 +355,34 @@
           CÂMERA: 3ª PESSOA
         </button>
 
+        <button id="landing-btn" class="control-button landing-button" type="button">
+          ◉ POUSO · UYUNI
+        </button>
+
       </div>
 
+    </div>
+
+    <!-- DESTINO DE POUSO PREDEFINIDO -->
+    <div id="landing-modal" class="landing-modal hidden" aria-hidden="true">
+      <section class="landing-window" role="dialog" aria-modal="true" aria-labelledby="landing-title">
+        <header class="landing-header">
+          <div>
+            <span class="landing-kicker">NAVEGAÇÃO PLANETÁRIA</span>
+            <h2 id="landing-title">DESTINO DE POUSO</h2>
+          </div>
+          <button id="landing-close-btn" type="button" aria-label="Fechar destino">✕</button>
+        </header>
+        <article class="landing-site-card">
+          <b>SALAR DE UYUNI · BOLÍVIA</b>
+          <span>Referência GPS UY04 · WGS84</span>
+          <strong>20.211888829° S, 67.422529683° W</strong>
+          <span>Altitude de referência: 3.697,3 m</span>
+          <small>Local candidato. A base e a plataforma são referências visuais; relevo local, obstáculos, escala e corredor de aproximação ainda precisam ser validados antes de liberar o piloto automático.</small>
+        </article>
+        <p id="landing-status" class="landing-status">Destino disponível para seleção. Pouso automático ainda bloqueado para validação.</p>
+        <button id="landing-select-btn" class="primary landing-select-btn" type="button">MARCAR COMO DESTINO</button>
+      </section>
     </div>
 
     <!-- MENU DE PAUSA -->
@@ -242,11 +395,27 @@
           CONTINUAR
         </button>
 
+        <button id="edit-character-hud-btn" class="secondary" type="button">CONFIGURAR HUD DO PERSONAGEM</button>
+
         <button id="return-menu-btn" class="secondary">
           VOLTAR AO MENU
         </button>
       </div>
 
+    </div>
+
+
+    <!-- Editor exclusivo do HUD do personagem -->
+    <div id="character-hud-editor" class="character-hud-editor hidden" aria-hidden="true">
+      <div class="character-hud-editor-panel">
+        <b>EDITAR HUD DO PERSONAGEM</b>
+        <span>Arraste os elementos para a posição desejada. O HUD da nave permanece inalterado.</span>
+        <div class="character-hud-editor-actions">
+          <button id="character-hud-reset-btn" type="button">PADRÃO</button>
+          <button id="character-hud-cancel-btn" type="button">CANCELAR</button>
+          <button id="character-hud-save-btn" type="button">SALVAR</button>
+        </div>
+      </div>
     </div>
 
   </section>

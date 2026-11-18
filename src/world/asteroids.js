@@ -1,15 +1,17 @@
 import * as THREE from 'three';
 
-// Campo de asteroides separado da lógica principal do jogo.
+// Campo de mineração concentrado em uma região própria, longe da Terra e da estação.
 export function createAsteroidField(scene, options = {}) {
-  const count = options.count ?? 32;
+  const count = options.count ?? 24;
+  const center = options.center ?? [310, 0, -300];
+  const spread = options.spread ?? [190, 100, 160];
   const asteroids = [];
   const colors = [0x665d56, 0x77716a, 0x4e5962];
 
   for (let i = 0; i < count; i++) {
     const radius = 1.1 + Math.random() * 2.2;
     const asteroid = new THREE.Mesh(
-      new THREE.IcosahedronGeometry(radius, 1),
+      new THREE.IcosahedronGeometry(radius, 0),
       new THREE.MeshStandardMaterial({
         color: colors[i % colors.length],
         roughness: 1,
@@ -18,9 +20,9 @@ export function createAsteroidField(scene, options = {}) {
     );
 
     asteroid.position.set(
-      (Math.random() - 0.5) * 180,
-      (Math.random() - 0.5) * 90,
-      -25 - Math.random() * 260
+      center[0] + (Math.random() - 0.5) * spread[0],
+      center[1] + (Math.random() - 0.5) * spread[1],
+      center[2] + (Math.random() - 0.5) * spread[2]
     );
     asteroid.rotation.set(Math.random() * 3, Math.random() * 3, 0);
     asteroid.userData = {
