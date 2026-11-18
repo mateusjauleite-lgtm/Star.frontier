@@ -21,7 +21,7 @@ export function createCharacterAudio(options = {}) {
   let disposed = false;
 
   function play(name, overrides = {}) {
-    if (disposed || !TONES[name]) return false;
+    if (disposed || !TONES[name] || !audioCore.isUnlocked) return false;
     return audioCore.playTone({ ...TONES[name], ...overrides, bus: 'sfx' });
   }
 
