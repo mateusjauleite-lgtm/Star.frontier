@@ -1,4 +1,5 @@
 // Adaptador de áudio da nave exploradora.
+// Revisão 18/11: motor grave, impulso suave e hum sincronizado às luzes das naceles.
 // Usa exclusivamente o Audio Engine compartilhado; não cria AudioContext próprio.
 // Os tons longos e suaves são uma camada provisória até a entrada de assets reais.
 import { audioCore } from '../systems/audio.js';
