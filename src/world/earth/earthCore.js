@@ -41,8 +41,14 @@ export function createEarthCore(options = {}) {
   group.name = 'StarFrontier-Earth-Core';
   group.position.set(...settings.position);
 
+  // Frame terrestre compartilhado pela superfície, pelo relevo e pelos atores no solo.
+  const surfaceFrame = new THREE.Group();
+  surfaceFrame.name = 'StarFrontier-Earth-Terrestrial-Frame';
+  surfaceFrame.rotation.z = THREE.MathUtils.degToRad(11.5);
+  group.add(surfaceFrame);
+
   const layers = {};
-  const context = { group, options: settings, layers };
+  const context = { group, surfaceFrame, options: settings, layers };
   const updatePipeline = createEarthUpdatePipeline(EARTH_UPDATE_MODULES);
   let disposed = false;
 
@@ -61,6 +67,9 @@ export function createEarthCore(options = {}) {
     getPlanetaryProfile() {
       return planetaryProfile;
     },
+    getSurfaceFrame() {
+      return surfaceFrame;
+    },
     // Shared physical query surface: the collision system consumes the same
     // elevation sampler that displaces the rendered Earth mesh.
     getCollisionSurface() {
@@ -69,11 +78,10 @@ export function createEarthCore(options = {}) {
     // Exposes the rendered axial spin so grounded world objects can share
     // the same angular transform without becoming children of the Earth mesh.
     getSurfaceRotationState() {
-      const surface = layers.surface;
-      if (!surface) return null;
+      if (!layers.surface) return null;
       return {
-        rotationY: surface.rotation.y,
-        localAxis: new THREE.Vector3(0, 1, 0).applyQuaternion(surface.quaternion)
+        rotationY: surfaceFrame.rotation.y,
+        localAxis: new THREE.Vector3(0, 1, 0).applyQuaternion(surfaceFrame.quaternion)
       };
     },
     getLandingBase() {

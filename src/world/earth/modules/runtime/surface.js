@@ -168,7 +168,7 @@ export function selectEarthLodLevel(distance, radius, currentLevel = null) {
   return currentLevel;
 }
 
-export function createSurfaceRuntime({ group, options, layers }) {
+export function createSurfaceRuntime({ group, surfaceFrame = group, options, layers }) {
   let mesh, texture, geometry, material, lodGeometries = [];
   return {
     initialize() {
@@ -193,17 +193,16 @@ export function createSurfaceRuntime({ group, options, layers }) {
       mesh.name = 'Earth-Continuous-Rocky-Globe';
       mesh.userData.earthLodGeometries = lodGeometries;
       mesh.userData.earthLodLevel = 3;
-      mesh.rotation.z = THREE.MathUtils.degToRad(11.5);
-      group.add(mesh);
+      surfaceFrame.add(mesh);
       layers.surface = mesh;
     },
     update(delta, context) {
       if (!mesh) return;
-      mesh.rotation.y += Math.min(Math.max(delta || 0, 0), .1) * .012;
+      surfaceFrame.rotation.y += Math.min(Math.max(delta || 0, 0), .1) * .012;
       // Global terrain resolution is fixed; camera distance never downgrades the globe.
     },
     dispose() {
-      if (mesh) group.remove(mesh);
+      if (mesh) surfaceFrame.remove(mesh);
       lodGeometries.forEach(item => item.dispose());
       lodGeometries = [];
       material?.dispose();

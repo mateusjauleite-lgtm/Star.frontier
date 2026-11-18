@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { createEarthReferenceFrames } from './world/earth/earthReferenceFrames.js';
 import { createEarthCore } from './world/earth/earthCore.js';
 import { createStation } from './world/station.js';
 import { getLandingSite } from './ships/flight/landingSites.js';
@@ -468,6 +469,7 @@ let renderer;
 let ship;
 let stars;
 let earthSystem;
+let earthReferenceFrames = null;
 let lastEarthSurfaceRotationY = null;
 let stationSystem;
 let landingBaseSystem;
@@ -750,6 +752,7 @@ async function startGame() {
     shipLandingGearContactPoints = [];
     stars = null;
     earthSystem = null;
+    earthReferenceFrames = null;
     stationSystem = null;
     landingBaseSystem = null;
     selectedLandingSiteId = null;
@@ -799,6 +802,7 @@ async function init3D() {
   // Terra em posição distante, visível à frente da nave.
   earthSystem = createEarthCore({ radius: 600, position: [0, 0, -850] });
   scene.add(earthSystem.group);
+  earthReferenceFrames = createEarthReferenceFrames({ globalFrame: scene, terrestrialFrame: earthSystem.getSurfaceFrame() });
 
   camera = new THREE.PerspectiveCamera(
     70,
@@ -963,9 +967,6 @@ function applyEarthSurfaceRotation(deltaSeconds) {
   };
 
   if (ship?.userData?.earthSurfaceAnchored) rotateObjectInWorld(ship);
-  if (characterInWorldFrame && characterWorldGrounded && characterModel?.group) {
-    rotateObjectInWorld(characterModel.group);
-  }
 }
 
 function updateFlight(dt) {
@@ -1170,23 +1171,30 @@ function updateCharacterCamera() {
   player.getWorldQuaternion(characterCameraWorldQuaternion);
   characterCameraForward.set(0, 0, -1).applyQuaternion(characterCameraWorldQuaternion).normalize();
 
-  const target = characterCameraWorldPosition.clone().add(new THREE.Vector3(0, 1.25, 0));
+  // A câmera exterior usa o eixo local do terreno; a câmera interna usa o convés.
+  const cameraUp = characterInWorldFrame
+    ? new THREE.Vector3(0, 1, 0).applyQuaternion(characterCameraWorldQuaternion).normalize()
+    : new THREE.Vector3(0, 1, 0);
+  if (characterInWorldFrame && !characterWorldGrounded) {
+    const earthCenter = earthSystem?.group?.getWorldPosition(new THREE.Vector3());
+    if (earthCenter) cameraUp.copy(characterCameraWorldPosition).sub(earthCenter).normalize();
+  }
+  camera.up.copy(cameraUp);
+  const target = characterCameraWorldPosition.clone().addScaledVector(cameraUp, 1.25);
 
   if (characterCameraMode === 'first-person') {
-    characterCameraOffset.set(0, 1.62, 0).applyQuaternion(characterCameraWorldQuaternion);
+    characterCameraOffset.copy(cameraUp).multiplyScalar(1.62);
     camera.position.copy(characterCameraWorldPosition).add(characterCameraOffset);
     characterLookEuler.set(characterPitch, 0, 0, 'YXZ');
     camera.quaternion.copy(characterCameraWorldQuaternion).multiply(
       new THREE.Quaternion().setFromEuler(characterLookEuler)
     );
   } else {
-    // Ombro/costas calculado no referencial mundial, acompanhando a nave.
     characterCameraOffset.set(0, 2.35, 5.2).applyQuaternion(characterCameraWorldQuaternion);
     const desired = characterCameraWorldPosition.clone().add(characterCameraOffset);
     camera.position.lerp(desired, 0.22);
     const lookTarget = target.addScaledVector(characterCameraForward, 1.4);
-    // O arrasto vertical da mira também inclina o ponto observado em terceira pessoa.
-    lookTarget.y += Math.sin(characterPitch) * 4.2;
+    lookTarget.addScaledVector(cameraUp, Math.sin(characterPitch) * 4.2);
     camera.lookAt(lookTarget);
   }
 }
@@ -1267,24 +1275,28 @@ function isCharacterPositionBlocked(position, deckIndex) {
 function transferCharacterToWorldFrame() {
   if (!characterModel?.group || !shipVisual || !scene || characterInWorldFrame) return false;
   const player = characterModel.group;
-  player.updateWorldMatrix(true, false);
-  const worldPosition = player.getWorldPosition(new THREE.Vector3());
-  const worldQuaternion = player.getWorldQuaternion(new THREE.Quaternion());
-  const worldScale = player.getWorldScale(new THREE.Vector3());
-
-  shipVisual.remove(player);
-  scene.add(player);
-  player.position.copy(worldPosition);
-  player.quaternion.copy(worldQuaternion);
-  player.scale.copy(worldScale);
-  player.updateWorldMatrix(true, false);
-
-  // O personagem sai com velocidade relativa zero: enquanto o jogador está
-  // a pé, a nave não executa updateFlight e portanto não há velocidade herdada.
+  if (earthReferenceFrames) earthReferenceFrames.attachToGlobal(player);
+  else scene.attach(player);
   characterWorldVelocity.set(0, 0, 0);
   characterInWorldFrame = true;
   characterWorldGrounded = false;
   characterCore.setGrounded(false);
+  return true;
+}
+
+function anchorCharacterToTerrestrialFrame(player, worldNormal) {
+  if (!player || !worldNormal?.isVector3) return false;
+  const worldQuaternion = player.getWorldQuaternion(new THREE.Quaternion());
+  const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(worldQuaternion);
+  if (earthReferenceFrames) {
+    earthReferenceFrames.alignToSurface(player, worldNormal, forward);
+    earthReferenceFrames.attachToSurface(player);
+  } else {
+    player.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), worldNormal);
+  }
+  characterWorldGrounded = true;
+  characterWorldVelocity.set(0, 0, 0);
+  characterCore.setGrounded(true);
   return true;
 }
 
@@ -1330,12 +1342,7 @@ function updateCharacterWorldPhysics(deltaSeconds) {
       worldPosition.copy(platformContact.surfacePoint)
         .addScaledVector(platformContact.normal, 0.21);
       characterWorldVelocity.set(0, 0, 0);
-      player.quaternion.setFromUnitVectors(
-        new THREE.Vector3(0, 1, 0),
-        platformContact.normal
-      );
-      characterWorldGrounded = true;
-      characterCore.setGrounded(true);
+      anchorCharacterToTerrestrialFrame(player, platformContact.normal);
       characterAnimator?.play('land', { restart: true });
       return;
     }
@@ -1352,9 +1359,7 @@ function updateCharacterWorldPhysics(deltaSeconds) {
     if (clearance <= 0.21 && inwardSpeed < 0) {
       worldPosition.copy(terrain.worldPosition).addScaledVector(normal, 0.21);
       characterWorldVelocity.set(0, 0, 0);
-      player.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal);
-      characterWorldGrounded = true;
-      characterCore.setGrounded(true);
+      anchorCharacterToTerrestrialFrame(player, normal);
       characterAnimator?.play('land', { restart: true });
     }
   }
@@ -1374,29 +1379,56 @@ function updateCharacterMovement(dt) {
     const worldMagnitude = Math.min(1, Math.hypot(worldInput.x, worldInput.y));
     let worldMoving = false;
 
-    // No exterior, o movimento acompanha o plano local do terreno ou da
-    // plataforma. Ao sair da plataforma, a gravidade terrestre volta a atuar.
+    // O personagem fica no referencial terrestre enquanto caminha. O passo é
+    // tangente à superfície e usa o mesmo sampler ETOPO do contato físico.
     if (characterWorldGrounded && worldMagnitude > 0.08) {
       const player = characterModel.group;
-      const worldPosition = player.position;
-      let up = new THREE.Vector3(0, 1, 0).applyQuaternion(player.quaternion).normalize();
-      const terrain = earthSystem?.getCollisionSurface?.()?.sampleWorldPosition?.(worldPosition);
-      if (terrain?.worldNormal) up.copy(terrain.worldNormal).normalize();
-      else {
-        const earthCenter = earthSystem?.group?.getWorldPosition(new THREE.Vector3());
-        if (earthCenter) up.copy(worldPosition).sub(earthCenter).normalize();
-      }
-      const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(player.quaternion)
-        .projectOnPlane(up).normalize();
-      const right = new THREE.Vector3(1, 0, 0).applyQuaternion(player.quaternion)
-        .projectOnPlane(up).normalize();
+      const worldPosition = player.getWorldPosition(new THREE.Vector3());
+      const worldQuaternion = player.getWorldQuaternion(new THREE.Quaternion());
+      let up = new THREE.Vector3(0, 1, 0).applyQuaternion(worldQuaternion).normalize();
+      const currentTerrain = earthSystem?.getCollisionSurface?.()?.sampleWorldPosition?.(worldPosition);
+      if (currentTerrain?.worldNormal) up.copy(currentTerrain.worldNormal).normalize();
+
+      const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(worldQuaternion).projectOnPlane(up).normalize();
+      const right = new THREE.Vector3(1, 0, 0).applyQuaternion(worldQuaternion).projectOnPlane(up).normalize();
       const direction = forward.multiplyScalar(-worldInput.y).addScaledVector(right, worldInput.x);
-      if (direction.lengthSq() > 0) {
+
+      if (direction.lengthSq() > 1e-8) {
         direction.normalize();
-        worldPosition.addScaledVector(direction, 3.1 * worldMagnitude * dt);
-        characterWorldGrounded = false;
-        characterWorldVelocity.set(0, 0, 0);
-        characterCore.setGrounded(false);
+        const candidate = worldPosition.clone().addScaledVector(direction, 3.1 * worldMagnitude * dt);
+        let contact = null;
+
+        if (externalElevator?.phase === 'bottom') {
+          const platformContact = externalElevator.getPlatformContact?.(candidate);
+          if (platformContact?.inside && Math.abs(platformContact.clearance) <= 0.85) {
+            contact = { worldPosition: platformContact.surfacePoint, worldNormal: platformContact.normal };
+          }
+        }
+        if (!contact) {
+          const terrain = earthSystem?.getCollisionSurface?.()?.sampleWorldPosition?.(candidate);
+          if (terrain?.worldPosition && terrain?.worldNormal) {
+            const normal = terrain.worldNormal.clone().normalize();
+            const clearance = candidate.clone().sub(terrain.worldPosition).dot(normal);
+            if (clearance >= -0.45 && clearance <= 1.25) {
+              contact = { worldPosition: terrain.worldPosition, worldNormal: normal };
+            }
+          }
+        }
+
+        if (contact) {
+          const normal = contact.worldNormal.clone().normalize();
+          const groundedPosition = contact.worldPosition.clone().addScaledVector(normal, 0.21);
+          earthReferenceFrames?.setWorldPosition(player, groundedPosition);
+          earthReferenceFrames?.alignToSurface(player, normal, forward);
+          characterWorldGrounded = true;
+          characterCore.setGrounded(true);
+        } else {
+          earthReferenceFrames?.attachToGlobal(player);
+          earthReferenceFrames?.setWorldPosition(player, candidate);
+          characterWorldGrounded = false;
+          characterWorldVelocity.set(0, 0, 0);
+          characterCore.setGrounded(false);
+        }
         worldMoving = true;
       }
     }
@@ -1792,6 +1824,7 @@ function exitPilotMode() {
 
 function updateCamera() {
   if (!camera || !ship || !shipVisual) return;
+  camera.up.set(0, 1, 0);
 
   viewEuler.set(
     state.view.x,
@@ -2204,10 +2237,21 @@ if (characterAim) {
     const dy = event.clientY - characterPreviousY;
     characterPreviousX = event.clientX;
     characterPreviousY = event.clientY;
-    characterYaw -= dx * 0.005;
+    const yawDelta = -dx * 0.005;
+    characterYaw += yawDelta;
     characterPitch = THREE.MathUtils.clamp(characterPitch - dy * 0.004, -0.65, 0.65);
-    // Atualiza a orientação imediatamente, mesmo quando o personagem está parado.
-    if (characterModel?.group) characterModel.group.rotation.y = characterYaw;
+    // A guinada exterior gira ao redor da normal local, nunca do Y global.
+    if (characterModel?.group && characterInWorldFrame) {
+      const player = characterModel.group;
+      const worldPosition = player.getWorldPosition(new THREE.Vector3());
+      const earthCenter = earthSystem?.group?.getWorldPosition(new THREE.Vector3());
+      const up = characterWorldGrounded
+        ? new THREE.Vector3(0, 1, 0).applyQuaternion(player.getWorldQuaternion(new THREE.Quaternion())).normalize()
+        : earthCenter ? worldPosition.sub(earthCenter).normalize() : new THREE.Vector3(0, 1, 0);
+      earthReferenceFrames?.rotateAroundWorldAxis(player, up, yawDelta);
+    } else if (characterModel?.group) {
+      characterModel.group.rotation.y = characterYaw;
+    }
   });
   const endCharacterAim = event => {
     if (characterAimPointer === event.pointerId) characterAimPointer = null;
