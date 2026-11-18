@@ -1,6 +1,7 @@
 // Áudio do personagem principal (Character 1).
 // Usa o núcleo compartilhado e efeitos procedurais; não depende do NPC/Character futuro.
 import { audioCore } from '../systems/audio.js';
+import { on } from '../core/events.js';
 
 const TONES = Object.freeze({
   footstep: { frequency: 118, endFrequency: 72, duration: 0.075, volume: 0.075, waveform: 'triangle' },
@@ -41,13 +42,13 @@ export function createCharacterAudio(options = {}) {
     let previousGrounded = characterCore.snapshot().grounded;
     let previousMode = characterCore.snapshot().mode;
 
-    const offGrounded = characterCore.on?.('character:grounded-changed', snapshot => {
+    const offGrounded = on('character:grounded-changed', snapshot => {
       const grounded = Boolean(snapshot?.grounded);
       if (!previousGrounded && grounded) play('land');
       previousGrounded = grounded;
     });
 
-    const offMode = characterCore.on?.('character:mode-changed', snapshot => {
+    const offMode = on('character:mode-changed', snapshot => {
       const mode = snapshot?.mode;
       if (mode && mode !== previousMode) play('seat');
       previousMode = mode || previousMode;
