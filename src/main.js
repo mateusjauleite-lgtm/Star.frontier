@@ -503,7 +503,7 @@ async function init3D() {
     70,
     innerWidth / innerHeight,
     0.1,
-    2500
+    8000
   );
 
   renderer = new THREE.WebGLRenderer({
@@ -1059,7 +1059,7 @@ function loop(now) {
   earthSystem?.update(dt);
   orbitSystem?.update(dt);
   asteroidSystem?.update(dt);
-  lightingSystem?.update(dt);
+  lightingSystem?.update(dt, camera?.position);
 
   renderer.render(scene, camera);
 
