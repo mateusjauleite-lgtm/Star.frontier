@@ -1,6 +1,7 @@
 // Adaptador de áudio da nave exploradora.
 // Usa exclusivamente o Audio Engine compartilhado; não cria AudioContext próprio.
 // Os tons longos e suaves são uma camada provisória até a entrada de assets reais.
+import { audioCore } from '../systems/audio.js';
 
 const TONES = Object.freeze({
   engineStart: { frequency: 58, endFrequency: 92, duration: 0.72, attack: 0.12, volume: 0.045, waveform: 'sine' },
@@ -28,7 +29,7 @@ export function createShipAudio() {
 
   function play(name, overrides = {}) {
     if (disposed || !audioCore.isUnlocked || !TONES[name]) return false;
-    return audioCore.playTone({ ...TONES[name], ...overrides, bus: 'ambience' === name ? 'ambience' : 'sfx' });
+    return audioCore.playTone({ ...TONES[name], ...overrides, bus: 'sfx' });
   }
 
   async function unlock() {
