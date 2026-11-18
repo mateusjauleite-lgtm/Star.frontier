@@ -62,19 +62,37 @@ export function createSpaceLighting(scene, options = {}) {
   sun.add(sunHalo);
 
   const positions = [];
+  const colors = [];
   const starCount = options.starCount ?? STAR_FIELD_COUNT;
   const starRadius = options.starRadius ?? STAR_FIELD_RADIUS;
-  const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+
+  // Gerador determinístico: distribuição irregular sem padrão em espiral ou grade.
+  let seed = (options.starSeed ?? 20261117) >>> 0;
+  const random = () => {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    return seed / 4294967296;
+  };
 
   for (let i = 0; i < starCount; i++) {
-    const t = starCount <= 1 ? 0.5 : i / (starCount - 1);
-    const y = 1 - 2 * t;
+    // Direção aleatória uniforme na esfera e profundidade em camadas suaves.
+    const y = random() * 2 - 1;
+    const angle = random() * Math.PI * 2;
     const ringRadius = Math.sqrt(Math.max(0, 1 - y * y));
-    const angle = goldenAngle * i;
+    const depth = starRadius * (0.72 + random() * 0.28);
+
     positions.push(
-      Math.cos(angle) * ringRadius * starRadius,
-      y * starRadius,
-      Math.sin(angle) * ringRadius * starRadius
+      Math.cos(angle) * ringRadius * depth,
+      y * depth,
+      Math.sin(angle) * ringRadius * depth
+    );
+
+    // Pequenas diferenças de brilho e temperatura, sem transformar o céu em ruído colorido.
+    const brightness = 0.62 + random() * 0.38;
+    const tint = random();
+    colors.push(
+      brightness,
+      brightness * (0.94 + tint * 0.06),
+      brightness * (0.88 + tint * 0.12)
     );
   }
 
@@ -83,11 +101,16 @@ export function createSpaceLighting(scene, options = {}) {
     'position',
     new THREE.Float32BufferAttribute(positions, 3)
   );
+  starGeometry.setAttribute(
+    'color',
+    new THREE.Float32BufferAttribute(colors, 3)
+  );
 
   const stars = new THREE.Points(
     starGeometry,
     new THREE.PointsMaterial({
       color: 0xffffff,
+      vertexColors: true,
       size: 1.5,
       fog: false,
       sizeAttenuation: false
