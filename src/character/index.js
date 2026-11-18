@@ -19,6 +19,7 @@ export function createCharacterSystem(options = {}) {
 
   let initialized = false;
   let lastGrounded = true;
+  let landingTimeRemaining = 0;
 
   function initialize() {
     if (initialized) return getSnapshot();
@@ -38,11 +39,13 @@ export function createCharacterSystem(options = {}) {
 
     if (snapshot.mode === 'on-foot') {
       if (!snapshot.grounded) {
-        animator.play('fall');
+        if (animator.current !== 'jump') animator.play('fall');
+      } else if (landingTimeRemaining > 0) {
+        animator.play('land');
       } else if (moving) {
         animator.play('walk');
       } else {
-        animator.play(snapshot.posture === 'seated' ? 'sit' : 'idle');
+        animator.play('idle');
       }
     } else {
       animator.play('sit');
@@ -57,7 +60,13 @@ export function createCharacterSystem(options = {}) {
       core.setGrounded(lastGrounded);
     }
 
-    if (physicsState.justLanded) animator.play('land', { restart: true });
+    if (physicsState.justLanded) {
+      landingTimeRemaining = 0.30;
+      animator.play('land', { restart: true });
+    }
+    if (landingTimeRemaining > 0) {
+      landingTimeRemaining = Math.max(0, landingTimeRemaining - Math.max(0, deltaSeconds || 0));
+    }
     animator.update(deltaSeconds);
     const weaponState = weapon.update(deltaSeconds, snapshot.look.x);
 
