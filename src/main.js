@@ -1101,6 +1101,7 @@ function updateCharacterMovement(dt) {
   const input = characterMoveInput;
   const magnitude = Math.min(1, Math.hypot(input.x, input.y));
   const deck = characterModel.group.position;
+  let movedHorizontally = false;
   const stamina = characterCore.snapshot().stamina;
   const sprinting = characterSprintHeld && magnitude > 0.08 && stamina > 0;
   if (sprinting) characterStaminaAccumulator -= 22 * dt;
@@ -1151,6 +1152,7 @@ function updateCharacterMovement(dt) {
         !isCharacterInsideDeck(deck, activeDeckIndex)) {
       deck.z = previousZ;
     }
+    movedHorizontally = Math.hypot(deck.x - previousX, deck.z - previousZ) > 0.0005;
   }
 
   const floorY = starshipInterior.layout.decks[activeDeckIndex].y + 0.21;
@@ -1168,7 +1170,7 @@ function updateCharacterMovement(dt) {
   });
 
   // Passos só são emitidos quando o personagem está no chão; corrida acelera o ritmo.
-  if (magnitude > 0.08 && physicsState?.grounded) {
+  if (magnitude > 0.08 && movedHorizontally && physicsState?.grounded) {
     characterFootstepTimer += dt;
     const stepInterval = sprinting ? 0.29 : 0.43;
     if (characterFootstepTimer >= stepInterval) {
