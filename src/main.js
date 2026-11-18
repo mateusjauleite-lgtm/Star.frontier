@@ -16,6 +16,8 @@ import { createCharacterCore } from './character/characterCore.js';
 import { createCharacterHUD } from './character/characterHUD.js';
 import { createCharacterModel } from './character/characterModel.js';
 import { createCharacterAnimator } from './character/characterAnimator.js';
+import { createCharacterAudio } from './character/characterAudio.js';
+import { createShipAudio } from './ships/shipAudio.js';
 import { createCharacterWeaponController } from './character/characterWeaponController.js';
 import { createCharacterPhysics } from './character/characterPhysics.js';
 import { loadGravityKernel } from './physics/gravityKernel.js';
@@ -29,6 +31,9 @@ const $ = id => document.getElementById(id);
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 
 const characterCore = createCharacterCore();
+const characterAudio = createCharacterAudio({ core: characterCore });
+characterAudio.attach();
+const shipAudio = createShipAudio();
 const shipComputer = createShipComputer();
 shipComputer.registerSystem('flight', {
   name: 'Controle de voo',
@@ -69,6 +74,7 @@ const characterRight = new THREE.Vector3();
 const characterMove = new THREE.Vector3();
 const characterLookEuler = new THREE.Euler(0, 0, 0, 'YXZ');
 let characterMoveInput = { x: 0, y: 0 };
+let characterFootstepTimer = 0;
 let characterSprintHeld = false;
 let characterAnimationTestRemaining = 0;
 let characterAnimationTestIndex = -1;
@@ -148,6 +154,7 @@ function firePhaser() {
   phaserChargeRemaining = PHASER_RECHARGE_SECONDS;
   phaserShotFlashRemaining = PHASER_FLASH_SECONDS;
   characterWeaponController?.fire();
+  characterAudio.playPhaser();
   const phaser = characterModel?.wardrobe?.weapon?.userData?.phaser;
   if (phaser?.userData.muzzleLight) phaser.userData.muzzleLight.intensity = 4.5;
   toast('Phaser disparado · recarga energética iniciada.');
@@ -626,6 +633,10 @@ async function startGame() {
   loadingScreen?.classList.remove('hidden');
 
   try {
+    // O primeiro toque do jogador libera o AudioContext no Android/WebView.
+    void characterAudio.unlock();
+    void shipAudio.unlock();
+
     // O fullscreen precisa abranger o documento inteiro, não apenas a gameplay.
     // Assim, ao voltar ao menu principal, os botões continuam dentro da área
     // fullscreen e não ficam atrás de um elemento fullscreen oculto.
@@ -1039,6 +1050,17 @@ function updateFlight(dt) {
     state.speed = Math.max(0, state.speed - 1.4 * safeDt);
   }
 
+  shipAudio.updateFlight({
+    throttle: Boolean(state.throttle && state.fuel > 0),
+    boosting,
+    braking: Boolean(state.braking),
+    moveX: state.move.x,
+    moveY: state.move.y,
+    speed: state.speed,
+    nacellesLit: engineLights.some(light => light.visible && light.intensity > 2),
+    dt: safeDt
+  });
+
   /* DESLOCAMENTO */
 
   shipPitch.getWorldQuaternion(flightQuaternion);
@@ -1433,6 +1455,15 @@ function updateCharacterMovement(dt) {
       }
     }
 
+    if (worldMoving && characterWorldGrounded) {
+      characterFootstepTimer += dt;
+      if (characterFootstepTimer >= 0.43) {
+        characterFootstepTimer = 0;
+        characterAudio.playFootstep();
+      }
+    } else if (!characterWorldGrounded) {
+      characterFootstepTimer = 0;
+    }
     if (!characterWorldGrounded) characterAnimator?.play('fall');
     else if (worldMoving) characterAnimator?.play('walk');
     else if (characterAnimator?.current !== 'land') characterAnimator?.play('idle');
@@ -1443,6 +1474,7 @@ function updateCharacterMovement(dt) {
   const input = characterMoveInput;
   const magnitude = Math.min(1, Math.hypot(input.x, input.y));
   const deck = characterModel.group.position;
+  let movedHorizontally = false;
   const stamina = characterCore.snapshot().stamina;
   const sprinting = characterSprintHeld && magnitude > 0.08 && stamina > 0;
   if (sprinting) characterStaminaAccumulator -= 22 * dt;
@@ -1493,6 +1525,7 @@ function updateCharacterMovement(dt) {
         !isCharacterInsideDeck(deck, activeDeckIndex)) {
       deck.z = previousZ;
     }
+    movedHorizontally = Math.hypot(deck.x - previousX, deck.z - previousZ) > 0.0005;
   }
 
   const leavingDeckThroughAft = activeDeckIndex === 3 &&
@@ -1510,7 +1543,10 @@ function updateCharacterMovement(dt) {
     ? -1000000
     : starshipInterior.layout.decks[activeDeckIndex].y + 0.21;
   if (characterJumpQueued) {
-    if (characterPhysics?.jump()) characterAnimator?.play('jump', { restart: true });
+    if (characterPhysics?.jump()) {
+      characterAnimator?.play('jump', { restart: true });
+      characterAudio.playJump();
+    }
     characterJumpQueued = false;
   }
 
@@ -1518,6 +1554,17 @@ function updateCharacterMovement(dt) {
     position: deck,
     floorY
   });
+
+  if (magnitude > 0.08 && movedHorizontally && physicsState?.grounded) {
+    characterFootstepTimer += dt;
+    const stepInterval = sprinting ? 0.29 : 0.43;
+    if (characterFootstepTimer >= stepInterval) {
+      characterFootstepTimer = 0;
+      characterAudio.playFootstep();
+    }
+  } else {
+    characterFootstepTimer = 0;
+  }
 
   if (physicsState && characterCore.snapshot().grounded !== physicsState.grounded) {
     characterCore.setGrounded(physicsState.grounded);
@@ -1593,6 +1640,7 @@ function moveElevator(direction) {
   characterPhysics?.reset(deck.y + 0.21);
   characterCore.setGrounded(true);
   characterAnimator?.play('idle', { restart: true });
+  shipAudio.playElevator();
   // O centro do elevador fica dentro da área livre dos quatro decks.
   // Não chamar resolveCharacterShipCollisions: essa função não existe no runtime.
   nearbyElevator = true;
@@ -1676,6 +1724,7 @@ function activateExternalElevator() {
     }
     toast('Elevador externo subindo.');
   }
+  shipAudio.playElevator();
   externalElevatorActionAvailable = false;
   updateExternalElevatorInteraction();
   return true;
@@ -2293,6 +2342,7 @@ const characterEquipment = createCharacterEquipmentSystem(state, {
     if (characterModel) characterModel.setEquipment(slot, itemId);
   },
   onChange() {
+    characterAudio.playEquip();
     renderClothing();
     renderInventory();
     characterCore.setEquipment('suit', characterEquipment.equippedItem('torso')?.itemId || null);
@@ -2574,6 +2624,7 @@ $('landing-btn')?.addEventListener('click', () => {
 
   if (shipLandingAutopilot?.snapshot?.().active) {
     cancelLandingGuidance('standby');
+    shipAudio.playConsole();
     if ($('landing-status')) $('landing-status').textContent = 'Orientação cancelada. Selecione novamente POUSAR para escolher um destino.';
     toast('Guia de pouso cancelada.');
     return;
@@ -2587,6 +2638,7 @@ $('landing-btn')?.addEventListener('click', () => {
     }
     shipLandingTelemetry.reset();
     ship.userData.landingAutopilotState = 'armed-guidance-only';
+    shipAudio.playLandingAlert();
     $('landing-status').textContent = 'Telemetria conectada. A orientação calcula a aproximação, mas não comanda a propulsão nesta versão.';
     $('landing-btn').textContent = '✕ CANCELAR';
     toast('Guia de pouso ativada. Propulsão automática permanece bloqueada.');
@@ -2726,6 +2778,7 @@ $('mine-btn')?.addEventListener('click', () => {
 
   save();
   updateWallet();
+  shipAudio.playMining();
 
   toast(`Extração concluída: +${amount} unidades de minério.`);
 });
@@ -2750,6 +2803,8 @@ $('interact-btn')?.addEventListener('click', () => {
     return;
   }
 
+  characterAudio.playInteract();
+  shipAudio.playConsole();
   const bubble = $('npc-bubble');
 
   if (!npcReady) {
