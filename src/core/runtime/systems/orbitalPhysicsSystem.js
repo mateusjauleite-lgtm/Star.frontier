@@ -4,7 +4,8 @@ export function createOrbitalPhysicsRuntimeSystem({
   getShipFlightKernel,
   getGravityKernel,
   getEarthOrbitalFrame,
-  getShipWorldPosition
+  getShipWorldPosition,
+  getShipForwardWorld
 } = {}) {
   if (typeof getShipFlightKernel !== 'function' ||
       typeof getGravityKernel !== 'function') {
@@ -83,6 +84,9 @@ export function createOrbitalPhysicsRuntimeSystem({
 
       const earth = getEarthOrbitalFrame();
       const shipPositionWorld = getShipWorldPosition();
+      const shipForwardWorld = typeof getShipForwardWorld === 'function'
+        ? getShipForwardWorld()
+        : null;
       if (!earth || !shipPositionWorld) return;
 
       try {
@@ -102,9 +106,27 @@ export function createOrbitalPhysicsRuntimeSystem({
         }
         previousRelativeWorldPosition = relativeWorldPosition;
 
+        const forwardVectorMeters = shipForwardWorld
+          ? frame.worldVectorToMeters(shipForwardWorld)
+          : null;
+        const forwardLength = forwardVectorMeters ? Math.hypot(...forwardVectorMeters) : 0;
+        const forwardDirection = forwardLength > 1e-9
+          ? forwardVectorMeters.map(value => value / forwardLength)
+          : null;
+        const velocityLength = velocityMetersPerSecond
+          ? Math.hypot(...velocityMetersPerSecond)
+          : 0;
+        const velocityDirectionAlignment = forwardDirection && velocityLength > 1e-6
+          ? velocityMetersPerSecond.reduce(
+            (sum, value, axis) => sum + (value / velocityLength) * forwardDirection[axis], 0
+          )
+          : null;
+
         orbitalState = Object.freeze({
           positionMeters,
           velocityMetersPerSecond,
+          forwardDirection,
+          velocityDirectionAlignment,
           gravitationalParameterM3PerSecond2: shipFlightKernelValue(service),
           coordinateFrame: 'earth-centred-global-axes',
           positionUnit: 'm',
