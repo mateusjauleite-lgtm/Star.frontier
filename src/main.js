@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { loadRuntimeKernel } from './core/runtime/RuntimeKernel.js';
 import { createRuntimeBridge } from './core/runtime/RuntimeBridge.js';
+import { registerGameRuntimeSystems } from './core/runtime/systems/registerGameRuntimeSystems.js';
 import { createEarthReferenceFrames } from './world/earth/earthReferenceFrames.js';
 import { createEarthCore } from './world/earth/earthCore.js';
 import { createStation } from './world/station.js';
@@ -638,9 +639,41 @@ async function startGame() {
     if (!runtimeBridge) {
       const runtimeKernel = await loadRuntimeKernel({ maximumDeltaSeconds: 0.04 });
       runtimeBridge = createRuntimeBridge(runtimeKernel);
-      runtimeBridge.registerSystem('gameplay-frame', {
-        priority: 0,
-        update: updateGameplayFrame
+      registerGameRuntimeSystems(runtimeBridge, {
+        character: {
+          core: characterCore,
+          resetTransientState,
+          resetCounters: () => {
+            characterStaminaAccumulator = 0;
+            characterStaminaHudTimer = 0;
+          },
+          updateHUD: updateCharacterHUD,
+          onStage: stage => { startupStage = stage; }
+        },
+        world: {
+          isReady: () => Boolean(renderer),
+          initializeWorld: init3D,
+          onStage: stage => { startupStage = stage; }
+        },
+        shipComputer: {
+          registerSystems: registerComputerSubsystems,
+          boot: () => shipComputer.boot(),
+          onStage: stage => { startupStage = stage; },
+          onError: (error, phase) => {
+            console.error(
+              phase === 'register'
+                ? 'Subsistemas auxiliares do computador indisponíveis:'
+                : 'Não foi possível ativar o computador auxiliar:',
+              error
+            );
+            toast(
+              phase === 'register'
+                ? 'Computador auxiliar indisponível; controles básicos mantidos.'
+                : 'Computador auxiliar offline; gameplay mantida.'
+            );
+          }
+        },
+        gameplay: { update: updateGameplayFrame }
       });
     }
 
@@ -666,20 +699,8 @@ async function startGame() {
       window.screen?.orientation?.lock?.('landscape')?.catch?.(() => {});
     } catch {}
 
-    resetTransientState();
-    characterCore.initialize();
-    characterCore.setStamina(100);
-    characterStaminaAccumulator = 0;
-    characterStaminaHudTimer = 0;
-    characterCore.setMode('on-foot');
-    updateCharacterHUD();
-
-    startupStage = 'inicialização do mundo Three.js';
     await loadingStep(6, 'Iniciando sistemas da missão...');
 
-    if (!renderer) {
-      await init3D();
-    }
     const runtimeInitialized = await runtimeBridge.initialize({
       state,
       getScene: () => scene,
@@ -703,29 +724,6 @@ async function startGame() {
 
     startupStage = 'integração do personagem e HUD';
     updateCharacterHUD();
-
-    // O computador da nave é um subsistema. Uma falha nele não deve cancelar
-    // a entrada na gameplay nem desativar os controles básicos do personagem.
-    startupStage = 'registro do computador da nave';
-    if (!shipComputerSystemsRegistered) {
-      try {
-        registerComputerSubsystems();
-        shipComputerSystemsRegistered = true;
-      } catch (error) {
-        // Pode ter havido registro parcial; não repetir os mesmos IDs na próxima
-        // tentativa. Os controles Three.js continuam usando o estado principal.
-        shipComputerSystemsRegistered = true;
-        console.error('Subsistemas auxiliares do computador indisponíveis:', error);
-        toast('Computador auxiliar indisponível; controles básicos mantidos.');
-      }
-    }
-
-    try {
-      shipComputer.boot();
-    } catch (error) {
-      console.error('Não foi possível ativar o computador auxiliar:', error);
-      toast('Computador auxiliar offline; gameplay mantida.');
-    }
 
     startupStage = 'finalização da gameplay';
     await loadingStep(100, 'Todos os sistemas prontos. Boa viagem, piloto.');
@@ -3026,9 +3024,11 @@ updateCharacterCameraButton();
 
 $('character-menu-btn')?.addEventListener('click', () => {
   $('game-menu-modal')?.classList.remove('hidden');
+  if (runtimeBridge?.status === 'running') runtimeBridge.pause();
 });
 
 $('game-menu-btn')?.addEventListener('click', () => {
+  if (runtimeBridge?.status === 'running') runtimeBridge.pause();
   state.throttle = false;
   state.braking = false;
   state.nitroButton = false;
@@ -3038,10 +3038,10 @@ $('game-menu-btn')?.addEventListener('click', () => {
 
 $('resume-btn')?.addEventListener('click', () => {
   $('game-menu-modal')?.classList.add('hidden');
-  last = performance.now();
+  if (runtimeBridge?.status === 'paused') runtimeBridge.resume();
 });
 
-$('return-menu-btn')?.addEventListener('click', () => {
+$('return-menu-btn')?.addEventListener('click', async () => {
   // Nunca abandonar a sessão enquanto o personagem ainda estiver sentado
   // no console: libera o terminal, devolve o personagem ao convés e
   // restaura o HUD a pé antes de ocultar a tela do jogo.
@@ -3053,6 +3053,7 @@ $('return-menu-btn')?.addEventListener('click', () => {
   }
 
   active = false;
+  await runtimeBridge?.shutdown();
   resetTransientState();
   characterMoveInput = { x: 0, y: 0 };
 
@@ -3071,7 +3072,6 @@ $('return-menu-btn')?.addEventListener('click', () => {
   renderPanel('play');
   show('menu-screen');
   updateWallet();
-  last = performance.now();
 });
 
 // A tela de entrada é exibida somente depois que o carregamento inicial termina.
