@@ -24,7 +24,7 @@ export function registerGameRuntimeSystems(runtime, dependencies) {
   runtime.registerSystem('character', createCharacterRuntimeSystem(character));
   runtime.registerSystem('world', createWorldRuntimeSystem(world));
   runtime.registerSystem('ship-computer', createShipComputerRuntimeSystem(shipComputer));
-  runtime.registerSystem('gameplay', createGameplayRuntimeSystem(gameplay.update));
+  runtime.registerSystem('gameplay', createGameplayRuntimeSystem(gameplay));
   runtime.registerSystem('orbital-physics', createOrbitalPhysicsRuntimeSystem(orbitalPhysics));
 
   return runtime;
