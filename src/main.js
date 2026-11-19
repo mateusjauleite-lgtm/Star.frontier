@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { registerAimControls, registerHeldFlightControls, registerFlightSelectionGuards, registerCameraCycleControl } from './controls/gameControls.js';
+import { registerGameplayActions } from './systems/gameplayActions.js';
 import { loadRuntimeKernel } from './core/runtime/RuntimeKernel.js';
 import { createRuntimeBridge } from './core/runtime/RuntimeBridge.js';
 import { registerGameRuntimeSystems } from './core/runtime/systems/registerGameRuntimeSystems.js';
@@ -2459,116 +2461,9 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
-/* MIRA POR ARRASTO */
-
-const aimArea = $('aim-touch-area');
-
-let aimPointer = null;
-let previousTouchX = 0;
-let previousTouchY = 0;
-
-if (aimArea) {
-  aimArea.addEventListener('pointerdown', event => {
-    event.preventDefault();
-
-    aimPointer = event.pointerId;
-    previousTouchX = event.clientX;
-    previousTouchY = event.clientY;
-
-    aimArea.setPointerCapture(aimPointer);
-  });
-
-  aimArea.addEventListener('pointermove', event => {
-    if (aimPointer !== event.pointerId) return;
-
-    event.preventDefault();
-
-    const dx = event.clientX - previousTouchX;
-    const dy = event.clientY - previousTouchY;
-
-    previousTouchX = event.clientX;
-    previousTouchY = event.clientY;
-
-    const nextView = {
-      x: THREE.MathUtils.clamp(state.view.x - dy * 0.004, -1.15, 1.15),
-      // A rotação horizontal é contínua: permite completar voltas de 360°.
-      y: THREE.MathUtils.euclideanModulo(
-        state.view.y - dx * 0.004 + Math.PI,
-        Math.PI * 2
-      ) - Math.PI
-    };
-    if (shipComputer.isTerminalConnected('pilot-console')) {
-      shipComputer.dispatch('pilot-console', 'flight', 'look', nextView);
-    } else {
-      state.view.x = nextView.x;
-      state.view.y = nextView.y;
-    }
-  });
-
-  const endAim = event => {
-    if (aimPointer === event.pointerId) {
-      aimPointer = null;
-    }
-  };
-
-  aimArea.addEventListener('pointerup', endAim);
-  aimArea.addEventListener('pointercancel', endAim);
-  aimArea.addEventListener('lostpointercapture', endAim);
-}
-
-/* BOTÕES DE PRESSÃO */
-
-function holdButton(id, key) {
-  const button = $(id);
-  if (!button) return;
-  let activePointer = null;
-
-  const stop = event => {
-    if (activePointer !== null && event?.pointerId !== undefined &&
-        event.pointerId !== activePointer) return;
-    activePointer = null;
-    state[key] = false;
-    button.classList.remove('active');
-  };
-
-  button.addEventListener('pointerdown', event => {
-    if (activePointer !== null || (event.pointerType === 'mouse' && event.button !== 0)) return;
-    event.preventDefault();
-    activePointer = event.pointerId;
-    // Propulsão, freio e nitro são entradas de tempo real: não dependem
-    // da disponibilidade do computador auxiliar nem do estado do terminal.
-    state[key] = true;
-    button.classList.add('active');
-    try {
-      button.setPointerCapture(event.pointerId);
-    } catch {
-      // A entrada permanece ativa; pointerup/blur ainda podem encerrá-la.
-    }
-  });
-
-  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type => {
-    button.addEventListener(type, stop);
-  });
-  window.addEventListener('blur', stop);
-}
-
-holdButton('throttle-btn', 'throttle');
-holdButton('brake-btn', 'braking');
-holdButton('nitro-btn', 'nitroButton');
-
-/* PROTEÇÃO CONTRA SELEÇÃO */
-
-document.addEventListener('contextmenu', event => {
-  if (event.target.closest('#flight-controls')) {
-    event.preventDefault();
-  }
-});
-
-document.addEventListener('selectstart', event => {
-  if (event.target.closest('#flight-controls')) {
-    event.preventDefault();
-  }
-});
+registerAimControls({ document, THREE, state, shipComputer });
+registerHeldFlightControls({ document, window, state });
+registerFlightSelectionGuards({ document });
 
 function cancelLandingGuidance(reason = 'cancelled') {
   shipLandingAutopilot?.cancel?.();
@@ -2701,125 +2596,25 @@ $('landing-select-btn')?.addEventListener('click', () => {
 
 /* CÂMERAS */
 
-$('camera-btn')?.addEventListener('click', () => {
-  state.camera = (state.camera + 1) % 3;
+registerCameraCycleControl({ document, state, cameraNames });
 
-  $('camera-btn').textContent = cameraNames[state.camera];
+registerGameplayActions({
+  document,
+  getElement: $,
+  state,
+  isActive: () => active,
+  getAsteroids: () => asteroids,
+  getShip: () => ship,
+  getAsteroidSystem: () => asteroidSystem,
+  setAsteroids: value => { asteroids = value; },
+  save,
+  updateWallet,
+  shipAudio,
+  characterAudio,
+  toast,
+  getNpcReady: () => npcReady,
+  setNpcReady: value => { npcReady = value; }
 });
-
-/* MINERAÇÃO */
-
-$('mine-btn')?.addEventListener('click', () => {
-  if (!active) return;
-
-  const target = asteroids.find(asteroid =>
-    asteroid.position.distanceTo(ship.position) < 18
-  );
-
-  if (!target) {
-    toast('Aproxime-se de um asteroide para minerar.');
-    return;
-  }
-
-  if (state.cargo >= 100) {
-    toast('Compartimento de carga cheio.');
-    return;
-  }
-
-  const amount = Math.min(
-    target.userData.ore,
-    state.miningDrill === 'Broca reforçada' ? 12 : 6,
-    100 - state.cargo
-  );
-
-  target.userData.ore -= amount;
-  state.ore += amount;
-  state.cargo += amount;
-
-  if (target.userData.ore <= 0) {
-    asteroidSystem?.remove(target);
-    asteroids = asteroidSystem?.asteroids || [];
-  }
-
-  save();
-  updateWallet();
-  shipAudio.playMining();
-
-  toast(`Extração concluída: +${amount} unidades de minério.`);
-});
-
-/* DISPARO */
-
-$('fire-btn')?.addEventListener('click', () => {
-  toast('Canhões de pulso: sistema de combate em desenvolvimento.');
-});
-
-/* ESTAÇÃO E COMÉRCIO */
-
-$('interact-btn')?.addEventListener('click', () => {
-  if (!active) return;
-
-  const nearStation = ship.position.distanceTo(
-    new THREE.Vector3(24, 3, -65)
-  ) < 22;
-
-  if (!nearStation) {
-    toast('Aproxime-se da estação para interagir.');
-    return;
-  }
-
-  characterAudio.playInteract();
-  shipAudio.playConsole();
-  const bubble = $('npc-bubble');
-
-  if (!npcReady) {
-    npcReady = true;
-
-    if (bubble) {
-      bubble.innerHTML = `
-        <b>Comerciante da estação</b>
-        <p>Posso comprar seu minério por 8 créditos a unidade. Use INTERAGIR novamente para vender.</p>
-        <button id="npc-close">FECHAR</button>
-      `;
-
-      bubble.classList.remove('hidden');
-      $('npc-close')?.addEventListener('click', () => {
-        bubble.classList.add('hidden');
-      });
-    }
-
-    return;
-  }
-
-  if (state.cargo > 0) {
-    const gain = state.cargo * 8;
-
-    state.credits += gain;
-    state.cargo = 0;
-
-    save();
-    updateWallet();
-
-    toast(`Carga vendida: +${gain} créditos.`);
-
-    if (bubble) {
-      bubble.innerHTML = `
-        <b>Comerciante</b>
-        <p>Negócio fechado. Volte quando tiver mais minério.</p>
-        <button id="npc-close">FECHAR</button>
-      `;
-
-      $('npc-close')?.addEventListener('click', () => {
-        bubble.classList.add('hidden');
-      });
-    }
-  } else {
-    toast('Você não tem minério para vender.');
-  }
-
-  npcReady = false;
-});
-
 
 /* Editor do HUD do personagem: não move nem modifica o HUD da nave. */
 const characterHudEditor = $('character-hud-editor');
