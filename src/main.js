@@ -55,6 +55,7 @@ shipComputer.registerTerminal({
 });
 const characterHUD = createCharacterHUD(document);
 let characterCameraMode = 'third-person';
+let characterCameraInitialized = false;
 let characterModel = null;
 let characterAnimator = null;
 let characterWeaponController = null;
@@ -1220,7 +1221,15 @@ function updateCharacterCamera() {
   } else {
     characterCameraOffset.set(0, 2.35, 5.2).applyQuaternion(characterCameraWorldQuaternion);
     const desired = characterCameraWorldPosition.clone().add(characterCameraOffset);
-    camera.position.lerp(desired, 0.22);
+    // Na primeira apresentação, posiciona a câmera diretamente atrás do piloto.
+    // O lerp só começa depois disso; evita a câmera atravessar a cena desde a origem,
+    // dando a impressão de que o personagem está caindo/entrando pelo alto.
+    if (!characterCameraInitialized) {
+      camera.position.copy(desired);
+      characterCameraInitialized = true;
+    } else {
+      camera.position.lerp(desired, 0.22);
+    }
     const lookTarget = target.addScaledVector(characterCameraForward, 1.4);
     lookTarget.addScaledVector(cameraUp, Math.sin(characterPitch) * 4.2);
     camera.lookAt(lookTarget);
