@@ -1,6 +1,10 @@
+import { createEarthOrbitalFrame } from '../../../world/earth/orbitalFrame.js';
+
 export function createOrbitalPhysicsRuntimeSystem({
   getShipFlightKernel,
-  getGravityKernel
+  getGravityKernel,
+  getEarthOrbitalFrame,
+  getShipWorldPosition
 } = {}) {
   if (typeof getShipFlightKernel !== 'function' ||
       typeof getGravityKernel !== 'function') {
@@ -8,9 +12,12 @@ export function createOrbitalPhysicsRuntimeSystem({
   }
 
   let service = null;
+  let orbitalState = null;
+  let previousRelativeWorldPosition = null;
 
   return {
-    priority: 35,
+    // Sample after gameplay so telemetry reflects the ship's final transform for this frame.
+    priority: 45,
     initialize(context = {}) {
       const shipFlightKernel = getShipFlightKernel();
       const gravityKernel = getGravityKernel();
@@ -33,6 +40,15 @@ export function createOrbitalPhysicsRuntimeSystem({
         },
         get earthGravitationalParameter() {
           return shipFlightKernel.earthGravitationalParameter;
+        },
+        get state() {
+          return orbitalState ? {
+            ...orbitalState,
+            positionMeters: [...orbitalState.positionMeters],
+            velocityMetersPerSecond: orbitalState.velocityMetersPerSecond
+              ? [...orbitalState.velocityMetersPerSecond]
+              : null
+          } : null;
         },
         gravityAcceleration(position, gravitationalParameter) {
           return shipFlightKernel.gravityAcceleration(position, gravitationalParameter);
@@ -60,9 +76,59 @@ export function createOrbitalPhysicsRuntimeSystem({
 
       context.orbitalPhysics = service;
     },
+    update(deltaSeconds, context = {}) {
+      if (typeof getEarthOrbitalFrame !== 'function' ||
+          typeof getShipWorldPosition !== 'function') return;
+      if (!Number.isFinite(deltaSeconds) || deltaSeconds <= 0) return;
+
+      const earth = getEarthOrbitalFrame();
+      const shipPositionWorld = getShipWorldPosition();
+      if (!earth || !shipPositionWorld) return;
+
+      try {
+        const frame = createEarthOrbitalFrame(earth);
+        const positionMeters = frame.worldPositionToMeters(shipPositionWorld);
+        if (!positionMeters) return;
+
+        const relativeWorldPosition = shipPositionWorld.map(
+          (value, axis) => value - earth.originWorld[axis]
+        );
+        let velocityMetersPerSecond = null;
+        if (previousRelativeWorldPosition) {
+          const velocityWorld = relativeWorldPosition.map(
+            (value, axis) => (value - previousRelativeWorldPosition[axis]) / deltaSeconds
+          );
+          velocityMetersPerSecond = frame.worldVectorToMeters(velocityWorld);
+        }
+        previousRelativeWorldPosition = relativeWorldPosition;
+
+        orbitalState = Object.freeze({
+          positionMeters,
+          velocityMetersPerSecond,
+          gravitationalParameterM3PerSecond2: shipFlightKernelValue(service),
+          coordinateFrame: 'earth-centred-global-axes',
+          positionUnit: 'm',
+          velocityUnit: 'm/s',
+          timeUnit: 's',
+          source: 'threejs-world-transform',
+          authority: 'telemetry-only',
+          actuationEnabled: false
+        });
+        context.orbitalState = service.state;
+      } catch {
+        // A transient transform/calibration failure must not interrupt gameplay.
+      }
+    },
     shutdown(context = {}) {
       if (context.orbitalPhysics === service) delete context.orbitalPhysics;
+      if ('orbitalState' in context) delete context.orbitalState;
       service = null;
+      orbitalState = null;
+      previousRelativeWorldPosition = null;
     }
   };
+}
+
+function shipFlightKernelValue(service) {
+  return service?.earthGravitationalParameter ?? null;
 }
