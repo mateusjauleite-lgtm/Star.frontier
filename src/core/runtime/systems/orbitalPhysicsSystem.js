@@ -15,6 +15,7 @@ export function createOrbitalPhysicsRuntimeSystem({
   let service = null;
   let orbitalState = null;
   let previousRelativeWorldPosition = null;
+  let previousPredictedPositionMeters = null;
 
   return {
     // Sample after gameplay so telemetry reflects the ship's final transform for this frame.
@@ -57,6 +58,9 @@ export function createOrbitalPhysicsRuntimeSystem({
               : null,
             predictedNextVelocityMetersPerSecond: orbitalState.predictedNextVelocityMetersPerSecond
               ? [...orbitalState.predictedNextVelocityMetersPerSecond]
+              : null,
+            predictionResidualMeters: orbitalState.predictionResidualMeters
+              ? [...orbitalState.predictionResidualMeters]
               : null
           } : null;
         },
@@ -134,6 +138,9 @@ export function createOrbitalPhysicsRuntimeSystem({
         const gravityAccelerationMetersPerSecond2 = velocityMetersPerSecond
           ? service.gravityAcceleration(positionMeters, gravitationalParameter)
           : null;
+        const predictionResidualMeters = previousPredictedPositionMeters
+          ? positionMeters.map((value, axis) => value - previousPredictedPositionMeters[axis])
+          : null;
         const predictedStep = velocityMetersPerSecond
           ? service.integrateOrbitStep(
             positionMeters,
@@ -142,6 +149,9 @@ export function createOrbitalPhysicsRuntimeSystem({
             deltaSeconds
           )
           : null;
+        previousPredictedPositionMeters = predictedStep?.position
+          ? [...predictedStep.position]
+          : null;
 
         orbitalState = Object.freeze({
           positionMeters,
@@ -149,6 +159,7 @@ export function createOrbitalPhysicsRuntimeSystem({
           gravityAccelerationMetersPerSecond2,
           predictedNextPositionMeters: predictedStep?.position ?? null,
           predictedNextVelocityMetersPerSecond: predictedStep?.velocity ?? null,
+          predictionResidualMeters,
           forwardDirection,
           velocityDirectionAlignment,
           gravitationalParameterM3PerSecond2: shipFlightKernelValue(service),
@@ -172,6 +183,7 @@ export function createOrbitalPhysicsRuntimeSystem({
       service = null;
       orbitalState = null;
       previousRelativeWorldPosition = null;
+      previousPredictedPositionMeters = null;
     }
   };
 }
