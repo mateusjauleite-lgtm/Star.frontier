@@ -662,6 +662,12 @@ async function startGame() {
             if (!ship) return null;
             ship.updateWorldMatrix(true, false);
             return ship.getWorldPosition(new THREE.Vector3()).toArray();
+          },
+          getShipForwardWorld: () => {
+            if (!shipPitch) return null;
+            shipPitch.getWorldQuaternion(new THREE.Quaternion());
+            const orientation = shipPitch.getWorldQuaternion(new THREE.Quaternion());
+            return new THREE.Vector3(0, 0, -1).applyQuaternion(orientation).normalize().toArray();
           }
         },
         shipComputer: {
