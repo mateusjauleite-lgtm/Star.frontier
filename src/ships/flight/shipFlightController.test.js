@@ -75,7 +75,7 @@ function fixture(overrides = {}) {
 test('flight controller preserves clamped frame time and updates manual steering', () => {
   const f = fixture();
   assert.equal(f.controller.update(0.2), true);
-  assert.ok(Math.abs(f.yaw.rotation.y - (0.5 * 1.25 * 0.04)) < 1e-12);
+  assert.ok(Math.abs(f.yaw.rotation.y - (-0.5 * 1.25 * 0.04)) < 1e-12);
   assert.ok(Math.abs(f.pitch.rotation.x - (0.5 * 0.04)) < 1e-12);
   assert.ok(f.calls.some(([name, dt]) => name === 'dynamics' && dt === 0.04));
   assert.ok(f.calls.some(([name]) => name === 'audio'));
