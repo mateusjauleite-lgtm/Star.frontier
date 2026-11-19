@@ -11,21 +11,47 @@ function fakeRuntime() {
   };
 }
 
-const dependencies = () => ({
-  character: { core: { initialize() {} } },
-  world: { isReady: () => true, initializeWorld() {} },
-  shipComputer: { registerSystems() {}, boot() {} },
-  gameplay: { update() {} }
-});
+function orbitalKernels() {
+  const shipFlightKernel = {
+    backend: 'javascript-fallback',
+    earthGravitationalParameter: 3.986004418e14,
+    gravityAcceleration: position => [-1, 0, 0],
+    integrateOrbitStep: (position, velocity) => ({
+      position: [...position],
+      velocity: [...velocity]
+    })
+  };
+  const gravityKernel = {
+    backend: 'javascript-fallback',
+    acceleration: () => [0, -9.8, 0],
+    integrateVelocity: (velocity, acceleration) =>
+      velocity.map((value, axis) => value + acceleration[axis])
+  };
+  return { shipFlightKernel, gravityKernel };
+}
+
+const dependencies = () => {
+  const kernels = orbitalKernels();
+  return {
+    character: { core: { initialize() {} } },
+    world: { isReady: () => true, initializeWorld() {} },
+    shipComputer: { registerSystems() {}, boot() {} },
+    orbitalPhysics: {
+      getShipFlightKernel: () => kernels.shipFlightKernel,
+      getGravityKernel: () => kernels.gravityKernel
+    },
+    gameplay: { update() {} }
+  };
+};
 
 test('game runtime systems are registered in deterministic lifecycle order', () => {
   const runtime = fakeRuntime();
   registerGameRuntimeSystems(runtime, dependencies());
 
   assert.deepEqual(runtime.systems.map(system => system.name), [
-    'entity-manager', 'character', 'world', 'ship-computer', 'gameplay'
+    'entity-manager', 'character', 'world', 'ship-computer', 'orbital-physics', 'gameplay'
   ]);
-  assert.deepEqual(runtime.systems.map(system => system.priority), [5, 10, 20, 30, 40]);
+  assert.deepEqual(runtime.systems.map(system => system.priority), [5, 10, 20, 30, 35, 40]);
 });
 
 test('EntityManager is exposed in runtime context and detached without losing its data', async () => {
@@ -57,6 +83,49 @@ test('runtime creates an EntityManager when one is not injected', () => {
   assert.ok(context.entityManager instanceof EntityManager);
 });
 
+test('orbital physics service exposes the existing kernels through runtime context', () => {
+  const runtime = fakeRuntime();
+  const deps = dependencies();
+  registerGameRuntimeSystems(runtime, deps);
+  const system = runtime.systems.find(entry => entry.name === 'orbital-physics');
+  const context = {};
+
+  system.initialize(context);
+
+  assert.equal(context.orbitalPhysics.backend, 'javascript-fallback');
+  assert.equal(context.orbitalPhysics.gravityBackend, 'javascript-fallback');
+  assert.equal(context.orbitalPhysics.earthGravitationalParameter, 3.986004418e14);
+  assert.deepEqual(context.orbitalPhysics.gravityAcceleration([7000000, 0, 0]), [-1, 0, 0]);
+  assert.deepEqual(
+    context.orbitalPhysics.integrateOrbitStep([7, 0, 0], [0, 7, 0], 10, 1),
+    { position: [7, 0, 0], velocity: [0, 7, 0] }
+  );
+  assert.deepEqual(context.orbitalPhysics.acceleration({ position: [0, 0, 0] }), [0, -9.8, 0]);
+  assert.deepEqual(context.orbitalPhysics.integrateVelocity([0, 1, 0], [0, -1, 0], 1), [0, 0, 0]);
+
+  const service = context.orbitalPhysics;
+  system.shutdown(context);
+  assert.equal('orbitalPhysics' in context, false);
+  assert.equal(service.backend, 'javascript-fallback');
+});
+
+test('orbital physics system rejects kernels that are not ready after world initialization', () => {
+  const runtime = fakeRuntime();
+  registerGameRuntimeSystems(runtime, {
+    ...dependencies(),
+    orbitalPhysics: {
+      getShipFlightKernel: () => null,
+      getGravityKernel: () => null
+    }
+  });
+  const system = runtime.systems.find(entry => entry.name === 'orbital-physics');
+
+  assert.throws(
+    () => system.initialize({}),
+    /kernels físicos não estão prontos/
+  );
+});
+
 test('character, world and ship computer initialization is owned by runtime systems', async () => {
   const runtime = fakeRuntime();
   const calls = [];
@@ -85,6 +154,7 @@ test('character, world and ship computer initialization is owned by runtime syst
   for (const system of runtime.systems) await system.initialize?.(context);
 
   assert.ok(context.entityManager instanceof EntityManager);
+  assert.ok(context.orbitalPhysics);
   assert.deepEqual(calls, [
     'state:reset',
     'character:init',
