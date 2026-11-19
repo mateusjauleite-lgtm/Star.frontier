@@ -949,6 +949,12 @@ async function init3D() {
   lastEarthSurfaceRotationY = null;
   updateDeck4Clearance();
 
+  // Sincroniza a câmera com o personagem antes do primeiro frame renderizado.
+  // Isso evita reutilizar a posição da câmera da sessão anterior ao voltar do menu.
+  characterModel.group.updateWorldMatrix(true, false);
+  updateCharacterCamera();
+  camera.updateMatrixWorld(true);
+
   window.addEventListener('resize', resize3D);
 }
 
@@ -1016,6 +1022,7 @@ function updateFlight(dt) {
 function updateCharacterCamera() {
   if (!camera || !characterModel) return;
   const player = characterModel.group;
+  player.updateWorldMatrix(true, false);
   player.getWorldPosition(characterCameraWorldPosition);
   player.getWorldQuaternion(characterCameraWorldQuaternion);
   characterCameraForward.set(0, 0, -1).applyQuaternion(characterCameraWorldQuaternion).normalize();
@@ -1038,6 +1045,7 @@ function updateCharacterCamera() {
     camera.quaternion.copy(characterCameraWorldQuaternion).multiply(
       new THREE.Quaternion().setFromEuler(characterLookEuler)
     );
+    characterCameraInitialized = true;
   } else {
     characterCameraOffset.set(0, 2.35, 5.2).applyQuaternion(characterCameraWorldQuaternion);
     const desired = characterCameraWorldPosition.clone().add(characterCameraOffset);
