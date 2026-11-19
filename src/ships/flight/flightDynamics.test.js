@@ -33,9 +33,9 @@ test('nitro adds acceleration and consumes both nitro and fuel', () => {
   const boosting = advanceShipFlightDynamics(state, 0.02);
 
   assert.equal(boosting, true);
-  assert.equal(state.speed, 11.46);
-  assert.equal(state.nitro, 49.44);
-  assert.equal(state.fuel, 99.9834);
+  assert.ok(Math.abs(state.speed - 11.46) < 1e-9, `speed should be approximately 11.46, got ${state.speed}`);
+  assert.ok(Math.abs(state.nitro - 49.44) < 1e-9, `nitro should be approximately 49.44, got ${state.nitro}`);
+  assert.ok(Math.abs(state.fuel - 99.9834) < 1e-9, `fuel should be approximately 99.9834, got ${state.fuel}`);
 });
 
 test('braking is applied after acceleration and never makes speed negative', () => {
