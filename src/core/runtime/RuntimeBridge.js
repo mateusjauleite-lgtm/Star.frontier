@@ -23,7 +23,7 @@ export function createRuntimeBridge(kernel) {
 
   function cancelScheduledFrame() {
     if (frameRequestId !== null && typeof frameLoopConfig?.cancelFrame === 'function') {
-      frameLoopConfig.cancelFrame(frameRequestId);
+      frameLoopConfig.cancelFrame.call(globalThis, frameRequestId);
     }
     frameRequestId = null;
   }
@@ -38,7 +38,7 @@ export function createRuntimeBridge(kernel) {
   function scheduleNextFrame() {
     if (!frameLoopEnabled || kernel.status !== 'running' ||
         frameRequestId !== null || typeof frameLoopConfig?.requestFrame !== 'function') return;
-    frameRequestId = frameLoopConfig.requestFrame(frameCallback);
+    frameRequestId = frameLoopConfig.requestFrame.call(globalThis, frameCallback);
   }
 
   function ensureAvailable() {
