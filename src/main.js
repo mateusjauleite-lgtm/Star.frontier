@@ -908,6 +908,7 @@ async function init3D() {
     characterPhysics
   } = world);
 
+  characterCameraInitialized = false;
   characterInWorldFrame = false;
   characterWorldGrounded = false;
   characterWorldVelocity.set(0, 0, 0);
