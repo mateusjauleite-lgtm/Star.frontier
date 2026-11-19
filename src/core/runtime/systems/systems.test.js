@@ -51,7 +51,7 @@ test('game runtime systems are registered in deterministic lifecycle order', () 
   assert.deepEqual(runtime.systems.map(system => system.name), [
     'entity-manager', 'character', 'world', 'ship-computer', 'orbital-physics', 'gameplay'
   ]);
-  assert.deepEqual(runtime.systems.map(system => system.priority), [5, 10, 20, 30, 35, 40]);
+  assert.deepEqual(runtime.systems.map(system => system.priority), [5, 10, 20, 30, 40, 45]);
 });
 
 test('EntityManager is exposed in runtime context and detached without losing its data', async () => {
@@ -107,6 +107,45 @@ test('orbital physics service exposes the existing kernels through runtime conte
   system.shutdown(context);
   assert.equal('orbitalPhysics' in context, false);
   assert.equal(service.backend, 'javascript-fallback');
+});
+
+
+test('orbital runtime samples the ship in Earth-centred SI coordinates after gameplay', () => {
+  const runtime = fakeRuntime();
+  const deps = dependencies();
+  let shipPosition = [11, 0, 0];
+  registerGameRuntimeSystems(runtime, {
+    ...deps,
+    orbitalPhysics: {
+      ...deps.orbitalPhysics,
+      getEarthOrbitalFrame: () => ({
+        originWorld: [10, 0, 0],
+        orientationWorld: [0, 0, 0, 1],
+        visualUnitsPerKm: 1
+      }),
+      getShipWorldPosition: () => shipPosition
+    }
+  });
+
+  const system = runtime.systems.find(entry => entry.name === 'orbital-physics');
+  const context = {};
+  system.initialize(context);
+  system.update(0.5, context);
+
+  assert.deepEqual(context.orbitalState.positionMeters, [1000, 0, 0]);
+  assert.equal(context.orbitalState.velocityMetersPerSecond, null);
+  assert.equal(context.orbitalState.coordinateFrame, 'earth-centred-global-axes');
+  assert.equal(context.orbitalState.authority, 'telemetry-only');
+  assert.equal(context.orbitalState.actuationEnabled, false);
+
+  shipPosition = [12, 0, 0];
+  system.update(0.5, context);
+  assert.deepEqual(context.orbitalState.positionMeters, [2000, 0, 0]);
+  assert.deepEqual(context.orbitalState.velocityMetersPerSecond, [2000, 0, 0]);
+  assert.equal(context.orbitalPhysics.state.positionMeters[0], 2000);
+
+  system.shutdown(context);
+  assert.equal('orbitalState' in context, false);
 });
 
 test('orbital physics system rejects kernels that are not ready after world initialization', () => {
