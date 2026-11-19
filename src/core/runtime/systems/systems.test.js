@@ -102,6 +102,22 @@ test('orbital physics service exposes the existing kernels through runtime conte
   assert.equal(context.orbitalPhysics.backend, 'javascript-fallback');
   assert.equal(context.orbitalPhysics.gravityBackend, 'javascript-fallback');
   assert.equal(context.orbitalPhysics.earthGravitationalParameter, 3.986004418e14);
+  assert.equal(context.orbitalPhysics.controlAuthority.actuationEnabled, false);
+  assert.equal(context.orbitalPhysics.controlAuthority.proposalEnabled, false);
+  assert.equal(context.orbitalPhysics.calibrateControlAuthority({
+    worldUnitsPerMeter: 0.001,
+    validationSamples: 4,
+    maximumResidualMeters: 0.5
+  }), true);
+  assert.equal(context.orbitalPhysics.setControlProposalEnabled(true, 0.05), true);
+  const correction = context.orbitalPhysics.proposeControlCorrection({
+    gravityAccelerationMetersPerSecond2: [0, -9.8, 0],
+    deltaSeconds: 0.016
+  });
+  assert.ok(correction);
+  assert.equal(correction.actuationEnabled, false);
+  assert.equal(context.orbitalPhysics.controlAuthority.actuationEnabled, false);
+  context.orbitalPhysics.setControlProposalEnabled(false);
   assert.deepEqual(context.orbitalPhysics.gravityAcceleration([7000000, 0, 0]), [-1, 0, 0]);
   assert.deepEqual(
     context.orbitalPhysics.integrateOrbitStep([7, 0, 0], [0, 7, 0], 10, 1),
