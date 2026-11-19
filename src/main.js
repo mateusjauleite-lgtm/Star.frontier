@@ -646,7 +646,23 @@ async function startGame() {
         },
         orbitalPhysics: {
           getShipFlightKernel: () => shipFlightKernel,
-          getGravityKernel: () => gravityKernel
+          getGravityKernel: () => gravityKernel,
+          getEarthOrbitalFrame: () => {
+            if (!earthSystem?.group) return null;
+            earthSystem.group.updateWorldMatrix(true, false);
+            const profile = earthSystem.getPlanetaryProfile?.();
+            if (!profile?.render?.visualUnitsPerKm) return null;
+            return {
+              originWorld: earthSystem.group.getWorldPosition(new THREE.Vector3()).toArray(),
+              orientationWorld: earthSystem.group.getWorldQuaternion(new THREE.Quaternion()).toArray(),
+              visualUnitsPerKm: profile.render.visualUnitsPerKm
+            };
+          },
+          getShipWorldPosition: () => {
+            if (!ship) return null;
+            ship.updateWorldMatrix(true, false);
+            return ship.getWorldPosition(new THREE.Vector3()).toArray();
+          }
         },
         shipComputer: {
           registerSystems: () => {
