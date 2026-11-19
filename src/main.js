@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { loadRuntimeKernel } from './core/runtime/RuntimeKernel.js';
+import { createRuntimeBridge } from './core/runtime/RuntimeBridge.js';
 import { createEarthReferenceFrames } from './world/earth/earthReferenceFrames.js';
 import { createEarthCore } from './world/earth/earthCore.js';
 import { createStation } from './world/station.js';
@@ -546,6 +548,7 @@ const shipEarthContactPoints = [
 
 let last = performance.now();
 let active = false;
+let runtimeBridge = null;
 let npcReady = false;
 
 const cameraNames = [
@@ -633,6 +636,15 @@ async function startGame() {
   loadingScreen?.classList.remove('hidden');
 
   try {
+    if (!runtimeBridge) {
+      const runtimeKernel = await loadRuntimeKernel({ maximumDeltaSeconds: 0.04 });
+      runtimeBridge = createRuntimeBridge(runtimeKernel);
+      runtimeBridge.registerSystem('gameplay-frame', {
+        priority: 0,
+        update: updateGameplayFrame
+      });
+    }
+
     // O primeiro toque do jogador libera o AudioContext no Android/WebView.
     void characterAudio.unlock();
     void shipAudio.unlock();
@@ -668,6 +680,15 @@ async function startGame() {
 
     if (!renderer) {
       await init3D();
+    }
+    const runtimeInitialized = await runtimeBridge.initialize({
+      state,
+      getScene: () => scene,
+      getCamera: () => camera,
+      getRenderer: () => renderer
+    });
+    if (!runtimeInitialized) {
+      throw new Error('O Runtime não conseguiu inicializar seus sistemas.');
     }
     if (characterInWorldFrame && characterModel?.group && shipVisual) {
       scene.remove(characterModel.group);
@@ -718,8 +739,12 @@ async function startGame() {
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     applyCharacterHudLayout(readCharacterHudLayout());
 
-    active = true;
     last = performance.now();
+    if (!runtimeBridge.start()) {
+      throw new Error('O Runtime não conseguiu iniciar o ciclo de execução.');
+    }
+    active = true;
+    requestAnimationFrame(loop);
 
     updateWallet();
     toast('Setor Orion: aproxime-se dos asteroides para minerar.');
@@ -727,6 +752,11 @@ async function startGame() {
     console.error(`Falha ao iniciar Star Frontier na etapa: ${startupStage}`, error);
 
     active = false;
+    try {
+      await runtimeBridge?.shutdown();
+    } catch (shutdownError) {
+      console.warn('Não foi possível encerrar o Runtime:', shutdownError);
+    }
     loadingScreen?.classList.add('hidden');
 
     if (scene) {
@@ -921,8 +951,6 @@ async function init3D() {
   await loadingStep(96, 'Finalizando cenário e sistemas de voo...');
 
   window.addEventListener('resize', resize3D);
-
-  requestAnimationFrame(loop);
 }
 
 /* REDIMENSIONAMENTO */
@@ -1916,10 +1944,16 @@ function updateCamera() {
 function loop(now) {
   requestAnimationFrame(loop);
 
+  if (!active || !renderer || !runtimeBridge) return;
+
+  const elapsedSeconds = (now - last) / 1000;
+  last = now;
+  runtimeBridge.update(elapsedSeconds);
+}
+
+function updateGameplayFrame(dt) {
   if (!active || !renderer) return;
 
-  const dt = Math.min((now - last) / 1000, 0.04);
-  last = now;
   earthSystem?.update(dt, camera);
   applyEarthSurfaceRotation(dt);
   if (ship) ship.userData.earthCollisionResolved = false;
@@ -2491,7 +2525,13 @@ if ($('character-action-btn')) $('character-action-btn').disabled = true;
 
 // Ao perder foco no Android, zera entradas para impedir joystick ou aceleração presos.
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) resetTransientState();
+  if (document.hidden) {
+    resetTransientState();
+    if (runtimeBridge?.status === 'running') runtimeBridge.pause();
+  } else if (active && runtimeBridge?.status === 'paused') {
+    last = performance.now();
+    runtimeBridge.resume();
+  }
 });
 
 /* MIRA POR ARRASTO */

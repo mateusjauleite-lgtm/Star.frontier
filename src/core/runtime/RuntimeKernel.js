@@ -67,6 +67,47 @@ export function createRuntimeKernel(module, { maximumDeltaSeconds = 0.04 } = {})
   };
 }
 
+
+function createFallbackRuntimeKernel(maximumDeltaSeconds = 0.04) {
+  const maximumDelta = Number.isFinite(maximumDeltaSeconds) && maximumDeltaSeconds > 0
+    ? maximumDeltaSeconds
+    : 0.04;
+  let status = 'created';
+  let frameCount = 0;
+  let elapsedSeconds = 0;
+  let deltaSeconds = 0;
+
+  return {
+    get status() { return status; },
+    get frameCount() { return frameCount; },
+    get elapsedSeconds() { return elapsedSeconds; },
+    get deltaSeconds() { return deltaSeconds; },
+    initialize() {
+      if (status !== 'created' && status !== 'stopped') return false;
+      frameCount = 0;
+      elapsedSeconds = 0;
+      deltaSeconds = 0;
+      status = 'ready';
+      return true;
+    },
+    start() { if (status !== 'ready') return false; status = 'running'; return true; },
+    pause() { if (status !== 'running') return false; status = 'paused'; deltaSeconds = 0; return true; },
+    resume() { if (status !== 'paused') return false; status = 'running'; return true; },
+    stop() { status = 'stopped'; deltaSeconds = 0; return true; },
+    tick(value) {
+      if (status !== 'running' || !Number.isFinite(value) || value < 0) {
+        deltaSeconds = 0;
+        return 0;
+      }
+      deltaSeconds = Math.min(value, maximumDelta);
+      elapsedSeconds += deltaSeconds;
+      frameCount += 1;
+      return deltaSeconds;
+    },
+    dispose() { status = 'disposed'; }
+  };
+}
+
 export async function loadRuntimeKernel({ maximumDeltaSeconds = 0.04 } = {}) {
   const base = import.meta.env?.BASE_URL ?? './';
   const moduleUrl = new URL(
@@ -74,16 +115,21 @@ export async function loadRuntimeKernel({ maximumDeltaSeconds = 0.04 } = {}) {
     globalThis.location?.href ?? 'http://localhost/'
   );
 
-  const imported = await import(/* @vite-ignore */ moduleUrl.href);
-  if (typeof imported.default !== 'function') {
-    throw new Error('A fábrica WebAssembly do Runtime não foi encontrada.');
+  try {
+    const imported = await import(/* @vite-ignore */ moduleUrl.href);
+    if (typeof imported.default !== 'function') {
+      throw new Error('A fábrica WebAssembly do Runtime não foi encontrada.');
+    }
+
+    const wasm = await imported.default({
+      locateFile: file => new URL(file, moduleUrl).href
+    });
+
+    return createRuntimeKernel(wasm, { maximumDeltaSeconds });
+  } catch (error) {
+    console.warn('Runtime C++/WASM indisponível; usando núcleo JavaScript de contingência.', error);
+    return createFallbackRuntimeKernel(maximumDeltaSeconds);
   }
-
-  const wasm = await imported.default({
-    locateFile: file => new URL(file, moduleUrl).href
-  });
-
-  return createRuntimeKernel(wasm, { maximumDeltaSeconds });
 }
 
 export { STATUS as RUNTIME_STATUS };
