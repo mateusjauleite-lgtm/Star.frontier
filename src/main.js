@@ -665,7 +665,6 @@ async function startGame() {
           },
           getShipForwardWorld: () => {
             if (!shipPitch) return null;
-            shipPitch.getWorldQuaternion(new THREE.Quaternion());
             const orientation = shipPitch.getWorldQuaternion(new THREE.Quaternion());
             return new THREE.Vector3(0, 0, -1).applyQuaternion(orientation).normalize().toArray();
           }
