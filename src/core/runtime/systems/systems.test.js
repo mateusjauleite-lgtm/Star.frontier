@@ -123,7 +123,8 @@ test('orbital runtime samples the ship in Earth-centred SI coordinates after gam
         orientationWorld: [0, 0, 0, 1],
         visualUnitsPerKm: 1
       }),
-      getShipWorldPosition: () => shipPosition
+      getShipWorldPosition: () => shipPosition,
+      getShipForwardWorld: () => [1, 0, 0]
     }
   });
 
@@ -142,7 +143,13 @@ test('orbital runtime samples the ship in Earth-centred SI coordinates after gam
   system.update(0.5, context);
   assert.deepEqual(context.orbitalState.positionMeters, [2000, 0, 0]);
   assert.deepEqual(context.orbitalState.velocityMetersPerSecond, [2000, 0, 0]);
+  assert.deepEqual(context.orbitalState.forwardDirection, [1, 0, 0]);
+  assert.equal(context.orbitalState.velocityDirectionAlignment, 1);
   assert.equal(context.orbitalPhysics.state.positionMeters[0], 2000);
+
+  shipPosition = [11.5, 0, 0];
+  system.update(0.5, context);
+  assert.equal(context.orbitalState.velocityDirectionAlignment, -1);
 
   system.shutdown(context);
   assert.equal('orbitalState' in context, false);
