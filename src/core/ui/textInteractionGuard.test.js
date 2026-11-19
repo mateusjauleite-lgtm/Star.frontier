@@ -46,6 +46,9 @@ test('blocks keyboard clipboard and select-all shortcuts', () => {
     assert.equal(result.stopped, true, key);
   }
 
+  const shiftInsert = doc.dispatch('keydown', { key: 'Insert', shiftKey: true });
+  assert.equal(shiftInsert.prevented, true, 'Shift+Insert');
+
   const unrelated = doc.dispatch('keydown', { key: 'w', ctrlKey: true });
   assert.equal(unrelated.prevented, false);
 });
