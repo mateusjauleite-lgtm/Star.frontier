@@ -155,6 +155,7 @@ test('orbital runtime samples the ship in Earth-centred SI coordinates after gam
   shipPosition = [11.5, 0, 0];
   system.update(0.5, context);
   assert.equal(context.orbitalState.velocityDirectionAlignment, -1);
+  assert.deepEqual(context.orbitalState.predictionResidualMeters, [-500, 0, 0]);
 
   system.shutdown(context);
   assert.equal('orbitalState' in context, false);
