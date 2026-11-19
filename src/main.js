@@ -18,6 +18,7 @@ import { isPilotConsoleInRange, attachCharacterToPilotConsole, returnCharacterTo
 import { saveState as save, loadState as load } from './core/storage.js';
 import { createShipComputer } from './ships/computer/shipComputer.js';
 import { registerShipComputerSystems } from './ships/computer/shipComputerSystems.js';
+import { advanceShipFlightDynamics } from './ships/flight/flightDynamics.js';
 
 const $ = id => document.getElementById(id);
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
@@ -1013,37 +1014,8 @@ function updateFlight(dt) {
     Math.min(1, safeDt * 3)
   );
 
-  /* ACELERAÇÃO */
-
-  if (state.throttle && state.fuel > 0) {
-    state.speed = Math.min(75, state.speed + 18 * safeDt);
-    state.fuel = Math.max(0, state.fuel - 0.28 * safeDt);
-  }
-
-  /* NITRO */
-
-  const boosting =
-    state.nitroButton &&
-    state.nitro > 0 &&
-    state.fuel > 0;
-
-  if (boosting) {
-    state.speed = Math.min(115, state.speed + 55 * safeDt);
-    state.nitro = Math.max(0, state.nitro - 28 * safeDt);
-    state.fuel = Math.max(0, state.fuel - 0.55 * safeDt);
-  } else {
-    state.nitro = Math.min(100, state.nitro + 12 * safeDt);
-  }
-
-  /* FREIO */
-
-  if (state.braking) {
-    state.speed = Math.max(0, state.speed - 30 * safeDt);
-  }
-
-  if (!state.throttle && !boosting) {
-    state.speed = Math.max(0, state.speed - 1.4 * safeDt);
-  }
+  // A dinâmica de propulsão é independente da camada visual e das colisões.
+  const boosting = advanceShipFlightDynamics(state, safeDt);
 
   shipAudio.updateFlight({
     throttle: Boolean(state.throttle && state.fuel > 0),
