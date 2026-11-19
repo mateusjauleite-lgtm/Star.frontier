@@ -6,7 +6,8 @@ function preventDefault(event) {
 }
 
 function blockClipboardShortcuts(event) {
-  if (!(event.ctrlKey || event.metaKey)) return;
+  const isInsertPaste = event.shiftKey && String(event.key || '').toLowerCase() === 'insert';
+  if (!(event.ctrlKey || event.metaKey || isInsertPaste)) return;
   const key = String(event.key || '').toLowerCase();
   if (key === 'c' || key === 'x' || key === 'v' || key === 'a' ||
       key === 'insert') {
