@@ -49,7 +49,7 @@ test('game runtime systems are registered in deterministic lifecycle order', () 
   registerGameRuntimeSystems(runtime, dependencies());
 
   assert.deepEqual(runtime.systems.map(system => system.name), [
-    'entity-manager', 'character', 'world', 'ship-computer', 'orbital-physics', 'gameplay'
+    'entity-manager', 'character', 'world', 'ship-computer', 'gameplay', 'orbital-physics'
   ]);
   assert.deepEqual(runtime.systems.map(system => system.priority), [5, 10, 20, 30, 40, 45]);
 });
