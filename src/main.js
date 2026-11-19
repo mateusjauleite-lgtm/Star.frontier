@@ -2600,6 +2600,7 @@ registerCameraCycleControl({ document, state, cameraNames });
 
 registerGameplayActions({
   document,
+  THREE,
   getElement: $,
   state,
   isActive: () => active,
