@@ -656,7 +656,15 @@ async function startGame() {
           onStage: stage => { startupStage = stage; }
         },
         shipComputer: {
-          registerSystems: registerComputerSubsystems,
+          registerSystems: () => {
+            try {
+              registerComputerSubsystems();
+            } catch (error) {
+              // Evita repetir um registro parcial de subsistemas em uma nova tentativa.
+              shipComputerSystemsRegistered = true;
+              throw error;
+            }
+          },
           boot: () => shipComputer.boot(),
           onStage: stage => { startupStage = stage; },
           onError: (error, phase) => {
