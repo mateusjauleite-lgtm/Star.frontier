@@ -48,6 +48,15 @@ export function createOrbitalPhysicsRuntimeSystem({
             positionMeters: [...orbitalState.positionMeters],
             velocityMetersPerSecond: orbitalState.velocityMetersPerSecond
               ? [...orbitalState.velocityMetersPerSecond]
+              : null,
+            gravityAccelerationMetersPerSecond2: orbitalState.gravityAccelerationMetersPerSecond2
+              ? [...orbitalState.gravityAccelerationMetersPerSecond2]
+              : null,
+            predictedNextPositionMeters: orbitalState.predictedNextPositionMeters
+              ? [...orbitalState.predictedNextPositionMeters]
+              : null,
+            predictedNextVelocityMetersPerSecond: orbitalState.predictedNextVelocityMetersPerSecond
+              ? [...orbitalState.predictedNextVelocityMetersPerSecond]
               : null
           } : null;
         },
@@ -121,10 +130,25 @@ export function createOrbitalPhysicsRuntimeSystem({
             (sum, value, axis) => sum + (value / velocityLength) * forwardDirection[axis], 0
           )
           : null;
+        const gravitationalParameter = shipFlightKernelValue(service);
+        const gravityAccelerationMetersPerSecond2 = velocityMetersPerSecond
+          ? service.gravityAcceleration(positionMeters, gravitationalParameter)
+          : null;
+        const predictedStep = velocityMetersPerSecond
+          ? service.integrateOrbitStep(
+            positionMeters,
+            velocityMetersPerSecond,
+            gravitationalParameter,
+            deltaSeconds
+          )
+          : null;
 
         orbitalState = Object.freeze({
           positionMeters,
           velocityMetersPerSecond,
+          gravityAccelerationMetersPerSecond2,
+          predictedNextPositionMeters: predictedStep?.position ?? null,
+          predictedNextVelocityMetersPerSecond: predictedStep?.velocity ?? null,
           forwardDirection,
           velocityDirectionAlignment,
           gravitationalParameterM3PerSecond2: shipFlightKernelValue(service),
@@ -134,7 +158,8 @@ export function createOrbitalPhysicsRuntimeSystem({
           timeUnit: 's',
           source: 'threejs-world-transform',
           authority: 'telemetry-only',
-          actuationEnabled: false
+          actuationEnabled: false,
+          gravityPredictionEnabled: Boolean(predictedStep)
         });
         context.orbitalState = service.state;
       } catch {
