@@ -2745,6 +2745,10 @@ function startCharacterHudEditing() {
   characterHudEditor?.classList.remove('hidden');
   characterHudEditor?.setAttribute('aria-hidden', 'false');
   characterHudEditable.forEach(element => element.classList.add('hud-editable-active'));
+  // O editor é aberto a partir do menu de pausa, que já interrompeu o Runtime.
+  // Ao ocultar o menu, retoma a simulação para que SALVAR/CANCELAR não deixem
+  // a gameplay presa no estado pausado.
+  if (runtimeBridge?.status === 'paused') runtimeBridge.resume();
   toast('Arraste os elementos do HUD. Depois toque em SALVAR.');
 }
 
