@@ -1,3 +1,4 @@
+import { createOrbitalFlightAuthority } from '../../../ships/flight/orbitalFlightAuthority.js';
 import { createEarthOrbitalFrame } from '../../../world/earth/orbitalFrame.js';
 
 export function createOrbitalPhysicsRuntimeSystem({
@@ -16,6 +17,7 @@ export function createOrbitalPhysicsRuntimeSystem({
   let orbitalState = null;
   let previousRelativeWorldPosition = null;
   let previousPredictedPositionMeters = null;
+  const controlAuthority = createOrbitalFlightAuthority();
 
   return {
     // Sample after gameplay so telemetry reflects the ship's final transform for this frame.
@@ -43,6 +45,18 @@ export function createOrbitalPhysicsRuntimeSystem({
         get earthGravitationalParameter() {
           return shipFlightKernel.earthGravitationalParameter;
         },
+        get controlAuthority() {
+          return controlAuthority.snapshot();
+        },
+        calibrateControlAuthority(calibration) {
+          return controlAuthority.calibrate(calibration);
+        },
+        setControlProposalEnabled(enabled, blend) {
+          return controlAuthority.setProposalEnabled(enabled, blend);
+        },
+        proposeControlCorrection(input) {
+          return controlAuthority.proposeCorrection(input);
+        },
         get state() {
           return orbitalState ? {
             ...orbitalState,
@@ -61,7 +75,8 @@ export function createOrbitalPhysicsRuntimeSystem({
               : null,
             predictionResidualMeters: orbitalState.predictionResidualMeters
               ? [...orbitalState.predictionResidualMeters]
-              : null
+              : null,
+            controlAuthority: controlAuthority.snapshot()
           } : null;
         },
         gravityAcceleration(position, gravitationalParameter) {
@@ -170,6 +185,7 @@ export function createOrbitalPhysicsRuntimeSystem({
           source: 'threejs-world-transform',
           authority: 'telemetry-only',
           actuationEnabled: false,
+          controlAuthority: controlAuthority.snapshot(),
           gravityPredictionEnabled: Boolean(predictedStep)
         });
         context.orbitalState = service.state;
@@ -184,6 +200,8 @@ export function createOrbitalPhysicsRuntimeSystem({
       orbitalState = null;
       previousRelativeWorldPosition = null;
       previousPredictedPositionMeters = null;
+      controlAuthority.setProposalEnabled(false);
+      controlAuthority.calibrate({});
     }
   };
 }
