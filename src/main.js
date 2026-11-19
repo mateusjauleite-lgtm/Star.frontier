@@ -703,7 +703,16 @@ async function startGame() {
             );
           }
         },
-        gameplay: { update: updateGameplayFrame }
+        gameplay: {
+          isActive: () => active,
+          isRendererReady: () => Boolean(renderer),
+          updateEnvironment: updateGameplayEnvironment,
+          updateCharacterMode: updateGameplayCharacterMode,
+          updateLanding: updateGameplayLanding,
+          updateWorld: updateGameplayWorld,
+          render: renderGameplayFrame,
+          updateHud: updateGameplayHUD
+        }
       });
     }
 
@@ -1904,14 +1913,15 @@ function updateCamera() {
 
 /* LOOP PRINCIPAL */
 
-function updateGameplayFrame(dt) {
-  if (!active || !renderer) return;
-
+function updateGameplayEnvironment(dt) {
   earthSystem?.update(dt, camera);
   applyEarthSurfaceRotation(dt);
   if (ship) ship.userData.earthCollisionResolved = false;
 
   updatePhaserWeapon(dt);
+}
+
+function updateGameplayCharacterMode(dt) {
   if (characterCore.snapshot().mode === 'on-foot') {
     updateCharacterMovement(dt);
     updateCharacterWeapon(dt);
@@ -1924,6 +1934,9 @@ function updateGameplayFrame(dt) {
     updateFlight(dt);
     updateCamera();
   }
+}
+
+function updateGameplayLanding(dt) {
   // A Earth é proprietária da infraestrutura; a gameplay consulta a base
   // criada pelo módulo para contatos e estado de pouso.
   landingBaseSystem = earthSystem?.getLandingBase?.() ?? null;
@@ -2050,12 +2063,19 @@ function updateGameplayFrame(dt) {
       delete ship.userData.earthLandingContacts;
     }
   }
+}
+
+function updateGameplayWorld(dt) {
   orbitSystem?.update(dt);
   asteroidSystem?.update(dt);
   lightingSystem?.update(dt, camera?.position);
+}
 
+function renderGameplayFrame() {
   renderer.render(scene, camera);
+}
 
+function updateGameplayHUD() {
   if ($('speed')) $('speed').textContent = Math.round(state.speed);
   if ($('fuel')) $('fuel').textContent = Math.round(state.fuel);
   if ($('cargo')) $('cargo').textContent = state.cargo + ' / 100';
