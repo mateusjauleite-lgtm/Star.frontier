@@ -15,6 +15,31 @@ export function createRuntimeBridge(kernel) {
   let initialized = false;
   let disposed = false;
   let context = {};
+  let frameLoopEnabled = false;
+  let frameRequestId = null;
+  let frameLoopConfig = null;
+  let frameLoopLastTimestamp = 0;
+  let frameCallback = null;
+
+  function cancelScheduledFrame() {
+    if (frameRequestId !== null && typeof frameLoopConfig?.cancelFrame === 'function') {
+      frameLoopConfig.cancelFrame(frameRequestId);
+    }
+    frameRequestId = null;
+  }
+
+  function stopFrameLoop() {
+    frameLoopEnabled = false;
+    cancelScheduledFrame();
+    frameCallback = null;
+    frameLoopConfig = null;
+  }
+
+  function scheduleNextFrame() {
+    if (!frameLoopEnabled || kernel.status !== 'running' ||
+        frameRequestId !== null || typeof frameLoopConfig?.requestFrame !== 'function') return;
+    frameRequestId = frameLoopConfig.requestFrame(frameCallback);
+  }
 
   function ensureAvailable() {
     if (disposed) throw new Error('A ponte do Runtime já foi encerrada.');
@@ -103,11 +128,51 @@ export function createRuntimeBridge(kernel) {
     },
     pause() {
       ensureAvailable();
-      return kernel.pause();
+      const paused = kernel.pause();
+      if (paused) cancelScheduledFrame();
+      return paused;
     },
     resume() {
       ensureAvailable();
-      return kernel.resume();
+      const resumed = kernel.resume();
+      if (resumed && frameLoopEnabled) {
+        frameLoopLastTimestamp = frameLoopConfig.now();
+        scheduleNextFrame();
+      }
+      return resumed;
+    },
+    startFrameLoop({
+      requestFrame = globalThis.requestAnimationFrame,
+      cancelFrame = globalThis.cancelAnimationFrame,
+      now = () => globalThis.performance?.now?.() ?? Date.now()
+    } = {}) {
+      ensureAvailable();
+      if (kernel.status !== 'running') return false;
+      if (typeof requestFrame !== 'function') {
+        throw new Error('requestAnimationFrame não está disponível para iniciar o Runtime.');
+      }
+
+      cancelScheduledFrame();
+      frameLoopEnabled = true;
+      frameLoopConfig = { requestFrame, cancelFrame, now };
+      frameLoopLastTimestamp = now();
+      const bridge = this;
+      frameCallback = timestamp => {
+        frameRequestId = null;
+        if (!frameLoopEnabled || kernel.status !== 'running') return;
+        const currentTimestamp = Number.isFinite(timestamp) ? timestamp : frameLoopConfig.now();
+        const deltaSeconds = Math.max(0, (currentTimestamp - frameLoopLastTimestamp) / 1000);
+        frameLoopLastTimestamp = currentTimestamp;
+        scheduleNextFrame();
+        bridge.update(deltaSeconds);
+      };
+      scheduleNextFrame();
+      return true;
+    },
+    stopFrameLoop() {
+      ensureAvailable();
+      stopFrameLoop();
+      return true;
     },
     update(deltaSeconds) {
       ensureAvailable();
@@ -122,12 +187,14 @@ export function createRuntimeBridge(kernel) {
     },
     async shutdown() {
       ensureAvailable();
+      stopFrameLoop();
       await shutdownInitializedSystems();
       kernel.stop();
       return true;
     },
     async dispose() {
       if (disposed) return;
+      stopFrameLoop();
       await shutdownInitializedSystems();
       kernel.stop();
       kernel.dispose?.();

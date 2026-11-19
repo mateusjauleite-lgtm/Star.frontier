@@ -546,7 +546,6 @@ const shipEarthContactPoints = [
   { id: 'aft-starboard', point: new THREE.Vector3(12, -11.89, 22) }
 ];
 
-let last = performance.now();
 let active = false;
 let runtimeBridge = null;
 let npcReady = false;
@@ -739,12 +738,13 @@ async function startGame() {
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     applyCharacterHudLayout(readCharacterHudLayout());
 
-    last = performance.now();
     if (!runtimeBridge.start()) {
       throw new Error('O Runtime não conseguiu iniciar o ciclo de execução.');
     }
+    if (!runtimeBridge.startFrameLoop()) {
+      throw new Error('O Runtime não conseguiu iniciar o relógio de frames.');
+    }
     active = true;
-    requestAnimationFrame(loop);
 
     updateWallet();
     toast('Setor Orion: aproxime-se dos asteroides para minerar.');
@@ -1941,16 +1941,6 @@ function updateCamera() {
 
 /* LOOP PRINCIPAL */
 
-function loop(now) {
-  requestAnimationFrame(loop);
-
-  if (!active || !renderer || !runtimeBridge) return;
-
-  const elapsedSeconds = (now - last) / 1000;
-  last = now;
-  runtimeBridge.update(elapsedSeconds);
-}
-
 function updateGameplayFrame(dt) {
   if (!active || !renderer) return;
 
@@ -2529,7 +2519,6 @@ document.addEventListener('visibilitychange', () => {
     resetTransientState();
     if (runtimeBridge?.status === 'running') runtimeBridge.pause();
   } else if (active && runtimeBridge?.status === 'paused') {
-    last = performance.now();
     runtimeBridge.resume();
   }
 });

@@ -99,3 +99,44 @@ test('RuntimeBridge shuts down already initialized systems if initialization fai
   assert.deepEqual(calls, ['first:init', 'first:stop']);
   assert.equal(bridge.status, 'stopped');
 });
+
+
+test('RuntimeBridge owns the animation-frame clock and resumes it after pause', async () => {
+  const bridge = createRuntimeBridge(createFakeKernel());
+  const callbacks = new Map();
+  let nextId = 1;
+  let now = 1000;
+  const updates = [];
+  const requestFrame = callback => {
+    const id = nextId++;
+    callbacks.set(id, callback);
+    return id;
+  };
+  const cancelFrame = id => callbacks.delete(id);
+  const fireFrame = timestamp => {
+    const entry = [...callbacks.entries()][0];
+    assert.ok(entry, 'an animation frame should be scheduled');
+    callbacks.delete(entry[0]);
+    entry[1](timestamp);
+  };
+
+  bridge.registerSystem('clock-test', { update: dt => updates.push(dt) });
+  await bridge.initialize();
+  bridge.start();
+  assert.equal(bridge.startFrameLoop({ requestFrame, cancelFrame, now: () => now }), true);
+
+  fireFrame(1016);
+  assert.equal(updates.length, 1);
+  assert.ok(Math.abs(updates[0] - 0.016) < 1e-9);
+
+  bridge.pause();
+  assert.equal(callbacks.size, 0);
+  now = 5000;
+  bridge.resume();
+  fireFrame(5016);
+  assert.equal(updates.length, 2);
+  assert.ok(Math.abs(updates[1] - 0.016) < 1e-9);
+
+  await bridge.shutdown();
+  assert.equal(callbacks.size, 0);
+});
