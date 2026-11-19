@@ -1055,7 +1055,17 @@ function updateFlight(dt) {
     .applyQuaternion(flightQuaternion)
     .normalize();
 
-  ship.position.addScaledVector(forwardVector, state.speed * safeDt * 0.45);
+  // O eixo frontal do casco é -Z. O vetor é calculado em coordenadas globais;
+  // convertemos o próximo ponto de volta ao espaço local do parent antes de gravar.
+  // Isso evita misturar vetor world com posição local caso a nave mude de referencial.
+  ship.parent?.updateWorldMatrix(true, false);
+  const nextShipWorldPosition = ship.getWorldPosition(new THREE.Vector3())
+    .addScaledVector(forwardVector, state.speed * safeDt * 0.45);
+  if (ship.parent) {
+    ship.position.copy(ship.parent.worldToLocal(nextShipWorldPosition));
+  } else {
+    ship.position.copy(nextShipWorldPosition);
+  }
 
   // Colisão da plataforma e do observatório para a nave exploradora.
   // A abertura e a escadaria continuam livres para o personagem,
