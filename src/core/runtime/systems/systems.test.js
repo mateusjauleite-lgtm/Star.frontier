@@ -40,7 +40,14 @@ const dependencies = () => {
       getShipFlightKernel: () => kernels.shipFlightKernel,
       getGravityKernel: () => kernels.gravityKernel
     },
-    gameplay: { update() {} }
+    gameplay: {
+      updateEnvironment() {},
+      updateCharacterMode() {},
+      updateLanding() {},
+      updateWorld() {},
+      render() {},
+      updateHud() {}
+    }
   };
 };
 
