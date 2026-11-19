@@ -93,6 +93,9 @@ jobs:
       - name: Compile shared C++ gravity kernel to WebAssembly
         run: npm run build:gravity:wasm --if-present
 
+      - name: Compile C++ core Runtime to WebAssembly
+        run: npm run build:runtime:wasm --if-present
+
       - name: Run project tests
         run: npm test --if-present
 
