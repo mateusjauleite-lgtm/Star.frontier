@@ -2,28 +2,15 @@ import * as THREE from 'three';
 import { loadRuntimeKernel } from './core/runtime/RuntimeKernel.js';
 import { createRuntimeBridge } from './core/runtime/RuntimeBridge.js';
 import { registerGameRuntimeSystems } from './core/runtime/systems/registerGameRuntimeSystems.js';
-import { createEarthReferenceFrames } from './world/earth/earthReferenceFrames.js';
-import { createEarthCore } from './world/earth/earthCore.js';
-import { createStation } from './world/station.js';
+import { createGameWorld } from './world/gameWorld.js';
+import { createShipLandingMetricTelemetryAdapter, SHIP_MODEL_METERS_PER_UNIT } from './ships/flight/landingAutopilot.js';
+import { EXTERNAL_ELEVATOR_CONFIG } from './ships/externalElevator.js';
 import { getLandingSite } from './ships/flight/landingSites.js';
-import { createShipLandingAutopilot, createShipLandingMetricTelemetryAdapter, SHIP_MODEL_METERS_PER_UNIT } from './ships/flight/landingAutopilot.js';
-import { loadShipFlightKernel } from './ships/flight/shipFlightKernel.js';
-import { createOrbitSystem } from './world/orbits.js';
-import { createAsteroidField } from './world/asteroids.js';
-import { createSpaceLighting } from './world/lighting.js';
-import { createStarshipInterior } from './ships/interior.js';
-import { createExternalElevator, EXTERNAL_ELEVATOR_CONFIG } from './ships/externalElevator.js';
-import { createExplorationShip } from './ships/exploration.js';
 import { state, resetTransientState } from './core/state.js';
 import { createCharacterCore } from './character/characterCore.js';
 import { createCharacterHUD } from './character/characterHUD.js';
-import { createCharacterModel } from './character/characterModel.js';
-import { createCharacterAnimator } from './character/characterAnimator.js';
 import { createCharacterAudio } from './character/characterAudio.js';
 import { createShipAudio } from './ships/shipAudio.js';
-import { createCharacterWeaponController } from './character/characterWeaponController.js';
-import { createCharacterPhysics } from './character/characterPhysics.js';
-import { loadGravityKernel } from './physics/gravityKernel.js';
 import { createCharacterEquipmentSystem } from './inventory/characterEquipment.js';
 import { isPilotConsoleInRange, attachCharacterToPilotConsole, returnCharacterToDeck } from './ships/bridge/commandBridge.js';
 import { saveState as save, loadState as load } from './core/storage.js';
@@ -842,119 +829,61 @@ function addShipBox(parent, geometry, material, position, rotation = { x: 0, y: 
 }
 
 async function init3D() {
-  scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x020817);
-  scene.fog = new THREE.FogExp2(0x020817, 0.00055);
-
-  // Terra em posição distante, visível à frente da nave.
-  earthSystem = createEarthCore({ radius: 600, position: [0, 0, -850] });
-  scene.add(earthSystem.group);
-  earthReferenceFrames = createEarthReferenceFrames({ globalFrame: scene, terrestrialFrame: earthSystem.getSurfaceFrame() });
-
-  camera = new THREE.PerspectiveCamera(
-    70,
-    innerWidth / innerHeight,
-    0.1,
-    20000
-  );
-
-  renderer = new THREE.WebGLRenderer({
-    antialias: state.settings.quality !== 'Baixa',
-    powerPreference: 'high-performance'
+  const world = await createGameWorld({
+    THREE,
+    state,
+    gameRoot: $('game-root'),
+    viewport: {
+      width: innerWidth,
+      height: innerHeight,
+      devicePixelRatio
+    },
+    loadingStep,
+    characterCore,
+    characterEquipment,
+    characterYaw,
+    shipLandingTelemetry
   });
 
-  renderer.setPixelRatio(
-    Math.min(
-      devicePixelRatio,
-      state.settings.quality === 'Alta' ? 1.7 : 1.25
-    )
-  );
+  ({
+    scene,
+    camera,
+    renderer,
+    ship,
+    stars,
+    earthSystem,
+    earthReferenceFrames,
+    stationSystem,
+    shipFlightKernel,
+    gravityKernel,
+    shipLandingAutopilot,
+    shipLandingGear,
+    shipLandingGearContactPoints,
+    shipYaw,
+    shipPitch,
+    shipVisual,
+    engineFlames,
+    engineLights,
+    asteroidSystem,
+    asteroids,
+    lightingSystem,
+    starshipInterior,
+    externalElevator,
+    nearbyElevator,
+    activeDeckIndex,
+    characterModel,
+    characterAnimator,
+    characterWeaponController,
+    characterPhysics
+  } = world);
 
-  renderer.setSize(innerWidth, innerHeight);
-  $('game-root').appendChild(renderer.domElement);
-
-  await loadingStep(24, 'Preparando o espaço e a iluminação...');
-
-  /* ILUMINAÇÃO E CAMPO ESTELAR */
-
-  lightingSystem = createSpaceLighting(scene);
-  stars = lightingSystem.stars;
-
-  await loadingStep(42, 'Montando a nave exploradora de quatro decks...');
-
-  /* NAVE PRINCIPAL — CASCO, NACELLES E ESTRUTURA DE VOO */
-
-  const explorationShip = createExplorationShip();
-  ship = explorationShip.group;
-  shipYaw = explorationShip.yaw;
-  shipPitch = explorationShip.pitch;
-  shipVisual = explorationShip.visual;
-  shipLandingGear = explorationShip.landingGear;
-  shipLandingGearContactPoints = explorationShip.landingGearContactPoints;
-  shipFlightKernel = await loadShipFlightKernel();
-  gravityKernel = await loadGravityKernel();
-  shipLandingAutopilot = createShipLandingAutopilot(shipFlightKernel);
-  shipLandingTelemetry.reset();
-  updateDeck4Clearance();
-  engineFlames = explorationShip.engineFlames;
-  engineLights = explorationShip.engineLights;
-  scene.add(ship);
-
-  await loadingStep(70, 'Carregando campo de asteroides...');
-
-  /* CAMPO DE ASTEROIDES */
-
-  asteroidSystem = createAsteroidField(scene, { count: 24, center: [310, 0, -300], spread: [190, 100, 160] });
-  asteroids = asteroidSystem.asteroids;
-
-  await loadingStep(84, 'Carregando estação orbital e observatório...');
-
-  /* ESTAÇÃO ORBITAL */
-
-  stationSystem = createStation({ position: [24, 3, -65] });
-  scene.add(stationSystem.group);
-
-  await loadingStep(90, 'Integrando os quatro decks ao casco da nave...');
-  starshipInterior = createStarshipInterior({ position: [0, 0, 0] });
-  shipVisual.add(starshipInterior.group);
-  externalElevator = createExternalElevator({ deckY: starshipInterior.layout.decks[3].y });
-  shipVisual.add(externalElevator.group);
-  activeDeckIndex = 0;
-  nearbyElevator = false;
-
-  // Spawn inicial no Deck 1 — ponte de comando, dentro do casco.
-  characterModel = createCharacterModel({ clothingColor: 0x526879 });
-  characterEquipment.initialize();
-  // O personagem pertence ao referencial da nave: acompanha translação e rotação
-  // sem ficar para trás no espaço quando a Aurora-7 se movimenta.
-  characterModel.group.position.set(0, 8.91, -18);
-  characterModel.group.rotation.y = characterYaw;
-  shipVisual.add(characterModel.group);
-  characterAnimator = createCharacterAnimator(characterModel);
-  characterWeaponController = createCharacterWeaponController(characterModel);
-  characterPhysics = createCharacterPhysics({ gravityKernel });
   characterInWorldFrame = false;
   characterWorldGrounded = false;
   characterWorldVelocity.set(0, 0, 0);
-  characterPhysics.reset(characterModel.group.position.y);
-  characterCore.setGrounded(true);
-  characterAnimator.play('idle');
-
-  const npc = new THREE.Mesh(
-    new THREE.SphereGeometry(1.3, 16, 12),
-    new THREE.MeshStandardMaterial({
-      color: 0xffc05b,
-      emissive: 0x553000
-    })
-  );
-
-  npc.position.set(24, 3, -77);
-  scene.add(npc);
-
-  orbitSystem = createOrbitSystem({ center: [0, 0, -850], radius: 960 });
-  scene.add(orbitSystem.group);
-
-  await loadingStep(96, 'Finalizando cenário e sistemas de voo...');
+  externalElevatorRiding = false;
+  externalElevatorActionAvailable = false;
+  lastEarthSurfaceRotationY = null;
+  updateDeck4Clearance();
 
   window.addEventListener('resize', resize3D);
 }
