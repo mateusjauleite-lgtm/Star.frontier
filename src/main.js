@@ -19,6 +19,7 @@ import { saveState as save, loadState as load } from './core/storage.js';
 import { createShipComputer } from './ships/computer/shipComputer.js';
 import { registerShipComputerSystems } from './ships/computer/shipComputerSystems.js';
 import { advanceShipFlightDynamics } from './ships/flight/flightDynamics.js';
+import { createShipFlightController } from './ships/flight/shipFlightController.js';
 import { registerTextInteractionGuard } from './core/ui/textInteractionGuard.js';
 
 registerTextInteractionGuard();
@@ -525,7 +526,6 @@ function updateDeck4Clearance() {
 }
 
 const flightQuaternion = new THREE.Quaternion();
-let pitchAngle = 0;
 
 let asteroids = [];
 let engineFlames = [];
@@ -554,6 +554,25 @@ const cameraNames = [
 const viewEuler = new THREE.Euler(0, 0, 0, 'YXZ');
 const cameraViewQuaternion = new THREE.Quaternion();
 const forwardVector = new THREE.Vector3();
+
+const shipFlightController = createShipFlightController({
+  THREE,
+  state,
+  getShip: () => ship,
+  getShipYaw: () => shipYaw,
+  getShipPitch: () => shipPitch,
+  getShipVisual: () => shipVisual,
+  getEngineFlames: () => engineFlames,
+  getEngineLights: () => engineLights,
+  getEarthSystem: () => earthSystem,
+  getLandingAutopilot: () => shipLandingAutopilot,
+  getFlightQuaternion: () => flightQuaternion,
+  getForwardVector: () => forwardVector,
+  advanceFlightDynamics: advanceShipFlightDynamics,
+  shipAudio,
+  cancelLandingGuidance: reason => cancelLandingGuidance(reason),
+  getElement: $
+});
 
 let launching = false;
 let shipComputerSystemsRegistered = false;
@@ -989,191 +1008,7 @@ function applyEarthSurfaceRotation(deltaSeconds) {
 }
 
 function updateFlight(dt) {
-  if (!ship || !shipYaw || !shipPitch || !shipVisual) return;
-
-  // Protege a simulação contra saltos de tempo quando o Android pausa ou atrasa um frame.
-  const safeDt = THREE.MathUtils.clamp(Number.isFinite(dt) ? dt : 0, 0, 0.04);
-  const sensitivity = Number(state.settings.sensitivity) || 1;
-  const manualOverride = Math.abs(state.move.x) > 0.015 || Math.abs(state.move.y) > 0.015 ||
-    state.throttle || state.braking || state.nitroButton;
-  if (manualOverride && ship.userData.earthSurfaceAnchored) {
-    ship.userData.earthSurfaceAnchored = false;
-  }
-  if (manualOverride && shipLandingAutopilot?.snapshot?.().active) {
-    cancelLandingGuidance('manual-override');
-    if ($('landing-status')) $('landing-status').textContent = 'Comando manual assumido. A orientação foi cancelada e o botão POUSAR foi restaurado.';
-    toast('Orientação automática cancelada: controle manual assumido.');
-  }
-
-  // Guinada sempre no eixo vertical global; arfagem sempre no eixo lateral local.
-  // No joystick: puxar para cima (Y negativo) sobe; puxar para baixo (Y positivo) desce.
-  shipYaw.rotation.y -= state.move.x * 1.25 * safeDt * sensitivity;
-
-  const pitchInput = state.move.y * safeDt * sensitivity;
-  const maxPitch = THREE.MathUtils.degToRad(65);
-  pitchAngle = THREE.MathUtils.clamp(
-    pitchAngle - pitchInput,
-    -maxPitch,
-    maxPitch
-  );
-  shipPitch.rotation.x = pitchAngle;
-
-  // A inclinação visual é isolada da orientação usada para navegar.
-  const targetRoll = -state.move.x * 0.25;
-  shipVisual.rotation.z = THREE.MathUtils.lerp(
-    shipVisual.rotation.z,
-    targetRoll,
-    Math.min(1, safeDt * 3)
-  );
-
-  // A dinâmica de propulsão é independente da camada visual e das colisões.
-  const boosting = advanceShipFlightDynamics(state, safeDt);
-
-  shipAudio.updateFlight({
-    throttle: Boolean(state.throttle && state.fuel > 0),
-    boosting,
-    braking: Boolean(state.braking),
-    moveX: state.move.x,
-    moveY: state.move.y,
-    speed: state.speed,
-    nacellesLit: engineLights.some(light => light.visible && light.intensity > 2),
-    dt: safeDt
-  });
-
-  /* DESLOCAMENTO */
-
-  // A direção de avanço vem do próprio casco visível: o nariz da nave
-  // está no eixo local -Z. Assim, movimento e orientação exibida usam a mesma
-  // transformação mundial, sem depender de um grupo intermediário.
-  shipVisual.getWorldQuaternion(flightQuaternion);
-  forwardVector
-    .set(0, 0, -1)
-    .applyQuaternion(flightQuaternion)
-    .normalize();
-
-  // O eixo frontal do casco é -Z. O vetor é calculado em coordenadas globais;
-  // convertemos o próximo ponto de volta ao espaço local do parent antes de gravar.
-  // Isso evita misturar vetor world com posição local caso a nave mude de referencial.
-  ship.parent?.updateWorldMatrix(true, false);
-  const nextShipWorldPosition = ship.getWorldPosition(new THREE.Vector3())
-    .addScaledVector(forwardVector, state.speed * safeDt * 0.45);
-  if (ship.parent) {
-    ship.position.copy(ship.parent.worldToLocal(nextShipWorldPosition));
-  } else {
-    ship.position.copy(nextShipWorldPosition);
-  }
-
-  // Colisão da plataforma e do observatório para a nave exploradora.
-  // A abertura e a escadaria continuam livres para o personagem,
-  // mas são tratadas como piso sólido para a nave.
-  const stationCenter = new THREE.Vector3(24, 3, -65);
-  const stationScale = 1.18;
-  const dx = ship.position.x - stationCenter.x;
-  const dz = ship.position.z - stationCenter.z;
-  const horizontalDistance = Math.hypot(dx, dz);
-  let relativeHeight = ship.position.y - stationCenter.y;
-
-  // O vão da escadaria não permite a passagem da nave.
-  // Ao cruzar o nível do piso superior, a nave é mantida acima da plataforma.
-  const landingDeckTop = 2.13 * stationScale;
-  const shipClearance = 1.2;
-  const landingDeckRadius = 11.65 * stationScale - 0.4;
-  if (
-    horizontalDistance < landingDeckRadius &&
-    relativeHeight >= landingDeckTop - shipClearance &&
-    relativeHeight < landingDeckTop + shipClearance
-  ) {
-    ship.position.y = stationCenter.y + landingDeckTop + shipClearance;
-    relativeHeight = ship.position.y - stationCenter.y;
-    state.speed = Math.min(state.speed, 8);
-  }
-
-  // Parede invisível ao redor do observatório inferior.
-  // Não há exceção no corredor da escada: a nave não entra no ambiente de bípedes.
-  const lowerDeckRadius = 8.65 * stationScale + 2.4;
-  if (
-    horizontalDistance < lowerDeckRadius &&
-    relativeHeight > -4.2 &&
-    relativeHeight < landingDeckTop - shipClearance
-  ) {
-    const safeDistance = Math.max(horizontalDistance, 0.001);
-    const nx = horizontalDistance > 0.001 ? dx / safeDistance : 1;
-    const nz = horizontalDistance > 0.001 ? dz / safeDistance : 0;
-    ship.position.x = stationCenter.x + nx * lowerDeckRadius;
-    ship.position.z = stationCenter.z + nz * lowerDeckRadius;
-    state.speed = Math.min(state.speed, 8);
-  }
-
-  // Primeira resposta física da nave ao relevo real da Earth.
-  // A consulta usa a mesma superfície ETOPO que alimenta o mesh visível.
-  ship.userData.earthCollisionResolved = false;
-  const earthCollisionSurface = earthSystem?.getCollisionSurface?.();
-  ship.updateWorldMatrix(true, false);
-  const shipWorldPosition = ship.getWorldPosition(new THREE.Vector3());
-  const terrainContact = earthCollisionSurface?.sampleWorldPosition?.(shipWorldPosition);
-  if (terrainContact?.worldPosition && terrainContact?.worldNormal) {
-    const signedClearance = shipWorldPosition.clone()
-      .sub(terrainContact.worldPosition)
-      .dot(terrainContact.worldNormal);
-    const minimumHullClearance = 18;
-    if (Number.isFinite(signedClearance) && signedClearance < minimumHullClearance) {
-      const correctedWorldPosition = shipWorldPosition.addScaledVector(
-        terrainContact.worldNormal,
-        minimumHullClearance - signedClearance
-      );
-      if (ship.parent) {
-        ship.parent.updateWorldMatrix(true, false);
-        ship.position.copy(ship.parent.worldToLocal(correctedWorldPosition));
-      } else {
-        ship.position.copy(correctedWorldPosition);
-      }
-      // Cancela apenas a aproximação contra a superfície; o piloto pode
-      // voltar a acelerar para se afastar e decolar.
-      if (forwardVector.dot(terrainContact.worldNormal) < 0) state.speed = 0;
-      ship.userData.earthCollisionResolved = true;
-      ship.userData.earthCollisionClearanceUnits = minimumHullClearance;
-    }
-  }
-  
-  /* EFEITOS DAS NACELLES */
-
-  const enginePower = boosting ? 2.5 : (state.throttle ? 1.25 : 0.65);
-
-  engineFlames.forEach(flame => {
-    flame.scale.set(
-      boosting ? 1.45 : 1,
-      boosting ? 2.5 : enginePower,
-      boosting ? 1.45 : 1
-    );
-
-    flame.material.opacity = boosting
-      ? 0.95
-      : (state.throttle ? 0.7 : 0.3);
-  });
-
-  engineLights.forEach(light => {
-    light.intensity = boosting
-      ? 8
-      : (state.throttle ? 4 : 1.5);
-  });
-
-  /* HUD NITRO */
-
-  const nitroPercent = Math.round(state.nitro);
-
-  if ($('nitro-level')) {
-    $('nitro-level').textContent = nitroPercent + '%';
-  }
-
-  if ($('nitro-fill')) {
-    $('nitro-fill').style.width = nitroPercent + '%';
-
-    $('nitro-fill').style.background = nitroPercent < 20
-      ? 'linear-gradient(90deg,#b52c2c,#ff7777)'
-      : 'linear-gradient(90deg,#0878d9,#37dfff)';
-  }
-
-  $('nitro-btn')?.classList.toggle('active', boosting);
+  return shipFlightController.update(dt);
 }
 
 /* CÂMERA DO PERSONAGEM — sempre dentro da nave */
