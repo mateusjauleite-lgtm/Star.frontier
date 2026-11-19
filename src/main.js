@@ -653,6 +653,7 @@ async function startGame() {
             }
           },
           boot: () => shipComputer.boot(),
+          shutdown: () => shipComputer.shutdown(),
           onStage: stage => { startupStage = stage; },
           onError: (error, phase) => {
             console.error(

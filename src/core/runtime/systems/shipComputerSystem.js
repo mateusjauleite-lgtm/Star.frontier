@@ -2,9 +2,11 @@ export function createShipComputerRuntimeSystem({
   registerSystems,
   boot,
   onStage = () => {},
-  onError = () => {}
+  onError = () => {},
+  shutdown = () => {}
 }) {
-  if (typeof registerSystems !== 'function' || typeof boot !== 'function') {
+  if (typeof registerSystems !== 'function' || typeof boot !== 'function' ||
+      typeof shutdown !== 'function') {
     throw new TypeError('O sistema do computador da nave está incompleto.');
   }
 
@@ -23,6 +25,9 @@ export function createShipComputerRuntimeSystem({
       } catch (error) {
         onError(error, 'boot');
       }
+    },
+    shutdown() {
+      shutdown();
     }
   };
 }

@@ -30,7 +30,10 @@ export async function createGameWorld({
     throw new TypeError('Dependências obrigatórias para criar o mundo não foram fornecidas.');
   }
 
-  const scene = new THREE.Scene();
+  let scene = new THREE.Scene();
+  let renderer = null;
+
+  try {
   scene.background = new THREE.Color(0x020817);
   scene.fog = new THREE.FogExp2(0x020817, 0.00055);
 
@@ -48,7 +51,7 @@ export async function createGameWorld({
     20000
   );
 
-  const renderer = new THREE.WebGLRenderer({
+  renderer = new THREE.WebGLRenderer({
     antialias: state.settings.quality !== 'Baixa',
     powerPreference: 'high-performance'
   });
@@ -169,4 +172,18 @@ export async function createGameWorld({
     characterWeaponController,
     characterPhysics
   };
+  } catch (error) {
+    scene?.traverse(object => {
+      if (!object.isMesh && !object.isLine && !object.isPoints) return;
+      object.geometry?.dispose?.();
+      const materials = Array.isArray(object.material)
+        ? object.material
+        : object.material ? [object.material] : [];
+      materials.forEach(material => material?.dispose?.());
+    });
+    renderer?.dispose?.();
+    renderer?.forceContextLoss?.();
+    renderer?.domElement?.remove?.();
+    throw error;
+  }
 }
