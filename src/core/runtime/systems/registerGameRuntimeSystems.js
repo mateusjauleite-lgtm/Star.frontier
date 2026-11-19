@@ -1,3 +1,5 @@
+import { EntityManager } from '../../entities/EntityManager.js';
+import { createEntityRuntimeSystem } from './entitySystem.js';
 import { createCharacterRuntimeSystem } from './characterSystem.js';
 import { createWorldRuntimeSystem } from './worldSystem.js';
 import { createShipComputerRuntimeSystem } from './shipComputerSystem.js';
@@ -9,12 +11,14 @@ export function registerGameRuntimeSystems(runtime, dependencies) {
   }
 
   const {
+    entityManager = new EntityManager(),
     character,
     world,
     shipComputer,
     gameplay
   } = dependencies;
 
+  runtime.registerSystem('entity-manager', createEntityRuntimeSystem({ manager: entityManager }));
   runtime.registerSystem('character', createCharacterRuntimeSystem(character));
   runtime.registerSystem('world', createWorldRuntimeSystem(world));
   runtime.registerSystem('ship-computer', createShipComputerRuntimeSystem(shipComputer));
