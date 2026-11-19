@@ -654,7 +654,9 @@ async function startGame() {
             if (!profile?.render?.visualUnitsPerKm) return null;
             return {
               originWorld: earthSystem.group.getWorldPosition(new THREE.Vector3()).toArray(),
-              orientationWorld: earthSystem.group.getWorldQuaternion(new THREE.Quaternion()).toArray(),
+              // O referencial orbital usa os eixos globais inerciais; a rotação
+              // da superfície terrestre permanece no referencial terrestre.
+              orientationWorld: [0, 0, 0, 1],
               visualUnitsPerKm: profile.render.visualUnitsPerKm
             };
           },
@@ -665,7 +667,7 @@ async function startGame() {
           },
           getShipForwardWorld: () => {
             if (!shipPitch) return null;
-            const orientation = shipPitch.getWorldQuaternion(new THREE.Quaternion());
+            const orientation = shipVisual.getWorldQuaternion(new THREE.Quaternion());
             return new THREE.Vector3(0, 0, -1).applyQuaternion(orientation).normalize().toArray();
           }
         },
@@ -1054,7 +1056,10 @@ function updateFlight(dt) {
 
   /* DESLOCAMENTO */
 
-  shipPitch.getWorldQuaternion(flightQuaternion);
+  // A direção de avanço vem do próprio casco visível: o nariz da nave
+  // está no eixo local -Z. Assim, movimento e orientação exibida usam a mesma
+  // transformação mundial, sem depender de um grupo intermediário.
+  shipVisual.getWorldQuaternion(flightQuaternion);
   forwardVector
     .set(0, 0, -1)
     .applyQuaternion(flightQuaternion)
