@@ -644,6 +644,10 @@ async function startGame() {
           initializeWorld: init3D,
           onStage: stage => { startupStage = stage; }
         },
+        orbitalPhysics: {
+          getShipFlightKernel: () => shipFlightKernel,
+          getGravityKernel: () => gravityKernel
+        },
         shipComputer: {
           registerSystems: () => {
             try {
