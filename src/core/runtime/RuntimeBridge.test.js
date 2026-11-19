@@ -140,3 +140,28 @@ test('RuntimeBridge owns the animation-frame clock and resumes it after pause', 
   await bridge.shutdown();
   assert.equal(callbacks.size, 0);
 });
+
+
+test('RuntimeBridge invokes browser animation APIs with the global receiver', async () => {
+  const bridge = createRuntimeBridge(createFakeKernel());
+  const callbacks = new Map();
+  let nextId = 1;
+  const requestFrame = function (callback) {
+    assert.equal(this, globalThis);
+    const id = nextId++;
+    callbacks.set(id, callback);
+    return id;
+  };
+  const cancelFrame = function (id) {
+    assert.equal(this, globalThis);
+    callbacks.delete(id);
+  };
+
+  await bridge.initialize();
+  bridge.start();
+  bridge.startFrameLoop({ requestFrame, cancelFrame, now: () => 0 });
+  assert.equal(callbacks.size, 1);
+  bridge.pause();
+  assert.equal(callbacks.size, 0);
+  await bridge.shutdown();
+});
