@@ -19,6 +19,9 @@ import { saveState as save, loadState as load } from './core/storage.js';
 import { createShipComputer } from './ships/computer/shipComputer.js';
 import { registerShipComputerSystems } from './ships/computer/shipComputerSystems.js';
 import { advanceShipFlightDynamics } from './ships/flight/flightDynamics.js';
+import { registerTextInteractionGuard } from './core/ui/textInteractionGuard.js';
+
+registerTextInteractionGuard();
 
 const $ = id => document.getElementById(id);
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
