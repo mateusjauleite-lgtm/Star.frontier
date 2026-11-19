@@ -1,5 +1,6 @@
 export function registerGameplayActions({
   document,
+  THREE,
   getElement,
   state,
   isActive,
@@ -49,7 +50,7 @@ export function registerGameplayActions({
   getElement('interact-btn')?.addEventListener('click', () => {
     if (!isActive()) return;
     const ship = getShip();
-    const nearStation = ship.position.distanceTo(new (ship.position.constructor)(24, 3, -65)) < 22;
+    const nearStation = ship.position.distanceTo(new THREE.Vector3(24, 3, -65)) < 22;
     if (!nearStation) {
       toast('Aproxime-se da estação para interagir.');
       return;
