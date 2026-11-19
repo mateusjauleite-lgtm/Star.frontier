@@ -145,6 +145,11 @@ test('orbital runtime samples the ship in Earth-centred SI coordinates after gam
   assert.deepEqual(context.orbitalState.velocityMetersPerSecond, [2000, 0, 0]);
   assert.deepEqual(context.orbitalState.forwardDirection, [1, 0, 0]);
   assert.equal(context.orbitalState.velocityDirectionAlignment, 1);
+  assert.deepEqual(context.orbitalState.gravityAccelerationMetersPerSecond2, [-1, 0, 0]);
+  assert.deepEqual(context.orbitalState.predictedNextPositionMeters, [2000, 0, 0]);
+  assert.deepEqual(context.orbitalState.predictedNextVelocityMetersPerSecond, [2000, 0, 0]);
+  assert.equal(context.orbitalState.gravityPredictionEnabled, true);
+  assert.equal(context.orbitalState.actuationEnabled, false);
   assert.equal(context.orbitalPhysics.state.positionMeters[0], 2000);
 
   shipPosition = [11.5, 0, 0];
