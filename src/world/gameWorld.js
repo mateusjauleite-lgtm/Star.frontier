@@ -32,12 +32,15 @@ export async function createGameWorld({
 
   let scene = new THREE.Scene();
   let renderer = null;
+  let earthSystem = null;
+  let shipFlightKernel = null;
+  let gravityKernel = null;
 
   try {
   scene.background = new THREE.Color(0x020817);
   scene.fog = new THREE.FogExp2(0x020817, 0.00055);
 
-  const earthSystem = createEarthCore({ radius: 600, position: [0, 0, -850] });
+  earthSystem = createEarthCore({ radius: 600, position: [0, 0, -850] });
   scene.add(earthSystem.group);
   const earthReferenceFrames = createEarthReferenceFrames({
     globalFrame: scene,
@@ -80,8 +83,8 @@ export async function createGameWorld({
   const shipVisual = explorationShip.visual;
   const shipLandingGear = explorationShip.landingGear;
   const shipLandingGearContactPoints = explorationShip.landingGearContactPoints;
-  const shipFlightKernel = await loadShipFlightKernel();
-  const gravityKernel = await loadGravityKernel();
+  shipFlightKernel = await loadShipFlightKernel();
+  gravityKernel = await loadGravityKernel();
   const shipLandingAutopilot = createShipLandingAutopilot(shipFlightKernel);
   shipLandingTelemetry?.reset?.();
   const engineFlames = explorationShip.engineFlames;
@@ -173,6 +176,15 @@ export async function createGameWorld({
     characterPhysics
   };
   } catch (error) {
+    try { earthSystem?.dispose?.(); } catch (disposeError) {
+      console.warn('Falha ao liberar os módulos da Terra:', disposeError);
+    }
+    try { shipFlightKernel?.dispose?.(); } catch (disposeError) {
+      console.warn('Falha ao liberar o kernel orbital da nave:', disposeError);
+    }
+    try { gravityKernel?.dispose?.(); } catch (disposeError) {
+      console.warn('Falha ao liberar o kernel de gravidade:', disposeError);
+    }
     scene?.traverse(object => {
       if (!object.isMesh && !object.isLine && !object.isPoints) return;
       object.geometry?.dispose?.();
