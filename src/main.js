@@ -820,6 +820,17 @@ async function startGame() {
       console.warn('Não foi possível encerrar o Runtime:', shutdownError);
     }
     loadingScreen?.classList.add('hidden');
+    window.removeEventListener('resize', resize3D);
+
+    try { earthSystem?.dispose?.(); } catch (disposeError) {
+      console.warn('Não foi possível encerrar os módulos da Terra:', disposeError);
+    }
+    try { shipFlightKernel?.dispose?.(); } catch (disposeError) {
+      console.warn('Não foi possível liberar o kernel orbital:', disposeError);
+    }
+    try { gravityKernel?.dispose?.(); } catch (disposeError) {
+      console.warn('Não foi possível liberar o kernel de gravidade:', disposeError);
+    }
 
     if (scene) {
       scene.traverse(object => {
@@ -862,8 +873,8 @@ async function startGame() {
     shipLandingAutopilot?.cancel?.();
     shipLandingAutopilot = null;
     lastEarthSurfaceRotationY = null;
-    shipFlightKernel?.dispose?.();
     shipFlightKernel = null;
+    gravityKernel = null;
     shipLandingTelemetry.reset();
     orbitSystem = null;
     asteroidSystem = null;
@@ -961,6 +972,7 @@ async function init3D() {
   updateCharacterCamera();
   camera.updateMatrixWorld(true);
 
+  window.removeEventListener('resize', resize3D);
   window.addEventListener('resize', resize3D);
 }
 
