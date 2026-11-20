@@ -33,15 +33,25 @@ export class Entity {
     if ('id' in patch && patch.id !== this.id) throw new Error('O id de uma entidade é imutável.');
     if ('type' in patch && patch.type !== this.type) throw new Error('O type de uma entidade é imutável.');
     if ('status' in patch && !VALID_STATUSES.has(patch.status)) throw new TypeError('Status inválido.');
-    if ('name' in patch) this.name = String(patch.name);
-    if ('status' in patch) this.status = patch.status;
+
+    // Prepare and validate every changed field before committing any mutation.
+    const nextName = 'name' in patch ? String(patch.name) : this.name;
+    const nextStatus = 'status' in patch ? patch.status : this.status;
+    let nextTags = this.tags;
     if ('tags' in patch) {
       if (!Array.isArray(patch.tags) || patch.tags.some(tag => typeof tag !== 'string')) {
         throw new TypeError('tags deve ser uma lista de textos.');
       }
-      this.tags = [...new Set(patch.tags)];
+      nextTags = [...new Set(patch.tags)];
     }
-    if ('metadata' in patch) this.metadata = cloneSerializable(patch.metadata, 'metadata');
+    const nextMetadata = 'metadata' in patch
+      ? cloneSerializable(patch.metadata, 'metadata')
+      : this.metadata;
+
+    this.name = nextName;
+    this.status = nextStatus;
+    this.tags = nextTags;
+    this.metadata = nextMetadata;
     return this;
   }
 
