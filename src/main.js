@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { registerAimControls, registerHeldFlightControls, registerFlightSelectionGuards, registerCameraCycleControl } from './controls/gameControls.js';
+import { registerCharacterControls } from './controls/characterControls.js';
 import { registerGameplayActions } from './systems/gameplayActions.js';
 import { loadRuntimeKernel } from './core/runtime/RuntimeKernel.js';
 import { createRuntimeBridge } from './core/runtime/RuntimeBridge.js';
@@ -72,13 +73,10 @@ const characterForward = new THREE.Vector3();
 const characterRight = new THREE.Vector3();
 const characterMove = new THREE.Vector3();
 const characterLookEuler = new THREE.Euler(0, 0, 0, 'YXZ');
-let characterMoveInput = { x: 0, y: 0 };
 let characterFootstepTimer = 0;
-let characterSprintHeld = false;
 let characterAnimationTestRemaining = 0;
 let characterAnimationTestIndex = -1;
 const characterAnimationTestPoses = ['walk', 'run', 'jump', 'fall', 'land', 'sit', 'stand', 'idle'];
-let characterJumpQueued = false;
 let characterStaminaAccumulator = 0;
 let characterStaminaHudTimer = 0;
 let phaserChargeRemaining = 0;
@@ -1258,7 +1256,7 @@ function updateCharacterMovement(dt) {
   }
   if (characterInWorldFrame) {
     updateCharacterWorldPhysics(dt);
-    const worldInput = characterMoveInput;
+    const worldInput = characterControls.getMoveInput();
     const worldMagnitude = Math.min(1, Math.hypot(worldInput.x, worldInput.y));
     let worldMoving = false;
 
@@ -1332,12 +1330,12 @@ function updateCharacterMovement(dt) {
     if (characterJumpButton) characterJumpButton.disabled = true;
     return;
   }
-  const input = characterMoveInput;
+  const input = characterControls.getMoveInput();
   const magnitude = Math.min(1, Math.hypot(input.x, input.y));
   const deck = characterModel.group.position;
   let movedHorizontally = false;
   const stamina = characterCore.snapshot().stamina;
-  const sprinting = characterSprintHeld && magnitude > 0.08 && stamina > 0;
+  const sprinting = characterControls.isSprinting() && magnitude > 0.08 && stamina > 0;
   if (sprinting) characterStaminaAccumulator -= 22 * dt;
   else if (stamina < 100) characterStaminaAccumulator += 13 * dt;
 
@@ -1352,7 +1350,7 @@ function updateCharacterMovement(dt) {
     characterStaminaAccumulator = 0;
     characterStaminaHudTimer = 0;
     const displayedStamina = characterCore.snapshot().stamina;
-    if (displayedStamina <= 0 && characterSprintHeld) stopCharacterSprint();
+    if (displayedStamina <= 0 && characterControls.isSprinting()) characterControls.stopSprint();
     const staminaFill = $('character-stamina');
     const staminaLabel = $('character-stamina-value');
     if (staminaFill) staminaFill.style.width = displayedStamina + '%';
@@ -1403,12 +1401,11 @@ function updateCharacterMovement(dt) {
   const floorY = leavingDeckThroughAft
     ? -1000000
     : starshipInterior.layout.decks[activeDeckIndex].y + 0.21;
-  if (characterJumpQueued) {
+  if (characterControls.consumeJump()) {
     if (characterPhysics?.jump()) {
       characterAnimator?.play('jump', { restart: true });
       characterAudio.playJump();
     }
-    characterJumpQueued = false;
   }
 
   const physicsState = characterPhysics?.update(dt, {
@@ -1691,9 +1688,7 @@ function enterPilotMode() {
     return;
   }
 
-  characterMoveInput = { x: 0, y: 0 };
-  characterJumpQueued = false;
-  stopCharacterSprint();
+  characterControls.reset();
   characterCore.enterShipSeat();
   pilotInteractionAvailable = false;
   state.camera = 0;
@@ -1712,9 +1707,7 @@ function exitPilotMode() {
   characterPitch = 0;
   characterCore.leaveShipSeat();
 
-  characterMoveInput = { x: 0, y: 0 };
-  characterJumpQueued = false;
-  stopCharacterSprint();
+  characterControls.reset();
   state.move.x = 0;
   state.move.y = 0;
   state.throttle = false;
@@ -2015,145 +2008,21 @@ function bindStick(id, key) {
 
 bindStick('move-stick', 'move');
 
-// Joystick exclusivo do personagem; não altera os comandos de voo.
-const characterStick = $('character-move-stick');
-if (characterStick) {
-  const knob = characterStick.querySelector('.character-move-knob');
-  let pointer = null;
-  const moveCharacterStick = event => {
-    const rect = characterStick.getBoundingClientRect();
-    let x = event.clientX - rect.left - rect.width / 2;
-    let y = event.clientY - rect.top - rect.height / 2;
-    const max = rect.width * 0.31;
-    const length = Math.hypot(x, y);
-    if (length > max) { x *= max / length; y *= max / length; }
-    characterMoveInput = { x: x / max, y: y / max };
-    if (knob) knob.style.transform = `translate(${x}px, ${y}px)`;
-  };
-  characterStick.addEventListener('pointerdown', event => {
-    event.preventDefault();
-    pointer = event.pointerId;
-    characterStick.setPointerCapture(pointer);
-    moveCharacterStick(event);
-  });
-  characterStick.addEventListener('pointermove', event => {
-    if (pointer !== event.pointerId) return;
-    event.preventDefault();
-    moveCharacterStick(event);
-  });
-  const endCharacterMove = event => {
-    if (pointer !== event.pointerId) return;
-    pointer = null;
-    characterMoveInput = { x: 0, y: 0 };
-    if (knob) knob.style.transform = 'translate(0,0)';
-  };
-  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type =>
-    characterStick.addEventListener(type, endCharacterMove)
-  );
-}
-
-// Controles exclusivos do personagem: salto por toque e corrida por pressão.
-const characterJumpButton = $('character-jump-btn');
-const characterSprintButton = $('character-sprint-btn');
-const characterAnimationButton = $('character-animation-btn');
-const characterPhaserButton = $('character-phaser-btn');
-const handlePhaserInput = event => {
-  if (event.type === 'click' && event.detail !== 0) return;
-  event.preventDefault();
-  event.stopPropagation();
-  firePhaser();
-};
-characterPhaserButton?.addEventListener('pointerup', handlePhaserInput);
-characterPhaserButton?.addEventListener('click', handlePhaserInput);
-const characterAimButton = $('character-aim-btn');
-characterAimButton?.addEventListener('click', () => {
-  if (!isPhaserEquipped() || characterCore.snapshot().mode !== 'on-foot') {
-    toast('Equipe o Phaser para usar a mira.');
-    return;
-  }
-  const aiming = characterWeaponController?.toggleAiming() ?? false;
-  toast(aiming ? 'Mira ativada.' : 'Arma abaixada.');
-});
-
-characterAnimationButton?.addEventListener('click', () => {
-  if (characterCore.snapshot().mode !== 'on-foot' || !characterAnimator) return;
-  characterAnimationTestIndex = (characterAnimationTestIndex + 1) % characterAnimationTestPoses.length;
-  const pose = characterAnimationTestPoses[characterAnimationTestIndex];
-  characterAnimationTestRemaining = pose === 'idle' ? 1.1 : 1.45;
-  characterAnimator.play(pose, { restart: true });
-  characterAnimationButton.classList.add('is-active');
-  characterAnimationButton.querySelector('small').textContent = pose.toUpperCase();
-  toast('Teste de animação: ' + pose.toUpperCase());
-});
-
-characterJumpButton?.addEventListener('pointerdown', event => {
-  event.preventDefault();
-  if (characterCore.snapshot().mode !== 'on-foot' || !characterPhysics?.grounded) return;
-  characterJumpQueued = true;
-});
-
-const stopCharacterSprint = () => {
-  characterSprintHeld = false;
-  characterSprintButton?.classList.remove('is-active');
-};
-characterSprintButton?.addEventListener('pointerdown', event => {
-  event.preventDefault();
-  if (characterCore.snapshot().mode !== 'on-foot') return;
-  characterSprintHeld = true;
-  characterSprintButton.classList.add('is-active');
-  characterSprintButton.setPointerCapture(event.pointerId);
-});
-['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type =>
-  characterSprintButton?.addEventListener(type, stopCharacterSprint)
-);
-
-window.addEventListener('keydown', event => {
-  if (characterCore.snapshot().mode !== 'on-foot' || event.repeat) return;
-  if (event.code === 'Space') {
-    event.preventDefault();
-    if (characterPhysics?.grounded) characterJumpQueued = true;
-  }
-  if (event.code === 'ShiftLeft' || event.code === 'ShiftRight') characterSprintHeld = true;
-});
-window.addEventListener('keyup', event => {
-  if (event.code === 'ShiftLeft' || event.code === 'ShiftRight') stopCharacterSprint();
-});
-window.addEventListener('blur', stopCharacterSprint);
-
-function updateCharacterWeapon(dt) {
-  const equipped = isPhaserEquipped();
-  if (!equipped) characterWeaponController?.reset();
-  const result = characterWeaponController?.update(dt, characterPitch);
-  const aimButton = $('character-aim-btn');
-  const reticle = $('character-aim-reticle');
-  if (aimButton) {
-    aimButton.disabled = !equipped;
-    aimButton.classList.toggle('is-active', Boolean(result?.aiming));
-    const label = aimButton.querySelector('small');
-    if (label) label.textContent = !equipped ? 'SEM ARMA' : result?.aiming ? 'MIRANDO' : 'MIRAR';
-  }
-  if (reticle) reticle.classList.toggle('is-visible', equipped && Boolean(result?.aiming));
-}
-
-const characterAim = $('character-aim-area');
-let characterAimPointer = null;
-let characterPreviousX = 0;
-let characterPreviousY = 0;
-if (characterAim) {
-  characterAim.addEventListener('pointerdown', event => {
-    event.preventDefault();
-    characterAimPointer = event.pointerId;
-    characterPreviousX = event.clientX;
-    characterPreviousY = event.clientY;
-    characterAim.setPointerCapture(characterAimPointer);
-  });
-  characterAim.addEventListener('pointermove', event => {
-    if (characterAimPointer !== event.pointerId) return;
-    event.preventDefault();
-    const dx = event.clientX - characterPreviousX;
-    const dy = event.clientY - characterPreviousY;
-    characterPreviousX = event.clientX;
-    characterPreviousY = event.clientY;
+const characterControls = registerCharacterControls({
+  document,
+  window,
+  isOnFoot: () => characterCore.snapshot().mode === 'on-foot',
+  isGrounded: () => Boolean(characterPhysics?.grounded),
+  onFirePhaser: firePhaser,
+  onToggleAim: () => {
+    if (!isPhaserEquipped() || characterCore.snapshot().mode !== 'on-foot') {
+      toast('Equipe o Phaser para usar a mira.');
+      return;
+    }
+    const aiming = characterWeaponController?.toggleAiming() ?? false;
+    toast(aiming ? 'Mira ativada.' : 'Arma abaixada.');
+  },
+  onAimLook: (dx, dy) => {
     const yawDelta = -dx * 0.005;
     characterYaw += yawDelta;
     characterPitch = THREE.MathUtils.clamp(characterPitch - dy * 0.004, -0.65, 0.65);
@@ -2169,13 +2038,36 @@ if (characterAim) {
     } else if (characterModel?.group) {
       characterModel.group.rotation.y = characterYaw;
     }
-  });
-  const endCharacterAim = event => {
-    if (characterAimPointer === event.pointerId) characterAimPointer = null;
-  };
-  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type =>
-    characterAim.addEventListener(type, endCharacterAim)
-  );
+  }
+});
+const characterJumpButton = characterControls.jumpButton;
+const characterSprintButton = characterControls.sprintButton;
+const characterAnimationButton = $('character-animation-btn');
+
+characterAnimationButton?.addEventListener('click', () => {
+  if (characterCore.snapshot().mode !== 'on-foot' || !characterAnimator) return;
+  characterAnimationTestIndex = (characterAnimationTestIndex + 1) % characterAnimationTestPoses.length;
+  const pose = characterAnimationTestPoses[characterAnimationTestIndex];
+  characterAnimationTestRemaining = pose === 'idle' ? 1.1 : 1.45;
+  characterAnimator.play(pose, { restart: true });
+  characterAnimationButton.classList.add('is-active');
+  characterAnimationButton.querySelector('small').textContent = pose.toUpperCase();
+  toast('Teste de animação: ' + pose.toUpperCase());
+});
+
+function updateCharacterWeapon(dt) {
+  const equipped = isPhaserEquipped();
+  if (!equipped) characterWeaponController?.reset();
+  const result = characterWeaponController?.update(dt, characterPitch);
+  const aimButton = $('character-aim-btn');
+  const reticle = $('character-aim-reticle');
+  if (aimButton) {
+    aimButton.disabled = !equipped;
+    aimButton.classList.toggle('is-active', Boolean(result?.aiming));
+    const label = aimButton.querySelector('small');
+    if (label) label.textContent = !equipped ? 'SEM ARMA' : result?.aiming ? 'MIRANDO' : 'MIRAR';
+  }
+  if (reticle) reticle.classList.toggle('is-visible', equipped && Boolean(result?.aiming));
 }
 
 $('character-action-btn')?.addEventListener('click', () => {
@@ -2694,10 +2586,7 @@ $('return-menu-btn')?.addEventListener('click', async () => {
   active = false;
   await runtimeBridge?.shutdown();
   resetTransientState();
-  characterMoveInput = { x: 0, y: 0 };
-
-  const characterStickKnob = $('character-move-stick')?.querySelector('.character-move-knob');
-  if (characterStickKnob) characterStickKnob.style.transform = 'translate(0,0)';
+  characterControls.reset();
 
   $('game-menu-modal')?.classList.add('hidden');
   $('inventory-modal')?.classList.add('hidden');
