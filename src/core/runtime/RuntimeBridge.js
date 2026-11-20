@@ -23,6 +23,7 @@ export function createRuntimeBridge(kernel) {
   let frameLoopConfig = null;
   let frameLoopLastTimestamp = 0;
   let frameCallback = null;
+  let lastError = null;
 
   function cancelScheduledFrame() {
     if (frameRequestId !== null && typeof frameLoopConfig?.cancelFrame === 'function') {
@@ -42,6 +43,18 @@ export function createRuntimeBridge(kernel) {
     if (!frameLoopEnabled || kernel.status !== 'running' ||
         frameRequestId !== null || typeof frameLoopConfig?.requestFrame !== 'function') return;
     frameRequestId = frameLoopConfig.requestFrame.call(globalThis, frameCallback);
+  }
+
+  function failRuntime(error) {
+    lastError = error instanceof Error ? error : new Error(String(error));
+    stopFrameLoop();
+    try {
+      kernel.stop();
+    } catch (stopError) {
+      lastError = new AggregateError([lastError, stopError], 'O Runtime falhou e também não conseguiu parar o núcleo.');
+    }
+    console.error('Runtime interrompido após falha durante a atualização:', lastError);
+    return lastError;
   }
 
   function ensureAvailable() {
@@ -67,7 +80,10 @@ export function createRuntimeBridge(kernel) {
 
   return {
     get status() {
-      return disposed ? 'disposed' : kernel.status;
+      return disposed ? 'disposed' : lastError ? 'error' : kernel.status;
+    },
+    get lastError() {
+      return lastError;
     },
     get frameCount() {
       return kernel.frameCount;
@@ -188,20 +204,26 @@ export function createRuntimeBridge(kernel) {
     },
     update(deltaSeconds) {
       ensureAvailable();
-      if (kernel.status !== 'running') return 0;
-      const safeDelta = kernel.tick(deltaSeconds);
-      if (safeDelta <= 0) return 0;
+      if (lastError || kernel.status !== 'running') return 0;
 
-      for (const entry of initializedSystems) {
-        if (entry.enabled) entry.update?.(safeDelta, context);
+      try {
+        const safeDelta = kernel.tick(deltaSeconds);
+        if (safeDelta <= 0) return 0;
+
+        for (const entry of initializedSystems) {
+          if (entry.enabled) entry.update?.(safeDelta, context);
+        }
+        return safeDelta;
+      } catch (error) {
+        throw failRuntime(error);
       }
-      return safeDelta;
     },
     async shutdown() {
       ensureAvailable();
       stopFrameLoop();
       await shutdownInitializedSystems();
       kernel.stop();
+      lastError = null;
       return true;
     },
     async dispose() {
