@@ -32,6 +32,13 @@ function createFakeKernel(maximumDeltaSeconds = 0.04) {
   };
 }
 
+test('RuntimeBridge rejects an incomplete kernel contract before registering systems', () => {
+  assert.throws(
+    () => createRuntimeBridge({ initialize() {}, tick() {} }),
+    /contrato completo/
+  );
+});
+
 test('RuntimeBridge initializes systems by priority and updates them in order', async () => {
   const kernel = createFakeKernel();
   const bridge = createRuntimeBridge(kernel);
