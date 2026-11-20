@@ -81,6 +81,57 @@ test('RuntimeBridge does not update while paused', async () => {
   assert.equal(updates, 1);
 });
 
+test('RuntimeBridge shuts down the system whose initialization partially fails', async () => {
+  const bridge = createRuntimeBridge(createFakeKernel());
+  const calls = [];
+  bridge.registerSystem('first', {
+    initialize: () => calls.push('first:init'),
+    shutdown: () => calls.push('first:stop')
+  });
+  bridge.registerSystem('partial', {
+    initialize: () => {
+      calls.push('partial:init');
+      throw new Error('partial failure');
+    },
+    shutdown: () => calls.push('partial:stop')
+  });
+
+  await assert.rejects(() => bridge.initialize(), /partial failure/);
+  assert.deepEqual(calls, [
+    'first:init',
+    'partial:init',
+    'partial:stop',
+    'first:stop'
+  ]);
+  assert.equal(bridge.status, 'stopped');
+});
+
+test('RuntimeBridge stops scheduling frames when a system update throws', async () => {
+  const bridge = createRuntimeBridge(createFakeKernel());
+  const callbacks = new Map();
+  let nextId = 1;
+  const requestFrame = callback => {
+    const id = nextId++;
+    callbacks.set(id, callback);
+    return id;
+  };
+  const cancelFrame = id => callbacks.delete(id);
+
+  bridge.registerSystem('unstable-system', {
+    update: () => { throw new Error('frame failure'); }
+  });
+  await bridge.initialize();
+  bridge.start();
+  bridge.startFrameLoop({ requestFrame, cancelFrame, now: () => 0 });
+
+  const [id, callback] = [...callbacks.entries()][0];
+  callbacks.delete(id);
+  assert.throws(() => callback(16), /frame failure/);
+  assert.equal(callbacks.size, 0);
+  assert.equal(bridge.stopFrameLoop(), true);
+  await bridge.shutdown();
+});
+
 test('RuntimeBridge rejects duplicate names and registration after initialization', async () => {
   const bridge = createRuntimeBridge(createFakeKernel());
   bridge.registerSystem('world');
