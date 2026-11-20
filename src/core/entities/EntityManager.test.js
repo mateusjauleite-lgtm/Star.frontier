@@ -37,6 +37,7 @@ test('register rejects plain objects without corrupting the entity registry', ()
     /instância válida de Entity/
   );
   assert.equal(manager.has('invalid'), false);
+  assert.throws(() => manager.registry.register({ id: '   ' }), /Entidade inválida/);
 });
 
 test('handles lifecycle transitions and rejects invalid transitions', () => {
