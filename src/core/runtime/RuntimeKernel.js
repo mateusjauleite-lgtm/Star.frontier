@@ -8,9 +8,28 @@ const STATUS = Object.freeze({
 
 const STATUS_NAMES = Object.freeze(['created', 'ready', 'running', 'paused', 'stopped']);
 
+const REQUIRED_WASM_EXPORTS = [
+  '_runtime_create',
+  '_runtime_destroy',
+  '_runtime_initialize',
+  '_runtime_start',
+  '_runtime_pause',
+  '_runtime_resume',
+  '_runtime_stop',
+  '_runtime_tick',
+  '_runtime_get_status',
+  '_runtime_get_frame_count',
+  '_runtime_get_elapsed_seconds',
+  '_runtime_get_delta_seconds'
+];
+
 export function createRuntimeKernel(module, { maximumDeltaSeconds = 0.04 } = {}) {
   if (!module || typeof module._runtime_create !== 'function') {
     throw new TypeError('O módulo WebAssembly do Runtime é inválido.');
+  }
+  const missingExports = REQUIRED_WASM_EXPORTS.filter(name => typeof module[name] !== 'function');
+  if (missingExports.length) {
+    throw new TypeError('O módulo WebAssembly do Runtime está incompleto: ' + missingExports.join(', '));
   }
 
   const handle = module._runtime_create(maximumDeltaSeconds);
