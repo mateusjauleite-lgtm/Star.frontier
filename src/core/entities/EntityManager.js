@@ -89,7 +89,18 @@ export class EntityManager {
     const entities = snapshot.entities.map(data => new Entity(data));
     const ids = new Set(entities.map(entity => entity.id));
     if (ids.size !== entities.length) throw new Error('Snapshot contém ids de entidade duplicados.');
-    for (const relation of snapshot.relations) {
+    if (!replace && entities.some(entity => this.has(entity.id))) {
+      throw new Error('Snapshot contém ids que já estão registrados.');
+    }
+
+    // Validate and stage every relation before mutating the live registry.
+    // A malformed relation must never leave a replace import half-applied.
+    const stagedRelations = new EntityRelations();
+    if (!replace) stagedRelations.import(this.relations.export(), { replace: true });
+    stagedRelations.import(snapshot.relations);
+    const nextRelations = stagedRelations.export();
+
+    for (const relation of nextRelations) {
       if (!ids.has(relation.sourceId) && !( !replace && this.has(relation.sourceId))) {
         throw new Error(`Relação aponta para entidade inexistente: ${relation.sourceId}`);
       }
@@ -97,15 +108,10 @@ export class EntityManager {
         throw new Error(`Relação aponta para entidade inexistente: ${relation.targetId}`);
       }
     }
-    if (!replace && entities.some(entity => this.has(entity.id))) {
-      throw new Error('Snapshot contém ids que já estão registrados.');
-    }
-    if (replace) {
-      this.registry.clear();
-      this.relations.import([], { replace: true });
-    }
+
+    if (replace) this.registry.clear();
     for (const entity of entities) this.registry.register(entity);
-    this.relations.import(snapshot.relations);
+    this.relations.import(nextRelations, { replace: true });
     this.#emit('entity:snapshot-imported', { count: entities.length });
     return entities.length;
   }
