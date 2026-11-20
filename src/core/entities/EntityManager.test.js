@@ -67,6 +67,31 @@ test('exports and imports snapshots without sharing metadata references', () => 
   assert.equal(ship.metadata.fuel, 90);
 });
 
+test('snapshot replacement is atomic when relation metadata is invalid', () => {
+  const { manager } = createManager();
+  const existing = manager.create({ id: 'existing', type: 'station' });
+  const cyclicMetadata = {};
+  cyclicMetadata.self = cyclicMetadata;
+
+  assert.throws(() => manager.importSnapshot({
+    version: 1,
+    entities: [
+      { id: 'new-ship', type: 'ship' },
+      { id: 'new-crew', type: 'character' }
+    ],
+    relations: [{
+      sourceId: 'new-crew',
+      relation: 'assigned-to',
+      targetId: 'new-ship',
+      metadata: cyclicMetadata
+    }]
+  }, { replace: true }));
+
+  assert.equal(manager.get('existing'), existing);
+  assert.equal(manager.has('new-ship'), false);
+  assert.equal(manager.has('new-crew'), false);
+});
+
 test('emits lifecycle, mutation and removal events', () => {
   const { manager, events } = createManager();
   const entity = manager.create({ type: 'asteroid' });
