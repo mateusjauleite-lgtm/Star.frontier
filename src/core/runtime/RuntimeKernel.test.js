@@ -66,6 +66,13 @@ function createFakeWasmRuntime() {
   };
 }
 
+test('RuntimeKernel rejects an incomplete WebAssembly export contract before creating a handle', () => {
+  assert.throws(
+    () => createRuntimeKernel({ _runtime_create: () => 7 }),
+    /módulo WebAssembly do Runtime está incompleto/
+  );
+});
+
 test('RuntimeKernel validates the complete C++ lifecycle and resets on reinitialization', () => {
   const module = createFakeWasmRuntime();
   const kernel = createRuntimeKernel(module, { maximumDeltaSeconds: 0.05 });
