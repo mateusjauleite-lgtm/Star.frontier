@@ -3,6 +3,7 @@ import { registerAimControls, registerHeldFlightControls, registerFlightSelectio
 import { registerGameplayActions } from './systems/gameplayActions.js';
 import { loadRuntimeKernel } from './core/runtime/RuntimeKernel.js';
 import { createRuntimeBridge } from './core/runtime/RuntimeBridge.js';
+import { createRuntimeVisibilityHandler } from './core/runtime/RuntimeVisibility.js';
 import { registerGameRuntimeSystems } from './core/runtime/systems/registerGameRuntimeSystems.js';
 import { createGameWorld } from './world/gameWorld.js';
 import { createShipLandingMetricTelemetryAdapter, SHIP_MODEL_METERS_PER_UNIT } from './ships/flight/landingAutopilot.js';
@@ -544,6 +545,11 @@ const shipEarthContactPoints = [
 let active = false;
 let runtimeBridge = null;
 let npcReady = false;
+const handleRuntimeVisibility = createRuntimeVisibilityHandler({
+  getRuntime: () => runtimeBridge,
+  isActive: () => active,
+  resetInputs: resetTransientState
+});
 
 const cameraNames = [
   'CÂMERA: 1ª PESSOA',
@@ -583,7 +589,7 @@ function registerComputerSubsystems() {
     state,
     getShip: () => ship,
     getShipYaw: () => shipYaw?.rotation.y ?? 0,
-    getPitchAngle: () => pitchAngle,
+    getPitchAngle: () => shipFlightController.pitchAngle,
     getAsteroids: () => asteroids
   });
   shipComputerSystemsRegistered = true;
@@ -2341,12 +2347,7 @@ if ($('character-action-btn')) $('character-action-btn').disabled = true;
 
 // Ao perder foco no Android, zera entradas para impedir joystick ou aceleração presos.
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) {
-    resetTransientState();
-    if (runtimeBridge?.status === 'running') runtimeBridge.pause();
-  } else if (active && runtimeBridge?.status === 'paused') {
-    runtimeBridge.resume();
-  }
+  handleRuntimeVisibility(document.hidden);
 });
 
 registerAimControls({ document, THREE, state, shipComputer });
