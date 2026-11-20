@@ -30,6 +30,7 @@ function createHarness() {
     { name: 'Contato sem posição', userData: { ore: 9 } }
   ];
   let currentShip = ship;
+  let pitchAngle = -0.2;
   const computer = createShipComputer();
 
   computer.registerTerminal({
@@ -41,7 +42,7 @@ function createHarness() {
     state,
     getShip: () => currentShip,
     getShipYaw: () => 1.25,
-    getPitchAngle: () => -0.2,
+    getPitchAngle: () => pitchAngle,
     getAsteroids: () => asteroids
   });
   computer.boot();
@@ -50,7 +51,8 @@ function createHarness() {
   return {
     computer,
     state,
-    setShip(value) { currentShip = value; }
+    setShip(value) { currentShip = value; },
+    setPitch(value) { pitchAngle = value; }
   };
 }
 
@@ -70,6 +72,15 @@ test('navegação consulta a telemetria atual sem alterar o estado de voo', () =
     cameraMode: 0
   });
   assert.deepEqual(state, before);
+});
+
+test('telemetria de navegação acompanha mudanças no ângulo de arfagem', () => {
+  const { computer, setPitch } = createHarness();
+  setPitch(0.35);
+  const response = computer.dispatch('pilot-console', 'navigation', 'telemetry');
+
+  assert.equal(response.ok, true);
+  assert.equal(response.result.pitch, 0.35);
 });
 
 test('sensores retornam contatos válidos ordenados pela distância', () => {
