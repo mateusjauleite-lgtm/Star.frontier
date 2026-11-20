@@ -52,7 +52,8 @@ function createFakeWasmRuntime() {
       deltaSeconds = 0;
       return 1;
     },
-    _runtime_tick(value) {
+    _runtime_tick(handle, value) {
+      assert.equal(handle, 7);
       if (status !== 2 || !Number.isFinite(value) || value < 0) {
         deltaSeconds = 0;
         return 0;
