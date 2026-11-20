@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EntityManager } from '../../entities/EntityManager.js';
 import { registerGameRuntimeSystems } from './registerGameRuntimeSystems.js';
+import { createRuntimeBridge } from '../RuntimeBridge.js';
 
 function fakeRuntime() {
   const systems = [];
@@ -252,4 +253,70 @@ test('world system does not initialize an already-created world twice', async ()
 
   await runtime.systems.find(system => system.name === 'world').initialize();
   assert.equal(calls, 0);
+});
+
+test('RuntimeBridge runs gameplay phases before sampling orbital telemetry', async () => {
+  const calls = [];
+  const deps = dependencies();
+  const phases = [
+    'updateEnvironment',
+    'updateCharacterMode',
+    'updateLanding',
+    'updateWorld',
+    'render',
+    'updateHud'
+  ];
+  deps.gameplay = Object.fromEntries(phases.map(name => [
+    name,
+    () => calls.push('gameplay:' + name)
+  ]));
+  deps.orbitalPhysics = {
+    ...deps.orbitalPhysics,
+    getEarthOrbitalFrame: () => {
+      calls.push('orbital:earth-frame');
+      return {
+        originWorld: [10, 0, 0],
+        orientationWorld: [0, 0, 0, 1],
+        visualUnitsPerKm: 1
+      };
+    },
+    getShipWorldPosition: () => [11, 0, 0],
+    getShipForwardWorld: () => [1, 0, 0]
+  };
+
+  const kernel = {
+    status: 'created',
+    frameCount: 0,
+    elapsedSeconds: 0,
+    initialize() {
+      this.status = 'ready';
+      this.frameCount = 0;
+      this.elapsedSeconds = 0;
+      return true;
+    },
+    start() { this.status = 'running'; return true; },
+    pause() { this.status = 'paused'; return true; },
+    resume() { this.status = 'running'; return true; },
+    stop() { this.status = 'stopped'; return true; },
+    tick(deltaSeconds) {
+      if (this.status !== 'running') return 0;
+      const safeDelta = Math.min(deltaSeconds, 0.04);
+      this.frameCount += 1;
+      this.elapsedSeconds += safeDelta;
+      return safeDelta;
+    }
+  };
+  const bridge = createRuntimeBridge(kernel);
+  registerGameRuntimeSystems(bridge, deps);
+
+  assert.equal(await bridge.initialize(), true);
+  assert.equal(bridge.start(), true);
+  assert.equal(bridge.update(0.016), 0.016);
+
+  assert.deepEqual(calls, [
+    ...phases.map(name => 'gameplay:' + name),
+    'orbital:earth-frame'
+  ]);
+  assert.equal(bridge.frameCount, 1);
+  await bridge.shutdown();
 });
