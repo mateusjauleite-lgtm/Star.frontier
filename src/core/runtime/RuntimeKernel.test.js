@@ -90,7 +90,7 @@ test('RuntimeKernel validates the complete C++ lifecycle and resets on reinitial
   assert.equal(kernel.status, 'running');
   assert.equal(kernel.tick(0.01), 0.01);
   assert.equal(kernel.frameCount, 2);
-  assert.equal(kernel.elapsedSeconds, 0.06);
+  assert.ok(Math.abs(kernel.elapsedSeconds - 0.06) < 1e-12);
 
   assert.equal(kernel.stop(), true);
   assert.equal(kernel.status, 'stopped');
