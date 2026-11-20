@@ -135,7 +135,40 @@ test('RuntimeBridge stops scheduling frames when a system update throws', async 
   callbacks.delete(id);
   assert.throws(() => callback(16), /frame failure/);
   assert.equal(callbacks.size, 0);
+  assert.equal(bridge.status, 'error');
+  assert.match(bridge.lastError.message, /frame failure/);
   assert.equal(bridge.stopFrameLoop(), true);
+  await bridge.shutdown();
+  assert.equal(bridge.status, 'stopped');
+  assert.equal(bridge.lastError, null);
+});
+
+test('RuntimeBridge recovers from an update failure only after controlled shutdown and reinitialization', async () => {
+  const bridge = createRuntimeBridge(createFakeKernel());
+  let shouldFail = true;
+  let updates = 0;
+  bridge.registerSystem('recoverable-system', {
+    update: () => {
+      if (shouldFail) throw new Error('temporary frame failure');
+      updates += 1;
+    }
+  });
+
+  await bridge.initialize();
+  bridge.start();
+  assert.throws(() => bridge.update(0.016), /temporary frame failure/);
+  assert.equal(bridge.status, 'error');
+  assert.equal(bridge.update(0.016), 0);
+
+  await bridge.shutdown();
+  assert.equal(bridge.status, 'stopped');
+  assert.equal(await bridge.initialize(), true);
+  assert.equal(bridge.start(), true);
+
+  shouldFail = false;
+  assert.equal(bridge.update(0.016), 0.016);
+  assert.equal(updates, 1);
+  assert.equal(bridge.status, 'running');
   await bridge.shutdown();
 });
 
