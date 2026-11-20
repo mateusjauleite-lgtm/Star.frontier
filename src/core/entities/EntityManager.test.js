@@ -30,6 +30,15 @@ test('rejects duplicate ids and immutable identity changes', () => {
   assert.throws(() => manager.update(entity.id, { type: 'station' }), /imutável/);
 });
 
+test('register rejects plain objects without corrupting the entity registry', () => {
+  const { manager } = createManager();
+  assert.throws(
+    () => manager.register({ id: 'invalid', type: 'ship' }),
+    /instância válida de Entity/
+  );
+  assert.equal(manager.has('invalid'), false);
+});
+
 test('handles lifecycle transitions and rejects invalid transitions', () => {
   const { manager } = createManager();
   const entity = manager.create({ type: 'npc' });
