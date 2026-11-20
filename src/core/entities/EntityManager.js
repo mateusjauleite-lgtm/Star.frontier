@@ -24,6 +24,9 @@ export class EntityManager {
   }
 
   register(entity) {
+    if (!(entity instanceof Entity)) {
+      throw new TypeError('O registro exige uma instância válida de Entity.');
+    }
     this.registry.register(entity);
     this.#emit('entity:created', { entity: entity.toJSON() });
     return entity;
