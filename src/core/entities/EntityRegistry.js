@@ -2,7 +2,9 @@ export class EntityRegistry {
   #entities = new Map();
 
   register(entity) {
-    if (!entity || typeof entity.id !== 'string') throw new TypeError('Entidade inválida.');
+    if (!entity || typeof entity.id !== 'string' || !entity.id.trim()) {
+      throw new TypeError('Entidade inválida.');
+    }
     if (this.#entities.has(entity.id)) throw new Error(`Já existe uma entidade com id "${entity.id}".`);
     this.#entities.set(entity.id, entity);
     return entity;
