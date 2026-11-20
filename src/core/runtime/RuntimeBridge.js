@@ -110,8 +110,10 @@ export function createRuntimeBridge(kernel) {
       try {
         for (const entry of orderedSystems()) {
           if (!entry.enabled) continue;
-          await entry.initialize?.(context);
+          // Register before invoking initialize so partial allocations are also
+          // released if this system throws halfway through its setup.
           initializedSystems.push(entry);
+          await entry.initialize?.(context);
         }
         initialized = true;
         return true;
@@ -163,8 +165,15 @@ export function createRuntimeBridge(kernel) {
         const currentTimestamp = Number.isFinite(timestamp) ? timestamp : frameLoopConfig.now();
         const deltaSeconds = Math.max(0, (currentTimestamp - frameLoopLastTimestamp) / 1000);
         frameLoopLastTimestamp = currentTimestamp;
+        try {
+          bridge.update(deltaSeconds);
+        } catch (error) {
+          // Do not leave another animation frame queued after a failed system
+          // update. The error remains visible to the host for diagnosis.
+          stopFrameLoop();
+          throw error;
+        }
         scheduleNextFrame();
-        bridge.update(deltaSeconds);
       };
       scheduleNextFrame();
       return true;
