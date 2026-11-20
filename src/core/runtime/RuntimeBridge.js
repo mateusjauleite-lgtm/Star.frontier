@@ -4,10 +4,13 @@ const validCallback = (value, label) => {
   }
 };
 
+const REQUIRED_KERNEL_METHODS = ['initialize', 'start', 'pause', 'resume', 'stop', 'tick'];
+const REQUIRED_KERNEL_VALUES = ['status', 'frameCount', 'elapsedSeconds'];
+
 export function createRuntimeBridge(kernel) {
-  if (!kernel || typeof kernel.tick !== 'function' ||
-      typeof kernel.initialize !== 'function') {
-    throw new TypeError('O núcleo C++ do Runtime não foi fornecido.');
+  if (!kernel || REQUIRED_KERNEL_METHODS.some(name => typeof kernel[name] !== 'function') ||
+      REQUIRED_KERNEL_VALUES.some(name => !(name in kernel))) {
+    throw new TypeError('O núcleo do Runtime não implementa o contrato completo.');
   }
 
   const systems = [];
