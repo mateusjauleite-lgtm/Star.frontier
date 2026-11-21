@@ -1,6 +1,6 @@
 import { EntityManager } from '../../entities/EntityManager.js';
-import { state } from '../state.js';
-import { saveState } from '../storage.js';
+import { state } from '../../state.js';
+import { saveState } from '../../storage.js';
 import { createEntityRuntimeSystem } from './entitySystem.js';
 import { createCharacterRuntimeSystem } from './characterSystem.js';
 import { createWorldRuntimeSystem } from './worldSystem.js';
