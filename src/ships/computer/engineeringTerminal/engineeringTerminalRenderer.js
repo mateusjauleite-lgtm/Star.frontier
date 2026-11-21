@@ -90,10 +90,11 @@ export function createEngineeringTerminalRenderer({
     const refinedStorage = processing.refinedStorage ?? {};
     const coreReserve = processing.warpCore ?? {};
     const refineryActive = Boolean(processing.refinery?.active);
+    const processingAlert = processing.alert || null;
     setText('[data-engineering-raw]', `${Number(rawStorage.quantity) || 0} / ${Number(rawStorage.capacity) || 500} u`);
     setText('[data-engineering-refined-storage]', `${Number(refinedStorage.quantity) || 0} / ${Number(refinedStorage.capacity) || 500} u`);
     setText('[data-engineering-core-reserve]', `${Number(coreReserve.reserve) || 0} / ${Number(coreReserve.capacity) || 500} u`);
-    setText('[data-engineering-refinery-status]', refineryActive ? 'PROCESSANDO' : 'EM ESPERA');
+    setText('[data-engineering-refinery-status]', refineryActive ? 'PROCESSANDO' : processingAlert === 'raw-storage-empty' ? 'SEM MINÉRIO' : processingAlert === 'refined-storage-full' ? 'ARMAZENAMENTO CHEIO' : 'EM ESPERA');
     const transition = telemetry?.warpTransition || 'idle';
     const exitMode = telemetry?.warpExitMode === 'direct' ? 'direct' : 'smooth';
     setText('[data-engineering-core]', online ? 'ONLINE' : 'OFFLINE');
@@ -122,9 +123,13 @@ export function createEngineeringTerminalRenderer({
     if (alert) {
       const reason = telemetry?.warpShutdownReason;
       alert.textContent = reason === 'dilithium-depleted'
-        ? 'ALERTA · RESERVA DE DILÍTIO ESGOTADA · DOBRA DESLIGADA'
-        : 'SEM ALERTAS · SISTEMAS ESTÁVEIS';
-      alert.classList.toggle('is-warning', Boolean(reason));
+        ? 'ALERTA · RESERVA DE DILÍTIO DO NÚCLEO ESGOTADA · DOBRA DESLIGADA'
+        : processingAlert === 'raw-storage-empty'
+          ? 'ALERTA · ARMAZENAMENTO BRUTO VAZIO · REFINARIA EM ESPERA'
+          : processingAlert === 'refined-storage-full'
+            ? 'ALERTA · ARMAZENAMENTO REFINADO CHEIO · REFINARIA EM ESPERA'
+            : 'SEM ALERTAS · SISTEMAS ESTÁVEIS';
+      alert.classList.toggle('is-warning', Boolean(reason || processingAlert));
     }
     const toggle = layer.querySelector('[data-engineering-warp-toggle]');
     if (toggle) toggle.textContent = active ? 'DESATIVAR PROPULSÃO DE DOBRA' : 'ATIVAR PROPULSÃO DE DOBRA';
