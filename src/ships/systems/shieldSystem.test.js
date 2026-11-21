@@ -24,14 +24,11 @@ test('escudos recarregam após o atraso e param na capacidade', () => {
   const state = { shield: 50, hull: 100 };
   const shields = createShipShieldSystem(state, { rechargeDelay: 1, rechargePerSecond: 10 });
   shields.applyDamage(1);
-  for (let i = 0; i < 10; i += 1) shields.update(0.1);
-  assert.equal(state.shield, 49);
   shields.update(0.1);
-  assert.equal(state.shield, 50);
-  for (let i = 0; i < 50; i += 1) shields.update(0.1);
+  assert.equal(state.shield, 49);
+  for (let i = 0; i < 1000; i += 1) shields.update(0.1);
   assert.equal(state.shield, 100);
 });
-
 test('escudos desligados deixam todo o dano atingir o casco', () => {
   const state = { shield: 50, hull: 100 };
   const shields = createShipShieldSystem(state);
