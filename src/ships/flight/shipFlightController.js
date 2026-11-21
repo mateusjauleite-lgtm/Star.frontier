@@ -180,9 +180,13 @@ export function createShipFlightController(dependencies = {}) {
       }
     }
 
-    const landingPadClearance = 0.35;
-    if (closestContact && closestContact.clearance < landingPadClearance) {
-      const correction = landingPadClearance - closestContact.clearance;
+    // Os 0,35 são uma tolerância para reconhecer contato no trem, não
+    // uma distância mínima imposta às rodas. O ponto amostrado já representa
+    // a parte inferior do pneu; a correção só ocorre se ele penetrar no solo.
+    const landingContactTolerance = 0.35;
+    const landingContactTargetClearance = 0;
+    if (closestContact && closestContact.clearance < landingContactTargetClearance) {
+      const correction = landingContactTargetClearance - closestContact.clearance;
       const correctedWorldPosition = ship.getWorldPosition(new THREE.Vector3())
         .addScaledVector(closestContact.normal, correction);
       if (ship.parent) {
@@ -193,7 +197,8 @@ export function createShipFlightController(dependencies = {}) {
       }
       if (forwardVector.dot(closestContact.normal) < 0) state.speed = 0;
       ship.userData.earthCollisionResolved = true;
-      ship.userData.earthCollisionClearanceUnits = landingPadClearance;
+      ship.userData.earthCollisionClearanceUnits = landingContactTargetClearance;
+      ship.userData.earthLandingContactToleranceUnits = landingContactTolerance;
       ship.userData.earthLandingContactPoint = closestContact.clearance;
     }
 
