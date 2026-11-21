@@ -261,7 +261,7 @@
     <!-- HUD -->
     <div id="hud" class="ship-interface hidden">
 
-      <section class="hud-card pilot-instruments" aria-label="Instrumentos da nave">
+      <section class="hud-card pilot-instruments" data-pilot-hud-editable="instruments" aria-label="Instrumentos da nave">
         <header class="instrument-header"><b id="hud-user">PILOTO</b><span>FLIGHT SYSTEMS</span></header>
         <div class="instrument-grid">
           <div class="instrument" data-instrument="speed"><div class="instrument-readout"><span>VELOCIDADE</span><b><span id="speed">0</span></b></div><div class="instrument-track"><i id="speed-bar"></i></div></div>
@@ -272,11 +272,11 @@
         <div class="instrument-cargo">CARGA <b id="cargo">0</b></div>
       </section>
 
-      <div class="hud-card right">
+      <div class="hud-card right" data-pilot-hud-editable="status">
         <span>Créditos: <b id="hud-credits">0</b></span>
         <button id="leave-pilot-btn" class="hud-menu" type="button">SAIR</button>
       </div>
-      <button id="game-menu-btn" class="hud-menu pause-hud-button" type="button" aria-label="Pausar jogo">Ⅱ</button>
+      <button id="game-menu-btn" data-pilot-hud-editable="pause" class="hud-menu pause-hud-button" type="button" aria-label="Pausar jogo">Ⅱ</button>
 
     </div>
 
@@ -290,7 +290,7 @@
     <div id="flight-controls" class="ship-interface hidden">
 
       <div id="aim-touch-area" aria-label="Arraste para olhar ao redor"></div>
-      <div class="aim-stick-wrap">
+      <div class="aim-stick-wrap" data-pilot-hud-editable="aim">
         <div class="control-label">MIRA</div>
         <div id="aim-stick" class="stick aim-stick" aria-label="Joystick independente de mira">
           <div class="knob"></div>
@@ -298,7 +298,7 @@
       </div>
 
       <!-- LADO ESQUERDO -->
-      <div class="control-side left-side">
+      <div class="control-side left-side" data-pilot-hud-editable="movement">
 
         <div class="control-label">MOVIMENTO DA NAVE</div>
 
@@ -311,7 +311,7 @@
       </div>
 
       <!-- LADO DIREITO -->
-      <div class="control-side right-side">
+      <div class="control-side right-side" data-pilot-hud-editable="commands">
 
         <div class="control-label">COMANDOS</div>
 
@@ -391,7 +391,7 @@
           CONTINUAR
         </button>
 
-        <button id="edit-character-hud-btn" class="secondary" type="button">CONFIGURAR HUD DO PERSONAGEM</button>
+        <button id="edit-character-hud-btn" class="secondary" type="button">CONFIGURAR HUD</button>
 
         <button id="return-menu-btn" class="secondary">
           VOLTAR AO MENU
@@ -401,11 +401,15 @@
     </div>
 
 
-    <!-- Editor exclusivo do HUD do personagem -->
+    <!-- Editor universal: perfis independentes para personagem e piloto. -->
     <div id="character-hud-editor" class="character-hud-editor hidden" aria-hidden="true">
       <div class="character-hud-editor-panel">
-        <b>EDITAR HUD DO PERSONAGEM</b>
-        <span>Arraste os elementos para a posição desejada. O HUD da nave permanece inalterado.</span>
+        <b id="hud-editor-title">EDITOR DE HUD</b>
+        <div class="hud-editor-targets" role="group" aria-label="Selecionar HUD para edição">
+          <button type="button" data-hud-editor-target="character" aria-pressed="true">PERSONAGEM</button>
+          <button type="button" data-hud-editor-target="pilot" aria-pressed="false">PILOTO</button>
+        </div>
+        <span id="hud-editor-hint">Arraste os elementos para a posição desejada.</span>
         <div class="character-hud-editor-actions">
           <button id="character-hud-reset-btn" type="button">PADRÃO</button>
           <button id="character-hud-cancel-btn" type="button">CANCELAR</button>
