@@ -52,7 +52,7 @@ export function advanceShipFlightDynamics(state, deltaSeconds) {
     state.warpTransition = state.speed + 0.5 < targetSpeed ? 'entering' : 'cruise';
 
     // A aceleração de dobra é contínua; mudar de estágio nunca zera a velocidade.
-    state.speed = approach(state.speed, targetSpeed, WARP_ACCELERATION * dt);
+    if (!state.braking) state.speed = approach(state.speed, targetSpeed, WARP_ACCELERATION * dt);
     if (conventionalWarpAssist) state.speed += 18 * dt;
     const consumption = WARP_DILITHIUM_CONSUMPTION[stage] * dt;
     state.refinedDilithium = Math.max(0, refinedDilithium - consumption);
