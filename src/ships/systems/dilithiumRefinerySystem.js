@@ -26,6 +26,7 @@ export function createDilithiumRefinerySystem(state, options = {}) {
   let hasObservedCore = false;
   let lastTransferRate = 0;
   let lastRefiningRate = 0;
+  let lastConsumptionRate = 0;
 
   function update(deltaSeconds) {
     const dt = clamp(deltaSeconds, 0, MAX_DELTA_SECONDS);
@@ -34,7 +35,11 @@ export function createDilithiumRefinerySystem(state, options = {}) {
       lastCoreAmount = currentCore;
       hasObservedCore = true;
     } else if (currentCore < lastCoreAmount) {
-      consumedTotal += lastCoreAmount - currentCore;
+      const consumed = lastCoreAmount - currentCore;
+      consumedTotal += consumed;
+      lastConsumptionRate = dt > 0 ? consumed / dt : 0;
+    } else {
+      lastConsumptionRate = 0;
     }
     lastCoreAmount = currentCore;
     lastTransferRate = 0;
@@ -100,9 +105,10 @@ export function createDilithiumRefinerySystem(state, options = {}) {
       refinedTotal,
       transferredTotal,
       consumedTotal,
+      consumptionRate: lastConsumptionRate,
       coreRemainingCapacity: Math.max(0, coreCapacity - core),
       supportRange: core > 0 ? 'NÚCLEO ATIVO · PROPULSÃO DE DOBRA' : 'NÚCLEO SEM RESERVA',
-      supportSystems: ['Propulsão de dobra']
+      supportSystems: core > 0 ? ['Propulsão de dobra'] : []
     });
   }
 
