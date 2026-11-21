@@ -13,6 +13,7 @@ export const state = {
   cargo: 0,
   hull: 100,
   shield: 100,
+  shieldEnabled: true,
   speed: 0,
   ship: 'Nave exploradora',
   character: 'Explorador',
