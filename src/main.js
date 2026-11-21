@@ -720,6 +720,7 @@ async function startGame() {
       registerGameRuntimeSystems(runtimeBridge, {
         shipManagementTerminal,
         engineeringTerminal,
+        pauseMenu: { document, state, resetInputs: resetTransientState },
         character: {
           core: characterCore,
           resetTransientState,
@@ -2709,24 +2710,7 @@ $('character-camera-btn')?.addEventListener('click', () => {
 });
 updateCharacterCameraButton();
 
-$('character-menu-btn')?.addEventListener('click', () => {
-  $('game-menu-modal')?.classList.remove('hidden');
-  if (runtimeBridge?.status === 'running') runtimeBridge.pause();
-});
-
-$('game-menu-btn')?.addEventListener('click', () => {
-  if (runtimeBridge?.status === 'running') runtimeBridge.pause();
-  state.throttle = false;
-  state.braking = false;
-  state.warpDriveButton = false;
-
-  $('game-menu-modal')?.classList.remove('hidden');
-});
-
-$('resume-btn')?.addEventListener('click', () => {
-  $('game-menu-modal')?.classList.add('hidden');
-  if (runtimeBridge?.status === 'paused') runtimeBridge.resume();
-});
+// Os eventos de pausa e retomada pertencem ao sistema de ciclo de vida do Runtime.
 
 $('return-menu-btn')?.addEventListener('click', async () => {
   // Nunca abandonar a sessão enquanto o personagem ainda estiver sentado
