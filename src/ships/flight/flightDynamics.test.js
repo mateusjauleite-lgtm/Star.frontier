@@ -83,6 +83,22 @@ test('saída suave reduz a velocidade sem interromper o movimento', () => {
   assert.equal(state.warpTransition, 'exiting');
 });
 
+test('acelerador convencional não transforma uma saída suave em corte instantâneo', () => {
+  const state = makeState({
+    speed: 200,
+    fuel: 100,
+    throttle: true,
+    warpDriveActive: true,
+    warpDriveButton: false,
+    warpTransition: 'cruise',
+    warpExitMode: 'smooth'
+  });
+  advanceShipFlightDynamics(state, 0.04);
+  assert.equal(state.speed, 199.04);
+  assert.ok(state.fuel < 100);
+  assert.equal(state.warpTransition, 'exiting');
+});
+
 test('saída direta retorna à velocidade convencional sem zerar o deslocamento', () => {
   const state = makeState({ speed: 300, warpDriveActive: true, warpDriveButton: false, warpTransition: 'cruise', warpExitMode: 'direct' });
   advanceShipFlightDynamics(state, 0.04);
