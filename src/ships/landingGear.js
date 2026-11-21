@@ -73,15 +73,18 @@ export function createLandingGear(THREERef = THREE) {
       assemblyPositions.push({ x, z });
 
       // Compact upper mounting bracket, fixed to the lower structural frame.
+      // O suporte superior fica fixo ao casco; somente pernas, braços e rodas
+      // giram no pivô. Isso evita que a estrutura de montagem atravesse o casco
+      // quando o conjunto é recolhido.
       const mount = new THREERef.Mesh(
         new THREERef.BoxGeometry(5.2, 0.9, 3.1),
         jointMaterial
       );
       mount.name = 'Gear-Upper-Mount';
-      mount.position.set(0, -10.8, 0);
-      assembly.add(mount);
+      mount.position.set(x, -10.8, z);
+      group.add(mount);
       for (const lugX of [-1.75, 1.75]) {
-        addHinge(assembly, [lugX, -11.25, 0], 0.72, frameMaterial, 'Gear-Mount-Hinge');
+        addHinge(group, [x + lugX, -11.25, z], 0.72, frameMaterial, 'Gear-Mount-Hinge');
       }
 
       // Main oleo strut: outer sleeve and exposed sliding piston.
@@ -169,8 +172,9 @@ export function createLandingGear(THREERef = THREE) {
     }
   }
 
-  let deployment = 1;
-  const setDeployment = value => {
+  let deployment = 0;
+  let targetDeployment = 0;
+  const applyDeployment = value => {
     deployment = THREERef.MathUtils.clamp(Number(value) || 0, 0, 1);
     for (const { pivot, foldDirection } of pivots) {
       pivot.rotation.x = foldDirection * (1 - deployment) * Math.PI * 0.5;
@@ -180,9 +184,22 @@ export function createLandingGear(THREERef = THREE) {
     }
     return deployment;
   };
-  setDeployment(1);
+  const setDeployment = value => {
+    targetDeployment = THREERef.MathUtils.clamp(Number(value) || 0, 0, 1);
+    return targetDeployment;
+  };
+  const update = deltaSeconds => {
+    const dt = Math.max(0, Number(deltaSeconds) || 0);
+    const blend = Math.min(1, dt * 3.5);
+    const next = THREERef.MathUtils.lerp(deployment, targetDeployment, blend);
+    if (Math.abs(next - targetDeployment) < 0.001) applyDeployment(targetDeployment);
+    else applyDeployment(next);
+    return deployment;
+  };
+  applyDeployment(0);
   group.userData.setDeployment = setDeployment;
   group.userData.getDeployment = () => deployment;
+  group.userData.getTargetDeployment = () => targetDeployment;
 
-  return { group, contactPoints, assemblyPositions, setDeployment, getDeployment: () => deployment };
+  return { group, contactPoints, assemblyPositions, setDeployment, getDeployment: () => deployment, getTargetDeployment: () => targetDeployment, update };
 }
