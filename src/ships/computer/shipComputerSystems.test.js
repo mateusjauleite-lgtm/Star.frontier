@@ -101,6 +101,10 @@ test('energia informa reserva real de dilítio e estado da dobra', () => {
   response = computer.dispatch('ship-management-terminal', 'power', 'status');
   assert.equal(response.result.warpDriveActive, true);
   assert.equal(response.result.warpStage, 5);
+  const centralTelemetry = computer.dispatch('ship-management-terminal', 'engineering', 'status');
+  assert.equal(centralTelemetry.ok, true);
+  assert.equal(centralTelemetry.result.refinery.rawOre, 12);
+  assert.equal(centralTelemetry.result.refinery.controlAllowed, true);
 });
 
 test('controles do piloto passam pelo Ship Computer e ativam dobra no estágio 5', () => {
@@ -196,6 +200,8 @@ test('console central tem autoridade sobre refinaria e transferência', () => {
   const central = computer.dispatch('ship-management-terminal', 'refinery', 'setTransferEnabled', { enabled: true });
   assert.equal(central.result.accepted, true);
   assert.equal(refinerySystem.snapshot().transferEnabled, true);
+  const localStatus = computer.dispatch('engineering-console', 'engineering', 'status');
+  assert.equal(localStatus.result.refinery.controlAllowed, false);
   const local = computer.dispatch('engineering-console', 'refinery', 'setRefineryEnabled', { enabled: false });
   assert.equal(local.result.accepted, false);
   assert.equal(local.result.reason, 'higher-power-console-authority');
