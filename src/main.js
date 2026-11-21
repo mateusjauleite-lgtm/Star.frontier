@@ -32,10 +32,12 @@ import { advanceShipFlightDynamics } from './ships/flight/flightDynamics.js';
 import { createShipFlightController } from './ships/flight/shipFlightController.js';
 import { createArtificialGravityField } from './ships/systems/artificialGravityField.js';
 import { createShipShieldSystem } from './ships/systems/shieldSystem.js';
+import { createDilithiumRefinerySystem } from './ships/systems/dilithiumRefinerySystem.js';
 import { registerTextInteractionGuard } from './core/ui/textInteractionGuard.js';
 
 const artificialGravityField = createArtificialGravityField();
 const shipShieldSystem = createShipShieldSystem(state);
+const dilithiumRefinerySystem = createDilithiumRefinerySystem(state);
 
 registerTextInteractionGuard();
 
@@ -50,10 +52,10 @@ const shipComputer = createShipComputer();
 shipComputer.registerTerminal({
   id: 'ship-management-terminal',
   name: 'Terminal holográfico de gerenciamento',
-  systems: ['navigation', 'sensors', 'power', 'shields']
+  systems: ['navigation', 'sensors', 'power', 'shields', 'refinery']
 });
 shipComputer.registerTerminal({ id: 'pilot-console', name: 'Console de pilotagem da Ponte', systems: ['navigation', 'propulsion', 'shields'] });
-shipComputer.registerTerminal({ id: 'engineering-console', name: 'Console de Engenharia · Deck 3', systems: ['engineering', 'propulsion', 'power', 'shields'] });
+shipComputer.registerTerminal({ id: 'engineering-console', name: 'Console de Engenharia · Deck 3', systems: ['engineering', 'propulsion', 'power', 'shields', 'refinery'] });
 const shipManagementTerminal = createShipManagementTerminalController({
   computer: shipComputer,
   renderer: createShipManagementTerminalRenderer({ root: $('game-screen') }),
@@ -641,7 +643,8 @@ function registerComputerSubsystems() {
     getShipYaw: () => shipYaw?.rotation.y ?? 0,
     getPitchAngle: () => shipFlightController.pitchAngle,
     getAsteroids: () => asteroids,
-    shieldSystem: shipShieldSystem
+    shieldSystem: shipShieldSystem,
+    refinerySystem: dilithiumRefinerySystem
   });
   shipComputerSystemsRegistered = true;
 }
@@ -1356,6 +1359,7 @@ function updateCharacterWorldPhysics(deltaSeconds) {
 
 function updateShipSystems(dt) {
   const shields = shipShieldSystem.update(dt);
+  dilithiumRefinerySystem.update(dt);
   if (shieldVisual) {
     shieldVisual.visible = shields.enabled && shields.shield > 0;
     shieldVisual.material.opacity = 0.025 + shields.integrity * 0.075;
