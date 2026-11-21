@@ -1,9 +1,8 @@
 // Núcleo energético independente do defletor de navegação.
-// Recebe energia da reserva principal da nave e distribui sua reserva local
-// para ramificações registradas, sem se misturar aos escudos gerais.
-const MAX_DELTA_SECONDS = 0.1;
+// Recebe energia da reserva principal e distribui apenas a reserva local.
 const DEFAULT_CAPACITY = 100;
 const DEFAULT_CHARGE_RATE = 2;
+const EPSILON = 1e-9;
 
 export function createDeflectorCoreSystem(state, options = {}) {
   if (!state || typeof state !== 'object') throw new TypeError('O estado da nave é obrigatório.');
@@ -15,19 +14,29 @@ export function createDeflectorCoreSystem(state, options = {}) {
   state.deflectorCoreEnergy = clamp(state.deflectorCoreEnergy, 0, capacity);
   state.deflectorCoreEnabled = state.deflectorCoreEnabled !== false;
   state.deflectorCoreChargingEnabled = state.deflectorCoreChargingEnabled !== false;
+  state.deflectorCoreTransferredTotal = nonNegative(state.deflectorCoreTransferredTotal);
+  state.deflectorCoreConsumedTotal = nonNegative(state.deflectorCoreConsumedTotal);
+  if (!isPlainObject(state.deflectorBranchConsumptionTotals)) state.deflectorBranchConsumptionTotals = {};
 
   const branches = new Map();
+  let lastTransferAmount = 0;
+  let lastTransferRate = 0;
+  let lastConsumptionAmount = 0;
+  let lastConsumptionRate = 0;
+  let lastDeltaSeconds = 0;
 
   function registerBranch(id, config = {}) {
     const key = String(id || '').trim();
     if (!key) throw new TypeError('A ramificação precisa de um identificador.');
     if (branches.has(key)) throw new Error('Ramificação já registrada: ' + key);
+    const persistedTotal = nonNegative(state.deflectorBranchConsumptionTotals[key]);
     branches.set(key, {
       id: key,
       name: String(config.name || key),
       maxDrawPerSecond: positive(config.maxDrawPerSecond, Number.MAX_SAFE_INTEGER),
       enabled: config.enabled !== false,
-      consumedTotal: 0,
+      consumedTotal: persistedTotal,
+      frameConsumption: 0,
       lastConsumptionRate: 0
     });
     return branchSnapshot(branches.get(key));
@@ -36,23 +45,41 @@ export function createDeflectorCoreSystem(state, options = {}) {
   function setBranchEnabled(id, enabled) {
     const branch = getBranch(id);
     branch.enabled = Boolean(enabled);
-    if (!branch.enabled) branch.lastConsumptionRate = 0;
+    if (!branch.enabled) {
+      branch.frameConsumption = 0;
+      branch.lastConsumptionRate = 0;
+    }
     return branchSnapshot(branch);
   }
 
-  function consumeEnergy(id, requestedAmount) {
+  // O limite é calculado com o dt real da chamada. O acumulador por frame
+  // impede que chamadas repetidas ultrapassem a taxa máxima da ramificação.
+  function consumeEnergy(id, requestedAmount, deltaSeconds) {
     const branch = getBranch(id);
     const requested = Math.max(0, finite(requestedAmount));
-    if (!state.deflectorCoreEnabled || !branch.enabled || requested === 0) {
-      return Object.freeze({ accepted: requested === 0, consumed: 0, requested, remaining: energy() });
+    const dt = Math.max(0, finite(deltaSeconds));
+    if (requested <= EPSILON) {
+      return Object.freeze({ accepted: true, consumed: 0, requested, remaining: energy() });
     }
-    const allowed = Math.min(requested, branch.maxDrawPerSecond * MAX_DELTA_SECONDS);
-    const consumed = Math.min(energy(), allowed);
-    state.deflectorCoreEnergy = energy() - consumed;
-    branch.consumedTotal += consumed;
-    branch.lastConsumptionRate = consumed / MAX_DELTA_SECONDS;
+    if (!state.deflectorCoreEnabled || !branch.enabled || dt <= 0 || energy() <= EPSILON) {
+      return Object.freeze({ accepted: false, consumed: 0, requested, remaining: energy() });
+    }
+
+    const frameAllowance = Math.max(0, branch.maxDrawPerSecond * dt - branch.frameConsumption);
+    const consumed = Math.min(energy(), requested, frameAllowance);
+    if (consumed > 0) {
+      branch.frameConsumption += consumed;
+      branch.consumedTotal += consumed;
+      branch.lastConsumptionRate = dt > 0 ? branch.frameConsumption / dt : 0;
+      state.deflectorCoreEnergy = energy() - consumed;
+      state.deflectorCoreConsumedTotal += consumed;
+      state.deflectorBranchConsumptionTotals[branch.id] = branch.consumedTotal;
+      lastConsumptionAmount += consumed;
+      lastConsumptionRate = lastDeltaSeconds > 0 ? lastConsumptionAmount / lastDeltaSeconds : 0;
+    }
+
     return Object.freeze({
-      accepted: consumed >= requested - 1e-9,
+      accepted: consumed >= requested - EPSILON,
       consumed,
       requested,
       remaining: energy()
@@ -60,19 +87,31 @@ export function createDeflectorCoreSystem(state, options = {}) {
   }
 
   function update(deltaSeconds) {
-    const dt = clamp(deltaSeconds, 0, MAX_DELTA_SECONDS);
-    for (const branch of branches.values()) branch.lastConsumptionRate = 0;
-    let transferred = 0;
+    const dt = Math.max(0, finite(deltaSeconds));
+    lastDeltaSeconds = dt;
+    lastTransferAmount = 0;
+    lastTransferRate = 0;
+    lastConsumptionAmount = 0;
+    lastConsumptionRate = 0;
+
+    for (const branch of branches.values()) {
+      branch.frameConsumption = 0;
+      branch.lastConsumptionRate = 0;
+    }
+
     if (state.deflectorCoreEnabled && state.deflectorCoreChargingEnabled && dt > 0) {
       const source = Math.max(0, finite(state[primaryReserveKey]));
       const room = Math.max(0, capacity - energy());
-      transferred = Math.min(source, room, chargeRate * dt);
+      const transferred = Math.min(source, room, chargeRate * dt);
       if (transferred > 0) {
         state[primaryReserveKey] = source - transferred;
         state.deflectorCoreEnergy = energy() + transferred;
+        state.deflectorCoreTransferredTotal += transferred;
+        lastTransferAmount = transferred;
+        lastTransferRate = transferred / dt;
       }
     }
-    return snapshot(transferred);
+    return snapshot();
   }
 
   function setEnabled(enabled) {
@@ -85,15 +124,21 @@ export function createDeflectorCoreSystem(state, options = {}) {
     return snapshot();
   }
 
-  function snapshot(lastTransfer = 0) {
+  function snapshot() {
     const current = energy();
     return Object.freeze({
       enabled: Boolean(state.deflectorCoreEnabled),
       chargingEnabled: Boolean(state.deflectorCoreChargingEnabled),
+      primaryReserve: Math.max(0, finite(state[primaryReserveKey])),
       energy: current,
       capacity,
       fill: capacity > 0 ? current / capacity : 0,
-      transferRate: lastTransfer / MAX_DELTA_SECONDS,
+      transferAmount: lastTransferAmount,
+      transferRate: lastTransferRate,
+      transferredTotal: nonNegative(state.deflectorCoreTransferredTotal),
+      consumptionAmount: lastConsumptionAmount,
+      consumptionRate: lastConsumptionRate,
+      consumedTotal: nonNegative(state.deflectorCoreConsumedTotal),
       branches: Array.from(branches.values(), branchSnapshot)
     });
   }
@@ -105,7 +150,8 @@ export function createDeflectorCoreSystem(state, options = {}) {
       enabled: branch.enabled,
       maxDrawPerSecond: branch.maxDrawPerSecond,
       consumedTotal: branch.consumedTotal,
-      consumptionRate: branch.lastConsumptionRate
+      consumptionRate: branch.lastConsumptionRate,
+      available: Boolean(state.deflectorCoreEnabled && branch.enabled && energy() > EPSILON)
     });
   }
 
@@ -116,7 +162,9 @@ export function createDeflectorCoreSystem(state, options = {}) {
   }
 
   function energy() {
-    return clamp(state.deflectorCoreEnergy, 0, capacity);
+    const current = clamp(state.deflectorCoreEnergy, 0, capacity);
+    state.deflectorCoreEnergy = current;
+    return current;
   }
 
   return Object.freeze({
@@ -140,6 +188,14 @@ function finite(value) {
   return Number.isFinite(number) ? number : 0;
 }
 
+function nonNegative(value) {
+  return Math.max(0, finite(value));
+}
+
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, finite(value)));
+}
+
+function isPlainObject(value) {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value));
 }
