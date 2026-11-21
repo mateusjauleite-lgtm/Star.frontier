@@ -82,6 +82,14 @@ const engineeringRenderer = createEngineeringTerminalRenderer({
   onWarpToggle: active => {
     const response = engineeringTerminal?.dispatch('engineering', 'setWarpActive', { active });
     if (!response?.ok || !response.result?.accepted) toast('Dobra indisponível: verifique o dilítio refinado.');
+  },
+  onRefineryToggle: enabled => {
+    const response = engineeringTerminal?.dispatch('refinery', 'setRefineryEnabled', { enabled });
+    if (!response?.ok || !response.result?.accepted) toast('Comando bloqueado: console central de energia tem prioridade.');
+  },
+  onTransferToggle: enabled => {
+    const response = engineeringTerminal?.dispatch('refinery', 'setTransferEnabled', { enabled });
+    if (!response?.ok || !response.result?.accepted) toast('Transferência não autorizada pelo núcleo.');
   }
 });
 engineeringRenderer.mount();
