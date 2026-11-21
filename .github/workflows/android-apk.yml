@@ -13,6 +13,7 @@ on:
       - feature/core-runtime-foundation
       - feature/ship-management-holographic-terminal
       - feature/engineering-warp-core-foundation
+      - feature/warp-stages-engineering-controls
       - fix/character-hud-startup-layout
       - fix/pilot-hud-flight-controls
   pull_request:
@@ -24,6 +25,7 @@ on:
       - feature/earth-procedural-lod
       - feature/character-human-model-animation
       - feature/startup-loading-login-flow
+      - feature/engineering-warp-core-foundation
       - fix/character-hud-startup-layout
   workflow_dispatch:
 
