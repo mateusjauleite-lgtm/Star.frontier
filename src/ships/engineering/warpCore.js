@@ -95,7 +95,7 @@ export function createEngineeringWarpCore() {
   // Console físico no Deck 3, afastado do núcleo e voltado para ele.
   const console = new THREE.Group();
   console.name = 'Engineering-Deck-3-Ship-Computer-Console';
-  console.position.set(8.1, -2.72, -2);
+  console.position.set(8.1, -2.72, 0);
   console.rotation.y = -Math.PI / 2;
   group.add(console);
 
