@@ -44,3 +44,20 @@ test('perfil desconhecido é rejeitado', () => {
   const profiles = createPilotHudProfileStore({});
   assert.throws(() => profiles.select('sensor'), /Perfil de HUD desconhecido/);
 });
+
+
+test('layouts continuam clonáveis em WebViews sem structuredClone', () => {
+  const originalStructuredClone = globalThis.structuredClone;
+  try {
+    globalThis.structuredClone = undefined;
+    const settings = { pilotHudProfiles: { flight: { controls: { x: 0.25, y: 0.75 } } } };
+    const profiles = createPilotHudProfileStore(settings);
+    const layout = profiles.getLayout('flight');
+    layout.controls.x = 0.9;
+    assert.equal(profiles.getLayout('flight').controls.x, 0.25);
+    profiles.setLayout('navigation', { map: { x: 0.5, y: 0.5 } });
+    assert.deepEqual(profiles.getLayout('navigation'), { map: { x: 0.5, y: 0.5 } });
+  } finally {
+    globalThis.structuredClone = originalStructuredClone;
+  }
+});
