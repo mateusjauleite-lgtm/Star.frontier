@@ -15,7 +15,7 @@ export const DILITHIUM_RECOGNITION_PRIORITY = Object.freeze([
 export const DILITHIUM_STORAGE_CAPACITY = 500;
 export const DILITHIUM_REFINERY_RATE = 1; // unidades de minério processadas por segundo
 
-export function createDilithiumProcessingSystem({ state, plant = null } = {}) {
+export function createDilithiumProcessingSystem({ state, plant = null, getPlant = null } = {}) {
   if (!state) throw new TypeError('O sistema de processamento precisa do estado compartilhado da nave.');
   state.rawDilithiumOre = Math.min(DILITHIUM_STORAGE_CAPACITY, Math.max(0, Number(state.rawDilithiumOre) || 0));
   state.refinedDilithium = Math.min(DILITHIUM_STORAGE_CAPACITY, Math.max(0, Number(state.refinedDilithium) || 0));
@@ -95,9 +95,10 @@ export function createDilithiumProcessingSystem({ state, plant = null } = {}) {
       processingAccumulator = 0;
       lastAlert = 'refined-storage-full';
     }
-    const refineryVisual = plant?.userData?.components?.refinery;
+    const currentPlant = typeof getPlant === 'function' ? getPlant() : plant;
+    const refineryVisual = currentPlant?.userData?.components?.refinery;
     if (refineryVisual) refineryVisual.userData.processing = Boolean(state.dilithiumRefineryActive);
-    const statusLight = plant?.userData?.components?.statusLight;
+    const statusLight = currentPlant?.userData?.components?.statusLight;
     if (statusLight?.material?.color?.setHex) statusLight.material.color.setHex(state.dilithiumRefineryActive ? 0x54f0b2 : 0x43dcff);
     return snapshot();
   }
