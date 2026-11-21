@@ -17,8 +17,9 @@ export const state = {
   camera: 2,
   throttle: false,
   braking: false,
-  nitroButton: false,
-  nitro: 100,
+  warpDriveButton: false,
+  warpDriveCharge: 100,
+  propulsionAuthority: 'bridge',
   move: { x: 0, y: 0 },
   aim: { x: 0, y: 0 },
   view: { x: 0, y: 0 },
@@ -59,5 +60,5 @@ export function resetTransientState() {
   state.view = { x: 0, y: 0 };
   state.throttle = false;
   state.braking = false;
-  state.nitroButton = false;
+  state.warpDriveButton = false;
 }
