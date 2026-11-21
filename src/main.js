@@ -2779,6 +2779,9 @@ function setHudEditorTarget(scope) {
   selectedElements.forEach(element => element.classList.add('hud-editable-active'));
   ['character-hud', 'hud', 'flight-controls', 'leave-pilot-btn'].forEach(id => $(id)?.classList.remove('hud-editor-preview'));
   $('character-hud')?.classList.toggle('hud-profile-hidden', !characterSelected);
+  ['hud', 'flight-controls', 'leave-pilot-btn'].forEach(id =>
+    $(id)?.classList.toggle('hud-profile-hidden', characterSelected)
+  );
   applyHudProfileVisibility(characterSelected ? null : hudEditorPilotProfile);
   if (characterSelected) {
     $('character-hud')?.classList.add('hud-editor-preview');
@@ -2873,7 +2876,9 @@ function finishCharacterHudEditing({ saveChanges = false, reset = false } = {}) 
   characterHudDrag = null;
   allHudEditable.forEach(element => element.classList.remove('hud-editable-active'));
   ['character-hud', 'hud', 'flight-controls', 'leave-pilot-btn'].forEach(id => $(id)?.classList.remove('hud-editor-preview'));
-  $('character-hud')?.classList.remove('hud-profile-hidden');
+  ['character-hud', 'hud', 'flight-controls', 'leave-pilot-btn'].forEach(id =>
+    $(id)?.classList.remove('hud-profile-hidden')
+  );
   characterHudEditor?.classList.add('hidden');
   characterHudEditor?.setAttribute('aria-hidden', 'true');
   hudEditorWorkingLayouts = null;
