@@ -136,6 +136,7 @@ export function createSpaceLighting(scene, options = {}) {
   streaks.visible = false;
   scene.add(streaks);
   const cameraBackward = new THREE.Vector3(0, 0, 1);
+  const shipBackward = new THREE.Vector3(0, 0, 1);
 
   return {
     stars,
@@ -154,24 +155,29 @@ export function createSpaceLighting(scene, options = {}) {
       } else {
         cameraBackward.set(0, 0, 1);
       }
+      if (warp.shipQuaternion?.isQuaternion) {
+        shipBackward.set(0, 0, 1).applyQuaternion(warp.shipQuaternion).normalize();
+      } else {
+        shipBackward.copy(cameraBackward);
+      }
       // O campo estelar desloca-se em sentido oposto ao avanço da nave.
       // As estrelas que cruzam o limite são reposicionadas no lado oposto do volume.
       if (speed > 0.01 && dt > 0) {
         const travel = speed * dt * 0.12;
         for (let i = 0; i < starCount; i += 1) {
           const offset = i * 3;
-          let x = positions[offset] + cameraBackward.x * travel;
-          let y = positions[offset + 1] + cameraBackward.y * travel;
-          let z = positions[offset + 2] + cameraBackward.z * travel;
-          const projection = x * cameraBackward.x + y * cameraBackward.y + z * cameraBackward.z;
+          let x = positions[offset] + shipBackward.x * travel;
+          let y = positions[offset + 1] + shipBackward.y * travel;
+          let z = positions[offset + 2] + shipBackward.z * travel;
+          const projection = x * shipBackward.x + y * shipBackward.y + z * shipBackward.z;
           if (projection > radius) {
-            x -= cameraBackward.x * radius * 2;
-            y -= cameraBackward.y * radius * 2;
-            z -= cameraBackward.z * radius * 2;
+            x -= shipBackward.x * radius * 2;
+            y -= shipBackward.y * radius * 2;
+            z -= shipBackward.z * radius * 2;
           } else if (projection < -radius) {
-            x += cameraBackward.x * radius * 2;
-            y += cameraBackward.y * radius * 2;
-            z += cameraBackward.z * radius * 2;
+            x += shipBackward.x * radius * 2;
+            y += shipBackward.y * radius * 2;
+            z += shipBackward.z * radius * 2;
           }
           positions[offset] = x;
           positions[offset + 1] = y;
