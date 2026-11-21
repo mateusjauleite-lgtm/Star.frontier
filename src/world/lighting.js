@@ -119,16 +119,70 @@ export function createSpaceLighting(scene, options = {}) {
   stars.frustumCulled = false;
   scene.add(stars);
 
+  // Um subconjunto leve de estrelas ganha rastros alinhados à câmera durante a dobra.
+  const streakCount = Math.min(starCount, 1800);
+  const streakPositions = new Float32Array(streakCount * 6);
+  const streakGeometry = new THREE.BufferGeometry();
+  streakGeometry.setAttribute('position', new THREE.BufferAttribute(streakPositions, 3));
+  const streakMaterial = new THREE.LineBasicMaterial({
+    color: 0xb7efff,
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending
+  });
+  const streaks = new THREE.LineSegments(streakGeometry, streakMaterial);
+  streaks.frustumCulled = false;
+  streaks.visible = false;
+  scene.add(streaks);
+  const cameraBackward = new THREE.Vector3(0, 0, 1);
+
   return {
     stars,
     sun,
-    update(_dt, observerPosition) {
-      if (observerPosition) stars.position.copy(observerPosition);
+    update(_dt, observerPosition, warp = {}) {
+      if (observerPosition) {
+        stars.position.copy(observerPosition);
+        streaks.position.copy(observerPosition);
+      }
+      const stage = Math.max(0, Math.min(5, Number(warp.warpStage) || 0));
+      const active = Boolean(warp.warpActive);
+      const exiting = warp.warpTransition === 'exiting';
+      const intensity = active ? stage / 5 : exiting ? 0.18 : 0;
+      stars.material.size = 1.5 + intensity * 2.2;
+      streaks.visible = intensity > 0;
+      streakMaterial.opacity = intensity * 0.78;
+      if (intensity > 0) {
+        if (warp.cameraQuaternion?.isQuaternion) {
+          cameraBackward.set(0, 0, 1).applyQuaternion(warp.cameraQuaternion).normalize();
+        } else {
+          cameraBackward.set(0, 0, 1);
+        }
+        const length = 8 + intensity * 92;
+        const attribute = streakGeometry.getAttribute('position');
+        for (let i = 0; i < streakCount; i += 1) {
+          const source = i * 3;
+          const target = i * 6;
+          const x = positions[source];
+          const y = positions[source + 1];
+          const z = positions[source + 2];
+          streakPositions[target] = x;
+          streakPositions[target + 1] = y;
+          streakPositions[target + 2] = z;
+          streakPositions[target + 3] = x + cameraBackward.x * length;
+          streakPositions[target + 4] = y + cameraBackward.y * length;
+          streakPositions[target + 5] = z + cameraBackward.z * length;
+        }
+        attribute.needsUpdate = true;
+        streakGeometry.computeBoundingSphere();
+      }
     },
     dispose() {
-      scene.remove(ambientLight, sunLight, sunlight, fillLight, sun, stars);
+      scene.remove(ambientLight, sunLight, sunlight, fillLight, sun, stars, streaks);
       starGeometry.dispose();
       stars.material.dispose();
+      streakGeometry.dispose();
+      streakMaterial.dispose();
       sun.traverse(object => {
         if (object.geometry) object.geometry.dispose();
         if (object.material) object.material.dispose();
