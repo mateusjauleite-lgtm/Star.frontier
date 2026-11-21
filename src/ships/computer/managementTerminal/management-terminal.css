@@ -109,6 +109,20 @@
 .management-module-index { color: #6399ac; font-size: 8px; letter-spacing: .13em; }
 .management-module-grid b { font-size: 11px; letter-spacing: .1em; }
 .management-module-grid small { color: #7fc2d3; font-size: 8px; letter-spacing: .1em; }
+.management-module-detail {
+  display: flex; flex-direction: column; gap: 10px; min-height: 116px;
+  padding: 13px 16px; border: 1px solid rgba(92, 190, 226, .24);
+  background: rgba(3, 18, 32, .58);
+}
+.management-module-detail header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.management-module-detail header > div { display: flex; flex-direction: column; gap: 5px; }
+.management-module-detail header b { color: #c8f4ff; font-size: 11px; letter-spacing: .12em; }
+.management-module-detail header > small { color: #8de8c4; font-size: 8px; letter-spacing: .1em; text-align: right; }
+.management-module-detail header > small[data-state="standby"] { color: #d8b879; }
+.management-module-detail pre {
+  margin: 0; max-height: 23vh; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere;
+  color: #9fcbd8; font: 10px/1.55 ui-monospace, SFMono-Regular, Consolas, monospace;
+}
 .management-panel-footer {
   padding-top: 12px; border-top: 1px solid rgba(92, 190, 226, .2);
   color: #6f9aaa; font-size: 8px; letter-spacing: .1em;
