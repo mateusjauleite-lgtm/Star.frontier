@@ -7,12 +7,12 @@ function setup(overrides = {}, options = {}) {
   return { state, core: createDeflectorCoreSystem(state, options) };
 }
 
-test('núcleo transfere energia da reserva principal para sua reserva independente', () => {
+test('núcleo transfere energia da reserva principal usando o dt real', () => {
   const { state, core } = setup({}, { chargeRate: 1 });
-  const status = core.update(0.1);
-  assert.equal(state.deflectorCoreEnergy, 0.1);
-  assert.equal(state.refinedDilithium, 19.9);
-  assert.equal(status.energy, 0.1);
+  const status = core.update(0.25);
+  assert.equal(state.deflectorCoreEnergy, 0.25);
+  assert.equal(state.refinedDilithium, 19.75);
+  assert.equal(status.transferAmount, 0.25);
   assert.equal(status.transferRate, 1);
 });
 
@@ -34,24 +34,59 @@ test('desligar carregamento preserva a reserva local', () => {
 test('ramificações consomem a reserva local sem acessar diretamente a reserva principal', () => {
   const { state, core } = setup({ deflectorCoreEnergy: 2 });
   core.registerBranch('test-branch', { maxDrawPerSecond: 5 });
-  const result = core.consumeEnergy('test-branch', 0.4);
+  core.update(0.1);
+  const result = core.consumeEnergy('test-branch', 0.4, 0.1);
   assert.equal(result.consumed, 0.4);
   assert.equal(state.deflectorCoreEnergy, 1.6);
   assert.equal(state.refinedDilithium, 20);
 });
 
+test('limite de consumo respeita o dt real e não pode ser contornado por chamadas repetidas', () => {
+  const { core } = setup({ deflectorCoreEnergy: 5 });
+  core.registerBranch('test-branch', { maxDrawPerSecond: 2 });
+  core.update(0.25);
+  const first = core.consumeEnergy('test-branch', 0.4, 0.25);
+  const second = core.consumeEnergy('test-branch', 0.4, 0.25);
+  assert.equal(first.consumed, 0.4);
+  assert.equal(second.consumed, 0.1);
+  assert.equal(second.accepted, false);
+});
+
 test('núcleo desligado bloqueia consumo das ramificações', () => {
   const { state, core } = setup({ deflectorCoreEnergy: 2 });
   core.registerBranch('test-branch');
+  core.update(0.1);
   core.setEnabled(false);
-  assert.equal(core.consumeEnergy('test-branch', 0.2).consumed, 0);
+  assert.equal(core.consumeEnergy('test-branch', 0.2, 0.1).consumed, 0);
   assert.equal(state.deflectorCoreEnergy, 2);
 });
 
-test('limita a taxa máxima de retirada por ramificação em cada atualização', () => {
-  const { core } = setup({ deflectorCoreEnergy: 5 });
-  core.registerBranch('test-branch', { maxDrawPerSecond: 1 });
-  const result = core.consumeEnergy('test-branch', 0.5);
-  assert.equal(result.consumed, 0.1);
+test('núcleo vazio bloqueia ramificações e não produz energia', () => {
+  const { state, core } = setup({ refinedDilithium: 0, deflectorCoreEnergy: 0 });
+  core.registerBranch('test-branch');
+  core.update(0.5);
+  const result = core.consumeEnergy('test-branch', 0.1, 0.5);
+  assert.equal(result.consumed, 0);
   assert.equal(result.accepted, false);
+  assert.equal(state.deflectorCoreEnergy, 0);
+});
+
+test('consumo de várias ramificações nunca ultrapassa a reserva local', () => {
+  const { state, core } = setup({ refinedDilithium: 0, deflectorCoreEnergy: 0.15 });
+  core.registerBranch('emitter', { maxDrawPerSecond: 2 });
+  core.registerBranch('sensors', { maxDrawPerSecond: 1 });
+  core.update(0.1);
+  const emitter = core.consumeEnergy('emitter', 0.2, 0.1);
+  const sensors = core.consumeEnergy('sensors', 0.1, 0.1);
+  assert.equal(emitter.consumed, 0.15);
+  assert.equal(sensors.consumed, 0);
+  assert.equal(state.deflectorCoreEnergy, 0);
+});
+
+test('núcleo não recarrega além da energia disponível na reserva principal', () => {
+  const { state, core } = setup({ refinedDilithium: 0.03 }, { chargeRate: 2 });
+  const status = core.update(0.5);
+  assert.equal(status.transferAmount, 0.03);
+  assert.equal(state.refinedDilithium, 0);
+  assert.equal(state.deflectorCoreEnergy, 0.03);
 });
