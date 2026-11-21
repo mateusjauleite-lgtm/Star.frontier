@@ -74,7 +74,19 @@ const engineeringRenderer = createEngineeringTerminalRenderer({
   },
   onWarpToggle: active => {
     const response = engineeringTerminal?.dispatch('engineering', 'setWarpActive', { active });
-    if (!response?.ok || !response.result?.accepted) toast('Dobra indisponível: verifique o dilítio refinado.');
+    if (!response?.ok || !response.result?.accepted) toast('Dobra indisponível: verifique a reserva do núcleo.');
+  },
+  onRefineryToggle: active => {
+    const response = engineeringTerminal?.dispatch('engineering', 'setRefineryActive', { active });
+    if (!response?.ok || !response.result?.accepted) toast('Refinaria não ativada: verifique o minério bruto e o espaço disponível.');
+  },
+  onTransfer: () => {
+    const response = engineeringTerminal?.dispatch('engineering', 'transferDilithiumToCore', {});
+    if (!response?.ok || !response.result?.accepted) {
+      toast('Transferência indisponível: verifique o armazenamento refinado e a capacidade do núcleo.');
+      return;
+    }
+    toast(`Transferência concluída: ${Number(response.result.transferred).toFixed(2)} u para o núcleo.`);
   }
 });
 engineeringRenderer.mount();
