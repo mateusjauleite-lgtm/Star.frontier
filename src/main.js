@@ -1108,14 +1108,20 @@ function updateFlight(dt) {
     }
   }
   const warpControls = $('warp-stage-controls');
-  const warpTransition = state.warpTransition || 'idle';
-  const warpPanelVisible = Boolean(state.warpDriveActive) || warpTransition !== 'idle';
+  const shipComputerStatus = shipComputer.isTerminalConnected('pilot-console')
+    ? shipComputer.dispatch('pilot-console', 'propulsion', 'status')
+    : null;
+  const propulsionState = shipComputerStatus?.ok ? shipComputerStatus.result : state;
+  const warpActive = Boolean(propulsionState.warpDriveActive);
+  const warpTransition = propulsionState.warpTransition || state.warpTransition || 'idle';
+  const selectedWarpStage = Number(propulsionState.selectedWarpStage ?? state.warpStage ?? 5);
+  const warpPanelVisible = warpActive || warpTransition !== 'idle';
   if (warpControls) warpControls.hidden = !warpPanelVisible;
   document.querySelectorAll('[data-warp-stage]').forEach(stageButton => {
     const stage = Number(stageButton.dataset.warpStage);
-    const selected = Boolean(state.warpDriveActive) && stage === Number(state.warpStage);
+    const selected = warpActive && stage === selectedWarpStage;
     stageButton.classList.toggle('active', selected);
-    stageButton.disabled = !state.warpDriveActive;
+    stageButton.disabled = !warpActive;
     stageButton.setAttribute('aria-pressed', String(selected));
   });
   const moveStick = $('move-stick');
