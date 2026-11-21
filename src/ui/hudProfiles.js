@@ -8,9 +8,11 @@ export const PILOT_HUD_PROFILES = Object.freeze([
 const PROFILE_IDS = new Set(PILOT_HUD_PROFILES.map(profile => profile.id));
 
 function cloneLayout(value) {
-  return value && typeof value === 'object' && !Array.isArray(value)
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  // Layouts são objetos JSON simples; fallback para WebViews sem structuredClone.
+  return typeof structuredClone === 'function'
     ? structuredClone(value)
-    : {};
+    : JSON.parse(JSON.stringify(value));
 }
 
 export function createPilotHudProfileStore(settings = {}) {
