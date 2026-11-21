@@ -148,7 +148,11 @@ export function createSpaceLighting(scene, options = {}) {
       const stage = Math.max(0, Math.min(5, Number(warp.warpStage) || 0));
       const active = Boolean(warp.warpActive);
       const exiting = warp.warpTransition === 'exiting';
-      const intensity = active ? stage / 5 : exiting ? 0.18 : 0;
+      const speed = Math.max(0, Number(warp.speed) || 0);
+      const targetSpeed = Math.max(1, Number(warp.warpTargetSpeed) || 350);
+      const entryProgress = Math.max(0.06, Math.min(1, speed / targetSpeed));
+      const exitProgress = Math.max(0, Math.min(1, (speed - 75) / (350 - 75)));
+      const intensity = active ? (stage / 5) * entryProgress : exiting ? exitProgress * 0.78 : 0;
       stars.material.size = 1.5 + intensity * 2.2;
       streaks.visible = intensity > 0;
       streakMaterial.opacity = intensity * 0.78;
