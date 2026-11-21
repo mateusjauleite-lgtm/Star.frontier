@@ -2538,6 +2538,7 @@ registerGameplayActions({
 /* Editor de HUD unificado: posições independentes para personagem e piloto. */
 const characterHudEditor = $('character-hud-editor');
 const characterHudEditable = [...document.querySelectorAll('#character-hud [data-hud-editable]')];
+characterHudEditable.forEach(element => { element.dataset.hudScope = 'character'; });
 const pilotHudEditable = [...document.querySelectorAll('[data-hud-scope="pilot"][data-hud-editable]')];
 const allHudEditable = [...characterHudEditable, ...pilotHudEditable];
 let characterHudEditing = false;
@@ -2567,6 +2568,10 @@ function applyHudLayout(scope, layout = readHudLayout(scope)) {
       return;
     }
     const rect = element.getBoundingClientRect();
+    if (!rect.width || !rect.height) {
+      ['position', 'left', 'top', 'right', 'bottom', 'transform'].forEach(prop => element.style.removeProperty(prop));
+      return;
+    }
     const x = Math.max(0, Math.min(1, saved.x));
     const y = Math.max(0, Math.min(1, saved.y));
     element.style.position = 'fixed';
