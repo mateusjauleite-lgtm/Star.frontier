@@ -5,6 +5,7 @@ import { createWorldRuntimeSystem } from './worldSystem.js';
 import { createShipComputerRuntimeSystem } from './shipComputerSystem.js';
 import { createShipManagementTerminalRuntimeSystem } from '../../../ships/computer/managementTerminal/managementTerminalController.js';
 import { createEngineeringTerminalRuntimeSystem } from '../../../ships/computer/engineeringTerminalController.js';
+import { createPauseMenuRuntimeSystem } from './pauseMenuSystem.js';
 import { createOrbitalPhysicsRuntimeSystem } from './orbitalPhysicsSystem.js';
 import { createGameplayRuntimeSystem } from './gameplaySystem.js';
 
@@ -20,6 +21,8 @@ export function registerGameRuntimeSystems(runtime, dependencies) {
     shipComputer,
     shipManagementTerminal,
     engineeringTerminal,
+    mining,
+    pauseMenu,
     orbitalPhysics,
     gameplay
   } = dependencies;
@@ -34,6 +37,8 @@ export function registerGameRuntimeSystems(runtime, dependencies) {
   if (engineeringTerminal) {
     runtime.registerSystem('engineering-terminal', createEngineeringTerminalRuntimeSystem(engineeringTerminal));
   }
+  if (mining) runtime.registerSystem('mining', mining);
+  if (pauseMenu) runtime.registerSystem('pause-menu', createPauseMenuRuntimeSystem({ ...pauseMenu, runtime }));
   runtime.registerSystem('gameplay', createGameplayRuntimeSystem(gameplay));
   runtime.registerSystem('orbital-physics', createOrbitalPhysicsRuntimeSystem(orbitalPhysics));
 

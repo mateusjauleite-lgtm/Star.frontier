@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { registerAimControls, registerHeldFlightControls, registerFlightSelectionGuards, registerCameraCycleControl } from './controls/gameControls.js';
 import { registerCharacterControls } from './controls/characterControls.js';
 import { registerGameplayActions } from './systems/gameplayActions.js';
+import { createMiningRuntimeSystem } from './systems/miningSystem.js';
 import { loadRuntimeKernel } from './core/runtime/RuntimeKernel.js';
 import { createRuntimeBridge } from './core/runtime/RuntimeBridge.js';
 import { createRuntimeVisibilityHandler } from './core/runtime/RuntimeVisibility.js';
@@ -704,6 +705,8 @@ async function startGame() {
       registerGameRuntimeSystems(runtimeBridge, {
         shipManagementTerminal,
         engineeringTerminal,
+        mining: miningRuntimeSystem,
+        pauseMenu: { document, state, resetInputs: resetTransientState },
         character: {
           core: characterCore,
           resetTransientState,
@@ -1104,6 +1107,23 @@ function updateFlight(dt) {
       button.textContent = '◉ TREM RECOLHIDO · POUSAR';
     }
   }
+  const warpControls = $('warp-stage-controls');
+  const shipComputerStatus = shipComputer.isTerminalConnected('pilot-console')
+    ? shipComputer.dispatch('pilot-console', 'propulsion', 'status')
+    : null;
+  const propulsionState = shipComputerStatus?.ok ? shipComputerStatus.result : state;
+  const warpActive = Boolean(propulsionState.warpDriveActive);
+  const warpTransition = propulsionState.warpTransition || state.warpTransition || 'idle';
+  const selectedWarpStage = Number(propulsionState.selectedWarpStage ?? state.warpStage ?? 5);
+  const warpPanelVisible = warpActive || warpTransition !== 'idle';
+  if (warpControls) warpControls.hidden = !warpPanelVisible;
+  document.querySelectorAll('[data-warp-stage]').forEach(stageButton => {
+    const stage = Number(stageButton.dataset.warpStage);
+    const selected = warpActive && stage === selectedWarpStage;
+    stageButton.classList.toggle('active', selected);
+    stageButton.disabled = !warpActive;
+    stageButton.setAttribute('aria-pressed', String(selected));
+  });
   const moveStick = $('move-stick');
   const hasPropulsion = Number(state.fuel) > 0 || Number(state.refinedDilithium) > 0;
   if (moveStick) {
@@ -1862,31 +1882,44 @@ function enterPilotMode() {
   toast('Comando da Aurora-7 assumido.');
 }
 
-function exitPilotMode() {
-  if (characterCore.snapshot().mode !== 'ship-control') return;
+function disconnectPilotTerminal() {
+  return shipComputer.disconnectTerminal('pilot-console');
+}
 
+function shutdownWarpDrive() {
+  // A saída da dobra é independente da saída do assento e da desconexão.
+  // O ciclo de voo executa a transição suave até a velocidade convencional.
+  state.warpDriveButton = false;
+  state.throttle = false;
+  state.braking = false;
+}
+
+function leavePilotSeat() {
+  if (characterCore.snapshot().mode !== 'ship-control') return false;
   cancelLandingGuidance('pilot-disconnected');
   characterYaw = returnCharacterToDeck(characterModel, shipVisual, scene);
   characterPitch = 0;
   characterCore.leaveShipSeat();
-
   characterControls.reset();
   state.move.x = 0;
   state.move.y = 0;
   state.throttle = false;
   state.braking = false;
-  // O desligamento do comando inicia a saída de dobra no próximo frame.
-  // Mantém a velocidade e o estado de transição para a nave desacelerar suavemente.
-  state.warpDriveButton = false;
-  shipComputer.disconnectTerminal('pilot-console');
 
   const flightStick = $('move-stick')?.querySelector('.knob');
   if (flightStick) flightStick.style.transform = 'translate(0,0)';
-
   setPilotInterface(false);
   updateCharacterHUD();
   updatePilotInteraction();
+  return true;
+}
+
+function exitPilotMode({ disconnectTerminal = true, shutdownWarp = false } = {}) {
+  if (!leavePilotSeat()) return false;
+  if (shutdownWarp) shutdownWarpDrive();
+  if (disconnectTerminal) disconnectPilotTerminal();
   toast('Você deixou o comando da nave.');
+  return true;
 }
 
 /* CÂMERA */
@@ -2468,12 +2501,26 @@ $('landing-select-btn')?.addEventListener('click', () => {
 
 registerCameraCycleControl({ document, state, cameraNames });
 
+const miningRuntimeSystem = createMiningRuntimeSystem({
+  state,
+  isActive: () => active,
+  getAsteroids: () => asteroids,
+  getShip: () => ship,
+  getAsteroidSystem: () => asteroidSystem,
+  setAsteroids: value => { asteroids = value; },
+  save,
+  updateWallet,
+  shipAudio,
+  toast
+});
+
 registerGameplayActions({
   document,
   THREE,
   getElement: $,
   state,
   isActive: () => active,
+  mine: () => miningRuntimeSystem.mine(),
   getAsteroids: () => asteroids,
   getShip: () => ship,
   getAsteroidSystem: () => asteroidSystem,
@@ -2629,25 +2676,6 @@ $('character-camera-btn')?.addEventListener('click', () => {
   if (camera && characterModel) updateCharacterCamera();
 });
 updateCharacterCameraButton();
-
-$('character-menu-btn')?.addEventListener('click', () => {
-  $('game-menu-modal')?.classList.remove('hidden');
-  if (runtimeBridge?.status === 'running') runtimeBridge.pause();
-});
-
-$('game-menu-btn')?.addEventListener('click', () => {
-  if (runtimeBridge?.status === 'running') runtimeBridge.pause();
-  state.throttle = false;
-  state.braking = false;
-  state.warpDriveButton = false;
-
-  $('game-menu-modal')?.classList.remove('hidden');
-});
-
-$('resume-btn')?.addEventListener('click', () => {
-  $('game-menu-modal')?.classList.add('hidden');
-  if (runtimeBridge?.status === 'paused') runtimeBridge.resume();
-});
 
 $('return-menu-btn')?.addEventListener('click', async () => {
   // Nunca abandonar a sessão enquanto o personagem ainda estiver sentado
