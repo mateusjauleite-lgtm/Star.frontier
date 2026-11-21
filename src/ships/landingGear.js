@@ -73,15 +73,18 @@ export function createLandingGear(THREERef = THREE) {
       assemblyPositions.push({ x, z });
 
       // Compact upper mounting bracket, fixed to the lower structural frame.
+      // O suporte superior fica fixo ao casco; somente pernas, braços e rodas
+      // giram no pivô. Isso evita que a estrutura de montagem atravesse o casco
+      // quando o conjunto é recolhido.
       const mount = new THREERef.Mesh(
         new THREERef.BoxGeometry(5.2, 0.9, 3.1),
         jointMaterial
       );
       mount.name = 'Gear-Upper-Mount';
-      mount.position.set(0, -10.8, 0);
-      assembly.add(mount);
+      mount.position.set(x, -10.8, z);
+      group.add(mount);
       for (const lugX of [-1.75, 1.75]) {
-        addHinge(assembly, [lugX, -11.25, 0], 0.72, frameMaterial, 'Gear-Mount-Hinge');
+        addHinge(group, [x + lugX, -11.25, z], 0.72, frameMaterial, 'Gear-Mount-Hinge');
       }
 
       // Main oleo strut: outer sleeve and exposed sliding piston.
