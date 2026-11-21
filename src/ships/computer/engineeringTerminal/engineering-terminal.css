@@ -40,3 +40,90 @@
  .engineering-readouts .management-info-card small{font-size:6px}
  .engineering-readouts .management-info-card b{font-size:12px}
 }
+
+
+/* Aplicativos da refinaria: slots, fluxo e telemetria do núcleo. */
+.engineering-refinery-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+.engineering-refinery-tabs button {
+  border: 1px solid rgba(103, 232, 255, .22);
+  border-radius: 7px;
+  padding: 9px 12px;
+  color: #a8dce8;
+  background: rgba(9, 31, 45, .72);
+  font: inherit;
+  font-size: 11px;
+  letter-spacing: .08em;
+}
+.engineering-refinery-tabs button.is-selected {
+  color: #e8fbff;
+  border-color: rgba(103, 232, 255, .7);
+  background: rgba(31, 126, 157, .3);
+  box-shadow: inset 0 0 18px rgba(58, 196, 226, .12);
+}
+.engineering-storage-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.engineering-storage-slot {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid rgba(103, 232, 255, .18);
+  border-radius: 9px;
+  background: linear-gradient(145deg, rgba(13, 43, 58, .8), rgba(5, 18, 30, .72));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.engineering-storage-slot small {
+  color: #8ab8c7;
+  font-size: 10px;
+  letter-spacing: .08em;
+}
+.engineering-storage-slot b {
+  color: #e4faff;
+  font-size: clamp(20px, 3vw, 30px);
+  font-variant-numeric: tabular-nums;
+}
+.engineering-storage-slot span,
+.engineering-storage-slot em {
+  color: #83aab8;
+  font-size: 11px;
+  font-style: normal;
+}
+.engineering-capacity-track {
+  height: 7px;
+  overflow: hidden;
+  border-radius: 20px;
+  background: rgba(105, 158, 177, .18);
+}
+.engineering-capacity-track i {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #36b6d3, #8af0ff);
+  transition: width .16s linear;
+}
+.engineering-refinery-view[hidden],
+[data-engineering-app-panel][hidden] {
+  display: none !important;
+}
+.engineering-refinery-view .engineering-panel-content {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+.engineering-refinery-view .engineering-warp-toggle {
+  min-height: 44px;
+}
+@media (max-width: 700px) {
+  .engineering-storage-grid { grid-template-columns: 1fr; }
+  .engineering-refinery-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .engineering-refinery-tabs button { min-height: 40px; padding: 8px 6px; }
+}
