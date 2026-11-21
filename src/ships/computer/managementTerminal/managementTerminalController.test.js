@@ -35,7 +35,7 @@ test('terminal holográfico permanece passivo até receber presença e interaç�
   const h = createHarness();
   h.controller.initialize();
   assert.equal(h.controller.open(), false);
-  assert.equal(h.controller.setPresence(true), true);
+  assert.equal(h.controller.setPresence(true, true), true);
   assert.equal(h.controller.getSnapshot().present, true);
   assert.equal(h.controller.getSnapshot().open, false);
   assert.equal(h.controller.open('TRIPULANTE'), true);
