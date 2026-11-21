@@ -32,7 +32,7 @@ export function createGameplayFramePhases(getDependencies) {
     updateCamera();
   }
   updateShipManagementInteraction(dt);
-  updateEngineeringConsoleInteraction();
+  updateEngineeringConsoleInteraction?.();
     },
 
     updateLanding(dt) {
