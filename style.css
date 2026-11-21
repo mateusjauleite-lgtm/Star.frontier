@@ -2429,3 +2429,26 @@ body * {
 #leave-pilot-btn:active {
   transform: translate(-50%, -50%) scale(.96);
 }
+
+
+/* Editor de HUD unificado: alterna entre perfis independentes. */
+.hud-editor-tabs { display:flex; gap:7px; }
+.hud-editor-tabs button {
+  flex:1; min-height:38px; padding:6px; border:1px solid var(--border);
+  border-radius:8px; background:rgba(7,25,44,.96); color:var(--muted);
+  font-size:10px; font-weight:800; touch-action:manipulation;
+}
+.hud-editor-tabs button.active { border-color:var(--cyan); color:var(--cyan); background:rgba(16,67,94,.92); }
+.pilot-hud-size-controls {
+  display:grid; grid-template-columns:1fr auto; align-items:center; gap:5px 9px;
+  padding:8px; border:1px solid rgba(67,217,255,.25); border-radius:9px;
+  background:rgba(5,20,36,.88); text-align:left;
+}
+.pilot-hud-size-controls label { color:var(--muted); font-size:9px; font-weight:800; }
+.pilot-hud-size-controls output { color:var(--cyan); font-size:10px; font-weight:800; text-align:right; }
+.pilot-hud-size-controls input { grid-column:1 / -1; width:100%; accent-color:var(--cyan); touch-action:pan-y; }
+.pilot-hud-size-controls small { grid-column:1 / -1; color:var(--muted); font-size:9px; text-align:center; }
+#character-hud.hud-editor-preview { display:block !important; }
+#hud.hud-editor-preview { display:flex !important; }
+#flight-controls.hud-editor-preview { display:flex !important; }
+#leave-pilot-btn.hud-editor-preview { display:block !important; }
