@@ -48,7 +48,7 @@ const $ = id => document.getElementById(id);
 function cloneHudData(value) {
   if (value === undefined) return undefined;
   if (value === null || typeof value !== 'object') return value;
-  if (typeof structuredClone === 'function') return cloneHudData(value);
+  if (typeof structuredClone === 'function') return structuredClone(value);
   return JSON.parse(JSON.stringify(value));
 }
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
