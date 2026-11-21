@@ -4,7 +4,7 @@ import { createGameplayFramePhases } from './gameplayFramePhases.js';
 
 function fixture() {
   const calls = [];
-  const elements = new Map(['speed', 'fuel', 'cargo', 'hull', 'shield', 'hud-credits', 'hud', 'flight-controls', 'navigation-coordinates', 'navigation-distance', 'navigation-bearing', 'combat-target-name', 'combat-hull', 'combat-shield', 'warp-core-consumption', 'warp-stability-readout']
+  const elements = new Map(['speed', 'fuel', 'cargo', 'hull', 'shield', 'hud-credits', 'hud', 'flight-controls', 'navigation-coordinates', 'navigation-distance', 'navigation-bearing', 'navigation-full-coordinates', 'navigation-full-distance', 'navigation-full-bearing', 'combat-target-name', 'combat-hull', 'combat-shield', 'warp-core-consumption', 'warp-stability-readout']
     .map(id => {
       const element = { _textContent: '' };
       Object.defineProperty(element, 'textContent', {
@@ -135,6 +135,9 @@ test('Runtime HUD phase routes profile state and available navigation/combat/war
   assert.equal(f.elements.get('navigation-coordinates').textContent, '12.5 / -3.0 / 40.0');
   assert.equal(f.elements.get('navigation-distance').textContent, '125.4 u');
   assert.equal(f.elements.get('navigation-bearing').textContent, '270.0°');
+  assert.equal(f.elements.get('navigation-full-coordinates').textContent, '12.5 / -3.0 / 40.0');
+  assert.equal(f.elements.get('navigation-full-distance').textContent, '125.4 u');
+  assert.equal(f.elements.get('navigation-full-bearing').textContent, '270.0°');
   assert.equal(f.elements.get('combat-target-name').textContent, 'Hostile vessel');
   assert.equal(f.elements.get('combat-hull').textContent, '100%');
   assert.equal(f.elements.get('combat-shield').textContent, '90%');
