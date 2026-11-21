@@ -19,6 +19,7 @@ on:
   pull_request:
     branches:
       - feature/core-runtime-foundation
+      - feature/refinery-core-energy-final-validation
       - main
       - architecture/modules-skeleton
       - integration/threejs-recovery
