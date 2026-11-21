@@ -53,7 +53,7 @@ export function advanceShipFlightDynamics(state, deltaSeconds) {
     state.warpTargetSpeed = targetSpeed;
     state.warpDriveActive = true;
     state.warpShutdownReason = null;
-    state.warpTransition = state.speed + 0.5 < targetSpeed ? 'entering' : 'cruise';
+    state.warpTransition = state.speed + 0.5 < targetSpeed ? 'entering' : state.speed > targetSpeed + 0.5 ? 'reducing' : 'cruise';
 
     // A aceleração de dobra é contínua; mudar de estágio nunca zera a velocidade.
     if (!state.braking) state.speed = approach(state.speed, targetSpeed, WARP_ACCELERATION * dt);
