@@ -84,6 +84,16 @@ export function registerGameWorldEntities(manager, world = {}) {
     register(id, { type, name, tags: ['ship-system', 'engineering', 'dilithium'], metadata: { runtimeBinding: true, objectKind: 'THREE.Group', deck: 3, recognitionPriority: [DILITHIUM_COMPONENT_IDS.WARP_CORE, DILITHIUM_COMPONENT_IDS.REFINERY, DILITHIUM_COMPONENT_IDS.REFINED_STORAGE, DILITHIUM_COMPONENT_IDS.RAW_STORAGE].indexOf(id) } }, object);
     if (manager.get('ship:interior')) ensureRelation(manager, id, 'installed-in', 'ship:interior');
   }
+  if (manager.get(DILITHIUM_COMPONENT_IDS.RAW_STORAGE)) ensureRelation(manager, DILITHIUM_COMPONENT_IDS.RAW_STORAGE, 'stores-resource', RESOURCE_IDS.DILITHIUM_ORE);
+  if (manager.get(DILITHIUM_COMPONENT_IDS.REFINERY)) {
+    ensureRelation(manager, DILITHIUM_COMPONENT_IDS.REFINERY, 'processes-resource', RESOURCE_IDS.DILITHIUM_ORE);
+    ensureRelation(manager, DILITHIUM_COMPONENT_IDS.REFINERY, 'produces-resource', RESOURCE_IDS.REFINED_DILITHIUM);
+  }
+  if (manager.get(DILITHIUM_COMPONENT_IDS.REFINED_STORAGE)) {
+    ensureRelation(manager, DILITHIUM_COMPONENT_IDS.REFINED_STORAGE, 'stores-resource', RESOURCE_IDS.REFINED_DILITHIUM);
+    ensureRelation(manager, DILITHIUM_COMPONENT_IDS.REFINED_STORAGE, 'feeds-system', DILITHIUM_COMPONENT_IDS.WARP_CORE);
+  }
+  if (manager.get(DILITHIUM_COMPONENT_IDS.WARP_CORE)) ensureRelation(manager, DILITHIUM_COMPONENT_IDS.WARP_CORE, 'consumes-resource', RESOURCE_IDS.REFINED_DILITHIUM);
 
   const has = id => liveObjects.has(id);
   if (has('character:player') && has('ship:exploration')) ensureRelation(manager, 'character:player', 'aboard', 'ship:exploration');
