@@ -224,8 +224,9 @@ export function createGameplayFramePhases(getDependencies) {
         $('navigation-bearing').textContent = Number.isFinite(target?.bearing)
           ? target.bearing.toFixed(1) + '°' : '—';
       }
+      const combatTarget = ship?.userData?.combatTarget;
       if ($('combat-target-name')) {
-        $('combat-target-name').textContent = String(target?.name || 'SEM ALVO');
+        $('combat-target-name').textContent = String(combatTarget?.name || 'SEM ALVO');
       }
       if ($('warp-core-consumption')) {
         $('warp-core-consumption').textContent =
