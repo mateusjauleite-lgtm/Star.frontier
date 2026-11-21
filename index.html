@@ -327,14 +327,27 @@
         </div>
 
         <div class="propulsion-slot">
-          <div class="propulsion-heading"><span>PROPULSÃO DE DOBRA</span><b id="warp-drive-level">RESERVA 100%</b></div>
-          <div class="warp-drive-track"><div id="warp-drive-fill" class="warp-drive-fill"></div></div>
+          <div class="propulsion-heading"><span>PROPULSÃO CONVENCIONAL</span><b>VOO</b></div>
           <div class="button-pair propulsion-buttons">
             <button id="throttle-btn" class="control-button" type="button">▲ ACELERAR</button>
             <button id="brake-btn" class="control-button" type="button">▼ FREAR</button>
           </div>
-          <div class="button-pair propulsion-buttons">
-            <button id="warp-drive-btn" class="control-button warp-drive-button" type="button">⚡ ATIVAR DOBRA</button>
+          <div class="warp-command-panel">
+            <div id="warp-stage-controls" class="warp-stage-controls" hidden aria-label="Estágios de dobra">
+              <button class="warp-stage-button" type="button" data-warp-stage="5" aria-label="Dobra 5">5</button>
+              <button class="warp-stage-button" type="button" data-warp-stage="4" aria-label="Dobra 4">4</button>
+              <button class="warp-stage-button" type="button" data-warp-stage="3" aria-label="Dobra 3">3</button>
+              <button class="warp-stage-button" type="button" data-warp-stage="2" aria-label="Dobra 2">2</button>
+              <button class="warp-stage-button" type="button" data-warp-stage="1" aria-label="Dobra 1">1</button>
+            </div>
+            <div class="warp-main-control">
+              <div class="propulsion-heading"><span>PROPULSÃO DE DOBRA</span><b id="warp-drive-level">DESATIVADA</b></div>
+              <div class="warp-telemetry-row">
+                <span>VELOCIDADE <b id="warp-speed-readout">0</b></span>
+                <span>DILÍTIO <b id="warp-dilithium-readout">100.00 u</b></span>
+              </div>
+              <button id="warp-drive-btn" class="control-button warp-drive-button" type="button" aria-pressed="false">⚡ ATIVAR DOBRA</button>
+            </div>
           </div>
         </div>
 
