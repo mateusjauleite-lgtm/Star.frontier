@@ -23,13 +23,19 @@ export function createDilithiumRefinerySystem(state, options = {}) {
   let transferredTotal = Math.max(0, Number(state.refineryTransferredTotal) || 0);
   let consumedTotal = Math.max(0, Number(state.coreDilithiumConsumedTotal) || 0);
   let lastCoreAmount = state.refinedDilithium;
+  let hasObservedCore = false;
   let lastTransferRate = 0;
   let lastRefiningRate = 0;
 
   function update(deltaSeconds) {
     const dt = clamp(deltaSeconds, 0, MAX_DELTA_SECONDS);
     const currentCore = clamp(state.refinedDilithium, 0, coreCapacity);
-    if (currentCore < lastCoreAmount) consumedTotal += lastCoreAmount - currentCore;
+    if (!hasObservedCore) {
+      lastCoreAmount = currentCore;
+      hasObservedCore = true;
+    } else if (currentCore < lastCoreAmount) {
+      consumedTotal += lastCoreAmount - currentCore;
+    }
     lastCoreAmount = currentCore;
     lastTransferRate = 0;
     lastRefiningRate = 0;
