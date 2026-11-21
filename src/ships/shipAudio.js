@@ -22,7 +22,7 @@ const TONES = Object.freeze({
 export function createShipAudio() {
   let disposed = false;
   let engineActive = false;
-  let warpDriveActive = false;
+  let warpDriveToneActive = false;
   let brakeActive = false;
   let maneuverCooldown = 0;
   let engineBedTimer = 0;
@@ -83,9 +83,9 @@ export function createShipAudio() {
       nacelleHumTimer = 0;
     }
 
-    if (Boolean(warpDriveActive) !== warpDriveActive) {
+    if (Boolean(warpDriveActive) !== warpDriveToneActive) {
       if (warpDriveActive) play('warpDrive');
-      warpDriveActive = Boolean(warpDriveActive);
+      warpDriveToneActive = Boolean(warpDriveActive);
     }
     if (Boolean(braking) !== brakeActive) {
       if (braking) play('brake');
@@ -102,7 +102,7 @@ export function createShipAudio() {
 
   function resetFlight() {
     engineActive = false;
-    warpDriveActive = false;
+    warpDriveToneActive = false;
     brakeActive = false;
     maneuverCooldown = 0;
     engineBedTimer = 0;
