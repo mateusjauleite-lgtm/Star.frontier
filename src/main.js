@@ -792,6 +792,7 @@ async function startGame() {
             setLandingBaseSystem: value => { landingBaseSystem = value; },
             updateShipLandingGuidance, THREE, shipVisual, shipEarthContactPoints,
             shipLandingGearContactPoints, forwardVector, state,
+            getActivePilotHudProfile: () => activePilotHudProfile,
             orbitSystem, asteroidSystem, lightingSystem, renderer, scene, $
           }))
         }
