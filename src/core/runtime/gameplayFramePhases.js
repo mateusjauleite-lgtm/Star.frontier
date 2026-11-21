@@ -15,7 +15,7 @@ export function createGameplayFramePhases(getDependencies) {
   if (ship) ship.userData.earthCollisionResolved = false;
 
   updatePhaserWeapon(dt);
-}
+    },
 
     updateCharacterMode(dt) {
       const { characterCore, updateCharacterMovement, updateCharacterWeapon, updateExternalElevatorAnimation, updateElevatorInteraction, updatePilotInteraction, updateExternalElevatorInteraction, updateCharacterCamera, updateFlight, updateCamera } = getDependencies();
@@ -31,7 +31,7 @@ export function createGameplayFramePhases(getDependencies) {
     updateFlight(dt);
     updateCamera();
   }
-}
+    },
 
     updateLanding(dt) {
       const { earthSystem, setLandingBaseSystem, updateShipLandingGuidance, ship, THREE, shipVisual, shipEarthContactPoints, shipLandingGearContactPoints, forwardVector, state } = getDependencies();
@@ -162,19 +162,19 @@ export function createGameplayFramePhases(getDependencies) {
       delete ship.userData.earthLandingContacts;
     }
   }
-}
+    },
 
     updateWorld(dt) {
       const { orbitSystem, asteroidSystem, lightingSystem, camera } = getDependencies();
   orbitSystem?.update(dt);
   asteroidSystem?.update(dt);
   lightingSystem?.update(dt, camera?.position);
-}
+    },
 
     render() {
       const { renderer, scene, camera } = getDependencies();
   renderer.render(scene, camera);
-}
+    },
 
     updateHud() {
       const { $, state } = getDependencies();
