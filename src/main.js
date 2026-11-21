@@ -2749,6 +2749,10 @@ function setHudEditorPilotProfile(profile) {
     ? { ...hudEditorWorkingButtonSizes[profile] }
     : readPilotHudButtonSize(profile);
   updateHudProfileButtons('#pilot-hud-profile-tabs', 'data-hud-editor-profile', profile);
+  if (characterHudEditing && hudEditorTarget === 'pilot') {
+    const label = PILOT_HUD_PROFILES.find(item => item.id === profile)?.label || 'Voo';
+    $('hud-editor-hint').textContent = `Editando o perfil ${label}. Posições e dimensões são salvas separadamente.`;
+  }
   updateHudEditorButtonSizeVisibility();
   applyPilotHudButtonSize(hudEditorWorkingButtonSize, true, profile);
   if (characterHudEditing && hudEditorTarget === 'pilot') {
