@@ -6,7 +6,7 @@ function makeState(overrides = {}) {
   return {
     speed: 10,
     fuel: 100,
-    refinedDilithium: 100,
+    warpCoreDilithium: 100,
     throttle: false,
     braking: false,
     warpDriveButton: false,
@@ -25,7 +25,7 @@ test('aceleração convencional continua independente e consome combustível com
   assert.equal(advanceShipFlightDynamics(state, 0.5), false);
   assert.equal(state.speed, 10.72);
   assert.equal(state.fuel, 99.9888);
-  assert.equal(state.refinedDilithium, 100);
+  assert.equal(state.warpCoreDilithium, 100);
 });
 
 test('ativar dobra inicia no estágio 5 e acelera progressivamente sem consumir combustível comum', () => {
@@ -35,7 +35,7 @@ test('ativar dobra inicia no estágio 5 e acelera progressivamente sem consumir 
   assert.equal(state.warpTargetSpeed, WARP_STAGE_SPEEDS[5]);
   assert.equal(state.speed, 11.3);
   assert.equal(state.fuel, 100);
-  assert.ok(state.refinedDilithium < 100);
+  assert.ok(state.warpCoreDilithium < 100);
   assert.equal(state.warpTransition, 'entering');
 });
 
@@ -59,15 +59,15 @@ test('acelerador convencional continua independente durante a dobra', () => {
 test('dobra mantém cruzeiro e consome dilítio continuamente por estágio', () => {
   const state = makeState({ speed: 155, warpDriveButton: true, warpStage: 2 });
   advanceShipFlightDynamics(state, 0.04);
-  const afterFirstFrame = state.refinedDilithium;
+  const afterFirstFrame = state.warpCoreDilithium;
   advanceShipFlightDynamics(state, 0.04);
-  assert.ok(state.refinedDilithium < afterFirstFrame);
+  assert.ok(state.warpCoreDilithium < afterFirstFrame);
   assert.equal(state.speed, 155);
   assert.equal(state.warpTransition, 'cruise');
 });
 
 test('esgotamento de dilítio inicia desligamento seguro da dobra', () => {
-  const state = makeState({ speed: 180, refinedDilithium: 0.0001, warpDriveButton: true, warpStage: 5 });
+  const state = makeState({ speed: 180, warpCoreDilithium: 0.0001, warpDriveButton: true, warpStage: 5 });
   assert.equal(advanceShipFlightDynamics(state, 0.04), false);
   assert.equal(state.warpDriveButton, false);
   assert.equal(state.warpDriveActive, false);
