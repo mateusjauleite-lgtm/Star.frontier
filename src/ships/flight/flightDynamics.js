@@ -29,6 +29,7 @@ export function advanceShipFlightDynamics(state, deltaSeconds) {
     : 0;
 
   const hasConventionalFuel = Number(state.fuel) > 0;
+  const conventionalWarpAssist = Boolean(state.throttle && hasConventionalFuel && state.warpDriveButton);
   if (state.throttle && hasConventionalFuel) {
     if (!state.warpDriveButton) {
       state.speed = Math.min(CONVENTIONAL_MAX_SPEED, state.speed + 18 * dt);
@@ -52,6 +53,7 @@ export function advanceShipFlightDynamics(state, deltaSeconds) {
 
     // A aceleração de dobra é contínua; mudar de estágio nunca zera a velocidade.
     state.speed = approach(state.speed, targetSpeed, WARP_ACCELERATION * dt);
+    if (conventionalWarpAssist) state.speed += 18 * dt;
     const consumption = WARP_DILITHIUM_CONSUMPTION[stage] * dt;
     state.refinedDilithium = Math.max(0, refinedDilithium - consumption);
 
