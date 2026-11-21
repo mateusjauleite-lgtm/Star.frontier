@@ -127,7 +127,7 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
   computer.registerSystem('refinery', {
     name: 'Refinaria e transferência do núcleo',
     commands: {
-      status: () => refinerySystem?.snapshot?.() ?? { available: false },
+      status: (payload, context) => ({ ...(refinerySystem?.snapshot?.() ?? { available: false }), controlAllowed: canControlRefinery(context) }),
       setRefineryEnabled: (payload, context) => {
         if (!canControlRefinery(context)) return { accepted: false, reason: 'higher-power-console-authority' };
         return { accepted: true, status: refinerySystem?.setRefineryEnabled?.(Boolean(payload?.enabled)) };
@@ -168,7 +168,7 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
         ...readPropulsion(),
         warpCore: 'connected-to-ship-computer',
         warpField: 'five-stage-cruise',
-        refinery: refinerySystem?.snapshot?.() ?? null
+        refinery: { ...(refinerySystem?.snapshot?.() ?? {}), controlAllowed: context?.terminalId === 'ship-management-terminal' }
       }),
       setAuthority: (payload, context) => {
         if (!requireEngineering(context)) return { accepted: false, reason: 'engineering-terminal-required' };
