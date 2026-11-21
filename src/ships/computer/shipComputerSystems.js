@@ -1,3 +1,4 @@
+import { WARP_STAGE_SPEEDS } from '../flight/flightDynamics.js';
 // Adaptadores entre o computador central e os sistemas reais da nave.
 // Ponte e Engenharia consultam e comandam a mesma fonte de estado.
 const PROPULSION_INPUTS = new Set(['throttle', 'braking', 'warpDriveButton']);
@@ -120,7 +121,7 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
         if (!Number.isInteger(stage) || stage < 1 || stage > 5) return { accepted: false, reason: 'invalid-warp-stage' };
         if (!state.warpDriveActive) return { accepted: false, reason: 'warp-not-active' };
         state.warpStage = stage;
-        return { accepted: true, stage, targetSpeed: [0, 115, 155, 205, 270, 350][stage] };
+        return { accepted: true, stage, targetSpeed: WARP_STAGE_SPEEDS[stage] };
       }
     },
     getStatus: () => readShip() ? 'online' : 'standby'
