@@ -93,6 +93,7 @@ let characterCameraMode = 'third-person';
 let characterCameraInitialized = false;
 let characterModel = null;
 let shipManagementHologram = null;
+let engineeringHologram = null;
 let characterAnimator = null;
 let characterWeaponController = null;
 let characterPhysics = null;
@@ -1000,6 +1001,17 @@ async function init3D() {
     },
     scale: 1.35
   });
+  engineeringHologram?.dispose?.();
+  engineeringHologram = createShipManagementHologram({
+    parent: shipVisual,
+    // Emissor holográfico dedicado acima do console físico do Deck 3.
+    position: {
+      x: ENGINEERING_CONSOLE_LOCAL_POSITION.x,
+      y: ENGINEERING_CONSOLE_LOCAL_POSITION.y + 1.19,
+      z: ENGINEERING_CONSOLE_LOCAL_POSITION.z
+    },
+    scale: 1.35
+  });
 
   characterCameraInitialized = false;
   characterInWorldFrame = false;
@@ -1732,6 +1744,7 @@ function updateShipManagementInteraction(dt = 0) {
 }
 
 function updateEngineeringConsoleInteraction(dt = 0) {
+  engineeringHologram?.update(dt);
   const previousAvailable = engineeringInteractionAvailable;
   const previousActive = engineeringConsoleActive;
   const validContext = Boolean(characterModel && shipVisual &&
@@ -1740,6 +1753,7 @@ function updateEngineeringConsoleInteraction(dt = 0) {
 
   if (!validContext) {
     engineeringInteractionAvailable = false;
+    engineeringHologram?.setVisible(false);
     engineeringRenderer.setPresence(false, false);
     engineeringTerminal.setPresence(false, false);
     if ((previousAvailable || previousActive) && !nearbyElevator) {
@@ -1756,6 +1770,7 @@ function updateEngineeringConsoleInteraction(dt = 0) {
   const visible = distanceSquared <= ENGINEERING_CONSOLE_DISPLAY_RADIUS ** 2;
   const available = distanceSquared <= ENGINEERING_CONSOLE_INTERACTION_RADIUS ** 2;
   engineeringInteractionAvailable = available;
+  engineeringHologram?.setVisible(visible);
   engineeringRenderer.setPresence(visible, available);
   engineeringTerminal.setPresence(visible, available);
   if (engineeringConsoleActive) {
