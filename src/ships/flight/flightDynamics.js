@@ -28,10 +28,15 @@ export function advanceShipFlightDynamics(state, deltaSeconds) {
     ? Math.max(0, Math.min(MAX_DELTA_SECONDS, deltaSeconds))
     : 0;
 
+  const wasWarpActive = Boolean(state.warpDriveActive);
+  const exitingWarp = !state.warpDriveButton && (
+    wasWarpActive || state.warpTransition === 'entering' ||
+    state.warpTransition === 'cruise' || state.warpTransition === 'exiting'
+  );
   const hasConventionalFuel = Number(state.fuel) > 0;
   const conventionalWarpAssist = Boolean(state.throttle && hasConventionalFuel && state.warpDriveButton);
   if (state.throttle && hasConventionalFuel) {
-    if (!state.warpDriveButton) {
+    if (!state.warpDriveButton && !exitingWarp) {
       state.speed = Math.min(CONVENTIONAL_MAX_SPEED, state.speed + 18 * dt);
     }
     state.fuel = Math.max(0, state.fuel - 0.28 * dt);
@@ -39,7 +44,6 @@ export function advanceShipFlightDynamics(state, deltaSeconds) {
 
   const refinedDilithium = Math.max(0, Number(state.refinedDilithium) || 0);
   const requestedWarp = Boolean(state.warpDriveButton && refinedDilithium > 0);
-  const wasWarpActive = Boolean(state.warpDriveActive);
 
   if (requestedWarp) {
     const stage = normalizeStage(state.warpStage);
