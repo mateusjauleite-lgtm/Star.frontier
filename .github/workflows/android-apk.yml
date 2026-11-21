@@ -11,6 +11,7 @@ on:
       - feature/character-human-model-animation
       - feature/startup-loading-login-flow
       - feature/core-runtime-foundation
+      - feature/ship-management-holographic-terminal
       - fix/character-hud-startup-layout
       - fix/pilot-hud-flight-controls
   pull_request:
