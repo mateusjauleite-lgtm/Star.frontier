@@ -10,6 +10,8 @@ export const state = {
   rawDilithiumOre: 0,
   fuel: 100,
   refinedDilithium: 100,
+  warpCoreDilithium: 0,
+  dilithiumRefineryActive: false,
   cargo: 0,
   hull: 100,
   shield: 100,
