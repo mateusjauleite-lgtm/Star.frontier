@@ -196,16 +196,37 @@ export function createGameplayFramePhases(getDependencies) {
     },
 
     updateHud() {
-      const { $, state } = getDependencies();
-  if ($('speed')) $('speed').textContent = Math.round(state.speed);
-  if ($('fuel')) $('fuel').textContent = Math.round(state.fuel);
-  if ($('cargo')) $('cargo').textContent = state.cargo + ' / 100';
-  if ($('hull')) $('hull').textContent = state.hull;
-  if ($('shield')) $('shield').textContent = state.shield;
+      const { $, state, ship, getActivePilotHudProfile } = getDependencies();
+      const activeProfile = getActivePilotHudProfile?.();
+      if (activeProfile) {
+        $('hud')?.setAttribute('data-active-hud-profile', activeProfile);
+        $('flight-controls')?.setAttribute('data-active-hud-profile', activeProfile);
+      }
+      if ($('speed')) $('speed').textContent = Math.round(state.speed);
+      if ($('fuel')) $('fuel').textContent = Math.round(state.fuel);
+      if ($('cargo')) $('cargo').textContent = state.cargo + ' / 100';
+      if ($('hull')) $('hull').textContent = state.hull;
+      if ($('shield')) $('shield').textContent = state.shield;
+      if ($('hud-credits')) $('hud-credits').textContent = state.credits.toLocaleString('pt-BR');
 
-  if ($('hud-credits')) {
-    $('hud-credits').textContent = state.credits.toLocaleString('pt-BR');
-  }
-}
+      const position = ship?.position;
+      const coordinates = $('navigation-coordinates');
+      if (coordinates && position && [position.x, position.y, position.z].every(Number.isFinite)) {
+        coordinates.textContent = [position.x, position.y, position.z]
+          .map(value => value.toFixed(1)).join(' / ');
+      }
+      const target = ship?.userData?.navigationTarget;
+      if ($('navigation-distance')) {
+        $('navigation-distance').textContent = Number.isFinite(target?.distance)
+          ? target.distance.toFixed(1) + ' u' : 'SEM ALVO';
+      }
+      if ($('navigation-bearing')) {
+        $('navigation-bearing').textContent = Number.isFinite(target?.bearing)
+          ? target.bearing.toFixed(1) + '°' : '—';
+      }
+      if ($('combat-target-name')) {
+        $('combat-target-name').textContent = String(target?.name || 'SEM ALVO');
+      }
+    }
   };
 }
