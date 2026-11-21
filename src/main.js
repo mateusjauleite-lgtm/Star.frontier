@@ -1059,6 +1059,7 @@ function resize3D() {
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
   scheduleCharacterHudLayout();
+  if (characterCore.snapshot().mode === 'ship-control') schedulePilotHudLayout();
 }
 
 /* MOVIMENTO */
@@ -1876,6 +1877,7 @@ function enterPilotMode() {
   state.view.y = 0;
   state.aim = { x: 0, y: 0 };
   setPilotInterface(true);
+  schedulePilotHudLayout();
   toast('Comando da Aurora-7 assumido.');
 }
 
@@ -2504,22 +2506,30 @@ registerGameplayActions({
   setNpcReady: value => { npcReady = value; }
 });
 
-/* Editor do HUD do personagem: não move nem modifica o HUD da nave. */
+/* Editor universal de HUD: um editor, perfis e posições independentes. */
 const characterHudEditor = $('character-hud-editor');
 const characterHudEditable = [...document.querySelectorAll('[data-hud-editable]')];
-let characterHudEditing = false;
-let characterHudBeforeEdit = null;
-let characterHudDrag = null;
+const pilotHudEditable = [...document.querySelectorAll('[data-pilot-hud-editable]')];
+const hudEditorProfiles = {
+  character: { elements: characterHudEditable, setting: 'characterHudLayout' },
+  pilot: { elements: pilotHudEditable, setting: 'pilotHudLayout' }
+};
+let hudEditorTarget = 'character';
+let hudEditorEditing = false;
+let hudEditorBeforeEdit = null;
+let hudEditorDrafts = null;
+let hudEditorOriginalPilotMode = false;
+let hudEditorDrag = null;
 
-function readCharacterHudLayout() {
-  return state.settings?.characterHudLayout && typeof state.settings.characterHudLayout === 'object'
-    ? structuredClone(state.settings.characterHudLayout)
-    : {};
+function readHudEditorLayout(target) {
+  const key = hudEditorProfiles[target].setting;
+  const layout = state.settings?.[key];
+  return layout && typeof layout === 'object' ? structuredClone(layout) : {};
 }
 
-function applyCharacterHudLayout(layout = {}) {
-  characterHudEditable.forEach(element => {
-    const saved = layout[element.dataset.hudEditable];
+function applyHudEditorLayout(target, layout = {}) {
+  hudEditorProfiles[target].elements.forEach(element => {
+    const saved = layout[element.dataset.hudEditable || element.dataset.pilotHudEditable];
     if (!saved || !Number.isFinite(saved.x) || !Number.isFinite(saved.y)) {
       ['position', 'left', 'top', 'right', 'bottom', 'transform'].forEach(prop => element.style.removeProperty(prop));
       return;
@@ -2536,26 +2546,28 @@ function applyCharacterHudLayout(layout = {}) {
   });
 }
 
-function scheduleCharacterHudLayout() {
+function scheduleHudEditorLayout(target) {
   requestAnimationFrame(() => requestAnimationFrame(() => {
     const gameScreen = $('game-screen');
     if (!gameScreen || gameScreen.classList.contains('hidden')) return;
-
-    const hasMeasuredHud = characterHudEditable.every(element => {
+    const elements = hudEditorProfiles[target].elements;
+    if (!elements.length || !elements.every(element => {
       const rect = element.getBoundingClientRect();
       return rect.width > 0 && rect.height > 0;
-    });
-    if (!hasMeasuredHud) return;
-
-    applyCharacterHudLayout(readCharacterHudLayout());
+    })) return;
+    applyHudEditorLayout(target, readHudEditorLayout(target));
   }));
 }
 
-function captureCharacterHudLayout() {
+function scheduleCharacterHudLayout() { scheduleHudEditorLayout('character'); }
+function schedulePilotHudLayout() { scheduleHudEditorLayout('pilot'); }
+
+function captureHudEditorLayout(target) {
   const layout = {};
-  characterHudEditable.forEach(element => {
+  hudEditorProfiles[target].elements.forEach(element => {
     const rect = element.getBoundingClientRect();
-    layout[element.dataset.hudEditable] = {
+    const key = element.dataset.hudEditable || element.dataset.pilotHudEditable;
+    layout[key] = {
       x: Math.max(0, Math.min(1, rect.left / Math.max(1, window.innerWidth - rect.width))),
       y: Math.max(0, Math.min(1, rect.top / Math.max(1, window.innerHeight - rect.height)))
     };
@@ -2563,45 +2575,89 @@ function captureCharacterHudLayout() {
   return layout;
 }
 
+function setHudEditorTarget(target) {
+  if (!hudEditorEditing || !hudEditorProfiles[target] || target === hudEditorTarget) return;
+  hudEditorDrafts[hudEditorTarget] = captureHudEditorLayout(hudEditorTarget);
+  hudEditorProfiles[hudEditorTarget].elements.forEach(element => element.classList.remove('hud-editable-active'));
+  hudEditorTarget = target;
+  setPilotInterface(target === 'pilot');
+  applyHudEditorLayout(target, hudEditorDrafts[target]);
+  hudEditorProfiles[target].elements.forEach(element => element.classList.add('hud-editable-active'));
+  characterHudEditor?.classList.toggle('pilot-preview', target === 'pilot');
+  document.querySelectorAll('[data-hud-editor-target]').forEach(button => {
+    button.setAttribute('aria-pressed', String(button.dataset.hudEditorTarget === target));
+  });
+  const title = $('hud-editor-title');
+  const hint = $('hud-editor-hint');
+  if (title) title.textContent = target === 'pilot' ? 'EDITAR HUD DO PILOTO' : 'EDITAR HUD DO PERSONAGEM';
+  if (hint) hint.textContent = target === 'pilot'
+    ? 'Arraste os instrumentos e controles da nave. Os comandos ficam bloqueados durante a edição.'
+    : 'Arraste os elementos do personagem para a posição desejada.';
+}
+
 function finishCharacterHudEditing({ saveChanges = false, reset = false } = {}) {
-  if (!characterHudEditing) return;
-  state.settings ||= {};
-  if (reset) {
-    delete state.settings.characterHudLayout;
-    applyCharacterHudLayout({});
-  } else if (saveChanges) {
-    state.settings.characterHudLayout = captureCharacterHudLayout();
+  if (!hudEditorEditing) return;
+  hudEditorDrafts[hudEditorTarget] = captureHudEditorLayout(hudEditorTarget);
+  if (reset) hudEditorDrafts[hudEditorTarget] = {};
+  if (saveChanges || reset) {
+    state.settings ||= {};
+    Object.entries(hudEditorProfiles).forEach(([target, profile]) => {
+      state.settings[profile.setting] = hudEditorDrafts[target];
+    });
     save();
   } else {
-    applyCharacterHudLayout(characterHudBeforeEdit || {});
+    Object.entries(hudEditorProfiles).forEach(([target]) => {
+      applyHudEditorLayout(target, hudEditorBeforeEdit[target]);
+    });
   }
-  characterHudEditing = false;
-  characterHudDrag = null;
-  characterHudEditable.forEach(element => element.classList.remove('hud-editable-active'));
+  Object.values(hudEditorProfiles).forEach(profile => {
+    profile.elements.forEach(element => element.classList.remove('hud-editable-active'));
+  });
+  hudEditorEditing = false;
+  hudEditorDrag = null;
+  characterHudEditor?.classList.remove('pilot-preview');
   characterHudEditor?.classList.add('hidden');
   characterHudEditor?.setAttribute('aria-hidden', 'true');
-  if (reset) save();
+  setPilotInterface(hudEditorOriginalPilotMode);
+  if (saveChanges) toast('Configuração do HUD salva.');
+  else if (reset) toast('HUD restaurado ao padrão.');
 }
 
 function startCharacterHudEditing() {
-  if (characterHudEditing) return;
-  characterHudBeforeEdit = readCharacterHudLayout();
-  applyCharacterHudLayout(characterHudBeforeEdit);
-  characterHudEditing = true;
+  if (hudEditorEditing) return;
+  hudEditorOriginalPilotMode = characterCore.snapshot().mode === 'ship-control';
+  hudEditorBeforeEdit = {
+    character: readHudEditorLayout('character'),
+    pilot: readHudEditorLayout('pilot')
+  };
+  hudEditorDrafts = structuredClone(hudEditorBeforeEdit);
+  hudEditorTarget = hudEditorOriginalPilotMode ? 'pilot' : 'character';
+  hudEditorEditing = true;
   $('game-menu-modal')?.classList.add('hidden');
+  setPilotInterface(hudEditorTarget === 'pilot');
+  applyHudEditorLayout(hudEditorTarget, hudEditorDrafts[hudEditorTarget]);
+  hudEditorProfiles[hudEditorTarget].elements.forEach(element => element.classList.add('hud-editable-active'));
+  characterHudEditor?.classList.toggle('pilot-preview', hudEditorTarget === 'pilot');
   characterHudEditor?.classList.remove('hidden');
   characterHudEditor?.setAttribute('aria-hidden', 'false');
-  characterHudEditable.forEach(element => element.classList.add('hud-editable-active'));
-  // O editor é aberto a partir do menu de pausa, que já interrompeu o Runtime.
-  // Ao ocultar o menu, retoma a simulação para que SALVAR/CANCELAR não deixem
-  // a gameplay presa no estado pausado.
+  document.querySelectorAll('[data-hud-editor-target]').forEach(button => {
+    button.setAttribute('aria-pressed', String(button.dataset.hudEditorTarget === hudEditorTarget));
+  });
+  const title = $('hud-editor-title');
+  const hint = $('hud-editor-hint');
+  if (title) title.textContent = hudEditorTarget === 'pilot' ? 'EDITAR HUD DO PILOTO' : 'EDITAR HUD DO PERSONAGEM';
+  if (hint) hint.textContent = hudEditorTarget === 'pilot'
+    ? 'Arraste os instrumentos e controles da nave. Os comandos ficam bloqueados durante a edição.'
+    : 'Arraste os elementos do personagem para a posição desejada.';
   if (runtimeBridge?.status === 'paused') runtimeBridge.resume();
   toast('Arraste os elementos do HUD. Depois toque em SALVAR.');
 }
 
-characterHudEditable.forEach(element => {
+[...characterHudEditable, ...pilotHudEditable].forEach(element => {
   element.addEventListener('pointerdown', event => {
-    if (!characterHudEditing || (event.target.closest('button') && element.dataset.hudEditable !== 'action')) return;
+    if (!hudEditorEditing || !hudEditorProfiles[hudEditorTarget].elements.includes(element)) return;
+    const key = element.dataset.hudEditable || element.dataset.pilotHudEditable;
+    if (event.target.closest('button') && !['action', 'commands'].includes(key)) return;
     event.preventDefault();
     event.stopPropagation();
     const rect = element.getBoundingClientRect();
@@ -2611,30 +2667,34 @@ characterHudEditable.forEach(element => {
     element.style.right = 'auto';
     element.style.bottom = 'auto';
     element.style.transform = 'none';
-    characterHudDrag = { element, pointerId: event.pointerId, offsetX: event.clientX - rect.left, offsetY: event.clientY - rect.top };
+    hudEditorDrag = { element, pointerId: event.pointerId, offsetX: event.clientX - rect.left, offsetY: event.clientY - rect.top };
     element.setPointerCapture?.(event.pointerId);
   });
   element.addEventListener('pointermove', event => {
-    if (!characterHudEditing || !characterHudDrag || characterHudDrag.element !== element || characterHudDrag.pointerId !== event.pointerId) return;
+    if (!hudEditorEditing || !hudEditorDrag || hudEditorDrag.element !== element || hudEditorDrag.pointerId !== event.pointerId) return;
     event.preventDefault();
     const rect = element.getBoundingClientRect();
-    const x = Math.max(0, Math.min(window.innerWidth - rect.width, event.clientX - characterHudDrag.offsetX));
-    const y = Math.max(0, Math.min(window.innerHeight - rect.height, event.clientY - characterHudDrag.offsetY));
+    const x = Math.max(0, Math.min(window.innerWidth - rect.width, event.clientX - hudEditorDrag.offsetX));
+    const y = Math.max(0, Math.min(window.innerHeight - rect.height, event.clientY - hudEditorDrag.offsetY));
     element.style.left = `${x}px`;
     element.style.top = `${y}px`;
   });
   const endDrag = event => {
-    if (characterHudDrag?.element === element && characterHudDrag.pointerId === event.pointerId) characterHudDrag = null;
+    if (hudEditorDrag?.element === element && hudEditorDrag.pointerId === event.pointerId) hudEditorDrag = null;
   };
   element.addEventListener('pointerup', endDrag);
   element.addEventListener('pointercancel', endDrag);
 });
 
+document.querySelectorAll('[data-hud-editor-target]').forEach(button => {
+  button.addEventListener('click', () => setHudEditorTarget(button.dataset.hudEditorTarget));
+});
 $('edit-character-hud-btn')?.addEventListener('click', startCharacterHudEditing);
 $('character-hud-save-btn')?.addEventListener('click', () => finishCharacterHudEditing({ saveChanges: true }));
 $('character-hud-cancel-btn')?.addEventListener('click', () => finishCharacterHudEditing());
 $('character-hud-reset-btn')?.addEventListener('click', () => finishCharacterHudEditing({ reset: true }));
-applyCharacterHudLayout(readCharacterHudLayout());
+applyHudEditorLayout('character', readHudEditorLayout('character'));
+applyHudEditorLayout('pilot', readHudEditorLayout('pilot'));
 
 /* MENU DE PAUSA */
 
