@@ -1716,7 +1716,7 @@ function updateEngineeringConsoleInteraction() {
   if (!validContext) {
     engineeringInteractionAvailable = false;
     engineeringTerminal.setPresence(false, false);
-    if (previousAvailable || previousActive) {
+    if ((previousAvailable || previousActive) && !nearbyElevator) {
       const button = $('character-action-btn');
       if (button) { button.disabled = true; button.textContent = 'AÇÃO'; button.classList.remove('available'); }
       characterCore.setInteractionTarget(null);
