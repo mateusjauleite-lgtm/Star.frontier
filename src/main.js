@@ -67,6 +67,7 @@ const shipManagementTerminal = createShipManagementTerminalController({
 let engineeringConsoleActive = false;
 let engineeringTerminal = null;
 let engineeringTelemetryAccumulator = 0;
+let managementTelemetryAccumulator = 0;
 const engineeringRenderer = createEngineeringTerminalRenderer({
   root: $('game-screen'),
   onOpen: () => toggleEngineeringConsole(),
@@ -1797,6 +1798,15 @@ function updateShipManagementInteraction(dt = 0) {
   shipManagementInteractionAvailable = available;
   shipManagementHologram?.setVisible(visible);
   shipManagementTerminal.setPresence(visible, available);
+  if (shipManagementTerminal.getSnapshot().open) {
+    managementTelemetryAccumulator += Math.max(0, Number(dt) || 0);
+    if (managementTelemetryAccumulator >= 0.18) {
+      managementTelemetryAccumulator = 0;
+      shipManagementTerminal.refresh();
+    }
+  } else {
+    managementTelemetryAccumulator = 0;
+  }
 }
 
 function updateEngineeringConsoleInteraction(dt = 0) {
