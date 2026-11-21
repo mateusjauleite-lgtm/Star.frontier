@@ -285,6 +285,27 @@ export function createExplorationShip() {
     body.rotation.x = Math.PI / 2;
     nacelle.add(body);
 
+    // Painéis de fluxo e anéis técnicos para dar leitura de nacelle de dobra,
+    // mantendo os detalhes dentro do volume já existente da estrutura.
+    for (const [index, z] of [-27, -18, 18, 27].entries()) {
+      const band = new THREE.Mesh(
+        new THREE.TorusGeometry(index % 2 === 0 ? 3.18 : 3.28, 0.16, 8, 28),
+        trimMaterial
+      );
+      band.name = `Nacelle-Armor-Band-${side}-${index}`;
+      band.rotation.x = Math.PI / 2;
+      band.position.z = z;
+      nacelle.add(band);
+    }
+
+    const upperSpine = new THREE.Mesh(
+      new THREE.BoxGeometry(0.34, 0.22, 48),
+      trimMaterial
+    );
+    upperSpine.name = side < 0 ? 'Port-Nacelle-Dorsal-Spine' : 'Starboard-Nacelle-Dorsal-Spine';
+    upperSpine.position.set(0, 2.95, 0);
+    nacelle.add(upperSpine);
+
     const nacelleGlow = new THREE.Mesh(
       new THREE.BoxGeometry(0.42, 0.5, 54), glowMaterial
     );
