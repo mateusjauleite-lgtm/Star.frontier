@@ -134,3 +134,37 @@
 @media (max-width: 600px) {
   .management-power-readouts { grid-template-columns: 1fr 1fr; }
 }
+
+
+.management-core-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0 13px;
+  padding: 10px;
+  border: 1px solid rgba(103, 232, 255, .16);
+  border-radius: 7px;
+  color: #86aebc;
+  font-size: 10px;
+  letter-spacing: .08em;
+}
+.management-core-link span {
+  padding: 6px 8px;
+  border: 1px solid rgba(103, 232, 255, .2);
+  border-radius: 5px;
+  white-space: nowrap;
+}
+.management-core-link i {
+  position: relative;
+  flex: 1;
+  height: 2px;
+  background: rgba(103, 232, 255, .18);
+}
+.management-core-link.is-active {
+  color: #e4faff;
+  border-color: rgba(103, 232, 255, .45);
+}
+.management-core-link.is-active i {
+  background: linear-gradient(90deg, rgba(103,232,255,.2), #78efff, rgba(103,232,255,.2));
+  box-shadow: 0 0 9px rgba(103,232,255,.55);
+}
