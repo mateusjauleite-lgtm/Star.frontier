@@ -5,7 +5,7 @@ const PROPULSION_INPUTS = new Set(['throttle', 'braking', 'warpDriveButton']);
 const CONTROL_AUTHORITIES = new Set(['bridge', 'engineering', 'automatic']);
 const WARP_EXIT_MODES = new Set(['smooth', 'direct']);
 
-export function registerShipComputerSystems(computer, { state, getShip, getShipYaw, getPitchAngle, getAsteroids }) {
+export function registerShipComputerSystems(computer, { state, getShip, getShipYaw, getPitchAngle, getAsteroids, getDilithiumProcessing = () => null }) {
   if (!computer || !state || typeof getShip !== 'function' || typeof getShipYaw !== 'function' || typeof getPitchAngle !== 'function' || typeof getAsteroids !== 'function') {
     throw new TypeError('Dependências dos sistemas do computador incompletas.');
   }
@@ -29,6 +29,7 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
       speed: state.speed,
       fuel: state.fuel,
       refinedDilithium: state.refinedDilithium,
+      warpCoreDilithium: state.warpCoreDilithium,
       warpDriveActive,
       warpStage: state.warpCurrentStage || 0,
       selectedWarpStage: state.warpStage || 5,
@@ -44,7 +45,7 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
   const applyPropulsionInput = ({ control, active } = {}) => {
     if (!PROPULSION_INPUTS.has(control) || typeof active !== 'boolean') return { accepted: false, reason: 'invalid-propulsion-input' };
     if (!readShip()) return { accepted: false, reason: 'ship-unavailable' };
-    if (control === 'warpDriveButton' && active && !(Number(state.refinedDilithium) > 0)) {
+    if (control === 'warpDriveButton' && active && !(Number(state.warpCoreDilithium) > 0)) {
       return { accepted: false, reason: 'dilithium-unavailable' };
     }
     state[control] = active;
@@ -93,6 +94,7 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
           available: true,
           conventionalFuel: state.fuel,
           refinedDilithium: state.refinedDilithium,
+          warpCoreDilithium: state.warpCoreDilithium,
           shields: state.shield,
           hull: state.hull,
           propulsionAuthority: propulsion.authority,
@@ -132,8 +134,23 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
       status: () => ({
         ...readPropulsion(),
         warpCore: 'connected-to-ship-computer',
-        warpField: 'five-stage-cruise'
+        warpField: 'five-stage-cruise',
+        dilithiumProcessing: getDilithiumProcessing()?.snapshot?.() ?? { available: false }
       }),
+      setRefineryActive: (payload, context) => {
+        if (!requireEngineering(context)) return { accepted: false, reason: 'engineering-terminal-required' };
+        const system = getDilithiumProcessing();
+        return system?.setRefineryActive?.(payload?.active) ?? { accepted: false, reason: 'processing-system-unavailable' };
+      },
+      transferDilithiumToCore: (payload, context) => {
+        if (!requireEngineering(context)) return { accepted: false, reason: 'engineering-terminal-required' };
+        const system = getDilithiumProcessing();
+        return system?.transferToCore?.(payload ?? {}) ?? { accepted: false, reason: 'processing-system-unavailable' };
+      },
+      dilithiumStatus: (payload, context) => {
+        if (!requireEngineering(context)) return { accepted: false, reason: 'engineering-terminal-required' };
+        return getDilithiumProcessing()?.snapshot?.() ?? { available: false };
+      },
       setAuthority: (payload, context) => {
         if (!requireEngineering(context)) return { accepted: false, reason: 'engineering-terminal-required' };
         const mode = payload?.mode;
