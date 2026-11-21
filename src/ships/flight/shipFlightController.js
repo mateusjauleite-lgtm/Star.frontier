@@ -46,8 +46,11 @@ export function createShipFlightController(dependencies = {}) {
       Number.isFinite(deltaSeconds) ? deltaSeconds : 0, 0, 0.04
     );
     const sensitivity = Number(state.settings.sensitivity) || 1;
-    const manualOverride = Math.abs(state.move.x) > 0.015 ||
-      Math.abs(state.move.y) > 0.015 ||
+    const hasPropulsion = state.fuel > 0 || state.nitro > 0;
+    const moveX = hasPropulsion ? state.move.x : 0;
+    const moveY = hasPropulsion ? state.move.y : 0;
+    const manualOverride = Math.abs(moveX) > 0.015 ||
+      Math.abs(moveY) > 0.015 ||
       state.throttle || state.braking || state.nitroButton;
 
     if (manualOverride && ship.userData.earthSurfaceAnchored) {
@@ -64,9 +67,9 @@ export function createShipFlightController(dependencies = {}) {
 
     // Guinada no eixo vertical global; arfagem no eixo lateral local.
     // Y negativo sobe; Y positivo desce.
-    shipYaw.rotation.y -= state.move.x * 1.25 * safeDt * sensitivity;
+    shipYaw.rotation.y -= moveX * 1.25 * safeDt * sensitivity;
 
-    const pitchInput = state.move.y * safeDt * sensitivity;
+    const pitchInput = moveY * safeDt * sensitivity;
     const maxPitch = THREE.MathUtils.degToRad(65);
     pitchAngle = THREE.MathUtils.clamp(
       pitchAngle - pitchInput, -maxPitch, maxPitch
@@ -74,7 +77,7 @@ export function createShipFlightController(dependencies = {}) {
     shipPitch.rotation.x = pitchAngle;
 
     // A inclinação visual não altera a orientação usada para navegar.
-    const targetRoll = -state.move.x * 0.25;
+    const targetRoll = -moveX * 0.25;
     shipVisual.rotation.z = THREE.MathUtils.lerp(
       shipVisual.rotation.z, targetRoll, Math.min(1, safeDt * 3)
     );
@@ -85,8 +88,8 @@ export function createShipFlightController(dependencies = {}) {
       throttle: Boolean(state.throttle && state.fuel > 0),
       boosting,
       braking: Boolean(state.braking),
-      moveX: state.move.x,
-      moveY: state.move.y,
+      moveX,
+      moveY,
       speed: state.speed,
       nacellesLit: (getEngineLights() || []).some(
         light => light.visible && light.intensity > 2
