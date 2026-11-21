@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createShipComputer } from './shipComputer.js';
 import { registerShipComputerSystems } from './shipComputerSystems.js';
+import { createDilithiumRefinerySystem } from '../systems/dilithiumRefinerySystem.js';
 
 function createHarness() {
   const position = {
@@ -34,15 +35,18 @@ function createHarness() {
   let currentShip = ship;
   let pitchAngle = -0.2;
   const computer = createShipComputer();
-  computer.registerTerminal({ id: 'ship-management-terminal', name: 'Terminal de gerenciamento', systems: ['navigation', 'sensors', 'power'] });
+  const refineryState = { rawDilithiumOre: 12, refineryRefinedStorage: 3, refinedDilithium: 60 };
+  const refinerySystem = createDilithiumRefinerySystem(refineryState);
+  computer.registerTerminal({ id: 'ship-management-terminal', name: 'Terminal de gerenciamento', systems: ['navigation', 'sensors', 'power', 'refinery'] });
   computer.registerTerminal({ id: 'pilot-console', name: 'Console de pilotagem', systems: ['navigation', 'propulsion'] });
-  computer.registerTerminal({ id: 'engineering-console', name: 'Console de Engenharia', systems: ['engineering', 'propulsion', 'power'] });
+  computer.registerTerminal({ id: 'engineering-console', name: 'Console de Engenharia', systems: ['engineering', 'propulsion', 'power', 'refinery'] });
   registerShipComputerSystems(computer, {
     state,
     getShip: () => currentShip,
     getShipYaw: () => 1.25,
     getPitchAngle: () => pitchAngle,
-    getAsteroids: () => asteroids
+    getAsteroids: () => asteroids,
+    refinerySystem
   });
   computer.boot();
   computer.connectTerminal('ship-management-terminal', 'TESTE');
@@ -51,6 +55,7 @@ function createHarness() {
   return {
     computer,
     state,
+    refinerySystem,
     setShip(value) { currentShip = value; },
     setPitch(value) { pitchAngle = value; }
   };
@@ -183,4 +188,16 @@ test('subsistemas sinalizam indisponibilidade quando a nave não existe', () => 
   });
   assert.deepEqual(computer.dispatch('ship-management-terminal', 'power', 'status').result, { available: false });
   assert.equal(computer.dispatch('engineering-console', 'engineering', 'status').result.available, false);
+});
+
+
+test('console central tem autoridade sobre refinaria e transferência', () => {
+  const { computer, refinerySystem } = createHarness();
+  const central = computer.dispatch('ship-management-terminal', 'refinery', 'setTransferEnabled', { enabled: true });
+  assert.equal(central.result.accepted, true);
+  assert.equal(refinerySystem.snapshot().transferEnabled, true);
+  const local = computer.dispatch('engineering-console', 'refinery', 'setRefineryEnabled', { enabled: false });
+  assert.equal(local.result.accepted, false);
+  assert.equal(local.result.reason, 'higher-power-console-authority');
+  assert.equal(refinerySystem.snapshot().refineryEnabled, true);
 });
