@@ -14,6 +14,7 @@ on:
       - feature/ship-management-holographic-terminal
       - feature/engineering-warp-core-foundation
       - feature/warp-stages-engineering-controls
+      - feature/deck3-dilithium-refinery-storage
       - fix/character-hud-startup-layout
       - fix/pilot-hud-flight-controls
   pull_request:
