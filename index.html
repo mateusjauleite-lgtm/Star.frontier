@@ -289,8 +289,13 @@
     <!-- CONTROLES DE VOO -->
     <div id="flight-controls" class="ship-interface hidden">
 
-      <div id="aim-touch-area" aria-label="Área de controle da mira"></div>
-      <button id="pilot-aim-btn" class="pilot-aim-button" type="button" aria-pressed="true">◎ MIRA</button>
+      <div id="aim-touch-area" aria-label="Arraste para olhar ao redor"></div>
+      <div class="aim-stick-wrap">
+        <div class="control-label">MIRA</div>
+        <div id="aim-stick" class="stick aim-stick" aria-label="Joystick independente de mira">
+          <div class="knob"></div>
+        </div>
+      </div>
 
       <!-- LADO ESQUERDO -->
       <div class="control-side left-side">
@@ -309,12 +314,7 @@
       <div class="control-side right-side">
 
         <div class="control-label">COMANDOS</div>
-        <div class="aim-stick-wrap">
-          <div class="control-label">MIRA</div>
-          <div id="aim-stick" class="stick aim-stick" aria-label="Joystick independente de mira">
-            <div class="knob"></div>
-          </div>
-        </div>
+
 
         <div class="button-pair">
           <button id="fire-btn" class="control-button">
