@@ -82,7 +82,9 @@ export function createShipManagementHologram({
   panel.name = 'ManagementHologramField';
   projection.add(panel);
 
-  const frameGeometry = new THREE.EdgesGeometry(new THREE.PlaneGeometry(2.65, 2.85));
+  const framePlaneGeometry = new THREE.PlaneGeometry(2.65, 2.85);
+  const frameGeometry = new THREE.EdgesGeometry(framePlaneGeometry);
+  framePlaneGeometry.dispose();
   const frame = new THREE.LineSegments(frameGeometry, lineMaterial);
   projection.add(frame);
 
