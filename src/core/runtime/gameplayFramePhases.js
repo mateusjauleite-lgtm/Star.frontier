@@ -18,7 +18,7 @@ export function createGameplayFramePhases(getDependencies) {
     },
 
     updateCharacterMode(dt) {
-      const { characterCore, updateCharacterMovement, updateCharacterWeapon, updateExternalElevatorAnimation, updateElevatorInteraction, updatePilotInteraction, updateShipManagementInteraction, updateEngineeringConsoleInteraction, updateExternalElevatorInteraction, updateCharacterCamera, updateFlight, updateCamera } = getDependencies();
+      const { characterCore, updateCharacterMovement, updateCharacterWeapon, updateExternalElevatorAnimation, updateElevatorInteraction, updatePilotInteraction, updateShipManagementInteraction, updateEngineeringConsoleInteraction, updateExternalElevatorInteraction, updateCharacterCamera, updateFlight, updateCamera, state } = getDependencies();
   if (characterCore.snapshot().mode === 'on-foot') {
     updateCharacterMovement(dt);
     updateCharacterWeapon(dt);
@@ -26,6 +26,11 @@ export function createGameplayFramePhases(getDependencies) {
     updateElevatorInteraction();
     updatePilotInteraction();
     updateExternalElevatorInteraction();
+    // A nave continua em movimento enquanto a tripulação está a pé,
+    // inclusive durante a dobra iniciada ou monitorada pelo console de Engenharia.
+    if (state && (Number(state.speed) > 0.01 || state.warpDriveActive || state.warpDriveButton || state.warpTransition === 'exiting')) {
+      updateFlight(dt);
+    }
     updateCharacterCamera();
   } else {
     updateFlight(dt);
