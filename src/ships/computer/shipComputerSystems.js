@@ -5,7 +5,7 @@ const PROPULSION_INPUTS = new Set(['throttle', 'braking', 'warpDriveButton']);
 const CONTROL_AUTHORITIES = new Set(['bridge', 'engineering', 'automatic']);
 const WARP_EXIT_MODES = new Set(['smooth', 'direct']);
 
-export function registerShipComputerSystems(computer, { state, getShip, getShipYaw, getPitchAngle, getAsteroids, shieldSystem = null }) {
+export function registerShipComputerSystems(computer, { state, getShip, getShipYaw, getPitchAngle, getAsteroids, shieldSystem = null, refinerySystem = null }) {
   if (!computer || !state || typeof getShip !== 'function' || typeof getShipYaw !== 'function' || typeof getPitchAngle !== 'function' || typeof getAsteroids !== 'function') {
     throw new TypeError('Dependências dos sistemas do computador incompletas.');
   }
@@ -99,7 +99,8 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
           propulsionAuthority: propulsion.authority,
           warpDriveActive: propulsion.warpDriveActive,
           warpStage: propulsion.warpStage,
-          warpTransition: propulsion.warpTransition
+          warpTransition: propulsion.warpTransition,
+          refinery: refinerySystem?.snapshot?.() ?? null
         };
       }
     },
@@ -120,6 +121,23 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
       }
     },
     getStatus: () => readShip() ? 'online' : 'standby'
+  });
+  const canControlRefinery = context => context?.terminalId === 'ship-management-terminal' ||
+    (context?.terminalId === 'engineering-console' && !computer.isTerminalConnected('ship-management-terminal'));
+  computer.registerSystem('refinery', {
+    name: 'Refinaria e transferência do núcleo',
+    commands: {
+      status: () => refinerySystem?.snapshot?.() ?? { available: false },
+      setRefineryEnabled: (payload, context) => {
+        if (!canControlRefinery(context)) return { accepted: false, reason: 'higher-power-console-authority' };
+        return { accepted: true, status: refinerySystem?.setRefineryEnabled?.(Boolean(payload?.enabled)) };
+      },
+      setTransferEnabled: (payload, context) => {
+        if (!canControlRefinery(context)) return { accepted: false, reason: 'higher-power-console-authority' };
+        return { accepted: true, status: refinerySystem?.setTransferEnabled?.(Boolean(payload?.enabled)) };
+      }
+    },
+    getStatus: () => readShip() ? (refinerySystem?.snapshot?.().refineryEnabled ? 'online' : 'offline') : 'standby'
   });
   computer.registerSystem('propulsion', {
     name: 'Propulsão',
@@ -149,7 +167,8 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
       status: () => ({
         ...readPropulsion(),
         warpCore: 'connected-to-ship-computer',
-        warpField: 'five-stage-cruise'
+        warpField: 'five-stage-cruise',
+        refinery: refinerySystem?.snapshot?.() ?? null
       }),
       setAuthority: (payload, context) => {
         if (!requireEngineering(context)) return { accepted: false, reason: 'engineering-terminal-required' };
