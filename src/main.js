@@ -1761,7 +1761,7 @@ function updateShipManagementInteraction(dt = 0) {
 }
 
 function updateEngineeringConsoleInteraction(dt = 0) {
-  dilithiumProcessingSystem?.update(dt);
+  shipComputer.tick('engineering', { dt });
   engineeringHologram?.update(dt);
   const previousAvailable = engineeringInteractionAvailable;
   const previousActive = engineeringConsoleActive;
