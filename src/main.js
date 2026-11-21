@@ -2606,7 +2606,7 @@ function hudLayoutKey(scope) {
 }
 
 function getPilotHudElements(profile = hudEditorPilotProfile) {
-  return pilotHudEditable.filter(element => element.dataset.hudProfile === profile);
+  return pilotHudEditable.filter(element => element.dataset.hudProfile.split(/\s+/).includes(profile));
 }
 
 function readHudLayout(scope, profile = hudEditorPilotProfile) {
@@ -2669,7 +2669,7 @@ function readPilotHudButtonSize(profile = hudEditorPilotProfile) {
 
 function applyPilotHudButtonSize(size = readPilotHudButtonSize(), applyToButtons = true, profile = hudEditorPilotProfile) {
   if (applyToButtons) pilotHudEditable
-    .filter(element => element.dataset.hudProfile === profile)
+    .filter(element => element.dataset.hudProfile.split(/\s+/).includes(profile))
     .flatMap(element => [...element.querySelectorAll('[data-pilot-size-button]')])
     .forEach(button => {
       button.style.width = `${size.width}px`;
@@ -2690,7 +2690,7 @@ function applyPilotHudButtonSize(size = readPilotHudButtonSize(), applyToButtons
 
 function clearPilotHudButtonSize(profile = hudEditorPilotProfile) {
   pilotHudEditable
-    .filter(element => element.dataset.hudProfile === profile)
+    .filter(element => element.dataset.hudProfile.split(/\s+/).includes(profile))
     .flatMap(element => [...element.querySelectorAll('[data-pilot-size-button]')])
     .forEach(button => {
       ['width', 'min-width', 'height', 'min-height'].forEach(prop => button.style.removeProperty(prop));
@@ -2703,7 +2703,7 @@ function clearPilotHudButtonSize(profile = hudEditorPilotProfile) {
 function applyHudProfileVisibility(profile) {
   document.querySelectorAll('[data-hud-profile]').forEach(element => {
     const assigned = element.dataset.hudProfile;
-    const visible = assigned === 'all' || (profile !== null && assigned === profile);
+    const visible = assigned === 'all' || (profile !== null && assigned.split(/\s+/).includes(profile));
     element.classList.toggle('hud-profile-hidden', !visible);
   });
 }
@@ -2741,7 +2741,7 @@ function setHudEditorPilotProfile(profile) {
     applyHudProfileVisibility(profile);
     pilotHudEditable.forEach(element => element.classList.toggle(
       'hud-editable-active',
-      element.dataset.hudProfile === profile
+      element.dataset.hudProfile.split(/\s+/).includes(profile)
     ));
     applyHudLayout('pilot', readHudLayout('pilot', profile), profile);
   }
