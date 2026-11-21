@@ -12,7 +12,7 @@ export function createMiningRuntimeSystem({
     if (!isActive()) return false;
     const asteroids = getAsteroids() || [];
     const ship = getShip();
-    if (!ship?.position?.distanceTo) return false;
+    if (!ship?.position) return false;
     const inRange = asteroids
       .map(asteroid => ({ asteroid, distance: asteroid.position.distanceTo(ship.position) }))
       .filter(entry => entry.distance < 18)
