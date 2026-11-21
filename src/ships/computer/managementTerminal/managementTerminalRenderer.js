@@ -5,7 +5,7 @@ const MODULE_LABELS = Object.freeze({
   navigation: 'Navegação',
   tactical: 'Sensores e tático',
   weapons: 'Arsenal',
-  engineering: 'Engenharia',
+  engineering: 'Energia do núcleo',
   defense: 'Defesa',
   diagnostics: 'Diagnósticos'
 });
@@ -29,30 +29,23 @@ function collectTelemetry(value, prefix = '', rows = []) {
     for (const [key, item] of Object.entries(value)) {
       if (rows.length >= 8) break;
       const label = prefix ? `${prefix} / ${humanizeKey(key)}` : humanizeKey(key);
-      if (item && typeof item === 'object' && !Array.isArray(item) && Object.keys(item).length) {
-        collectTelemetry(item, label, rows);
-      } else {
-        rows.push([label, formatValue(item)]);
-      }
+      if (item && typeof item === 'object' && !Array.isArray(item) && Object.keys(item).length) collectTelemetry(item, label, rows);
+      else rows.push([label, formatValue(item)]);
     }
-  } else if (value !== undefined) {
-    rows.push([prefix || 'VALOR', formatValue(value)]);
-  }
+  } else if (value !== undefined) rows.push([prefix || 'VALOR', formatValue(value)]);
   return rows;
 }
 
 export function createShipManagementTerminalRenderer({ root, html = template } = {}) {
-  if (!root || typeof root.append !== 'function') {
-    throw new TypeError('O elemento raiz do HUD de gerenciamento não foi encontrado.');
-  }
-
+  if (!root || typeof root.append !== 'function') throw new TypeError('O elemento raiz do HUD de gerenciamento não foi encontrado.');
   let layer = null;
   let selectedModule = 'navigation';
   let openHandler = null;
   let closeHandler = null;
   let selectHandler = null;
+  let powerCommandHandler = null;
 
-  function mount({ onOpen = () => {}, onClose = () => {}, onModuleSelect = () => {} } = {}) {
+  function mount({ onOpen = () => {}, onClose = () => {}, onModuleSelect = () => {}, onPowerCommand = () => {} } = {}) {
     if (layer) return false;
     const wrapper = document.createElement('div');
     wrapper.className = 'ship-management-hud-layer';
@@ -62,13 +55,20 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
     openHandler = onOpen;
     closeHandler = onClose;
     selectHandler = onModuleSelect;
+    powerCommandHandler = onPowerCommand;
     layer.addEventListener('click', event => {
-      if (event.target.closest('[data-management-open]')) {
-        openHandler?.();
+      if (event.target.closest('[data-management-open]')) { openHandler?.(); return; }
+      if (event.target.closest('[data-management-close]')) { closeHandler?.(); return; }
+      const refinery = event.target.closest('[data-management-refinery-toggle]');
+      if (refinery) {
+        const enabled = refinery.dataset.enabled !== 'true';
+        powerCommandHandler?.('setRefineryEnabled', { enabled });
         return;
       }
-      if (event.target.closest('[data-management-close]')) {
-        closeHandler?.();
+      const transfer = event.target.closest('[data-management-transfer-toggle]');
+      if (transfer) {
+        const enabled = transfer.dataset.enabled !== 'true';
+        powerCommandHandler?.('setTransferEnabled', { enabled });
         return;
       }
       const button = event.target.closest('[data-management-module]');
@@ -90,16 +90,12 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
     });
   }
 
-  function selectModule(moduleId) {
-    selectedModule = moduleId;
-    updateSelection();
-  }
+  function selectModule(moduleId) { selectedModule = moduleId; updateSelection(); }
 
   function renderTelemetry(moduleData) {
     const output = layer.querySelector('[data-management-detail-output]');
     if (!output) return;
     output.replaceChildren();
-
     if (!moduleData?.available || !moduleData.data) {
       const empty = document.createElement('div');
       empty.className = 'management-telemetry-empty';
@@ -107,7 +103,6 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
       output.append(empty);
       return;
     }
-
     const rows = collectTelemetry(moduleData.data);
     if (!rows.length) {
       const empty = document.createElement('div');
@@ -128,26 +123,50 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
     }
   }
 
+  function renderPowerControls(moduleData, selectedModuleId, open) {
+    const controls = layer.querySelector('[data-management-power-controls]');
+    if (!controls) return;
+    const visible = selectedModuleId === 'engineering' && Boolean(moduleData?.available) && Boolean(open);
+    controls.hidden = !visible;
+    if (!visible) return;
+    const refinery = moduleData.data?.refinery || {};
+    const units = value => (Number(value) || 0).toFixed(2) + ' u';
+    const set = (selector, value) => {
+      const node = layer.querySelector(selector);
+      if (node) node.textContent = value;
+    };
+    set('[data-management-core-amount]', units(refinery.coreDilithium ?? moduleData.data.refinedDilithium));
+    set('[data-management-raw-amount]', units(refinery.rawOre));
+    set('[data-management-buffer-amount]', units(refinery.refinedBuffer));
+    set('[data-management-consumed-amount]', units(refinery.consumedTotal));
+    const refineryButton = layer.querySelector('[data-management-refinery-toggle]');
+    const transferButton = layer.querySelector('[data-management-transfer-toggle]');
+    if (refineryButton) {
+      refineryButton.dataset.enabled = String(Boolean(refinery.refineryEnabled));
+      refineryButton.textContent = refinery.refineryEnabled ? 'DESLIGAR REFINARIA' : 'LIGAR REFINARIA';
+      refineryButton.disabled = refinery.controlAllowed === false;
+    }
+    if (transferButton) {
+      transferButton.dataset.enabled = String(Boolean(refinery.transferEnabled));
+      transferButton.textContent = refinery.transferEnabled ? 'DESATIVAR TRANSFERÊNCIA' : 'ATIVAR TRANSFERÊNCIA';
+      transferButton.disabled = refinery.controlAllowed === false;
+    }
+  }
+
   function render({ snapshot, present, interactionAvailable, open, modules = [], selectedModuleId, moduleData } = {}) {
     if (!layer) return;
     layer.hidden = !present && !open;
     layer.dataset.mode = open ? 'interactive' : 'passive';
     layer.setAttribute('aria-hidden', String(!present && !open));
-
     const openButton = layer.querySelector('[data-management-open]');
-    if (openButton) {
-      openButton.hidden = !interactionAvailable || open;
-      openButton.disabled = !interactionAvailable || open;
-    }
+    if (openButton) { openButton.hidden = !interactionAvailable || open; openButton.disabled = !interactionAvailable || open; }
     const interaction = layer.querySelector('[data-management-interaction]');
     if (interaction) interaction.hidden = !open;
-
     const online = Boolean(snapshot?.online);
     layer.querySelectorAll('[data-management-status]').forEach(status => {
       status.textContent = online ? 'ONLINE' : 'EM ESPERA';
       status.dataset.state = online ? 'online' : 'standby';
     });
-
     const systemStates = new Map((snapshot?.systems ?? []).map(system => [system.id, system.status]));
     layer.querySelectorAll('[data-management-module]').forEach(button => {
       const systemId = button.dataset.systemId;
@@ -155,18 +174,12 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
       const stateLabel = button.querySelector('[data-module-state]');
       if (stateLabel) stateLabel.textContent = state ? String(state).toUpperCase() : 'PREPARADO';
     });
-
     const connection = layer.querySelector('[data-management-connection]');
-    if (connection) connection.textContent = online
-      ? 'LINK CENTRAL ESTABELECIDO'
-      : 'AGUARDANDO CONEXÃO CENTRAL';
-
+    if (connection) connection.textContent = online ? 'LINK CENTRAL ESTABELECIDO' : 'AGUARDANDO CONEXÃO CENTRAL';
     const moduleCount = layer.querySelector('[data-management-module-count]');
     if (moduleCount) moduleCount.textContent = String(modules.length).padStart(2, '0');
-
     const centralState = layer.querySelector('[data-management-central-state]');
     if (centralState) centralState.textContent = online ? 'ONLINE' : 'EM ESPERA';
-
     const systemList = layer.querySelector('[data-management-system-list]');
     if (systemList) {
       systemList.replaceChildren();
@@ -188,7 +201,6 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
         systemList.append(empty);
       }
     }
-
     const module = modules.find(item => item.id === (selectedModuleId || selectedModule));
     const title = module?.label || MODULE_LABELS[selectedModule] || 'Sistema da nave';
     const titleNode = layer.querySelector('[data-management-detail-title]');
@@ -199,14 +211,13 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
     if (description) description.textContent = moduleData?.available
       ? 'Telemetria atual recebida do sistema de bordo.'
       : moduleData?.message || module?.scope || 'Aplicativo preparado para integração com o computador central.';
-
     const detailState = layer.querySelector('[data-management-detail-state]');
     if (detailState) {
       detailState.textContent = moduleData?.available ? 'SISTEMA CONECTADO' : 'MÓDULO PREPARADO';
       detailState.dataset.state = moduleData?.available ? 'online' : 'standby';
     }
-
     renderTelemetry(moduleData);
+    renderPowerControls(moduleData, selectedModuleId || selectedModule, open);
     updateSelection();
   }
 
@@ -216,7 +227,7 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
     openHandler = null;
     closeHandler = null;
     selectHandler = null;
+    powerCommandHandler = null;
   }
-
   return Object.freeze({ mount, render, selectModule, unmount });
 }
