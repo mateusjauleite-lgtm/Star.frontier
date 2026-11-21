@@ -139,6 +139,8 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
     set('[data-management-raw-amount]', units(refinery.rawOre));
     set('[data-management-buffer-amount]', units(refinery.refinedBuffer));
     set('[data-management-consumed-amount]', units(refinery.consumedTotal));
+    set('[data-management-transfer-rate]', units(refinery.transferRate) + '/s');
+    set('[data-management-support]', Array.isArray(refinery.supportSystems) && refinery.supportSystems.length ? refinery.supportSystems.join(', ').toUpperCase() : 'SEM RESERVA');
     const refineryButton = layer.querySelector('[data-management-refinery-toggle]');
     const transferButton = layer.querySelector('[data-management-transfer-toggle]');
     if (refineryButton) {
