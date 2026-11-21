@@ -1,50 +1,62 @@
-<section class="ship-management-terminal" aria-label="Terminal holográfico de gerenciamento da nave" aria-hidden="true">
-  <div class="management-hologram-passive" aria-hidden="false">
-    <div class="management-holo-orbit" aria-hidden="true"><i></i><b></b><span></span></div>
-    <div class="management-holo-copy">
-      <span class="management-kicker">AURORA-7 // SHIP SYSTEMS</span>
-      <strong>SHIP COMPUTER</strong>
-      <small data-management-status data-state="standby">SISTEMA EM ESPERA</small>
-      <span class="management-passive-line">MONITORAMENTO INTEGRADO DA NAVE</span>
-      <span class="management-prompt" data-management-prompt>APROXIME-SE E ACESSE PARA GERENCIAR</span>
-    </div>
-  </div>
+<section class="ship-management-hud" aria-label="HUD de gerenciamento da nave">
+  <button class="management-open-control" type="button" data-management-open hidden disabled>
+    <span class="management-open-indicator"></span>
+    <span><b>COMPUTADOR DA NAVE</b><small>ACESSAR TERMINAL</small></span>
+    <span class="management-open-key">◎</span>
+  </button>
 
-  <section class="management-interactive-panel" data-management-interaction hidden aria-label="Interface de gerenciamento">
+  <section class="management-interactive-panel" data-management-interaction hidden aria-label="Interface de gerenciamento da nave">
     <header class="management-panel-header">
-      <div>
+      <div class="management-brand">
         <span class="management-kicker">AURORA-7 // COMMAND & MANAGEMENT</span>
         <h2>SHIP COMPUTER</h2>
+        <small>TERMINAL DE GERENCIAMENTO INDEPENDENTE</small>
       </div>
-      <button type="button" data-management-close aria-label="Fechar terminal">FECHAR ×</button>
+      <div class="management-header-actions">
+        <span class="management-online-state" data-management-status data-state="standby">SISTEMA EM ESPERA</span>
+        <button type="button" data-management-close aria-label="Fechar terminal">FECHAR ×</button>
+      </div>
     </header>
-    <div class="management-panel-status">
-      <span data-management-status data-state="standby">SISTEMA EM ESPERA</span>
-      <small>TERMINAL DE GERENCIAMENTO · ACESSO INDEPENDENTE</small>
+
+    <div class="management-overview">
+      <div class="management-overview-mark">
+        <span class="management-orbit management-orbit-a"></span>
+        <span class="management-orbit management-orbit-b"></span>
+        <span class="management-core"></span>
+      </div>
+      <div class="management-overview-copy">
+        <span class="management-kicker">COMPUTADOR CENTRAL</span>
+        <b>AURORA-7</b>
+        <small data-management-connection>COMPUTADOR CENTRAL EM ESPERA</small>
+      </div>
+      <div class="management-module-total"><b data-management-module-count>06</b><small>MÓDULOS</small></div>
     </div>
-    <nav class="management-module-grid" aria-label="Módulos do computador">
+
+    <nav class="management-module-grid" aria-label="Sistemas da nave">
       <button type="button" data-management-module="navigation" data-system-id="navigation" aria-pressed="true">
-        <b>NAVEGAÇÃO</b><small data-module-state>PREPARADO</small>
+        <span class="management-module-index">01 / FLIGHT PATH</span><b>NAVEGAÇÃO</b><small data-module-state>PREPARADO</small>
       </button>
       <button type="button" data-management-module="tactical" data-system-id="sensors" aria-pressed="false">
-        <b>SENSORES / TÁTICO</b><small data-module-state>PREPARADO</small>
+        <span class="management-module-index">02 / SENSOR ARRAY</span><b>SENSORES / TÁTICO</b><small data-module-state>PREPARADO</small>
       </button>
       <button type="button" data-management-module="weapons" data-system-id="weapons" aria-pressed="false">
-        <b>ARSENAL</b><small data-module-state>PREPARADO</small>
+        <span class="management-module-index">03 / ARMAMENT</span><b>ARSENAL</b><small data-module-state>PREPARADO</small>
       </button>
       <button type="button" data-management-module="engineering" data-system-id="power" aria-pressed="false">
-        <b>ENGENHARIA</b><small data-module-state>PREPARADO</small>
+        <span class="management-module-index">04 / ENGINEERING</span><b>ENGENHARIA</b><small data-module-state>PREPARADO</small>
       </button>
       <button type="button" data-management-module="defense" data-system-id="defense" aria-pressed="false">
-        <b>DEFESA</b><small data-module-state>PREPARADO</small>
+        <span class="management-module-index">05 / DEFENSE GRID</span><b>DEFESA</b><small data-module-state>PREPARADO</small>
       </button>
       <button type="button" data-management-module="diagnostics" data-system-id="diagnostics" aria-pressed="false">
-        <b>DIAGNÓSTICOS</b><small data-module-state>PREPARADO</small>
+        <span class="management-module-index">06 / SYSTEM HEALTH</span><b>DIAGNÓSTICOS</b><small data-module-state>PREPARADO</small>
       </button>
     </nav>
+
     <footer class="management-panel-footer">
-      <span>GERENCIAMENTO DA NAVE</span>
+      <span>SHIP MANAGEMENT SYSTEMS</span>
       <span>CONTROLES DE PILOTAGEM INDEPENDENTES</span>
+      <span>SECURE LINK // A7-<i>ONLINE</i></span>
     </footer>
   </section>
 </section>
