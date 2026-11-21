@@ -34,6 +34,7 @@ test('desligar carregamento preserva a reserva local', () => {
 test('ramificações consomem a reserva local sem acessar diretamente a reserva principal', () => {
   const { state, core } = setup({ deflectorCoreEnergy: 2 });
   core.registerBranch('test-branch', { maxDrawPerSecond: 5 });
+  core.setChargingEnabled(false);
   core.update(0.1);
   const result = core.consumeEnergy('test-branch', 0.4, 0.1);
   assert.equal(result.consumed, 0.4);
@@ -55,7 +56,7 @@ test('limite de consumo respeita o dt real e não pode ser contornado por chamad
 test('núcleo desligado bloqueia consumo das ramificações', () => {
   const { state, core } = setup({ deflectorCoreEnergy: 2 });
   core.registerBranch('test-branch');
-  core.update(0.1);
+  core.update(0);
   core.setEnabled(false);
   assert.equal(core.consumeEnergy('test-branch', 0.2, 0.1).consumed, 0);
   assert.equal(state.deflectorCoreEnergy, 2);
