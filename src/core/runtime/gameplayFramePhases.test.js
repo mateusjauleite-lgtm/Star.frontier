@@ -5,7 +5,14 @@ import { createGameplayFramePhases } from './gameplayFramePhases.js';
 function fixture() {
   const calls = [];
   const elements = new Map(['speed', 'fuel', 'cargo', 'hull', 'shield', 'hud-credits']
-    .map(id => [id, { textContent: '' }]));
+    .map(id => {
+      const element = { _textContent: '' };
+      Object.defineProperty(element, 'textContent', {
+        get() { return this._textContent; },
+        set(value) { this._textContent = String(value); }
+      });
+      return [id, element];
+    }));
   let landingBase = null;
   const dependencies = {
     earthSystem: {
