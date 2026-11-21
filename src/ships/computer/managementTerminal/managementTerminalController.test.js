@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createShipComputer } from './shipComputer.js';
+import { createShipComputer } from '../shipComputer.js';
 import {
   createShipManagementTerminalController
 } from './managementTerminal/managementTerminalController.js';
