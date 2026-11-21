@@ -23,7 +23,6 @@ export function createDeflectorCoreSystem(state, options = {}) {
   let lastTransferRate = 0;
   let lastConsumptionAmount = 0;
   let lastConsumptionRate = 0;
-  let lastDeltaSeconds = 0;
 
   function registerBranch(id, config = {}) {
     const key = String(id || '').trim();
@@ -75,7 +74,7 @@ export function createDeflectorCoreSystem(state, options = {}) {
       state.deflectorCoreConsumedTotal += consumed;
       state.deflectorBranchConsumptionTotals[branch.id] = branch.consumedTotal;
       lastConsumptionAmount += consumed;
-      lastConsumptionRate = lastDeltaSeconds > 0 ? lastConsumptionAmount / lastDeltaSeconds : 0;
+      lastConsumptionRate += consumed / dt;
     }
 
     return Object.freeze({
@@ -88,7 +87,6 @@ export function createDeflectorCoreSystem(state, options = {}) {
 
   function update(deltaSeconds) {
     const dt = Math.max(0, finite(deltaSeconds));
-    lastDeltaSeconds = dt;
     lastTransferAmount = 0;
     lastTransferRate = 0;
     lastConsumptionAmount = 0;
