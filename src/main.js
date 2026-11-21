@@ -1874,10 +1874,9 @@ function exitPilotMode() {
   state.move.y = 0;
   state.throttle = false;
   state.braking = false;
+  // O desligamento do comando inicia a saída de dobra no próximo frame.
+  // Mantém a velocidade e o estado de transição para a nave desacelerar suavemente.
   state.warpDriveButton = false;
-  state.warpDriveActive = false;
-  state.warpCurrentStage = 0;
-  state.warpTransition = 'idle';
   shipComputer.disconnectTerminal('pilot-console');
 
   const flightStick = $('move-stick')?.querySelector('.knob');
