@@ -18,6 +18,7 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
     wrapper.innerHTML = html.trim();
     layer = wrapper.firstElementChild;
     if (!layer) throw new Error('O template do terminal de gerenciamento está vazio.');
+    layer.classList.add('ship-management-terminal-layer');
     closeHandler = onClose;
     selectHandler = onModuleSelect;
     layer.addEventListener('click', event => {
