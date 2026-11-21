@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createShipComputer } from './shipComputer.js';
 import { registerShipComputerSystems } from './shipComputerSystems.js';
+import { createDilithiumProcessingSystem } from '../engineering/dilithiumProcessingSystem.js';
 
 function createHarness() {
   const position = {
@@ -12,8 +13,10 @@ function createHarness() {
   const state = {
     speed: 42,
     fuel: 80,
+    rawDilithiumOre: 8,
     refinedDilithium: 60,
     warpCoreDilithium: 60,
+    dilithiumRefineryActive: false,
     warpDriveButton: false,
     warpDriveActive: false,
     warpStage: 5,
@@ -38,8 +41,10 @@ function createHarness() {
   computer.registerTerminal({ id: 'ship-management-terminal', name: 'Terminal de gerenciamento', systems: ['navigation', 'sensors', 'power'] });
   computer.registerTerminal({ id: 'pilot-console', name: 'Console de pilotagem', systems: ['navigation', 'propulsion'] });
   computer.registerTerminal({ id: 'engineering-console', name: 'Console de Engenharia', systems: ['engineering', 'propulsion', 'power'] });
+  const dilithiumProcessing = createDilithiumProcessingSystem({ state });
   registerShipComputerSystems(computer, {
     state,
+    getDilithiumProcessing: () => dilithiumProcessing,
     getShip: () => currentShip,
     getShipYaw: () => 1.25,
     getPitchAngle: () => pitchAngle,
@@ -173,6 +178,21 @@ test('autoridade automática devolve o controle à Ponte quando o piloto interv�
   assert.equal(response.result.accepted, true);
   assert.equal(state.propulsionAuthority, 'bridge');
   assert.equal(state.throttle, true);
+});
+
+test('console de Engenharia controla a refinaria e transfere dilítio pelo Ship Computer', () => {
+  const { computer, state } = createHarness();
+  const started = computer.dispatch('engineering-console', 'engineering', 'setRefineryActive', { active: true });
+  assert.equal(started.result.accepted, true);
+  assert.equal(state.dilithiumRefineryActive, true);
+  const denied = computer.dispatch('pilot-console', 'engineering', 'transferDilithiumToCore', { amount: 10 });
+  assert.equal(denied.result.accepted, false);
+  assert.equal(denied.result.reason, 'access-denied');
+  const transfer = computer.dispatch('engineering-console', 'engineering', 'transferDilithiumToCore', { amount: 10 });
+  assert.equal(transfer.result.accepted, true);
+  assert.equal(transfer.result.transferred, 10);
+  assert.equal(state.refinedDilithium, 50);
+  assert.equal(state.warpCoreDilithium, 70);
 });
 
 test('subsistemas sinalizam indisponibilidade quando a nave não existe', () => {
