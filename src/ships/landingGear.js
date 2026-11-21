@@ -128,12 +128,12 @@ export function createLandingGear(THREERef = THREE) {
 
       for (const hubSide of [-1, 1]) {
         const hub = new THREERef.Mesh(
-          new THREERef.CylinderGeometry(0.48, 0.48, 1.78, 16),
+          new THREERef.CylinderGeometry(0.62, 0.62, 0.16, 16),
           jointMaterial
         );
         hub.name = 'Gear-Wheel-Axle-Hub';
         hub.rotation.z = Math.PI / 2;
-        hub.position.copy(tire.position);
+        hub.position.set(hubSide * 0.84, tire.position.y, tire.position.z);
         assembly.add(hub);
       }
 
