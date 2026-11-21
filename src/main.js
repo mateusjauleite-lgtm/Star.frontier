@@ -642,7 +642,7 @@ let dilithiumProcessingSystem = null;
 
 function registerComputerSubsystems() {
   if (shipComputerSystemsRegistered) return;
-  dilithiumProcessingSystem ||= createDilithiumProcessingSystem({ state, plant: starshipInterior?.dilithiumPlant });
+  dilithiumProcessingSystem ||= createDilithiumProcessingSystem({ state, getPlant: () => starshipInterior?.dilithiumPlant });
   registerShipComputerSystems(shipComputer, {
     state,
     getDilithiumProcessing: () => dilithiumProcessingSystem,
