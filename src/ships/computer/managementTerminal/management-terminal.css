@@ -22,7 +22,7 @@
   transition: opacity .22s ease, transform .22s ease;
 }
 
-.ship-management-terminal-layer[data-mode="interactive"] .ship-management-terminal {
+.ship-management-terminal-layer[data-mode="interactive"] .management-hologram-passive {
   opacity: 0;
 }
 
