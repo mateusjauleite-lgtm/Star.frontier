@@ -81,10 +81,12 @@ export function createLandingGear(THREERef = THREE) {
         jointMaterial
       );
       mount.name = 'Gear-Upper-Mount';
-      mount.position.set(x, -10.8, z);
-      group.add(mount);
+      mount.position.set(0, 0, 0);
+      // O suporte e as dobradiças pertencem ao conjunto articulado. Assim,
+      // recolhem junto com as pernas e não ficam como uma peça solta sobre o trem.
+      pivot.add(mount);
       for (const lugX of [-1.75, 1.75]) {
-        addHinge(group, [x + lugX, -11.25, z], 0.72, frameMaterial, 'Gear-Mount-Hinge');
+        addHinge(pivot, [lugX, -0.45, 0], 0.72, frameMaterial, 'Gear-Mount-Hinge');
       }
 
       // Main oleo strut: outer sleeve and exposed sliding piston.
