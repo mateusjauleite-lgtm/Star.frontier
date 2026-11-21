@@ -63,19 +63,32 @@ export function createDilithiumProcessingSystem({ state, plant = null, getPlant 
     return { accepted: true, transferred: amount, refinedStorage: state.refinedDilithium, warpCoreReserve: state.warpCoreDilithium };
   }
 
+  function syncMachineVisual() {
+    const currentPlant = typeof getPlant === 'function' ? getPlant() : plant;
+    const refineryVisual = currentPlant?.userData?.components?.refinery;
+    if (refineryVisual) refineryVisual.userData.processing = Boolean(state.dilithiumRefineryActive);
+    const statusLight = currentPlant?.userData?.components?.statusLight;
+    if (statusLight?.material?.color?.setHex) statusLight.material.color.setHex(state.dilithiumRefineryActive ? 0x54f0b2 : 0x43dcff);
+  }
+
   function update(deltaSeconds) {
     const dt = Math.max(0, Number(deltaSeconds) || 0);
-    if (!state.dilithiumRefineryActive || dt <= 0) return snapshot();
+    if (!state.dilithiumRefineryActive || dt <= 0) {
+      syncMachineVisual();
+      return snapshot();
+    }
     if (state.rawDilithiumOre <= 0) {
       state.dilithiumRefineryActive = false;
       processingAccumulator = 0;
       lastAlert = 'raw-storage-empty';
+      syncMachineVisual();
       return snapshot();
     }
     if (state.refinedDilithium >= DILITHIUM_STORAGE_CAPACITY) {
       state.dilithiumRefineryActive = false;
       processingAccumulator = 0;
       lastAlert = 'refined-storage-full';
+      syncMachineVisual();
       return snapshot();
     }
     processingAccumulator += dt * DILITHIUM_REFINERY_RATE;
@@ -95,11 +108,7 @@ export function createDilithiumProcessingSystem({ state, plant = null, getPlant 
       processingAccumulator = 0;
       lastAlert = 'refined-storage-full';
     }
-    const currentPlant = typeof getPlant === 'function' ? getPlant() : plant;
-    const refineryVisual = currentPlant?.userData?.components?.refinery;
-    if (refineryVisual) refineryVisual.userData.processing = Boolean(state.dilithiumRefineryActive);
-    const statusLight = currentPlant?.userData?.components?.statusLight;
-    if (statusLight?.material?.color?.setHex) statusLight.material.color.setHex(state.dilithiumRefineryActive ? 0x54f0b2 : 0x43dcff);
+    syncMachineVisual();
     return snapshot();
   }
 
