@@ -146,6 +146,13 @@ export function createShipManagementTerminalController({
     return true;
   }
 
+  function refresh() {
+    if (!initialized || !opened) return false;
+    refreshSelectedModule();
+    render(computer.getSnapshot());
+    return true;
+  }
+
   function dispatch(systemId, command, payload) {
     if (!initialized || !opened || !computer.isTerminalConnected(terminalId)) {
       return { ok: false, reason: 'terminal-inactive' };
@@ -172,6 +179,7 @@ export function createShipManagementTerminalController({
     close,
     dispatch,
     selectModule,
+    refresh,
     shutdown,
     getSnapshot: () => ({
       initialized,
