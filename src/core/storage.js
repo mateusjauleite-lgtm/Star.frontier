@@ -58,9 +58,7 @@ export function loadState() {
       : Number.isFinite(data.nitro) ? data.nitro : 100;
     Object.assign(state, data);
     state.warpDriveCharge = Math.max(0, Math.min(100, savedWarpDriveCharge));
-    state.propulsionAuthority = ['bridge', 'engineering', 'automatic'].includes(data.propulsionAuthority)
-      ? data.propulsionAuthority
-      : 'bridge';
+    state.propulsionAuthority = 'bridge';
     delete state.nitro;
     delete state.nitroButton;
     // A nave ativa atual substitui o identificador antigo salvo localmente.
