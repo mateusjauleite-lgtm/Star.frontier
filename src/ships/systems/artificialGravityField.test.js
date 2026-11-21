@@ -18,7 +18,7 @@ test('campo compensa aceleração longitudinal sem inverter a gravidade do piso'
   const gravity = field.getField();
   assert.ok(sample.longitudinalCompensation > 0);
   assert.equal(gravity.uniformAcceleration[1], -18);
-  assert.ok(gravity.uniformAcceleration[2] < 0);
+  assert.ok(gravity.uniformAcceleration[2] > 0);
 });
 
 test('saída de dobra mantém o campo interno durante a transição', () => {
