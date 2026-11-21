@@ -27,6 +27,7 @@ function fixture(overrides = {}) {
   const pitch = { rotation: { x: 0 } };
   const visual = {
     rotation: { z: 0 },
+    updateWorldMatrix() {},
     getWorldQuaternion() {}
   };
   const state = {
