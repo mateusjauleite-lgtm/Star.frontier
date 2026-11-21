@@ -1,0 +1,69 @@
+<section class="engineering-terminal-shell" aria-label="Console holográfico de Engenharia">
+  <section class="management-os engineering-os" data-engineering-window hidden aria-label="AURORA OS Engenharia">
+    <header class="management-os-topbar">
+      <div class="management-os-brand"><span class="management-os-mark">A7</span><b>AURORA OS</b><small>ENGINEERING</small></div>
+      <div class="management-os-top-center"><span class="management-live-dot"></span> REDE INTERNA DA NAVE <i>/</i> CONTROLE DE ENERGIA E PROPULSÃO</div>
+      <div class="management-os-top-actions"><span data-engineering-status data-state="standby">EM ESPERA</span><button type="button" data-engineering-close>FECHAR ×</button></div>
+    </header>
+    <div class="management-os-body">
+      <aside class="management-sidebar engineering-sidebar">
+        <div class="management-sidebar-heading">APLICATIVOS</div>
+        <div class="management-app-link is-selected"><span class="management-app-icon">ϟ</span><span>Propulsão de dobra<small>CONTROLE ATIVO</small></span></div>
+        <div class="management-app-link"><span class="management-app-icon">◈</span><span>Núcleo de dobra<small>TELEMETRIA</small></span></div>
+        <div class="management-app-link"><span class="management-app-icon">▤</span><span>Diagnósticos<small>PROTEÇÃO</small></span></div>
+        <div class="management-sidebar-bottom">
+          <div class="management-ship-card"><span class="management-ship-avatar">A7</span><span><b>AURORA-7</b><small>DECK 03 · ENGENHARIA</small></span></div>
+          <div class="management-link-state"><span class="management-live-dot"></span><span>SHIP COMPUTER LINK</span></div>
+        </div>
+      </aside>
+      <main class="management-desktop engineering-desktop">
+        <div class="management-desktop-heading">
+          <div><span class="management-os-eyebrow">CENTRAL DE ENGENHARIA / DECK 03</span><h2>Propulsão e núcleo de dobra</h2><p>Controle de estágio, velocidade e reserva refinada da nave.</p></div>
+          <div class="management-session-chip"><span class="management-live-dot"></span> TELEMETRIA AO VIVO</div>
+        </div>
+        <div class="engineering-readouts">
+          <article class="management-info-card"><small>ESTADO DO NÚCLEO</small><b data-engineering-core>ONLINE</b><span>Ship Computer</span></article>
+          <article class="management-info-card"><small>ESTÁGIO ATUAL</small><b data-engineering-stage>INATIVO</b><span>Faixa de dobra selecionada</span></article>
+          <article class="management-info-card"><small>VELOCIDADE</small><b data-engineering-speed>0</b><span>Escala de voo</span></article>
+          <article class="management-info-card"><small>DILÍTIO REFINADO</small><b data-engineering-dilithium>100.00 u</b><span>Reserva disponível</span></article>
+        </div>
+        <div class="management-workspace engineering-workspace">
+          <section class="management-window">
+            <header class="management-window-title"><span class="management-window-app-icon">ϟ</span><b>SELEÇÃO DE ESTÁGIO</b><span class="management-window-controls">— □</span></header>
+            <div class="engineering-panel-content">
+              <p class="engineering-help">Cada estágio define uma velocidade de cruzeiro. A mudança é progressiva e não interrompe o deslocamento.</p>
+              <div class="engineering-stage-grid">
+                <button type="button" data-engineering-stage="1"><b>1</b><span>DOBRA I</span><small>115</small></button>
+                <button type="button" data-engineering-stage="2"><b>2</b><span>DOBRA II</span><small>155</small></button>
+                <button type="button" data-engineering-stage="3"><b>3</b><span>DOBRA III</span><small>205</small></button>
+                <button type="button" data-engineering-stage="4"><b>4</b><span>DOBRA IV</span><small>270</small></button>
+                <button type="button" data-engineering-stage="5"><b>5</b><span>DOBRA V</span><small>350</small></button>
+              </div>
+              <button type="button" class="engineering-warp-toggle" data-engineering-warp-toggle>ATIVAR / DESATIVAR DOBRA</button>
+            </div>
+          </section>
+          <section class="management-window">
+            <header class="management-window-title"><span class="management-window-app-icon">◈</span><b>TRANSIÇÃO E SEGURANÇA</b><span class="management-window-controls">— □</span></header>
+            <div class="engineering-panel-content">
+              <div class="engineering-state-row"><span>PROPULSÃO</span><b data-engineering-propulsion>CONVENCIONAL</b></div>
+              <div class="engineering-state-row"><span>TRANSIÇÃO</span><b data-engineering-transition>ESTÁVEL</b></div>
+              <div class="engineering-state-row"><span>MODO DE SAÍDA</span><b data-engineering-exit-label>SUAVE</b></div>
+              <p class="engineering-help">Escolha como a nave abandona o campo de dobra. Ambas as opções preservam o movimento.</p>
+              <div class="engineering-exit-options">
+                <button type="button" data-engineering-exit-mode="smooth">SAÍDA SUAVE</button>
+                <button type="button" data-engineering-exit-mode="direct">SAÍDA DIRETA</button>
+              </div>
+              <div class="engineering-alert" data-engineering-alert>SEM ALERTAS · SISTEMAS ESTÁVEIS</div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+    <footer class="management-taskbar">
+      <div class="management-taskbar-start"><span class="management-os-mark">A7</span><b>ENGENHARIA</b></div>
+      <div class="management-taskbar-active"><span>ϟ</span> Warp Propulsion Control</div>
+      <div class="management-taskbar-status"><span class="management-live-dot"></span> SHIP COMPUTER <i>•</i> LINK SEGURO</div>
+      <div class="management-taskbar-clock">AURORA OS <small>ENGINEERING</small></div>
+    </footer>
+  </section>
+</section>
