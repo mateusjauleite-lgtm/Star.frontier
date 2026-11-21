@@ -7,6 +7,7 @@ import { createRuntimeBridge } from './core/runtime/RuntimeBridge.js';
 import { createRuntimeVisibilityHandler } from './core/runtime/RuntimeVisibility.js';
 import { registerGameRuntimeSystems } from './core/runtime/systems/registerGameRuntimeSystems.js';
 import { createGameplayFramePhases } from './core/runtime/gameplayFramePhases.js';
+import { registerGameWorldEntities } from './core/entities/GameEntityBindings.js';
 import { createGameWorld } from './world/gameWorld.js';
 import { createShipLandingMetricTelemetryAdapter, SHIP_MODEL_METERS_PER_UNIT } from './ships/flight/landingAutopilot.js';
 import { EXTERNAL_ELEVATOR_CONFIG } from './ships/externalElevator.js';
@@ -671,6 +672,16 @@ async function startGame() {
         world: {
           isReady: () => Boolean(renderer),
           initializeWorld: init3D,
+          registerEntities: context => {
+            context.entityBindings = registerGameWorldEntities(context.entityManager, {
+              earthSystem,
+              ship,
+              characterModel,
+              stationSystem,
+              starshipInterior,
+              externalElevator
+            });
+          },
           onStage: stage => { startupStage = stage; }
         },
         orbitalPhysics: {
