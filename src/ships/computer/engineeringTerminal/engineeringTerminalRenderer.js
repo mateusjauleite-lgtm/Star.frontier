@@ -9,7 +9,9 @@ export function createEngineeringTerminalRenderer({
   onClose = () => {},
   onStageSelect = () => {},
   onExitMode = () => {},
-  onWarpToggle = () => {}
+  onWarpToggle = () => {},
+  onRefineryToggle = () => {},
+  onTransfer = () => {}
 } = {}) {
   if (!root?.append) throw new TypeError('O elemento raiz do console de Engenharia não foi encontrado.');
   let layer = null;
@@ -32,6 +34,14 @@ export function createEngineeringTerminalRenderer({
       if (exit) { onExitMode(exit.dataset.engineeringExitMode); return; }
       if (event.target.closest('[data-engineering-warp-toggle]')) {
         onWarpToggle(!Boolean(telemetry?.warpDriveActive));
+        return;
+      }
+      if (event.target.closest('[data-engineering-refinery-toggle]')) {
+        onRefineryToggle(!Boolean(telemetry?.dilithiumProcessing?.refinery?.active));
+        return;
+      }
+      if (event.target.closest('[data-engineering-transfer]')) {
+        onTransfer();
       }
     });
     root.append(layer);
@@ -75,6 +85,15 @@ export function createEngineeringTerminalRenderer({
     const selectedStage = Number(telemetry?.selectedWarpStage) || 5;
     const speed = Math.round(Number(telemetry?.speed) || 0);
     const dilithium = Math.max(0, Number(telemetry?.refinedDilithium) || 0);
+    const processing = telemetry?.dilithiumProcessing ?? {};
+    const rawStorage = processing.rawStorage ?? {};
+    const refinedStorage = processing.refinedStorage ?? {};
+    const coreReserve = processing.warpCore ?? {};
+    const refineryActive = Boolean(processing.refinery?.active);
+    setText('[data-engineering-raw]', `${Number(rawStorage.quantity) || 0} / ${Number(rawStorage.capacity) || 500} u`);
+    setText('[data-engineering-refined-storage]', `${Number(refinedStorage.quantity) || 0} / ${Number(refinedStorage.capacity) || 500} u`);
+    setText('[data-engineering-core-reserve]', `${Number(coreReserve.reserve) || 0} / ${Number(coreReserve.capacity) || 500} u`);
+    setText('[data-engineering-refinery-status]', refineryActive ? 'PROCESSANDO' : 'EM ESPERA');
     const transition = telemetry?.warpTransition || 'idle';
     const exitMode = telemetry?.warpExitMode === 'direct' ? 'direct' : 'smooth';
     setText('[data-engineering-core]', online ? 'ONLINE' : 'OFFLINE');
@@ -112,6 +131,13 @@ export function createEngineeringTerminalRenderer({
     layer.querySelectorAll('[data-engineering-exit-mode],[data-engineering-warp-toggle]').forEach(control => {
       control.disabled = !opened || !online;
     });
+    const refineryToggle = layer.querySelector('[data-engineering-refinery-toggle]');
+    if (refineryToggle) {
+      refineryToggle.textContent = refineryActive ? 'DESLIGAR REFINARIA' : 'LIGAR REFINARIA';
+      refineryToggle.disabled = !opened || !online || (!refineryActive && (Number(rawStorage.quantity) <= 0 || Number(refinedStorage.quantity) >= Number(refinedStorage.capacity || 500)));
+    }
+    const transfer = layer.querySelector('[data-engineering-transfer]');
+    if (transfer) transfer.disabled = !opened || !online || Number(refinedStorage.quantity) <= 0 || Number(coreReserve.reserve) >= Number(coreReserve.capacity || 500);
   }
 
   return Object.freeze({ mount, setPresence, setOpen, update, render });
