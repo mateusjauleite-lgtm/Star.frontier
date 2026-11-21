@@ -7,6 +7,7 @@ export const state = {
   country: 'Brasil',
   credits: 1000,
   ore: 0,
+  rawDilithiumOre: 0,
   fuel: 100,
   refinedDilithium: 100,
   cargo: 0,

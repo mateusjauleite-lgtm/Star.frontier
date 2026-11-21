@@ -334,8 +334,7 @@ select:focus {
 #hud {
   position: absolute;
   inset: 0 0 auto 0;
-  /* Mantém os comandos superiores, inclusive PAUSA, acima das áreas de toque da pilotagem. */
-  z-index: 14;
+  z-index: 4;
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
