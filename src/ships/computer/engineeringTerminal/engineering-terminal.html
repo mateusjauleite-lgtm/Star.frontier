@@ -57,6 +57,23 @@
             </div>
           </section>
         </div>
+        <section class="management-window engineering-materials-window">
+          <header class="management-window-title"><span class="management-window-app-icon">◈</span><b>PROCESSAMENTO E ARMAZENAMENTO DE DILÍTIO</b><span class="management-window-controls">— □</span></header>
+          <div class="engineering-materials-content">
+            <div class="engineering-material-readouts">
+              <article><small>MINÉRIO BRUTO</small><b data-engineering-raw>0 / 500 u</b><span>storage:raw-dilithium</span></article>
+              <article><small>ARMAZENAMENTO REFINADO</small><b data-engineering-refined-storage>100 / 500 u</b><span>storage:refined-dilithium</span></article>
+              <article><small>RESERVA NO NÚCLEO</small><b data-engineering-core-reserve>0 / 500 u</b><span>system:warp-core</span></article>
+              <article><small>REFINARIA</small><b data-engineering-refinery-status>EM ESPERA</b><span>machine:dilithium-refinery</span></article>
+            </div>
+            <p class="engineering-help">A refinaria processa automaticamente o minério bruto enquanto estiver ligada. O material refinado permanece armazenado até ser transferido para a reserva do núcleo. A reserva já transferida não retorna ao armazenamento.</p>
+            <div class="engineering-material-actions">
+              <button type="button" data-engineering-refinery-toggle>LIGAR REFINARIA</button>
+              <button type="button" data-engineering-transfer>TRANSFERIR PARA O NÚCLEO</button>
+            </div>
+            <div class="engineering-recognition-order"><b>ORDEM DE RECONHECIMENTO DO SHIP COMPUTER</b><span>01 · NÚCLEO DE DOBRA</span><span>02 · REFINARIA</span><span>03 · ARMAZENAMENTO REFINADO</span><span>04 · ARMAZENAMENTO BRUTO</span></div>
+          </div>
+        </section>
       </main>
     </div>
     <footer class="management-taskbar">
