@@ -29,6 +29,7 @@ import { createEngineeringTerminalRenderer } from './ships/computer/engineeringT
 import { registerShipComputerSystems } from './ships/computer/shipComputerSystems.js';
 import { advanceShipFlightDynamics } from './ships/flight/flightDynamics.js';
 import { createShipFlightController } from './ships/flight/shipFlightController.js';
+import { createDilithiumProcessingSystem } from './ships/engineering/dilithiumProcessingSystem.js';
 import { registerTextInteractionGuard } from './core/ui/textInteractionGuard.js';
 
 registerTextInteractionGuard();
@@ -625,11 +626,14 @@ const shipFlightController = createShipFlightController({
 
 let launching = false;
 let shipComputerSystemsRegistered = false;
+let dilithiumProcessingSystem = null;
 
 function registerComputerSubsystems() {
   if (shipComputerSystemsRegistered) return;
+  dilithiumProcessingSystem ||= createDilithiumProcessingSystem({ state, plant: starshipInterior?.dilithiumPlant });
   registerShipComputerSystems(shipComputer, {
     state,
+    getDilithiumProcessing: () => dilithiumProcessingSystem,
     getShip: () => ship,
     getShipYaw: () => shipYaw?.rotation.y ?? 0,
     getPitchAngle: () => shipFlightController.pitchAngle,
@@ -1105,7 +1109,7 @@ function updateFlight(dt) {
     }
   }
   const moveStick = $('move-stick');
-  const hasPropulsion = Number(state.fuel) > 0 || Number(state.refinedDilithium) > 0;
+  const hasPropulsion = Number(state.fuel) > 0 || Number(state.warpCoreDilithium) > 0;
   if (moveStick) {
     moveStick.classList.toggle('no-propulsion', !hasPropulsion);
     moveStick.setAttribute('aria-disabled', String(!hasPropulsion));
@@ -1745,6 +1749,7 @@ function updateShipManagementInteraction(dt = 0) {
 }
 
 function updateEngineeringConsoleInteraction(dt = 0) {
+  dilithiumProcessingSystem?.update(dt);
   engineeringHologram?.update(dt);
   const previousAvailable = engineeringInteractionAvailable;
   const previousActive = engineeringConsoleActive;
@@ -1941,7 +1946,7 @@ function bindStick(id, key) {
 
   const knob = element.querySelector('.knob');
   let pointer = null;
-  const hasPropulsion = () => Number(state.fuel) > 0 || Number(state.refinedDilithium) > 0;
+  const hasPropulsion = () => Number(state.fuel) > 0 || Number(state.warpCoreDilithium) > 0;
   const reset = () => {
     state[key].x = 0;
     state[key].y = 0;
