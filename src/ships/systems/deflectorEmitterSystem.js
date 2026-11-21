@@ -17,12 +17,12 @@ export function createDeflectorEmitterSystem(core, options = {}) {
   let fieldStrength = 0;
 
   function update(deltaSeconds) {
-    const dt = clamp(deltaSeconds, 0, 0.1);
+    const dt = Math.max(0, finite(deltaSeconds));
     active = false;
     fieldStrength = 0;
     if (!enabled || dt <= 0) return snapshot();
     const requested = energyPerSecond * dt;
-    const result = core.consumeEnergy(branchId, requested);
+    const result = core.consumeEnergy(branchId, requested, dt);
     fieldStrength = requested > 0 ? result.consumed / requested : 0;
     active = result.consumed > 0;
     return snapshot();
@@ -49,7 +49,7 @@ function positive(value, fallback) {
   const number = Number(value);
   return Number.isFinite(number) && number > 0 ? number : fallback;
 }
-function clamp(value, min, max) {
+function finite(value) {
   const number = Number(value);
-  return Math.max(min, Math.min(max, Number.isFinite(number) ? number : min));
+  return Number.isFinite(number) ? number : 0;
 }
