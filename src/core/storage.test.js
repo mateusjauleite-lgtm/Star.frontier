@@ -10,7 +10,8 @@ const originalState = {
   deflectorCoreChargingEnabled: state.deflectorCoreChargingEnabled,
   deflectorCoreTransferredTotal: state.deflectorCoreTransferredTotal,
   deflectorCoreConsumedTotal: state.deflectorCoreConsumedTotal,
-  deflectorBranchConsumptionTotals: state.deflectorBranchConsumptionTotals
+  deflectorBranchConsumptionTotals: state.deflectorBranchConsumptionTotals,
+  deflectorCoreTelemetry: state.deflectorCoreTelemetry
 };
 
 function createMemoryStorage() {
@@ -58,6 +59,22 @@ test('save/load preserva carga, totais e estado do núcleo do defletor', () => {
     'deflector-emitter': 5,
     'deflector-sensors': 2.25
   });
+});
+
+test('save antigo inicia o núcleo do defletor sem reaproveitar valores de outra sessão', () => {
+  const storage = createMemoryStorage();
+  storage.setItem(STORAGE_KEY, JSON.stringify({ refinedDilithium: 50 }));
+  Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: storage });
+  state.deflectorCoreEnergy = 80;
+  state.deflectorCoreTransferredTotal = 12;
+  state.deflectorCoreConsumedTotal = 9;
+  state.deflectorBranchConsumptionTotals = { emitter: 9 };
+
+  assert.equal(loadState(), true);
+  assert.equal(state.deflectorCoreEnergy, 0);
+  assert.equal(state.deflectorCoreTransferredTotal, 0);
+  assert.equal(state.deflectorCoreConsumedTotal, 0);
+  assert.deepEqual(state.deflectorBranchConsumptionTotals, {});
 });
 
 test('load limita a carga salva à capacidade e descarta telemetria transitória', () => {
