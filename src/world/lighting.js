@@ -105,6 +105,8 @@ export function createSpaceLighting(scene, options = {}) {
     'color',
     new THREE.Float32BufferAttribute(colors, 3)
   );
+  const starPositionAttribute = starGeometry.getAttribute('position');
+  const starPositionArray = starPositionAttribute.array;
 
   const stars = new THREE.Points(
     starGeometry,
@@ -166,24 +168,24 @@ export function createSpaceLighting(scene, options = {}) {
         const travel = speed * dt * 0.12;
         for (let i = 0; i < starCount; i += 1) {
           const offset = i * 3;
-          let x = positions[offset] + shipBackward.x * travel;
-          let y = positions[offset + 1] + shipBackward.y * travel;
-          let z = positions[offset + 2] + shipBackward.z * travel;
+          let x = starPositionArray[offset] + shipBackward.x * travel;
+          let y = starPositionArray[offset + 1] + shipBackward.y * travel;
+          let z = starPositionArray[offset + 2] + shipBackward.z * travel;
           const projection = x * shipBackward.x + y * shipBackward.y + z * shipBackward.z;
-          if (projection > radius) {
-            x -= shipBackward.x * radius * 2;
-            y -= shipBackward.y * radius * 2;
-            z -= shipBackward.z * radius * 2;
-          } else if (projection < -radius) {
-            x += shipBackward.x * radius * 2;
-            y += shipBackward.y * radius * 2;
-            z += shipBackward.z * radius * 2;
+          if (projection > starRadius) {
+            x -= shipBackward.x * starRadius * 2;
+            y -= shipBackward.y * starRadius * 2;
+            z -= shipBackward.z * starRadius * 2;
+          } else if (projection < -starRadius) {
+            x += shipBackward.x * starRadius * 2;
+            y += shipBackward.y * starRadius * 2;
+            z += shipBackward.z * starRadius * 2;
           }
-          positions[offset] = x;
-          positions[offset + 1] = y;
-          positions[offset + 2] = z;
+          starPositionArray[offset] = x;
+          starPositionArray[offset + 1] = y;
+          starPositionArray[offset + 2] = z;
         }
-        starGeometry.getAttribute('position').needsUpdate = true;
+        starPositionAttribute.needsUpdate = true;
       }
       const speedIntensity = Math.max(0, Math.min(1, (speed - 75) / (350 - 75)));
       const exitProgress = speedIntensity;
@@ -197,9 +199,9 @@ export function createSpaceLighting(scene, options = {}) {
         for (let i = 0; i < streakCount; i += 1) {
           const source = i * 3;
           const target = i * 6;
-          const x = positions[source];
-          const y = positions[source + 1];
-          const z = positions[source + 2];
+          const x = starPositionArray[source];
+          const y = starPositionArray[source + 1];
+          const z = starPositionArray[source + 2];
           streakPositions[target] = x;
           streakPositions[target + 1] = y;
           streakPositions[target + 2] = z;
