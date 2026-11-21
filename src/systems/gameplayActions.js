@@ -31,7 +31,13 @@ export function registerGameplayActions({
     }
     const dilithiumDeposit = target.userData.resources?.['resource:ore-dilithium'];
     if (Number(dilithiumDeposit?.amount) > 0) {
-      const amount = Math.min(dilithiumDeposit.amount, state.miningDrill === 'Broca reforçada' ? 12 : 6);
+      const rawStorageCapacity = 500;
+      const rawStorageSpace = Math.max(0, rawStorageCapacity - (Number(state.rawDilithiumOre) || 0));
+      if (rawStorageSpace <= 0) {
+        toast('Armazenamento de minério bruto cheio. Esvazie ou processe o estoque no Deck 3.');
+        return;
+      }
+      const amount = Math.min(dilithiumDeposit.amount, state.miningDrill === 'Broca reforçada' ? 12 : 6, rawStorageSpace);
       dilithiumDeposit.amount -= amount;
       state.rawDilithiumOre = Math.max(0, Number(state.rawDilithiumOre) || 0) + amount;
       if (dilithiumDeposit.amount <= 0) {
