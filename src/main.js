@@ -1854,6 +1854,7 @@ function setPilotInterface(activePilot) {
   ['hud', 'warp-drive-display', 'flight-controls', 'leave-pilot-btn'].forEach(id => {
     $(id)?.classList.toggle('hidden', !activePilot);
   });
+  applyHudLayout(activePilot ? 'pilot' : 'character', readHudLayout(activePilot ? 'pilot' : 'character'));
 }
 
 function enterPilotMode() {
@@ -2534,21 +2535,30 @@ registerGameplayActions({
   setNpcReady: value => { npcReady = value; }
 });
 
-/* Editor do HUD do personagem: não move nem modifica o HUD da nave. */
+/* Editor de HUD unificado: posições independentes para personagem e piloto. */
 const characterHudEditor = $('character-hud-editor');
-const characterHudEditable = [...document.querySelectorAll('[data-hud-editable]')];
+const characterHudEditable = [...document.querySelectorAll('#character-hud [data-hud-editable]')];
+const pilotHudEditable = [...document.querySelectorAll('[data-hud-scope="pilot"][data-hud-editable]')];
+const allHudEditable = [...characterHudEditable, ...pilotHudEditable];
 let characterHudEditing = false;
-let characterHudBeforeEdit = null;
+let hudEditorTarget = 'character';
+let hudEditorBeforeEdit = null;
 let characterHudDrag = null;
 
-function readCharacterHudLayout() {
-  return state.settings?.characterHudLayout && typeof state.settings.characterHudLayout === 'object'
-    ? structuredClone(state.settings.characterHudLayout)
+function hudLayoutKey(scope) {
+  return scope === 'pilot' ? 'pilotHudLayout' : 'characterHudLayout';
+}
+
+function readHudLayout(scope) {
+  const key = hudLayoutKey(scope);
+  return state.settings?.[key] && typeof state.settings[key] === 'object'
+    ? structuredClone(state.settings[key])
     : {};
 }
 
-function applyCharacterHudLayout(layout = {}) {
-  characterHudEditable.forEach(element => {
+function applyHudLayout(scope, layout = readHudLayout(scope)) {
+  const elements = scope === 'pilot' ? pilotHudEditable : characterHudEditable;
+  elements.forEach(element => {
     const saved = layout[element.dataset.hudEditable];
     if (!saved || !Number.isFinite(saved.x) || !Number.isFinite(saved.y)) {
       ['position', 'left', 'top', 'right', 'bottom', 'transform'].forEach(prop => element.style.removeProperty(prop));
@@ -2566,24 +2576,10 @@ function applyCharacterHudLayout(layout = {}) {
   });
 }
 
-function scheduleCharacterHudLayout() {
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    const gameScreen = $('game-screen');
-    if (!gameScreen || gameScreen.classList.contains('hidden')) return;
-
-    const hasMeasuredHud = characterHudEditable.every(element => {
-      const rect = element.getBoundingClientRect();
-      return rect.width > 0 && rect.height > 0;
-    });
-    if (!hasMeasuredHud) return;
-
-    applyCharacterHudLayout(readCharacterHudLayout());
-  }));
-}
-
-function captureCharacterHudLayout() {
+function captureHudLayout(scope) {
+  const elements = scope === 'pilot' ? pilotHudEditable : characterHudEditable;
   const layout = {};
-  characterHudEditable.forEach(element => {
+  elements.forEach(element => {
     const rect = element.getBoundingClientRect();
     layout[element.dataset.hudEditable] = {
       x: Math.max(0, Math.min(1, rect.left / Math.max(1, window.innerWidth - rect.width))),
@@ -2593,21 +2589,96 @@ function captureCharacterHudLayout() {
   return layout;
 }
 
+function readPilotHudButtonSize() {
+  const saved = state.settings?.pilotHudButtonSize || {};
+  return {
+    width: Number.isFinite(saved.width) ? Math.max(82, Math.min(180, saved.width)) : 112,
+    height: Number.isFinite(saved.height) ? Math.max(40, Math.min(88, saved.height)) : 52
+  };
+}
+
+function applyPilotHudButtonSize(size = readPilotHudButtonSize()) {
+  document.querySelectorAll('[data-pilot-size-button]').forEach(button => {
+    button.style.width = `${size.width}px`;
+    button.style.minWidth = `${size.width}px`;
+    button.style.height = `${size.height}px`;
+    button.style.minHeight = `${size.height}px`;
+  });
+  const width = $('pilot-hud-button-width');
+  const height = $('pilot-hud-button-height');
+  const widthValue = $('pilot-hud-button-width-value');
+  const heightValue = $('pilot-hud-button-height-value');
+  if (width) width.value = String(size.width);
+  if (height) height.value = String(size.height);
+  if (widthValue) widthValue.textContent = `${size.width} px`;
+  if (heightValue) heightValue.textContent = `${size.height} px`;
+}
+
+function setHudEditorTarget(scope) {
+  if (!['character', 'pilot'].includes(scope)) return;
+  hudEditorTarget = scope;
+  const characterSelected = scope === 'character';
+  $('hud-editor-character-tab')?.classList.toggle('active', characterSelected);
+  $('hud-editor-pilot-tab')?.classList.toggle('active', !characterSelected);
+  $('pilot-hud-size-controls')?.classList.toggle('hidden', characterSelected);
+  $('hud-editor-hint').textContent = characterSelected
+    ? 'Arraste os elementos do HUD do personagem para ajustar suas posições.'
+    : 'Arraste os elementos do HUD do piloto. Ajuste também os botões de comando e aceleração.';
+  ['character-hud', 'hud', 'flight-controls', 'leave-pilot-btn'].forEach(id => {
+    $(id)?.classList.remove('hud-editor-preview');
+  });
+  const selectedElements = characterSelected ? characterHudEditable : pilotHudEditable;
+  const unselectedElements = characterSelected ? pilotHudEditable : characterHudEditable;
+  unselectedElements.forEach(element => element.classList.remove('hud-editable-active'));
+  selectedElements.forEach(element => element.classList.add('hud-editable-active'));
+  if (characterSelected) {
+    $('character-hud')?.classList.add('hud-editor-preview');
+  } else {
+    ['hud', 'flight-controls', 'leave-pilot-btn'].forEach(id => $(id)?.classList.add('hud-editor-preview'));
+    applyPilotHudButtonSize();
+  }
+  applyHudLayout(scope, readHudLayout(scope));
+}
+
+function scheduleHudLayouts() {
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const gameScreen = $('game-screen');
+    if (!gameScreen || gameScreen.classList.contains('hidden')) return;
+    if (characterHudEditable.every(element => element.getBoundingClientRect().width > 0)) {
+      applyHudLayout('character', readHudLayout('character'));
+    }
+    if (pilotHudEditable.every(element => element.getBoundingClientRect().width > 0)) {
+      applyHudLayout('pilot', readHudLayout('pilot'));
+    }
+  }));
+}
+
 function finishCharacterHudEditing({ saveChanges = false, reset = false } = {}) {
   if (!characterHudEditing) return;
   state.settings ||= {};
+  const key = hudLayoutKey(hudEditorTarget);
   if (reset) {
-    delete state.settings.characterHudLayout;
-    applyCharacterHudLayout({});
+    delete state.settings[key];
+    applyHudLayout(hudEditorTarget, {});
   } else if (saveChanges) {
-    state.settings.characterHudLayout = captureCharacterHudLayout();
+    state.settings[key] = captureHudLayout(hudEditorTarget);
+    if (hudEditorTarget === 'pilot') {
+      const size = {
+        width: Number($('pilot-hud-button-width')?.value) || 112,
+        height: Number($('pilot-hud-button-height')?.value) || 52
+      };
+      state.settings.pilotHudButtonSize = size;
+      applyPilotHudButtonSize(size);
+    }
     save();
   } else {
-    applyCharacterHudLayout(characterHudBeforeEdit || {});
+    applyHudLayout(hudEditorTarget, hudEditorBeforeEdit || {});
+    if (hudEditorTarget === 'pilot') applyPilotHudButtonSize();
   }
   characterHudEditing = false;
   characterHudDrag = null;
-  characterHudEditable.forEach(element => element.classList.remove('hud-editable-active'));
+  allHudEditable.forEach(element => element.classList.remove('hud-editable-active'));
+  ['character-hud', 'hud', 'flight-controls', 'leave-pilot-btn'].forEach(id => $(id)?.classList.remove('hud-editor-preview'));
   characterHudEditor?.classList.add('hidden');
   characterHudEditor?.setAttribute('aria-hidden', 'true');
   if (reset) save();
@@ -2615,23 +2686,20 @@ function finishCharacterHudEditing({ saveChanges = false, reset = false } = {}) 
 
 function startCharacterHudEditing() {
   if (characterHudEditing) return;
-  characterHudBeforeEdit = readCharacterHudLayout();
-  applyCharacterHudLayout(characterHudBeforeEdit);
   characterHudEditing = true;
+  hudEditorTarget = characterCore.snapshot().mode === 'ship-control' ? 'pilot' : 'character';
+  hudEditorBeforeEdit = readHudLayout(hudEditorTarget);
   $('game-menu-modal')?.classList.add('hidden');
   characterHudEditor?.classList.remove('hidden');
   characterHudEditor?.setAttribute('aria-hidden', 'false');
-  characterHudEditable.forEach(element => element.classList.add('hud-editable-active'));
-  // O editor é aberto a partir do menu de pausa, que já interrompeu o Runtime.
-  // Ao ocultar o menu, retoma a simulação para que SALVAR/CANCELAR não deixem
-  // a gameplay presa no estado pausado.
+  setHudEditorTarget(hudEditorTarget);
   if (runtimeBridge?.status === 'paused') runtimeBridge.resume();
-  toast('Arraste os elementos do HUD. Depois toque em SALVAR.');
+  toast('Escolha o HUD, ajuste as posições e toque em SALVAR.');
 }
 
-characterHudEditable.forEach(element => {
+allHudEditable.forEach(element => {
   element.addEventListener('pointerdown', event => {
-    if (!characterHudEditing || (event.target.closest('button') && element.dataset.hudEditable !== 'action')) return;
+    if (!characterHudEditing || element.dataset.hudScope !== hudEditorTarget) return;
     event.preventDefault();
     event.stopPropagation();
     const rect = element.getBoundingClientRect();
@@ -2661,10 +2729,23 @@ characterHudEditable.forEach(element => {
 });
 
 $('edit-character-hud-btn')?.addEventListener('click', startCharacterHudEditing);
+$('hud-editor-character-tab')?.addEventListener('click', () => setHudEditorTarget('character'));
+$('hud-editor-pilot-tab')?.addEventListener('click', () => setHudEditorTarget('pilot'));
+$('pilot-hud-button-width')?.addEventListener('input', event => {
+  const size = readPilotHudButtonSize();
+  size.width = Number(event.target.value);
+  applyPilotHudButtonSize(size);
+});
+$('pilot-hud-button-height')?.addEventListener('input', event => {
+  const size = readPilotHudButtonSize();
+  size.height = Number(event.target.value);
+  applyPilotHudButtonSize(size);
+});
 $('character-hud-save-btn')?.addEventListener('click', () => finishCharacterHudEditing({ saveChanges: true }));
 $('character-hud-cancel-btn')?.addEventListener('click', () => finishCharacterHudEditing());
 $('character-hud-reset-btn')?.addEventListener('click', () => finishCharacterHudEditing({ reset: true }));
-applyCharacterHudLayout(readCharacterHudLayout());
+applyHudLayout('character', readHudLayout('character'));
+applyPilotHudButtonSize();
 
 /* MENU DE PAUSA */
 
