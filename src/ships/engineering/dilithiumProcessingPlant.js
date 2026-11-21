@@ -59,7 +59,7 @@ export function createDilithiumProcessingPlant() {
   add(refinedStorage, new THREE.BoxGeometry(1.35, 0.12, 1.48), dark, 'Refined-Storage-Top', [0, 1.62, 0]);
   add(refinedStorage, new THREE.OctahedronGeometry(0.48, 1), crystal, 'Refined-Dilithium-Indicator', [0, 0.95, 0]);
 
-  const coreConduit = add(group, new THREE.CylinderGeometry(0.09, 0.09, 2.2, 10), cyan, 'Warp-Core-Dilithium-Transfer-Conduit', [3.6, 0.45, 0.55]);
+  const coreConduit = add(group, new THREE.CylinderGeometry(0.09, 0.09, 5.8, 10), cyan, 'Warp-Core-Dilithium-Transfer-Conduit', [6.2, 0.45, 0.55]);
   coreConduit.rotation.z = Math.PI / 2;
   const statusLight = add(refinery, new THREE.SphereGeometry(0.12, 12, 8), cyan, 'Refinery-Status-Light', [0.52, 1.35, 0.85]);
 
