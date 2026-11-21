@@ -46,7 +46,7 @@ export function createShipFlightController(dependencies = {}) {
       Number.isFinite(deltaSeconds) ? deltaSeconds : 0, 0, 0.04
     );
     const sensitivity = Number(state.settings.sensitivity) || 1;
-    const hasPropulsion = state.fuel > 0 || state.warpDriveCharge > 0;
+    const hasPropulsion = state.fuel > 0 || state.refinedDilithium > 0;
     const moveX = hasPropulsion ? state.move.x : 0;
     const moveY = hasPropulsion ? state.move.y : 0;
     const manualOverride = Math.abs(moveX) > 0.015 ||
@@ -206,32 +206,46 @@ export function createShipFlightController(dependencies = {}) {
     }
 
     // Efeitos das nacelles.
-    const enginePower = warpDriveActive ? 2.5 : (state.throttle ? 1.25 : 0.65);
+    const warpStage = Number(state.warpCurrentStage) || 0;
+    const enginePower = warpDriveActive ? 1.25 + warpStage * 0.35 : (state.throttle ? 1.25 : 0.65);
     (getEngineFlames() || []).forEach(flame => {
       flame.scale.set(
-        warpDriveActive ? 1.45 : 1,
-        warpDriveActive ? 2.5 : enginePower,
-        warpDriveActive ? 1.45 : 1
+        warpDriveActive ? 1 + warpStage * 0.09 : 1,
+        warpDriveActive ? 1.5 + warpStage * 0.2 : enginePower,
+        warpDriveActive ? 1 + warpStage * 0.09 : 1
       );
-      flame.material.opacity = warpDriveActive ? 0.95 : (state.throttle ? 0.7 : 0.3);
+      flame.material.opacity = warpDriveActive ? 0.68 + warpStage * 0.055 : (state.throttle ? 0.7 : 0.3);
     });
     (getEngineLights() || []).forEach(light => {
-      light.intensity = warpDriveActive ? 8 : (state.throttle ? 4 : 1.5);
+      light.intensity = warpDriveActive ? 3.5 + warpStage * 1.15 : (state.throttle ? 4 : 1.5);
     });
 
-    // HUD da propulsão de dobra.
-    const warpDriveChargePercent = Math.round(state.warpDriveCharge);
-    const warpDriveChargeLevel = getElement('warp-drive-level');
-    if (warpDriveChargeLevel) warpDriveChargeLevel.textContent = warpDriveChargePercent + '%';
-
-    const warpDriveChargeFill = getElement('warp-drive-fill');
-    if (warpDriveChargeFill) {
-      warpDriveChargeFill.style.width = warpDriveChargePercent + '%';
-      warpDriveChargeFill.style.background = warpDriveChargePercent < 20
-        ? 'linear-gradient(90deg,#b52c2c,#ff7777)'
-        : 'linear-gradient(90deg,#0878d9,#37dfff)';
+    // HUD de dobra: cinco estágios selecionáveis e reserva em unidades de dilítio.
+    const warpDriveLevel = getElement('warp-drive-level');
+    if (warpDriveLevel) {
+      warpDriveLevel.textContent = warpDriveActive
+        ? 'DOBRA ' + warpStage
+        : state.warpTransition === 'exiting' ? 'SAINDO DA DOBRA' : 'DESATIVADA';
     }
-    getElement('warp-drive-btn')?.classList.toggle('active', warpDriveActive);
+    const dilithiumReadout = getElement('warp-dilithium-readout');
+    if (dilithiumReadout) dilithiumReadout.textContent = (Math.max(0, Number(state.refinedDilithium) || 0)).toFixed(2) + ' u';
+    const warpSpeedReadout = getElement('warp-speed-readout');
+    if (warpSpeedReadout) warpSpeedReadout.textContent = String(Math.round(state.speed));
+    const stageControls = getElement('warp-stage-controls');
+    if (stageControls) stageControls.hidden = !warpDriveActive;
+    const stageButtons = getElement('warp-stage-controls')?.querySelectorAll('[data-warp-stage]') || [];
+    stageButtons.forEach(button => {
+      const selected = warpDriveActive && Number(button.dataset.warpStage) === warpStage;
+      button.classList.toggle('active', selected);
+      button.disabled = state.propulsionAuthority === 'engineering';
+      button.setAttribute('aria-pressed', String(selected));
+    });
+    const warpButton = getElement('warp-drive-btn');
+    if (warpButton) {
+      warpButton.classList.toggle('active', warpDriveActive || Boolean(state.warpDriveButton));
+      warpButton.textContent = warpDriveActive ? '⚡ DESATIVAR DOBRA' : state.warpTransition === 'exiting' ? 'SAINDO DA DOBRA' : '⚡ ATIVAR DOBRA';
+      warpButton.setAttribute('aria-pressed', String(Boolean(state.warpDriveButton)));
+    }
     return true;
   }
 

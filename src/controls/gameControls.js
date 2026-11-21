@@ -76,7 +76,7 @@ export function registerAimControls({ document, THREE, state }) {
   aimStick.addEventListener('lostpointercapture', endStick);
 }
 
-export function registerHeldFlightControls({ document, window, state, dispatchPropulsionCommand = null }) {
+export function registerHeldFlightControls({ document, window, state, dispatchPropulsionCommand = null, onWarpRejected = () => {} }) {
   function holdButton(id, key, control) {
     const button = document.getElementById(id);
     if (!button) return;
@@ -110,7 +110,24 @@ export function registerHeldFlightControls({ document, window, state, dispatchPr
   }
   holdButton('throttle-btn', 'throttle', 'throttle');
   holdButton('brake-btn', 'braking', 'braking');
-  holdButton('warp-drive-btn', 'warpDriveButton', 'warpDriveButton');
+
+  // Dobra é um comando de alternância: não depende de manter o toque pressionado.
+  const warpButton = document.getElementById('warp-drive-btn');
+  if (warpButton) {
+    warpButton.setAttribute('aria-pressed', String(Boolean(state.warpDriveButton)));
+    warpButton.addEventListener('click', () => {
+      const active = !Boolean(state.warpDriveButton);
+      if (typeof dispatchPropulsionCommand === 'function') {
+        const result = dispatchPropulsionCommand({ control: 'warpDriveButton', active });
+        if (result?.accepted !== true) { onWarpRejected(result?.reason || 'warp-command-rejected'); return; }
+      } else {
+        state.warpDriveButton = active;
+        if (active) state.warpStage = 5;
+      }
+      warpButton.setAttribute('aria-pressed', String(active));
+      warpButton.classList.toggle('active', active);
+    });
+  }
 }
 
 export function registerFlightSelectionGuards({ document }) {

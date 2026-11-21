@@ -105,6 +105,8 @@ export function createSpaceLighting(scene, options = {}) {
     'color',
     new THREE.Float32BufferAttribute(colors, 3)
   );
+  const starPositionAttribute = starGeometry.getAttribute('position');
+  const starPositionArray = starPositionAttribute.array;
 
   const stars = new THREE.Points(
     starGeometry,
@@ -119,16 +121,104 @@ export function createSpaceLighting(scene, options = {}) {
   stars.frustumCulled = false;
   scene.add(stars);
 
+  // Um subconjunto leve de estrelas ganha rastros alinhados à câmera durante a dobra.
+  const streakCount = Math.min(starCount, 1800);
+  const streakPositions = new Float32Array(streakCount * 6);
+  const streakGeometry = new THREE.BufferGeometry();
+  streakGeometry.setAttribute('position', new THREE.BufferAttribute(streakPositions, 3));
+  const streakMaterial = new THREE.LineBasicMaterial({
+    color: 0xb7efff,
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending
+  });
+  const streaks = new THREE.LineSegments(streakGeometry, streakMaterial);
+  streaks.frustumCulled = false;
+  streaks.visible = false;
+  scene.add(streaks);
+  const cameraBackward = new THREE.Vector3(0, 0, 1);
+  const shipBackward = new THREE.Vector3(0, 0, 1);
+
   return {
     stars,
     sun,
-    update(_dt, observerPosition) {
-      if (observerPosition) stars.position.copy(observerPosition);
+    update(deltaSeconds, observerPosition, warp = {}) {
+      const dt = Math.max(0, Number(deltaSeconds) || 0);
+      if (observerPosition) {
+        stars.position.copy(observerPosition);
+        streaks.position.copy(observerPosition);
+      }
+      const active = Boolean(warp.warpActive);
+      const exiting = warp.warpTransition === 'exiting';
+      const speed = Math.max(0, Number(warp.speed) || 0);
+      if (warp.cameraQuaternion?.isQuaternion) {
+        cameraBackward.set(0, 0, 1).applyQuaternion(warp.cameraQuaternion).normalize();
+      } else {
+        cameraBackward.set(0, 0, 1);
+      }
+      if (warp.shipQuaternion?.isQuaternion) {
+        shipBackward.set(0, 0, 1).applyQuaternion(warp.shipQuaternion).normalize();
+      } else {
+        shipBackward.copy(cameraBackward);
+      }
+      // O campo estelar desloca-se em sentido oposto ao avanço da nave.
+      // As estrelas que cruzam o limite são reposicionadas no lado oposto do volume.
+      if (speed > 0.01 && dt > 0) {
+        const travel = speed * dt * 0.12;
+        for (let i = 0; i < starCount; i += 1) {
+          const offset = i * 3;
+          let x = starPositionArray[offset] + shipBackward.x * travel;
+          let y = starPositionArray[offset + 1] + shipBackward.y * travel;
+          let z = starPositionArray[offset + 2] + shipBackward.z * travel;
+          const projection = x * shipBackward.x + y * shipBackward.y + z * shipBackward.z;
+          if (projection > starRadius) {
+            x -= shipBackward.x * starRadius * 2;
+            y -= shipBackward.y * starRadius * 2;
+            z -= shipBackward.z * starRadius * 2;
+          } else if (projection < -starRadius) {
+            x += shipBackward.x * starRadius * 2;
+            y += shipBackward.y * starRadius * 2;
+            z += shipBackward.z * starRadius * 2;
+          }
+          starPositionArray[offset] = x;
+          starPositionArray[offset + 1] = y;
+          starPositionArray[offset + 2] = z;
+        }
+        starPositionAttribute.needsUpdate = true;
+      }
+      const speedIntensity = Math.max(0, Math.min(1, (speed - 75) / (350 - 75)));
+      const exitProgress = speedIntensity;
+      const intensity = active ? speedIntensity : exiting ? exitProgress * 0.78 : 0;
+      stars.material.size = 1.5 + intensity * 2.2;
+      streaks.visible = intensity > 0;
+      streakMaterial.opacity = intensity * 0.78;
+      if (intensity > 0) {
+        const length = 8 + intensity * 92;
+        const attribute = streakGeometry.getAttribute('position');
+        for (let i = 0; i < streakCount; i += 1) {
+          const source = i * 3;
+          const target = i * 6;
+          const x = starPositionArray[source];
+          const y = starPositionArray[source + 1];
+          const z = starPositionArray[source + 2];
+          streakPositions[target] = x;
+          streakPositions[target + 1] = y;
+          streakPositions[target + 2] = z;
+          streakPositions[target + 3] = x + cameraBackward.x * length;
+          streakPositions[target + 4] = y + cameraBackward.y * length;
+          streakPositions[target + 5] = z + cameraBackward.z * length;
+        }
+        attribute.needsUpdate = true;
+        streakGeometry.computeBoundingSphere();
+      }
     },
     dispose() {
-      scene.remove(ambientLight, sunLight, sunlight, fillLight, sun, stars);
+      scene.remove(ambientLight, sunLight, sunlight, fillLight, sun, stars, streaks);
       starGeometry.dispose();
       stars.material.dispose();
+      streakGeometry.dispose();
+      streakMaterial.dispose();
       sun.traverse(object => {
         if (object.geometry) object.geometry.dispose();
         if (object.material) object.material.dispose();

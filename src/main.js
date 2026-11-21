@@ -25,6 +25,7 @@ import { createShipManagementTerminalController, SHIP_MANAGEMENT_TERMINAL_LOCAL_
 import { createShipManagementTerminalRenderer } from './ships/computer/managementTerminal/managementTerminalRenderer.js';
 import { createShipManagementHologram } from './ships/computer/managementTerminal/shipManagementHologram.js';
 import { createEngineeringTerminalController, ENGINEERING_CONSOLE_LOCAL_POSITION, ENGINEERING_CONSOLE_DISPLAY_RADIUS, ENGINEERING_CONSOLE_INTERACTION_RADIUS } from './ships/computer/engineeringTerminalController.js';
+import { createEngineeringTerminalRenderer } from './ships/computer/engineeringTerminal/engineeringTerminalRenderer.js';
 import { registerShipComputerSystems } from './ships/computer/shipComputerSystems.js';
 import { advanceShipFlightDynamics } from './ships/flight/flightDynamics.js';
 import { createShipFlightController } from './ships/flight/shipFlightController.js';
@@ -56,11 +57,35 @@ const shipManagementTerminal = createShipManagementTerminalController({
   }
 });
 let engineeringConsoleActive = false;
-const engineeringTerminal = createEngineeringTerminalController({
+let engineeringTerminal = null;
+let engineeringTelemetryAccumulator = 0;
+const engineeringRenderer = createEngineeringTerminalRenderer({
+  root: $('game-screen'),
+  onOpen: () => toggleEngineeringConsole(),
+  onClose: () => toggleEngineeringConsole(),
+  onStageSelect: stage => {
+    const response = engineeringTerminal?.dispatch('engineering', 'setWarpStage', { stage });
+    if (!response?.ok || !response.result?.accepted) toast('Não foi possível alterar o estágio de dobra.');
+  },
+  onExitMode: mode => {
+    const response = engineeringTerminal?.dispatch('engineering', 'setWarpExitMode', { mode });
+    if (!response?.ok || !response.result?.accepted) toast('Modo de saída não disponível.');
+  },
+  onWarpToggle: active => {
+    const response = engineeringTerminal?.dispatch('engineering', 'setWarpActive', { active });
+    if (!response?.ok || !response.result?.accepted) toast('Dobra indisponível: verifique o dilítio refinado.');
+  }
+});
+engineeringRenderer.mount();
+engineeringTerminal = createEngineeringTerminalController({
   computer: shipComputer,
   onInteractionChange: active => {
     engineeringConsoleActive = active;
-    if (active) toast('Console de Engenharia conectado ao Ship Computer. A interface holográfica será construída na próxima etapa.');
+    engineeringRenderer.setOpen(active);
+    if (active) {
+      const response = engineeringTerminal?.dispatch('engineering', 'status');
+      if (response?.ok) engineeringRenderer.update(response.result);
+    }
   }
 });
 const characterHUD = createCharacterHUD(document);
@@ -68,6 +93,7 @@ let characterCameraMode = 'third-person';
 let characterCameraInitialized = false;
 let characterModel = null;
 let shipManagementHologram = null;
+let engineeringHologram = null;
 let characterAnimator = null;
 let characterWeaponController = null;
 let characterPhysics = null;
@@ -678,6 +704,7 @@ async function startGame() {
       registerGameRuntimeSystems(runtimeBridge, {
         shipManagementTerminal,
         engineeringTerminal,
+        pauseMenu: { document, state, resetInputs: resetTransientState },
         character: {
           core: characterCore,
           resetTransientState,
@@ -975,6 +1002,17 @@ async function init3D() {
     },
     scale: 1.35
   });
+  engineeringHologram?.dispose?.();
+  engineeringHologram = createShipManagementHologram({
+    parent: shipVisual,
+    // Emissor holográfico dedicado acima do console físico do Deck 3.
+    position: {
+      x: ENGINEERING_CONSOLE_LOCAL_POSITION.x,
+      y: ENGINEERING_CONSOLE_LOCAL_POSITION.y + 1.19,
+      z: ENGINEERING_CONSOLE_LOCAL_POSITION.z
+    },
+    scale: 1.35
+  });
 
   characterCameraInitialized = false;
   characterInWorldFrame = false;
@@ -1067,7 +1105,7 @@ function updateFlight(dt) {
     }
   }
   const moveStick = $('move-stick');
-  const hasPropulsion = Number(state.fuel) > 0 || Number(state.warpDriveCharge) > 0;
+  const hasPropulsion = Number(state.fuel) > 0 || Number(state.refinedDilithium) > 0;
   if (moveStick) {
     moveStick.classList.toggle('no-propulsion', !hasPropulsion);
     moveStick.setAttribute('aria-disabled', String(!hasPropulsion));
@@ -1706,7 +1744,8 @@ function updateShipManagementInteraction(dt = 0) {
   shipManagementTerminal.setPresence(visible, available);
 }
 
-function updateEngineeringConsoleInteraction() {
+function updateEngineeringConsoleInteraction(dt = 0) {
+  engineeringHologram?.update(dt);
   const previousAvailable = engineeringInteractionAvailable;
   const previousActive = engineeringConsoleActive;
   const validContext = Boolean(characterModel && shipVisual &&
@@ -1715,6 +1754,8 @@ function updateEngineeringConsoleInteraction() {
 
   if (!validContext) {
     engineeringInteractionAvailable = false;
+    engineeringHologram?.setVisible(false);
+    engineeringRenderer.setPresence(false, false);
     engineeringTerminal.setPresence(false, false);
     if ((previousAvailable || previousActive) && !nearbyElevator) {
       const button = $('character-action-btn');
@@ -1730,7 +1771,17 @@ function updateEngineeringConsoleInteraction() {
   const visible = distanceSquared <= ENGINEERING_CONSOLE_DISPLAY_RADIUS ** 2;
   const available = distanceSquared <= ENGINEERING_CONSOLE_INTERACTION_RADIUS ** 2;
   engineeringInteractionAvailable = available;
+  engineeringHologram?.setVisible(visible);
+  engineeringRenderer.setPresence(visible, available);
   engineeringTerminal.setPresence(visible, available);
+  if (engineeringConsoleActive) {
+    engineeringTelemetryAccumulator += Math.max(0, Number(dt) || 0);
+    if (engineeringTelemetryAccumulator >= 0.18) {
+      engineeringTelemetryAccumulator = 0;
+      const response = engineeringTerminal.dispatch('engineering', 'status');
+      if (response.ok) engineeringRenderer.update(response.result);
+    }
+  }
 
   if (available || engineeringConsoleActive) {
     const button = $('character-action-btn');
@@ -1824,6 +1875,8 @@ function exitPilotMode() {
   state.move.y = 0;
   state.throttle = false;
   state.braking = false;
+  // O desligamento do comando inicia a saída de dobra no próximo frame.
+  // Mantém a velocidade e o estado de transição para a nave desacelerar suavemente.
   state.warpDriveButton = false;
   shipComputer.disconnectTerminal('pilot-console');
 
@@ -1888,7 +1941,7 @@ function bindStick(id, key) {
 
   const knob = element.querySelector('.knob');
   let pointer = null;
-  const hasPropulsion = () => Number(state.fuel) > 0 || Number(state.warpDriveCharge) > 0;
+  const hasPropulsion = () => Number(state.fuel) > 0 || Number(state.refinedDilithium) > 0;
   const reset = () => {
     state[key].x = 0;
     state[key].y = 0;
@@ -2224,7 +2277,17 @@ registerHeldFlightControls({
   dispatchPropulsionCommand: payload => {
     const response = shipComputer.dispatch('pilot-console', 'propulsion', 'setPilotInput', payload);
     return response.ok ? response.result : { accepted: false, reason: response.reason };
-  }
+  },
+  onWarpRejected: reason => toast(reason === 'dilithium-unavailable'
+    ? 'Dilítio refinado insuficiente para iniciar a dobra.'
+    : 'O Ship Computer recusou o comando de dobra.')
+});
+document.querySelectorAll('[data-warp-stage]').forEach(button => {
+  button.addEventListener('click', () => {
+    const stage = Number(button.dataset.warpStage);
+    const response = shipComputer.dispatch('pilot-console', 'propulsion', 'setWarpStage', { stage });
+    if (!response.ok || !response.result?.accepted) toast('Não foi possível selecionar esse estágio de dobra.');
+  });
 });
 registerFlightSelectionGuards({ document });
 
@@ -2567,24 +2630,7 @@ $('character-camera-btn')?.addEventListener('click', () => {
 });
 updateCharacterCameraButton();
 
-$('character-menu-btn')?.addEventListener('click', () => {
-  $('game-menu-modal')?.classList.remove('hidden');
-  if (runtimeBridge?.status === 'running') runtimeBridge.pause();
-});
-
-$('game-menu-btn')?.addEventListener('click', () => {
-  if (runtimeBridge?.status === 'running') runtimeBridge.pause();
-  state.throttle = false;
-  state.braking = false;
-  state.warpDriveButton = false;
-
-  $('game-menu-modal')?.classList.remove('hidden');
-});
-
-$('resume-btn')?.addEventListener('click', () => {
-  $('game-menu-modal')?.classList.add('hidden');
-  if (runtimeBridge?.status === 'paused') runtimeBridge.resume();
-});
+// Os eventos de pausa e retomada pertencem ao sistema de ciclo de vida do Runtime.
 
 $('return-menu-btn')?.addEventListener('click', async () => {
   // Nunca abandonar a sessão enquanto o personagem ainda estiver sentado

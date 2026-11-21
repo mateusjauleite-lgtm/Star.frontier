@@ -18,7 +18,7 @@ export function createGameplayFramePhases(getDependencies) {
     },
 
     updateCharacterMode(dt) {
-      const { characterCore, updateCharacterMovement, updateCharacterWeapon, updateExternalElevatorAnimation, updateElevatorInteraction, updatePilotInteraction, updateShipManagementInteraction, updateEngineeringConsoleInteraction, updateExternalElevatorInteraction, updateCharacterCamera, updateFlight, updateCamera } = getDependencies();
+      const { characterCore, updateCharacterMovement, updateCharacterWeapon, updateExternalElevatorAnimation, updateElevatorInteraction, updatePilotInteraction, updateShipManagementInteraction, updateEngineeringConsoleInteraction, updateExternalElevatorInteraction, updateCharacterCamera, updateFlight, updateCamera, state } = getDependencies();
   if (characterCore.snapshot().mode === 'on-foot') {
     updateCharacterMovement(dt);
     updateCharacterWeapon(dt);
@@ -26,13 +26,18 @@ export function createGameplayFramePhases(getDependencies) {
     updateElevatorInteraction();
     updatePilotInteraction();
     updateExternalElevatorInteraction();
+    // A nave continua em movimento enquanto a tripulação está a pé,
+    // inclusive durante a dobra iniciada ou monitorada pelo console de Engenharia.
+    if (state && (Number(state.speed) > 0.01 || state.warpDriveActive || state.warpDriveButton || state.warpTransition === 'exiting')) {
+      updateFlight(dt);
+    }
     updateCharacterCamera();
   } else {
     updateFlight(dt);
     updateCamera();
   }
   updateShipManagementInteraction(dt);
-  updateEngineeringConsoleInteraction?.();
+  updateEngineeringConsoleInteraction?.(dt);
     },
 
     updateLanding(dt) {
@@ -167,10 +172,21 @@ export function createGameplayFramePhases(getDependencies) {
     },
 
     updateWorld(dt) {
-      const { orbitSystem, asteroidSystem, lightingSystem, camera } = getDependencies();
-  orbitSystem?.update(dt);
-  asteroidSystem?.update(dt);
-  lightingSystem?.update(dt, camera?.position);
+      const { orbitSystem, asteroidSystem, lightingSystem, camera, shipVisual, THREE, state } = getDependencies();
+      orbitSystem?.update(dt);
+      asteroidSystem?.update(dt);
+      const shipQuaternion = shipVisual?.getWorldQuaternion && THREE?.Quaternion
+        ? shipVisual.getWorldQuaternion(new THREE.Quaternion())
+        : camera?.quaternion;
+      lightingSystem?.update(dt, camera?.position, {
+        shipQuaternion,
+        warpActive: Boolean(state?.warpDriveActive),
+        speed: Number(state?.speed) || 0,
+        warpTargetSpeed: Number(state?.warpTargetSpeed) || 0,
+        warpStage: state?.warpCurrentStage || 0,
+        warpTransition: state?.warpTransition || 'idle',
+        cameraQuaternion: camera?.quaternion
+      });
     },
 
     render() {
