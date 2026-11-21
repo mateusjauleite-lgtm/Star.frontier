@@ -2864,7 +2864,8 @@ function finishCharacterHudEditing({ saveChanges = false, reset = false } = {}) 
   hudEditorWorkingLayouts = null;
   applyHudProfileVisibility(activePilotHudProfile);
   applyHudLayout('pilot', pilotHudProfiles.getLayout(activePilotHudProfile), activePilotHudProfile);
-  hudEditorButtonSizeChanged = false;
+  hudEditorWorkingButtonSizes = null;
+  hudEditorChangedButtonSizes = new Set();
 }
 
 function startCharacterHudEditing() {
