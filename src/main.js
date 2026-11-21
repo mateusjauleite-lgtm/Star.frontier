@@ -2546,6 +2546,7 @@ let hudEditorTarget = 'character';
 let hudEditorBeforeEdit = null;
 let hudEditorWorkingLayouts = null;
 let hudEditorWorkingButtonSize = null;
+let hudEditorButtonSizeChanged = false;
 let characterHudDrag = null;
 
 function hudLayoutKey(scope) {
@@ -2604,8 +2605,8 @@ function readPilotHudButtonSize() {
   };
 }
 
-function applyPilotHudButtonSize(size = readPilotHudButtonSize()) {
-  document.querySelectorAll('[data-pilot-size-button]').forEach(button => {
+function applyPilotHudButtonSize(size = readPilotHudButtonSize(), applyToButtons = true) {
+  if (applyToButtons) document.querySelectorAll('[data-pilot-size-button]').forEach(button => {
     button.style.width = `${size.width}px`;
     button.style.minWidth = `${size.width}px`;
     button.style.height = `${size.height}px`;
@@ -2619,6 +2620,13 @@ function applyPilotHudButtonSize(size = readPilotHudButtonSize()) {
   if (height) height.value = String(size.height);
   if (widthValue) widthValue.textContent = `${size.width} px`;
   if (heightValue) heightValue.textContent = `${size.height} px`;
+}
+
+function clearPilotHudButtonSize() {
+  document.querySelectorAll('[data-pilot-size-button]').forEach(button => {
+    ['width', 'min-width', 'height', 'min-height'].forEach(prop => button.style.removeProperty(prop));
+  });
+  applyPilotHudButtonSize({ width: 112, height: 52 }, false);
 }
 
 function setHudEditorTarget(scope) {
@@ -2645,7 +2653,7 @@ function setHudEditorTarget(scope) {
     $('character-hud')?.classList.add('hud-editor-preview');
   } else {
     ['hud', 'flight-controls', 'leave-pilot-btn'].forEach(id => $(id)?.classList.add('hud-editor-preview'));
-    applyPilotHudButtonSize(hudEditorWorkingButtonSize || readPilotHudButtonSize());
+    applyPilotHudButtonSize(hudEditorWorkingButtonSize || readPilotHudButtonSize(), Boolean(hudEditorBeforeEdit?.hasCustomPilotButtonSize || hudEditorButtonSizeChanged));
   }
   applyHudLayout(scope, hudEditorWorkingLayouts?.[scope] || readHudLayout(scope));
 }
@@ -2673,7 +2681,8 @@ function finishCharacterHudEditing({ saveChanges = false, reset = false } = {}) 
     if (hudEditorTarget === 'pilot') {
       delete state.settings.pilotHudButtonSize;
       hudEditorWorkingButtonSize = { width: 112, height: 52 };
-      applyPilotHudButtonSize(hudEditorWorkingButtonSize);
+      hudEditorButtonSizeChanged = false;
+      clearPilotHudButtonSize();
     }
     save();
   } else if (saveChanges) {
@@ -2684,14 +2693,20 @@ function finishCharacterHudEditing({ saveChanges = false, reset = false } = {}) 
       width: Number($('pilot-hud-button-width')?.value) || 112,
       height: Number($('pilot-hud-button-height')?.value) || 52
     };
-    state.settings.pilotHudButtonSize = size;
+    if (hudEditorButtonSizeChanged || hudEditorBeforeEdit.hasCustomPilotButtonSize) {
+      state.settings.pilotHudButtonSize = size;
+      applyPilotHudButtonSize(size);
+    } else {
+      delete state.settings.pilotHudButtonSize;
+      clearPilotHudButtonSize();
+    }
     hudEditorWorkingButtonSize = { ...size };
-    applyPilotHudButtonSize(size);
     save();
   } else {
     applyHudLayout('character', hudEditorBeforeEdit.character);
     applyHudLayout('pilot', hudEditorBeforeEdit.pilot);
-    applyPilotHudButtonSize(hudEditorBeforeEdit.pilotButtonSize);
+    if (hudEditorBeforeEdit.hasCustomPilotButtonSize) applyPilotHudButtonSize(hudEditorBeforeEdit.pilotButtonSize);
+    else clearPilotHudButtonSize();
     hudEditorWorkingButtonSize = null;
   }
   characterHudEditing = false;
@@ -2702,6 +2717,7 @@ function finishCharacterHudEditing({ saveChanges = false, reset = false } = {}) 
   characterHudEditor?.setAttribute('aria-hidden', 'true');
   hudEditorWorkingLayouts = null;
   if (reset || saveChanges) hudEditorWorkingButtonSize = null;
+  hudEditorButtonSizeChanged = false;
 }
 
 function startCharacterHudEditing() {
@@ -2711,13 +2727,15 @@ function startCharacterHudEditing() {
   hudEditorBeforeEdit = {
     character: readHudLayout('character'),
     pilot: readHudLayout('pilot'),
-    pilotButtonSize: readPilotHudButtonSize()
+    pilotButtonSize: readPilotHudButtonSize(),
+    hasCustomPilotButtonSize: Boolean(state.settings?.pilotHudButtonSize)
   };
   hudEditorWorkingLayouts = {
     character: structuredClone(hudEditorBeforeEdit.character),
     pilot: structuredClone(hudEditorBeforeEdit.pilot)
   };
   hudEditorWorkingButtonSize = { ...hudEditorBeforeEdit.pilotButtonSize };
+  hudEditorButtonSizeChanged = false;
   $('game-menu-modal')?.classList.add('hidden');
   characterHudEditor?.classList.remove('hidden');
   characterHudEditor?.setAttribute('aria-hidden', 'false');
@@ -2761,6 +2779,7 @@ $('edit-character-hud-btn')?.addEventListener('click', startCharacterHudEditing)
 $('hud-editor-character-tab')?.addEventListener('click', () => setHudEditorTarget('character'));
 $('hud-editor-pilot-tab')?.addEventListener('click', () => setHudEditorTarget('pilot'));
 $('pilot-hud-button-width')?.addEventListener('input', event => {
+  hudEditorButtonSizeChanged = true;
   hudEditorWorkingButtonSize = {
     width: Number(event.target.value),
     height: Number($('pilot-hud-button-height')?.value) || 52
@@ -2768,6 +2787,7 @@ $('pilot-hud-button-width')?.addEventListener('input', event => {
   applyPilotHudButtonSize(hudEditorWorkingButtonSize);
 });
 $('pilot-hud-button-height')?.addEventListener('input', event => {
+  hudEditorButtonSizeChanged = true;
   hudEditorWorkingButtonSize = {
     width: Number($('pilot-hud-button-width')?.value) || 112,
     height: Number(event.target.value)
@@ -2778,7 +2798,8 @@ $('character-hud-save-btn')?.addEventListener('click', () => finishCharacterHudE
 $('character-hud-cancel-btn')?.addEventListener('click', () => finishCharacterHudEditing());
 $('character-hud-reset-btn')?.addEventListener('click', () => finishCharacterHudEditing({ reset: true }));
 applyHudLayout('character', readHudLayout('character'));
-applyPilotHudButtonSize();
+if (state.settings?.pilotHudButtonSize) applyPilotHudButtonSize();
+else clearPilotHudButtonSize();
 
 /* MENU DE PAUSA */
 
