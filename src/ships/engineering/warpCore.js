@@ -5,6 +5,7 @@ import * as THREE from 'three';
 export function createEngineeringWarpCore() {
   const group = new THREE.Group();
   group.name = 'Engineering-Warp-Core-Assembly';
+  group.userData.entityId = 'system:warp-core';
   group.position.set(0, 0, -2);
 
   const darkMetal = new THREE.MeshStandardMaterial({
