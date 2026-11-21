@@ -228,6 +228,8 @@ export function createGameplayFramePhases(getDependencies) {
       if ($('combat-target-name')) {
         $('combat-target-name').textContent = String(combatTarget?.name || 'SEM ALVO');
       }
+      if ($('combat-hull')) $('combat-hull').textContent = Math.round(state.hull) + '%';
+      if ($('combat-shield')) $('combat-shield').textContent = Math.round(state.shield) + '%';
       if ($('warp-core-consumption')) {
         $('warp-core-consumption').textContent =
           (Math.max(0, Number(state.coreDilithiumConsumedTotal) || 0)).toFixed(2) + ' u';
