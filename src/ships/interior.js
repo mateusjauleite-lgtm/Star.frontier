@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { createEngineeringWarpCore } from './engineering/warpCore.js';
 
 // Estrutura física inicial da nave exploradora.
 // Escala de trabalho: 120 x 64 x 32 m. Sem consoles, máquinas ou mobiliário.
@@ -117,6 +118,13 @@ export function createStarshipInterior(options = {}) {
     // Planta elíptica acompanha o casco arredondado, sem criar uma moldura retangular.
     const shape = new THREE.Shape();
     shape.absellipse(0, 0, width / 2, length / 2, 0, Math.PI * 2, false, 0);
+    if (name === 'D2-Floor') {
+      // Abertura circular real para o núcleo de Engenharia entre D2 e D3.
+      // O recorte fica no centro do convés; o Deck 1 não é alterado.
+      const engineeringCoreOpening = new THREE.Path();
+      engineeringCoreOpening.absellipse(0, -2 - centerZ, 3.58, 3.58, 0, Math.PI * 2, true, 0);
+      shape.holes.push(engineeringCoreOpening);
+    }
     if (name === 'D4-Floor') {
       // Abertura exclusiva do elevador externo; o piso original permanece
       // contínuo no restante do Deck 4.
@@ -171,6 +179,11 @@ export function createStarshipInterior(options = {}) {
   }
 
   // D2 — convés aberto. Piso, teto, casco e acesso técnico permanecem; divisórias removidas.
+
+  // Núcleo vertical de Engenharia: bancada aberta no D2 e console no D3.
+  // O conjunto não registra paredes nem caixas de colisão adicionais.
+  const engineeringWarpCore = createEngineeringWarpCore();
+  group.add(engineeringWarpCore);
 
   // D3 — convés aberto. Sem paredes ou anteparas internas.
 

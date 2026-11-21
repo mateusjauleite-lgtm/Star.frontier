@@ -46,12 +46,12 @@ export function createShipFlightController(dependencies = {}) {
       Number.isFinite(deltaSeconds) ? deltaSeconds : 0, 0, 0.04
     );
     const sensitivity = Number(state.settings.sensitivity) || 1;
-    const hasPropulsion = state.fuel > 0 || state.nitro > 0;
+    const hasPropulsion = state.fuel > 0 || state.warpDriveCharge > 0;
     const moveX = hasPropulsion ? state.move.x : 0;
     const moveY = hasPropulsion ? state.move.y : 0;
     const manualOverride = Math.abs(moveX) > 0.015 ||
       Math.abs(moveY) > 0.015 ||
-      state.throttle || state.braking || state.nitroButton;
+      state.throttle || state.braking || state.warpDriveButton;
 
     if (manualOverride && ship.userData.earthSurfaceAnchored) {
       ship.userData.earthSurfaceAnchored = false;
@@ -82,11 +82,11 @@ export function createShipFlightController(dependencies = {}) {
       shipVisual.rotation.z, targetRoll, Math.min(1, safeDt * 3)
     );
 
-    const boosting = advanceFlightDynamics(state, safeDt);
+    const warpDriveActive = advanceFlightDynamics(state, safeDt);
 
     shipAudio.updateFlight({
       throttle: Boolean(state.throttle && state.fuel > 0),
-      boosting,
+      warpDriveActive,
       braking: Boolean(state.braking),
       moveX,
       moveY,
@@ -206,32 +206,32 @@ export function createShipFlightController(dependencies = {}) {
     }
 
     // Efeitos das nacelles.
-    const enginePower = boosting ? 2.5 : (state.throttle ? 1.25 : 0.65);
+    const enginePower = warpDriveActive ? 2.5 : (state.throttle ? 1.25 : 0.65);
     (getEngineFlames() || []).forEach(flame => {
       flame.scale.set(
-        boosting ? 1.45 : 1,
-        boosting ? 2.5 : enginePower,
-        boosting ? 1.45 : 1
+        warpDriveActive ? 1.45 : 1,
+        warpDriveActive ? 2.5 : enginePower,
+        warpDriveActive ? 1.45 : 1
       );
-      flame.material.opacity = boosting ? 0.95 : (state.throttle ? 0.7 : 0.3);
+      flame.material.opacity = warpDriveActive ? 0.95 : (state.throttle ? 0.7 : 0.3);
     });
     (getEngineLights() || []).forEach(light => {
-      light.intensity = boosting ? 8 : (state.throttle ? 4 : 1.5);
+      light.intensity = warpDriveActive ? 8 : (state.throttle ? 4 : 1.5);
     });
 
-    // HUD do nitro.
-    const nitroPercent = Math.round(state.nitro);
-    const nitroLevel = getElement('nitro-level');
-    if (nitroLevel) nitroLevel.textContent = nitroPercent + '%';
+    // HUD da propulsão de dobra.
+    const warpDriveChargePercent = Math.round(state.warpDriveCharge);
+    const warpDriveChargeLevel = getElement('warp-drive-level');
+    if (warpDriveChargeLevel) warpDriveChargeLevel.textContent = warpDriveChargePercent + '%';
 
-    const nitroFill = getElement('nitro-fill');
-    if (nitroFill) {
-      nitroFill.style.width = nitroPercent + '%';
-      nitroFill.style.background = nitroPercent < 20
+    const warpDriveChargeFill = getElement('warp-drive-fill');
+    if (warpDriveChargeFill) {
+      warpDriveChargeFill.style.width = warpDriveChargePercent + '%';
+      warpDriveChargeFill.style.background = warpDriveChargePercent < 20
         ? 'linear-gradient(90deg,#b52c2c,#ff7777)'
         : 'linear-gradient(90deg,#0878d9,#37dfff)';
     }
-    getElement('nitro-btn')?.classList.toggle('active', boosting);
+    getElement('warp-drive-btn')?.classList.toggle('active', warpDriveActive);
     return true;
   }
 

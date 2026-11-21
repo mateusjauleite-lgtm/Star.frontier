@@ -24,6 +24,7 @@ import { createShipComputer } from './ships/computer/shipComputer.js';
 import { createShipManagementTerminalController, SHIP_MANAGEMENT_TERMINAL_LOCAL_POSITION, SHIP_MANAGEMENT_TERMINAL_DISPLAY_RADIUS, SHIP_MANAGEMENT_TERMINAL_INTERACTION_RADIUS } from './ships/computer/managementTerminal/managementTerminalController.js';
 import { createShipManagementTerminalRenderer } from './ships/computer/managementTerminal/managementTerminalRenderer.js';
 import { createShipManagementHologram } from './ships/computer/managementTerminal/shipManagementHologram.js';
+import { createEngineeringTerminalController, ENGINEERING_CONSOLE_LOCAL_POSITION, ENGINEERING_CONSOLE_DISPLAY_RADIUS, ENGINEERING_CONSOLE_INTERACTION_RADIUS } from './ships/computer/engineeringTerminalController.js';
 import { registerShipComputerSystems } from './ships/computer/shipComputerSystems.js';
 import { advanceShipFlightDynamics } from './ships/flight/flightDynamics.js';
 import { createShipFlightController } from './ships/flight/shipFlightController.js';
@@ -44,12 +45,22 @@ shipComputer.registerTerminal({
   name: 'Terminal holográfico de gerenciamento',
   systems: ['navigation', 'sensors', 'power']
 });
+shipComputer.registerTerminal({ id: 'pilot-console', name: 'Console de pilotagem da Ponte', systems: ['navigation', 'propulsion'] });
+shipComputer.registerTerminal({ id: 'engineering-console', name: 'Console de Engenharia · Deck 3', systems: ['engineering', 'propulsion', 'power'] });
 const shipManagementTerminal = createShipManagementTerminalController({
   computer: shipComputer,
   renderer: createShipManagementTerminalRenderer({ root: $('game-screen') }),
   onInteractionChange: active => {
     $('game-screen')?.classList.toggle('ship-management-active', active);
     if (active) characterControls?.reset?.();
+  }
+});
+let engineeringConsoleActive = false;
+const engineeringTerminal = createEngineeringTerminalController({
+  computer: shipComputer,
+  onInteractionChange: active => {
+    engineeringConsoleActive = active;
+    if (active) toast('Console de Engenharia conectado ao Ship Computer. A interface holográfica será construída na próxima etapa.');
   }
 });
 const characterHUD = createCharacterHUD(document);
@@ -78,10 +89,16 @@ const PHASER_RECHARGE_SECONDS = 2.5;
 const PHASER_FLASH_SECONDS = 0.16;
 let pilotInteractionAvailable = false;
 let shipManagementInteractionAvailable = false;
+let engineeringInteractionAvailable = false;
 const shipManagementTerminalPosition = new THREE.Vector3(
   SHIP_MANAGEMENT_TERMINAL_LOCAL_POSITION.x,
   SHIP_MANAGEMENT_TERMINAL_LOCAL_POSITION.y,
   SHIP_MANAGEMENT_TERMINAL_LOCAL_POSITION.z
+);
+const engineeringConsolePosition = new THREE.Vector3(
+  ENGINEERING_CONSOLE_LOCAL_POSITION.x,
+  ENGINEERING_CONSOLE_LOCAL_POSITION.y,
+  ENGINEERING_CONSOLE_LOCAL_POSITION.z
 );
 const pilotPlayerWorldPosition = new THREE.Vector3();
 const characterCameraWorldPosition = new THREE.Vector3();
@@ -660,6 +677,7 @@ async function startGame() {
       runtimeBridge = createRuntimeBridge(runtimeKernel);
       registerGameRuntimeSystems(runtimeBridge, {
         shipManagementTerminal,
+        engineeringTerminal,
         character: {
           core: characterCore,
           resetTransientState,
@@ -719,7 +737,7 @@ async function startGame() {
             earthSystem, camera, applyEarthSurfaceRotation, ship, updatePhaserWeapon,
             characterCore, updateCharacterMovement, updateCharacterWeapon,
             updateExternalElevatorAnimation, updateElevatorInteraction,
-            updatePilotInteraction, updateShipManagementInteraction, updateExternalElevatorInteraction,
+            updatePilotInteraction, updateShipManagementInteraction, updateEngineeringConsoleInteraction, updateExternalElevatorInteraction,
             updateCharacterCamera, updateFlight, updateCamera,
             setLandingBaseSystem: value => { landingBaseSystem = value; },
             updateShipLandingGuidance, THREE, shipVisual, shipEarthContactPoints,
@@ -1049,7 +1067,7 @@ function updateFlight(dt) {
     }
   }
   const moveStick = $('move-stick');
-  const hasPropulsion = Number(state.fuel) > 0 || Number(state.nitro) > 0;
+  const hasPropulsion = Number(state.fuel) > 0 || Number(state.warpDriveCharge) > 0;
   if (moveStick) {
     moveStick.classList.toggle('no-propulsion', !hasPropulsion);
     moveStick.setAttribute('aria-disabled', String(!hasPropulsion));
@@ -1688,8 +1706,60 @@ function updateShipManagementInteraction(dt = 0) {
   shipManagementTerminal.setPresence(visible, available);
 }
 
+function updateEngineeringConsoleInteraction() {
+  const previousAvailable = engineeringInteractionAvailable;
+  const previousActive = engineeringConsoleActive;
+  const validContext = Boolean(characterModel && shipVisual &&
+    characterCore.snapshot().mode === 'on-foot' && !characterInWorldFrame &&
+    !nearbyElevator && activeDeckIndex === 2);
+
+  if (!validContext) {
+    engineeringInteractionAvailable = false;
+    engineeringTerminal.setPresence(false, false);
+    if ((previousAvailable || previousActive) && !nearbyElevator) {
+      const button = $('character-action-btn');
+      if (button) { button.disabled = true; button.textContent = 'AÇÃO'; button.classList.remove('available'); }
+      characterCore.setInteractionTarget(null);
+      updateCharacterHUD();
+      updatePilotInteraction();
+    }
+    return;
+  }
+
+  const distanceSquared = characterModel.group.position.distanceToSquared(engineeringConsolePosition);
+  const visible = distanceSquared <= ENGINEERING_CONSOLE_DISPLAY_RADIUS ** 2;
+  const available = distanceSquared <= ENGINEERING_CONSOLE_INTERACTION_RADIUS ** 2;
+  engineeringInteractionAvailable = available;
+  engineeringTerminal.setPresence(visible, available);
+
+  if (available || engineeringConsoleActive) {
+    const button = $('character-action-btn');
+    if (button) {
+      button.disabled = false;
+      button.textContent = engineeringConsoleActive ? '◎ DESCONECTAR ENGENHARIA' : '◎ ENGENHARIA';
+      button.classList.add('available');
+    }
+    characterCore.setInteractionTarget(engineeringConsoleActive ? 'CONSOLE DE ENGENHARIA CONECTADO' : 'CONSOLE DE ENGENHARIA');
+    if (previousAvailable !== available || previousActive !== engineeringConsoleActive) updateCharacterHUD();
+  } else if (previousAvailable || previousActive) {
+    const button = $('character-action-btn');
+    if (button) { button.disabled = true; button.textContent = 'AÇÃO'; button.classList.remove('available'); }
+    characterCore.setInteractionTarget(null);
+    updateCharacterHUD();
+    updatePilotInteraction();
+  }
+}
+
+function toggleEngineeringConsole() {
+  if (engineeringConsoleActive) { engineeringTerminal.close(); return; }
+  if (!engineeringInteractionAvailable || !engineeringTerminal.open('ENGENHEIRO')) {
+    toast('Aproxime-se do console de Engenharia no Deck 3.');
+  }
+}
+
 function updatePilotInteraction() {
   if (!characterModel || !shipVisual || characterCore.snapshot().mode !== 'on-foot') return;
+  if (engineeringInteractionAvailable || engineeringConsoleActive) return;
 
   characterModel.group.getWorldPosition(pilotPlayerWorldPosition);
   const available = isPilotConsoleInRange(pilotPlayerWorldPosition, shipVisual);
@@ -1710,7 +1780,7 @@ function updatePilotInteraction() {
 
 function setPilotInterface(activePilot) {
   characterHUD.show(!activePilot);
-  ['hud', 'nitro-display', 'flight-controls'].forEach(id => {
+  ['hud', 'warp-drive-display', 'flight-controls'].forEach(id => {
     $(id)?.classList.toggle('hidden', !activePilot);
   });
 }
@@ -1721,7 +1791,14 @@ function enterPilotMode() {
     return;
   }
 
-  if (!attachCharacterToPilotConsole(characterModel, shipVisual)) return;
+  if (!shipComputer.connectTerminal('pilot-console', 'PILOTO')) {
+    toast('O Ship Computer não está disponível para assumir a pilotagem.');
+    return;
+  }
+  if (!attachCharacterToPilotConsole(characterModel, shipVisual)) {
+    shipComputer.disconnectTerminal('pilot-console');
+    return;
+  }
 
   characterControls.reset();
   characterCore.enterShipSeat();
@@ -1747,7 +1824,8 @@ function exitPilotMode() {
   state.move.y = 0;
   state.throttle = false;
   state.braking = false;
-  state.nitroButton = false;
+  state.warpDriveButton = false;
+  shipComputer.disconnectTerminal('pilot-console');
 
   const flightStick = $('move-stick')?.querySelector('.knob');
   if (flightStick) flightStick.style.transform = 'translate(0,0)';
@@ -1810,7 +1888,7 @@ function bindStick(id, key) {
 
   const knob = element.querySelector('.knob');
   let pointer = null;
-  const hasPropulsion = () => Number(state.fuel) > 0 || Number(state.nitro) > 0;
+  const hasPropulsion = () => Number(state.fuel) > 0 || Number(state.warpDriveCharge) > 0;
   const reset = () => {
     state[key].x = 0;
     state[key].y = 0;
@@ -1934,6 +2012,7 @@ function updateCharacterWeapon(dt) {
 
 $('character-action-btn')?.addEventListener('click', () => {
   if (externalElevatorActionAvailable) activateExternalElevator();
+  else if (engineeringInteractionAvailable || engineeringConsoleActive) toggleEngineeringConsole();
   else enterPilotMode();
 });
 window.addEventListener('keydown', event => {
@@ -2140,7 +2219,13 @@ instrumentBindings.forEach(([valueId]) => {
   if (value) instrumentObserver.observe(value, { childList:true, characterData:true, subtree:true });
 });
 updateInstrumentBars();
-registerHeldFlightControls({ document, window, state });
+registerHeldFlightControls({
+  document, window, state,
+  dispatchPropulsionCommand: payload => {
+    const response = shipComputer.dispatch('pilot-console', 'propulsion', 'setPilotInput', payload);
+    return response.ok ? response.result : { accepted: false, reason: response.reason };
+  }
+});
 registerFlightSelectionGuards({ document });
 
 function cancelLandingGuidance(reason = 'cancelled') {
@@ -2491,7 +2576,7 @@ $('game-menu-btn')?.addEventListener('click', () => {
   if (runtimeBridge?.status === 'running') runtimeBridge.pause();
   state.throttle = false;
   state.braking = false;
-  state.nitroButton = false;
+  state.warpDriveButton = false;
 
   $('game-menu-modal')?.classList.remove('hidden');
 });
