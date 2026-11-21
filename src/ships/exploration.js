@@ -227,12 +227,25 @@ export function createExplorationShip() {
       new THREE.Vector3(side * 11.5, -0.8, 51),
       new THREE.Vector3(side * 12.2, 0.1, 56)
     ]);
-    const support = new THREE.Mesh(
-      new THREE.TubeGeometry(supportCurve, 24, 2.0, 12, false),
-      undersideMaterial
-    );
+    const supportGeometry = new THREE.TubeGeometry(supportCurve, 32, 2.7, 16, false);
+    // Longarina achatada e larga, com acabamento metálico integrado ao casco.
+    supportGeometry.scale(1, 0.62, 1);
+    const support = new THREE.Mesh(supportGeometry, hullMaterial);
     support.name = side < 0 ? 'Port-Integrated-Aft-Support' : 'Starboard-Integrated-Aft-Support';
     aftNacelleJunction.add(support);
+
+    const railCurve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(side * 7.8, -7.55, 37.4),
+      new THREE.Vector3(side * 9.8, -3.55, 43.4),
+      new THREE.Vector3(side * 11.8, -0.15, 51.4),
+      new THREE.Vector3(side * 12.5, 0.75, 56.4)
+    ]);
+    const insetRail = new THREE.Mesh(
+      new THREE.TubeGeometry(railCurve, 28, 0.24, 10, false),
+      trimMaterial
+    );
+    insetRail.name = side < 0 ? 'Port-Aft-Support-Inset-Rail' : 'Starboard-Aft-Support-Inset-Rail';
+    aftNacelleJunction.add(insetRail);
   }
 
   const engineFlames = [];
@@ -243,6 +256,7 @@ export function createExplorationShip() {
     const nacelle = new THREE.Group();
     nacelle.name = side < 0 ? 'Port-Warp-Nacelle' : 'Starboard-Warp-Nacelle';
     nacelle.position.set(side * 12.2, 0.1, 61);
+    nacelle.scale.setScalar(0.82);
     aftNacelleJunction.add(nacelle);
 
     // Anel estrutural na raiz da nacelle, encaixado no término do suporte

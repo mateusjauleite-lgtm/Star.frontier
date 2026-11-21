@@ -54,6 +54,8 @@ export function createLandingGear(THREERef = THREE) {
   });
 
   const contactPoints = [];
+  const pivots = [];
+  const doors = [];
   const assemblyPositions = [];
   for (const side of [-1, 1]) {
     for (const fore of [-1, 1]) {
@@ -61,8 +63,13 @@ export function createLandingGear(THREERef = THREE) {
       const z = fore * 25.5;
       const assembly = new THREERef.Group();
       assembly.name = `Articulated-Wheel-Gear-${side < 0 ? 'Port' : 'Starboard'}-${fore < 0 ? 'Fore' : 'Aft'}`;
-      assembly.position.set(x, 0, z);
-      group.add(assembly);
+      const pivot = new THREERef.Group();
+      pivot.name = `Landing-Gear-Retract-Pivot-${side}-${fore}`;
+      pivot.position.set(x, -10.8, z);
+      group.add(pivot);
+      pivots.push({ pivot, foldDirection: fore < 0 ? -1 : 1 });
+      assembly.position.set(0, 10.8, 0);
+      pivot.add(assembly);
       assemblyPositions.push({ x, z });
 
       // Compact upper mounting bracket, fixed to the lower structural frame.
@@ -137,12 +144,45 @@ export function createLandingGear(THREERef = THREE) {
         assembly.add(hub);
       }
 
-      contactPoints.push({
+      const contact = {
         id: `gear-${side < 0 ? 'port' : 'starboard'}-${fore < 0 ? 'fore' : 'aft'}`,
-        point: new THREERef.Vector3(x, -25.72, z)
-      });
+        get point() {
+          group.updateWorldMatrix(true, true);
+          const worldPoint = pivot.localToWorld(new THREERef.Vector3(0, -14.92, 0));
+          return group.worldToLocal(worldPoint);
+        }
+      };
+      contactPoints.push(contact);
+
+      const doorPivot = new THREERef.Group();
+      doorPivot.name = 'Landing-Gear-Bay-Door-Pivot';
+      doorPivot.position.set(x, -14.8, z);
+      group.add(doorPivot);
+      const door = new THREERef.Mesh(
+        new THREERef.BoxGeometry(7.2, 0.28, 10.2),
+        undersideMaterial
+      );
+      door.name = 'Landing-Gear-Bay-Door';
+      door.position.set(0, 0, fore * -5.1);
+      doorPivot.add(door);
+      doors.push({ doorPivot, foldDirection: fore < 0 ? -1 : 1 });
     }
   }
 
-  return { group, contactPoints, assemblyPositions };
+  let deployment = 1;
+  const setDeployment = value => {
+    deployment = THREERef.MathUtils.clamp(Number(value) || 0, 0, 1);
+    for (const { pivot, foldDirection } of pivots) {
+      pivot.rotation.x = foldDirection * (1 - deployment) * Math.PI * 0.5;
+    }
+    for (const { doorPivot, foldDirection } of doors) {
+      doorPivot.rotation.x = -foldDirection * deployment * 0.72;
+    }
+    return deployment;
+  };
+  setDeployment(1);
+  group.userData.setDeployment = setDeployment;
+  group.userData.getDeployment = () => deployment;
+
+  return { group, contactPoints, assemblyPositions, setDeployment, getDeployment: () => deployment };
 }
