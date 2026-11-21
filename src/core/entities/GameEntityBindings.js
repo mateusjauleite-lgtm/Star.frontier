@@ -54,6 +54,7 @@ export function registerGameWorldEntities(manager, world = {}) {
 
   // O minério é uma entidade de recurso independente, compartilhada por todos os depósitos.
   register(RESOURCE_IDS.DILITHIUM_ORE, createResourceEntityData(RESOURCE_IDS.DILITHIUM_ORE));
+  register(RESOURCE_IDS.REFINED_DILITHIUM, createResourceEntityData(RESOURCE_IDS.REFINED_DILITHIUM));
   const asteroidSystem = world.asteroidSystem;
   for (const asteroid of asteroidSystem?.asteroids ?? []) {
     const id = asteroid.userData?.entityId;
