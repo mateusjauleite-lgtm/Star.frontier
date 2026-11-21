@@ -1,5 +1,5 @@
 /**
- * Atualiza aceleração, nitro, consumo de recursos e frenagem da nave.
+ * Atualiza aceleração, propulsão de dobra, consumo de recursos e frenagem da nave.
  * Mantém a escala de velocidade de gameplay existente; não representa m/s.
  */
 export function advanceShipFlightDynamics(state, deltaSeconds) {
@@ -15,22 +15,22 @@ export function advanceShipFlightDynamics(state, deltaSeconds) {
     state.fuel = Math.max(0, state.fuel - 0.28 * dt);
   }
 
-  const boosting = Boolean(state.nitroButton && state.nitro > 0 && state.fuel > 0);
-  if (boosting) {
+  const warpDriveActive = Boolean(state.warpDriveButton && state.warpDriveCharge > 0 && state.fuel > 0);
+  if (warpDriveActive) {
     state.speed = Math.min(115, state.speed + 55 * dt);
-    state.nitro = Math.max(0, state.nitro - 28 * dt);
+    state.warpDriveCharge = Math.max(0, state.warpDriveCharge - 28 * dt);
     state.fuel = Math.max(0, state.fuel - 0.55 * dt);
   } else {
-    state.nitro = Math.min(100, state.nitro + 12 * dt);
+    state.warpDriveCharge = Math.min(100, state.warpDriveCharge + 12 * dt);
   }
 
   if (state.braking) {
     state.speed = Math.max(0, state.speed - 30 * dt);
   }
 
-  if (!state.throttle && !boosting) {
+  if (!state.throttle && !warpDriveActive) {
     state.speed = Math.max(0, state.speed - 1.4 * dt);
   }
 
-  return boosting;
+  return warpDriveActive;
 }

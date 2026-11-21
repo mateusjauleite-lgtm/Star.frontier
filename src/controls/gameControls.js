@@ -76,13 +76,21 @@ export function registerAimControls({ document, THREE, state }) {
   aimStick.addEventListener('lostpointercapture', endStick);
 }
 
-export function registerHeldFlightControls({ document, window, state }) {
-  function holdButton(id, key) {
+export function registerHeldFlightControls({ document, window, state, dispatchPropulsionCommand = null }) {
+  function holdButton(id, key, control) {
     const button = document.getElementById(id);
     if (!button) return;
     let activePointer = null;
+    const apply = active => {
+      if (typeof dispatchPropulsionCommand === 'function') {
+        return dispatchPropulsionCommand({ control, active })?.accepted === true;
+      }
+      state[key] = active;
+      return true;
+    };
     const stop = event => {
       if (activePointer !== null && event?.pointerId !== undefined && event.pointerId !== activePointer) return;
+      if (activePointer !== null) apply(false);
       activePointer = null;
       state[key] = false;
       button.classList.remove('active');
@@ -90,22 +98,19 @@ export function registerHeldFlightControls({ document, window, state }) {
     button.addEventListener('pointerdown', event => {
       if (activePointer !== null || (event.pointerType === 'mouse' && event.button !== 0)) return;
       event.preventDefault();
+      if (!apply(true)) return;
       activePointer = event.pointerId;
-      // Entradas de propulsão são diretas e não dependem do computador auxiliar.
-      state[key] = true;
       button.classList.add('active');
-      try {
-        button.setPointerCapture(event.pointerId);
-      } catch {
+      try { button.setPointerCapture(event.pointerId); } catch {
         // pointerup/blur continuam responsáveis por liberar a entrada.
       }
     });
     ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type => button.addEventListener(type, stop));
     window.addEventListener('blur', stop);
   }
-  holdButton('throttle-btn', 'throttle');
-  holdButton('brake-btn', 'braking');
-  holdButton('nitro-btn', 'nitroButton');
+  holdButton('throttle-btn', 'throttle', 'throttle');
+  holdButton('brake-btn', 'braking', 'braking');
+  holdButton('warp-drive-btn', 'warpDriveButton', 'warpDriveButton');
 }
 
 export function registerFlightSelectionGuards({ document }) {
