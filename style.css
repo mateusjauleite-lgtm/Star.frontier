@@ -2007,6 +2007,8 @@ body {
   outline: 2px dashed rgba(67,217,255,.95) !important; outline-offset: 3px;
   z-index: 55 !important; pointer-events: auto !important; touch-action: none !important; cursor: move;
 }
+/* Durante a edição, os filhos não recebem comandos de gameplay: o grupo inteiro vira alça de arraste. */
+.hud-editable-active * { pointer-events: none !important; }
 
 
 /* Phaser portátil: botão, recarga energética e estado de disparo. */
