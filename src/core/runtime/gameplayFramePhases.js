@@ -172,10 +172,14 @@ export function createGameplayFramePhases(getDependencies) {
     },
 
     updateWorld(dt) {
-      const { orbitSystem, asteroidSystem, lightingSystem, camera, state } = getDependencies();
+      const { orbitSystem, asteroidSystem, lightingSystem, camera, shipVisual, THREE, state } = getDependencies();
       orbitSystem?.update(dt);
       asteroidSystem?.update(dt);
+      const shipQuaternion = shipVisual?.getWorldQuaternion && THREE?.Quaternion
+        ? shipVisual.getWorldQuaternion(new THREE.Quaternion())
+        : camera?.quaternion;
       lightingSystem?.update(dt, camera?.position, {
+        shipQuaternion,
         warpActive: Boolean(state?.warpDriveActive),
         speed: Number(state?.speed) || 0,
         warpTargetSpeed: Number(state?.warpTargetSpeed) || 0,
