@@ -275,26 +275,12 @@
       <div class="hud-card right">
         <span>Créditos: <b id="hud-credits">0</b></span>
         <button id="leave-pilot-btn" class="hud-menu" type="button">SAIR</button>
-        <button id="game-menu-btn" class="hud-menu">
-          ☰ MENU
-        </button>
       </div>
+      <button id="game-menu-btn" class="hud-menu pause-hud-button" type="button" aria-label="Pausar jogo">Ⅱ</button>
 
     </div>
 
-    <!-- INDICADOR DE NITRO -->
-    <div id="nitro-display" class="nitro-display ship-interface hidden">
 
-      <div class="nitro-heading">
-        <span>ENERGIA DO NITRO</span>
-        <b id="nitro-level">100%</b>
-      </div>
-
-      <div class="nitro-track">
-        <div id="nitro-fill" class="nitro-fill"></div>
-      </div>
-
-    </div>
 
     <!-- AVISOS E INTERAÇÕES -->
     <div id="npc-bubble" class="npc-bubble hidden"></div>
@@ -315,9 +301,7 @@
           <div class="knob"></div>
         </div>
 
-        <button id="mine-btn" class="control-button">
-          ⛏ MINERAR
-        </button>
+
 
       </div>
 
@@ -325,6 +309,12 @@
       <div class="control-side right-side">
 
         <div class="control-label">COMANDOS</div>
+        <div class="aim-stick-wrap">
+          <div class="control-label">MIRA</div>
+          <div id="aim-stick" class="stick aim-stick" aria-label="Joystick independente de mira">
+            <div class="knob"></div>
+          </div>
+        </div>
 
         <div class="button-pair">
           <button id="fire-btn" class="control-button">
@@ -336,19 +326,18 @@
           </button>
         </div>
 
-        <div class="button-pair">
-          <button id="throttle-btn" class="control-button">
-            ▲ ACELERAR
-          </button>
-
-          <button id="brake-btn" class="control-button">
-            ▼ FREAR
-          </button>
+        <div class="propulsion-slot">
+          <div class="propulsion-heading"><span>PROPULSÃO / NITRO</span><b id="nitro-level">100%</b></div>
+          <div class="nitro-track"><div id="nitro-fill" class="nitro-fill"></div></div>
+          <div class="button-pair propulsion-buttons">
+            <button id="throttle-btn" class="control-button">▲ ACELERAR</button>
+            <button id="brake-btn" class="control-button">▼ FREAR</button>
+          </div>
+          <div class="button-pair propulsion-buttons">
+            <button id="nitro-btn" class="control-button nitro-button">⚡ NITRO</button>
+            <button id="mine-btn" class="control-button">⛏ MINERAR</button>
+          </div>
         </div>
-
-        <button id="nitro-btn" class="control-button nitro-button">
-          ⚡ NITRO
-        </button>
 
         <button id="camera-btn" class="control-button">
           CÂMERA: 3ª PESSOA
