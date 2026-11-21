@@ -131,6 +131,7 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
   computer.registerSystem('engineering', {
     name: 'Engenharia e propulsão de dobra',
     commands: {
+      tick: payload => getDilithiumProcessing()?.update?.(payload?.dt) ?? { available: false },
       status: () => ({
         ...readPropulsion(),
         warpCore: 'connected-to-ship-computer',
