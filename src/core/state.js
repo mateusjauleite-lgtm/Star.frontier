@@ -20,6 +20,7 @@ export const state = {
   nitroButton: false,
   nitro: 100,
   move: { x: 0, y: 0 },
+  aim: { x: 0, y: 0 },
   view: { x: 0, y: 0 },
   miningDrill: 'Broca básica',
   inventory: {
@@ -54,6 +55,7 @@ export const state = {
 // Controles momentâneos não devem continuar ativos após carregar um jogo.
 export function resetTransientState() {
   state.move = { x: 0, y: 0 };
+  state.aim = { x: 0, y: 0 };
   state.view = { x: 0, y: 0 };
   state.throttle = false;
   state.braking = false;

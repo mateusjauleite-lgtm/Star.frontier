@@ -505,33 +505,25 @@ select:focus {
 
 .stick {
   position: relative;
-  width: 108px;
-  height: 108px;
+  width: clamp(142px, 20vw, 174px);
+  height: clamp(142px, 20vw, 174px);
   flex: 0 0 auto;
-  border: 2px solid rgba(67, 217, 255, 0.48);
+  border: 2px solid rgba(67, 217, 255, 0.72);
   border-radius: 50%;
   background:
-    radial-gradient(
-      circle,
-      rgba(67, 217, 255, 0.12),
-      rgba(5, 17, 34, 0.8)
-    );
-  box-shadow: inset 0 0 18px rgba(67, 217, 255, 0.1);
+    radial-gradient(circle, rgba(67,217,255,.16) 0 30%, transparent 31%),
+    repeating-radial-gradient(circle, rgba(67,217,255,.18) 0 1px, transparent 2px 18px),
+    radial-gradient(circle, rgba(7,35,57,.96), rgba(2,9,22,.98));
+  box-shadow: inset 0 0 24px rgba(67,217,255,.2), 0 0 18px rgba(67,217,255,.12);
   touch-action: none;
 }
-
+.stick::before,.stick::after { content:""; position:absolute; inset:9px; border:1px solid rgba(67,217,255,.25); border-radius:50%; pointer-events:none; }
+.stick::after { inset:25px; border-style:dashed; opacity:.7; }
 .knob {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 43px;
-  height: 43px;
-  border: 2px solid rgba(255, 255, 255, 0.7);
-  border-radius: 50%;
-  background: linear-gradient(145deg, #43d9ff, #1264a6);
-  box-shadow: 0 0 15px rgba(67, 217, 255, 0.4);
-  transform: translate(-50%, -50%);
-  pointer-events: none;
+  position:absolute; top:50%; left:50%; width:66px; height:66px; border:2px solid rgba(210,248,255,.9);
+  border-radius:50%; background:radial-gradient(circle at 35% 28%,#b7f5ff,#1689ba 48%,#062b50 100%);
+  box-shadow:inset 0 0 14px rgba(255,255,255,.35),0 0 20px rgba(67,217,255,.65);
+  transform:translate(-50%,-50%); transition:transform .075s linear; pointer-events:none;
 }
 
 .control-button {
@@ -569,9 +561,19 @@ select:focus {
 }
 
 #nitro-btn {
-  border-color: rgba(67, 217, 255, 0.7);
-  color: var(--cyan);
+  position:relative; min-width:104px; min-height:48px; overflow:hidden;
+  border:1px solid rgba(67,217,255,.82); border-radius:13px;
+  color:#b9f4ff; letter-spacing:1.2px;
+  background:linear-gradient(115deg,rgba(5,30,53,.98),rgba(9,76,105,.96) 48%,rgba(3,16,34,.98));
+  box-shadow:inset 0 0 15px rgba(67,217,255,.16),0 0 12px rgba(67,217,255,.14);
 }
+#nitro-btn::before { content:""; position:absolute; inset:4px; border:1px solid rgba(67,217,255,.2); border-radius:9px; pointer-events:none; }
+#nitro-btn::after { content:""; position:absolute; top:-60%; left:-35%; width:32%; height:220%; transform:rotate(24deg); background:linear-gradient(90deg,transparent,rgba(170,245,255,.2),transparent); transition:left .35s ease; pointer-events:none; }
+#nitro-btn.active { color:#fff; border-color:#a5f3ff; background:linear-gradient(115deg,#075b82,#079ac0 52%,#063c63); box-shadow:inset 0 0 18px rgba(125,235,255,.28),0 0 22px rgba(67,217,255,.65); }
+#nitro-btn.active::after { left:120%; }
+#nitro-display { width:clamp(190px,25vw,250px); padding:10px 12px; border-color:rgba(67,217,255,.55); box-shadow:inset 0 0 16px rgba(67,217,255,.08),0 0 16px rgba(67,217,255,.12); }
+#nitro-display .nitro-track { height:10px; border-radius:8px; background:rgba(0,5,15,.9); }
+#nitro-fill { background:linear-gradient(90deg,#0879b8,#28c8f4,#a4f3ff); box-shadow:0 0 12px rgba(67,217,255,.65); }
 
 #nitro-btn.active {
   background: linear-gradient(145deg, #087fa8, #06314f);
@@ -580,14 +582,23 @@ select:focus {
 
 /* ÁREA DE MOVIMENTO DA CÂMERA */
 
-#aim-touch-area {
-  position: absolute;
-  inset: 0 0 0 34%;
-  z-index: 1;
-  background: transparent;
-  pointer-events: auto;
-  touch-action: none;
-}
+#aim-touch-area { position:absolute; inset:0 0 0 34%; z-index:1; background:transparent; pointer-events:auto; touch-action:none; }
+#aim-touch-area.aim-disabled { pointer-events:none; }
+.pilot-aim-button { position:absolute; z-index:4; left:50%; bottom:calc(18px + env(safe-area-inset-bottom)); transform:translateX(-50%); min-width:92px; min-height:48px; border:1px solid rgba(67,217,255,.7); border-radius:14px; color:var(--cyan); background:linear-gradient(145deg,rgba(10,48,75,.96),rgba(2,12,27,.97)); box-shadow:0 0 18px rgba(67,217,255,.18),inset 0 0 12px rgba(67,217,255,.1); font-weight:800; letter-spacing:1px; pointer-events:auto; }
+.pilot-aim-button[aria-pressed="false"] { opacity:.65; border-color:rgba(150,180,195,.4); color:var(--muted); }
+.pilot-instruments { min-width:min(440px,58vw); padding:10px 13px; gap:8px; }
+.instrument-header,.instrument-readout { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.instrument-header span,.instrument-readout>span,.instrument-cargo { color:var(--muted); font-size:10px; letter-spacing:1px; }
+.instrument-header #hud-user { color:var(--cyan); }
+.instrument-grid { display:grid; grid-template-columns:repeat(2,minmax(110px,1fr)); gap:8px 14px; }
+.instrument-readout b { color:var(--text); font-size:15px; font-variant-numeric:tabular-nums; }
+.instrument-track { height:8px; margin-top:4px; overflow:hidden; border:1px solid rgba(67,217,255,.22); border-radius:10px; background:rgba(0,5,15,.8); }
+.instrument-track i { display:block; width:100%; height:100%; border-radius:inherit; background:linear-gradient(90deg,#147bc1,#43d9ff); box-shadow:0 0 9px rgba(67,217,255,.45); transition:width .18s linear,filter .18s linear; }
+.instrument[data-instrument="hull"] .instrument-track i { background:linear-gradient(90deg,#168d65,#65f0ad); }
+.instrument[data-instrument="shield"] .instrument-track i { background:linear-gradient(90deg,#147bc1,#43d9ff); }
+.instrument[data-instrument="fuel"] .instrument-track i { background:linear-gradient(90deg,#b9781d,#ffd36b); }
+.instrument-cargo { display:flex; justify-content:flex-end; gap:6px; }
+.instrument-cargo b { color:var(--text); font-size:12px; }
 
 /* MENSAGENS E INTERAÇÕES */
 
@@ -2201,4 +2212,174 @@ body {
   .inventory-overflow-grid {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+
+/* Game-wide text interaction protection: keep controls usable, disable selection. */
+html,
+body,
+body * {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* PILOT HUD — dimensões consistentes em telas móveis */
+@media (orientation:landscape) and (max-height:600px) {
+  .stick { width:clamp(126px,23vh,158px); height:clamp(126px,23vh,158px); }
+  .knob { width:58px; height:58px; }
+  .pilot-instruments { min-width:min(390px,55vw); }
+  .pilot-aim-button { bottom:calc(10px + env(safe-area-inset-bottom)); min-height:42px; }
+}
+@media (max-width:420px) {
+  .pilot-instruments { min-width:min(320px,68vw); padding:8px; }
+  .instrument-grid { gap:6px 9px; }
+  .instrument-readout b { font-size:13px; }
+}
+
+
+/* HUD de voo v2: pausa, mira independente e módulo único de propulsão */
+#game-menu-btn.pause-hud-button {
+  position:absolute; left:36%; top:8px; z-index:12;
+  width:58px; min-width:58px; height:58px; min-height:58px;
+  padding:0; border-radius:15px; font-size:26px;
+  color:var(--cyan); border:1px solid rgba(67,217,255,.65);
+  background:rgba(4,20,39,.94); box-shadow:0 0 18px rgba(67,217,255,.2);
+  pointer-events:auto;
+}
+#flight-controls { isolation:isolate; }
+#flight-controls .left-side { position:relative; z-index:3; }
+#flight-controls .right-side { position:relative; z-index:3; width:min(34vw,380px); }
+#flight-controls .stick { touch-action:none; }
+#flight-controls .knob { transform:translate(-50%,-50%); transition:transform .09s ease-out; }
+ .aim-stick-wrap {
+  position:absolute; left:50%; bottom:12px; transform:translateX(-50%);
+  display:flex; flex-direction:column; align-items:center; gap:6px;
+  z-index:4; pointer-events:auto;
+}
+.aim-stick { width:clamp(112px,15vw,150px); height:clamp(112px,15vw,150px); }
+.aim-stick .knob { width:58px; height:58px; }
+.propulsion-slot {
+  display:flex; flex-direction:column; gap:8px; width:100%;
+  padding:9px; border:1px solid rgba(67,217,255,.45); border-radius:14px;
+  background:rgba(3,14,29,.86); box-shadow:inset 0 0 16px rgba(67,217,255,.07);
+}
+.propulsion-heading { display:flex; justify-content:space-between; gap:10px; color:var(--cyan); font-size:11px; font-weight:800; letter-spacing:.7px; }
+.propulsion-heading b { color:var(--text); }
+.propulsion-slot .nitro-track { height:10px; border-radius:8px; background:rgba(0,5,15,.9); }
+.propulsion-buttons { display:grid; grid-template-columns:1fr 1fr; width:100%; }
+.propulsion-buttons .control-button { min-width:0; width:100%; }
+#mine-btn { border-color:rgba(255,200,87,.5); }
+#flight-controls .control-button { min-height:54px; padding:10px 12px; font-size:13px; }
+#landing-btn.gear-deploying { border-color:rgba(255,200,87,.8); color:#ffd27c; }
+#landing-btn.gear-deployed { border-color:rgba(84,230,160,.8); color:#9aefc2; }
+@media (orientation:landscape) and (max-height:600px) {
+  #game-menu-btn.pause-hud-button { left:36%; top:6px; width:46px; min-width:46px; height:46px; min-height:46px; }
+  #flight-controls .right-side { width:min(37vw,310px); gap:5px; }
+  .aim-stick-wrap { left:50%; bottom:8px; transform:translateX(-50%); }
+  .aim-stick { width:clamp(88px,13vw,112px); height:clamp(88px,13vw,112px); }
+  .aim-stick .knob { width:46px; height:46px; }
+  #flight-controls .control-button { min-height:44px; padding:7px 8px; font-size:11px; }
+  .propulsion-slot { padding:6px; gap:5px; }
+}
+@media (max-width:420px) {
+  #flight-controls .right-side { width:43vw; }
+  .aim-stick-wrap { left:50%; bottom:8px; transform:translateX(-50%); }
+  .aim-stick { width:88px; height:88px; }
+  .aim-stick .knob { width:42px; height:42px; }
+  #flight-controls .control-button { min-height:42px; padding:6px; font-size:10px; }
+  .propulsion-heading { font-size:9px; }
+}
+
+
+/* Ajustes de pilotagem: áreas táteis maiores, joysticks simétricos e slots separados. */
+#flight-controls .left-side .stick,
+#flight-controls .aim-stick {
+  width: clamp(132px, 19vw, 164px);
+  height: clamp(132px, 19vw, 164px);
+}
+#flight-controls .aim-stick .knob,
+#flight-controls #move-stick .knob {
+  width: 68px;
+  height: 68px;
+}
+#flight-controls .right-side {
+  width: min(39vw, 390px);
+  gap: 8px;
+}
+#flight-controls .right-side .control-button {
+  min-height: clamp(52px, 8vh, 66px);
+  padding: 10px 12px;
+  font-size: clamp(12px, 1.8vw, 15px);
+}
+#flight-controls .system-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: 100%;
+}
+#flight-controls .system-buttons .control-button {
+  min-width: 0;
+}
+#flight-controls .propulsion-slot {
+  gap: 9px;
+  padding: 10px;
+}
+#flight-controls .propulsion-buttons {
+  grid-template-columns: 1fr 1fr;
+}
+#flight-controls .propulsion-buttons .control-button {
+  min-height: 58px;
+}
+#flight-controls #nitro-btn {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-height: 58px;
+}
+#flight-controls #landing-btn {
+  width: 100%;
+  min-height: 58px;
+}
+#flight-controls #move-stick.no-propulsion {
+  opacity: .42;
+  filter: grayscale(.85);
+  border-color: rgba(255, 190, 90, .7);
+}
+#flight-controls #move-stick.is-active,
+#flight-controls #aim-stick:active {
+  box-shadow: inset 0 0 28px rgba(67,217,255,.3), 0 0 22px rgba(67,217,255,.28);
+}
+#game-menu-btn.pause-hud-button {
+  left: 50%;
+  top: 10px;
+  transform: translateX(-50%);
+  z-index: 30;
+}
+@media (orientation: landscape) and (max-height: 600px) {
+  #flight-controls .left-side .stick,
+  #flight-controls .aim-stick {
+    width: clamp(108px, 17vw, 132px);
+    height: clamp(108px, 17vw, 132px);
+  }
+  #flight-controls .aim-stick .knob,
+  #flight-controls #move-stick .knob {
+    width: 56px;
+    height: 56px;
+  }
+  #flight-controls .right-side { width: min(39vw, 340px); }
+  #flight-controls .right-side .control-button { min-height: 48px; padding: 7px 9px; font-size: 12px; }
+  #flight-controls .propulsion-slot { gap: 5px; padding: 7px; }
+  #flight-controls .propulsion-buttons .control-button,
+  #flight-controls #nitro-btn,
+  #flight-controls #landing-btn { min-height: 48px; }
+}
+@media (max-width: 420px) {
+  #flight-controls .left-side .stick,
+  #flight-controls .aim-stick {
+    width: 112px;
+    height: 112px;
+  }
+  #flight-controls .aim-stick .knob,
+  #flight-controls #move-stick .knob { width: 54px; height: 54px; }
+  #flight-controls .right-side { width: 47vw; }
+  #flight-controls .right-side .control-button { min-height: 48px; padding: 7px 6px; font-size: 11px; }
 }

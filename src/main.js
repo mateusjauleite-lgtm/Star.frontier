@@ -1,31 +1,32 @@
 import * as THREE from 'three';
-import { createEarthReferenceFrames } from './world/earth/earthReferenceFrames.js';
-import { createEarthCore } from './world/earth/earthCore.js';
-import { createStation } from './world/station.js';
+import { registerAimControls, registerHeldFlightControls, registerFlightSelectionGuards, registerCameraCycleControl } from './controls/gameControls.js';
+import { registerCharacterControls } from './controls/characterControls.js';
+import { registerGameplayActions } from './systems/gameplayActions.js';
+import { loadRuntimeKernel } from './core/runtime/RuntimeKernel.js';
+import { createRuntimeBridge } from './core/runtime/RuntimeBridge.js';
+import { createRuntimeVisibilityHandler } from './core/runtime/RuntimeVisibility.js';
+import { registerGameRuntimeSystems } from './core/runtime/systems/registerGameRuntimeSystems.js';
+import { createGameplayFramePhases } from './core/runtime/gameplayFramePhases.js';
+import { registerGameWorldEntities } from './core/entities/GameEntityBindings.js';
+import { createGameWorld } from './world/gameWorld.js';
+import { createShipLandingMetricTelemetryAdapter, SHIP_MODEL_METERS_PER_UNIT } from './ships/flight/landingAutopilot.js';
+import { EXTERNAL_ELEVATOR_CONFIG } from './ships/externalElevator.js';
 import { getLandingSite } from './ships/flight/landingSites.js';
-import { createShipLandingAutopilot, createShipLandingMetricTelemetryAdapter, SHIP_MODEL_METERS_PER_UNIT } from './ships/flight/landingAutopilot.js';
-import { loadShipFlightKernel } from './ships/flight/shipFlightKernel.js';
-import { createOrbitSystem } from './world/orbits.js';
-import { createAsteroidField } from './world/asteroids.js';
-import { createSpaceLighting } from './world/lighting.js';
-import { createStarshipInterior } from './ships/interior.js';
-import { createExternalElevator, EXTERNAL_ELEVATOR_CONFIG } from './ships/externalElevator.js';
-import { createExplorationShip } from './ships/exploration.js';
 import { state, resetTransientState } from './core/state.js';
 import { createCharacterCore } from './character/characterCore.js';
 import { createCharacterHUD } from './character/characterHUD.js';
-import { createCharacterModel } from './character/characterModel.js';
-import { createCharacterAnimator } from './character/characterAnimator.js';
 import { createCharacterAudio } from './character/characterAudio.js';
 import { createShipAudio } from './ships/shipAudio.js';
-import { createCharacterWeaponController } from './character/characterWeaponController.js';
-import { createCharacterPhysics } from './character/characterPhysics.js';
-import { loadGravityKernel } from './physics/gravityKernel.js';
 import { createCharacterEquipmentSystem } from './inventory/characterEquipment.js';
 import { isPilotConsoleInRange, attachCharacterToPilotConsole, returnCharacterToDeck } from './ships/bridge/commandBridge.js';
 import { saveState as save, loadState as load } from './core/storage.js';
 import { createShipComputer } from './ships/computer/shipComputer.js';
 import { registerShipComputerSystems } from './ships/computer/shipComputerSystems.js';
+import { advanceShipFlightDynamics } from './ships/flight/flightDynamics.js';
+import { createShipFlightController } from './ships/flight/shipFlightController.js';
+import { registerTextInteractionGuard } from './core/ui/textInteractionGuard.js';
+
+registerTextInteractionGuard();
 
 const $ = id => document.getElementById(id);
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
@@ -63,6 +64,7 @@ shipComputer.registerTerminal({
 });
 const characterHUD = createCharacterHUD(document);
 let characterCameraMode = 'third-person';
+let characterCameraInitialized = false;
 let characterModel = null;
 let characterAnimator = null;
 let characterWeaponController = null;
@@ -73,13 +75,10 @@ const characterForward = new THREE.Vector3();
 const characterRight = new THREE.Vector3();
 const characterMove = new THREE.Vector3();
 const characterLookEuler = new THREE.Euler(0, 0, 0, 'YXZ');
-let characterMoveInput = { x: 0, y: 0 };
 let characterFootstepTimer = 0;
-let characterSprintHeld = false;
 let characterAnimationTestRemaining = 0;
 let characterAnimationTestIndex = -1;
 const characterAnimationTestPoses = ['walk', 'run', 'jump', 'fall', 'land', 'sit', 'stand', 'idle'];
-let characterJumpQueued = false;
 let characterStaminaAccumulator = 0;
 let characterStaminaHudTimer = 0;
 let phaserChargeRemaining = 0;
@@ -528,7 +527,6 @@ function updateDeck4Clearance() {
 }
 
 const flightQuaternion = new THREE.Quaternion();
-let pitchAngle = 0;
 
 let asteroids = [];
 let engineFlames = [];
@@ -544,9 +542,14 @@ const shipEarthContactPoints = [
   { id: 'aft-starboard', point: new THREE.Vector3(12, -11.89, 22) }
 ];
 
-let last = performance.now();
 let active = false;
+let runtimeBridge = null;
 let npcReady = false;
+const handleRuntimeVisibility = createRuntimeVisibilityHandler({
+  getRuntime: () => runtimeBridge,
+  isActive: () => active,
+  resetInputs: resetTransientState
+});
 
 const cameraNames = [
   'CÂMERA: 1ª PESSOA',
@@ -558,6 +561,28 @@ const viewEuler = new THREE.Euler(0, 0, 0, 'YXZ');
 const cameraViewQuaternion = new THREE.Quaternion();
 const forwardVector = new THREE.Vector3();
 
+const shipFlightController = createShipFlightController({
+  THREE,
+  state,
+  getShip: () => ship,
+  getShipYaw: () => shipYaw,
+  getShipPitch: () => shipPitch,
+  getShipVisual: () => shipVisual,
+  getEngineFlames: () => engineFlames,
+  getEngineLights: () => engineLights,
+  getEarthSystem: () => earthSystem,
+  getLandingGearContactPoints: () => shipLandingGear?.getDeployment?.() > 0.95
+    ? shipLandingGearContactPoints
+    : shipEarthContactPoints,
+  getLandingAutopilot: () => shipLandingAutopilot,
+  getFlightQuaternion: () => flightQuaternion,
+  getForwardVector: () => forwardVector,
+  advanceFlightDynamics: advanceShipFlightDynamics,
+  shipAudio,
+  cancelLandingGuidance: reason => cancelLandingGuidance(reason),
+  getElement: $
+});
+
 let launching = false;
 let shipComputerSystemsRegistered = false;
 
@@ -567,7 +592,7 @@ function registerComputerSubsystems() {
     state,
     getShip: () => ship,
     getShipYaw: () => shipYaw?.rotation.y ?? 0,
-    getPitchAngle: () => pitchAngle,
+    getPitchAngle: () => shipFlightController.pitchAngle,
     getAsteroids: () => asteroids
   });
   shipComputerSystemsRegistered = true;
@@ -633,6 +658,80 @@ async function startGame() {
   loadingScreen?.classList.remove('hidden');
 
   try {
+    if (!runtimeBridge) {
+      const runtimeKernel = await loadRuntimeKernel({ maximumDeltaSeconds: 0.04 });
+      runtimeBridge = createRuntimeBridge(runtimeKernel);
+      registerGameRuntimeSystems(runtimeBridge, {
+        character: {
+          core: characterCore,
+          resetTransientState,
+          resetCounters: () => {
+            characterStaminaAccumulator = 0;
+            characterStaminaHudTimer = 0;
+          },
+          updateHUD: updateCharacterHUD,
+          onStage: stage => { startupStage = stage; }
+        },
+        world: {
+          isReady: () => Boolean(renderer),
+          initializeWorld: init3D,
+          registerEntities: context => {
+            context.entityBindings = registerGameWorldEntities(context.entityManager, {
+              earthSystem,
+              ship,
+              characterModel,
+              stationSystem,
+              starshipInterior,
+              externalElevator
+            });
+          },
+          onStage: stage => { startupStage = stage; }
+        },
+        shipComputer: {
+          registerSystems: () => {
+            try {
+              registerComputerSubsystems();
+            } catch (error) {
+              // Evita repetir um registro parcial de subsistemas em uma nova tentativa.
+              shipComputerSystemsRegistered = true;
+              throw error;
+            }
+          },
+          boot: () => shipComputer.boot(),
+          shutdown: () => shipComputer.shutdown(),
+          onStage: stage => { startupStage = stage; },
+          onError: (error, phase) => {
+            console.error(
+              phase === 'register'
+                ? 'Subsistemas auxiliares do computador indisponíveis:'
+                : 'Não foi possível ativar o computador auxiliar:',
+              error
+            );
+            toast(
+              phase === 'register'
+                ? 'Computador auxiliar indisponível; controles básicos mantidos.'
+                : 'Computador auxiliar offline; gameplay mantida.'
+            );
+          }
+        },
+        gameplay: {
+          isActive: () => active,
+          isRendererReady: () => Boolean(renderer),
+          ...createGameplayFramePhases(() => ({
+            earthSystem, camera, applyEarthSurfaceRotation, ship, updatePhaserWeapon,
+            characterCore, updateCharacterMovement, updateCharacterWeapon,
+            updateExternalElevatorAnimation, updateElevatorInteraction,
+            updatePilotInteraction, updateExternalElevatorInteraction,
+            updateCharacterCamera, updateFlight, updateCamera,
+            setLandingBaseSystem: value => { landingBaseSystem = value; },
+            updateShipLandingGuidance, THREE, shipVisual, shipEarthContactPoints,
+            shipLandingGearContactPoints, forwardVector, state,
+            orbitSystem, asteroidSystem, lightingSystem, renderer, scene, $
+          }))
+        }
+      });
+    }
+
     // O primeiro toque do jogador libera o AudioContext no Android/WebView.
     void characterAudio.unlock();
     void shipAudio.unlock();
@@ -655,19 +754,16 @@ async function startGame() {
       window.screen?.orientation?.lock?.('landscape')?.catch?.(() => {});
     } catch {}
 
-    resetTransientState();
-    characterCore.initialize();
-    characterCore.setStamina(100);
-    characterStaminaAccumulator = 0;
-    characterStaminaHudTimer = 0;
-    characterCore.setMode('on-foot');
-    updateCharacterHUD();
-
-    startupStage = 'inicialização do mundo Three.js';
     await loadingStep(6, 'Iniciando sistemas da missão...');
 
-    if (!renderer) {
-      await init3D();
+    const runtimeInitialized = await runtimeBridge.initialize({
+      state,
+      getScene: () => scene,
+      getCamera: () => camera,
+      getRenderer: () => renderer
+    });
+    if (!runtimeInitialized) {
+      throw new Error('O Runtime não conseguiu inicializar seus sistemas.');
     }
     if (characterInWorldFrame && characterModel?.group && shipVisual) {
       scene.remove(characterModel.group);
@@ -684,29 +780,6 @@ async function startGame() {
     startupStage = 'integração do personagem e HUD';
     updateCharacterHUD();
 
-    // O computador da nave é um subsistema. Uma falha nele não deve cancelar
-    // a entrada na gameplay nem desativar os controles básicos do personagem.
-    startupStage = 'registro do computador da nave';
-    if (!shipComputerSystemsRegistered) {
-      try {
-        registerComputerSubsystems();
-        shipComputerSystemsRegistered = true;
-      } catch (error) {
-        // Pode ter havido registro parcial; não repetir os mesmos IDs na próxima
-        // tentativa. Os controles Three.js continuam usando o estado principal.
-        shipComputerSystemsRegistered = true;
-        console.error('Subsistemas auxiliares do computador indisponíveis:', error);
-        toast('Computador auxiliar indisponível; controles básicos mantidos.');
-      }
-    }
-
-    try {
-      shipComputer.boot();
-    } catch (error) {
-      console.error('Não foi possível ativar o computador auxiliar:', error);
-      toast('Computador auxiliar offline; gameplay mantida.');
-    }
-
     startupStage = 'finalização da gameplay';
     await loadingStep(100, 'Todos os sistemas prontos. Boa viagem, piloto.');
     await new Promise(resolve => setTimeout(resolve, 350));
@@ -718,8 +791,13 @@ async function startGame() {
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     applyCharacterHudLayout(readCharacterHudLayout());
 
+    if (!runtimeBridge.start()) {
+      throw new Error('O Runtime não conseguiu iniciar o ciclo de execução.');
+    }
+    if (!runtimeBridge.startFrameLoop()) {
+      throw new Error('O Runtime não conseguiu iniciar o relógio de frames.');
+    }
     active = true;
-    last = performance.now();
 
     updateWallet();
     toast('Setor Orion: aproxime-se dos asteroides para minerar.');
@@ -727,7 +805,23 @@ async function startGame() {
     console.error(`Falha ao iniciar Star Frontier na etapa: ${startupStage}`, error);
 
     active = false;
+    try {
+      await runtimeBridge?.shutdown();
+    } catch (shutdownError) {
+      console.warn('Não foi possível encerrar o Runtime:', shutdownError);
+    }
     loadingScreen?.classList.add('hidden');
+    window.removeEventListener('resize', resize3D);
+
+    try { earthSystem?.dispose?.(); } catch (disposeError) {
+      console.warn('Não foi possível encerrar os módulos da Terra:', disposeError);
+    }
+    try { shipFlightKernel?.dispose?.(); } catch (disposeError) {
+      console.warn('Não foi possível liberar o kernel orbital:', disposeError);
+    }
+    try { gravityKernel?.dispose?.(); } catch (disposeError) {
+      console.warn('Não foi possível liberar o kernel de gravidade:', disposeError);
+    }
 
     if (scene) {
       scene.traverse(object => {
@@ -770,8 +864,8 @@ async function startGame() {
     shipLandingAutopilot?.cancel?.();
     shipLandingAutopilot = null;
     lastEarthSurfaceRotationY = null;
-    shipFlightKernel?.dispose?.();
     shipFlightKernel = null;
+    gravityKernel = null;
     shipLandingTelemetry.reset();
     orbitSystem = null;
     asteroidSystem = null;
@@ -806,123 +900,72 @@ function addShipBox(parent, geometry, material, position, rotation = { x: 0, y: 
 }
 
 async function init3D() {
-  scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x020817);
-  scene.fog = new THREE.FogExp2(0x020817, 0.00055);
-
-  // Terra em posição distante, visível à frente da nave.
-  earthSystem = createEarthCore({ radius: 600, position: [0, 0, -850] });
-  scene.add(earthSystem.group);
-  earthReferenceFrames = createEarthReferenceFrames({ globalFrame: scene, terrestrialFrame: earthSystem.getSurfaceFrame() });
-
-  camera = new THREE.PerspectiveCamera(
-    70,
-    innerWidth / innerHeight,
-    0.1,
-    20000
-  );
-
-  renderer = new THREE.WebGLRenderer({
-    antialias: state.settings.quality !== 'Baixa',
-    powerPreference: 'high-performance'
+  const world = await createGameWorld({
+    THREE,
+    state,
+    gameRoot: $('game-root'),
+    viewport: {
+      width: innerWidth,
+      height: innerHeight,
+      devicePixelRatio
+    },
+    loadingStep,
+    characterCore,
+    characterEquipment,
+    characterYaw,
+    shipLandingTelemetry
   });
 
-  renderer.setPixelRatio(
-    Math.min(
-      devicePixelRatio,
-      state.settings.quality === 'Alta' ? 1.7 : 1.25
-    )
-  );
+  ({
+    scene,
+    camera,
+    renderer,
+    ship,
+    stars,
+    earthSystem,
+    earthReferenceFrames,
+    stationSystem,
+    shipFlightKernel,
+    gravityKernel,
+    shipLandingAutopilot,
+    shipLandingGear,
+    shipLandingGearContactPoints,
+    shipYaw,
+    shipPitch,
+    shipVisual,
+    engineFlames,
+    engineLights,
+    asteroidSystem,
+    asteroids,
+    lightingSystem,
+    starshipInterior,
+    externalElevator,
+    nearbyElevator,
+    activeDeckIndex,
+    characterModel,
+    characterAnimator,
+    characterWeaponController,
+    characterPhysics
+  } = world);
 
-  renderer.setSize(innerWidth, innerHeight);
-  $('game-root').appendChild(renderer.domElement);
-
-  await loadingStep(24, 'Preparando o espaço e a iluminação...');
-
-  /* ILUMINAÇÃO E CAMPO ESTELAR */
-
-  lightingSystem = createSpaceLighting(scene);
-  stars = lightingSystem.stars;
-
-  await loadingStep(42, 'Montando a nave exploradora de quatro decks...');
-
-  /* NAVE PRINCIPAL — CASCO, NACELLES E ESTRUTURA DE VOO */
-
-  const explorationShip = createExplorationShip();
-  ship = explorationShip.group;
-  shipYaw = explorationShip.yaw;
-  shipPitch = explorationShip.pitch;
-  shipVisual = explorationShip.visual;
-  shipLandingGear = explorationShip.landingGear;
-  shipLandingGearContactPoints = explorationShip.landingGearContactPoints;
-  shipFlightKernel = await loadShipFlightKernel();
-  gravityKernel = await loadGravityKernel();
-  shipLandingAutopilot = createShipLandingAutopilot(shipFlightKernel);
-  shipLandingTelemetry.reset();
-  updateDeck4Clearance();
-  engineFlames = explorationShip.engineFlames;
-  engineLights = explorationShip.engineLights;
-  scene.add(ship);
-
-  await loadingStep(70, 'Carregando campo de asteroides...');
-
-  /* CAMPO DE ASTEROIDES */
-
-  asteroidSystem = createAsteroidField(scene, { count: 24, center: [310, 0, -300], spread: [190, 100, 160] });
-  asteroids = asteroidSystem.asteroids;
-
-  await loadingStep(84, 'Carregando estação orbital e observatório...');
-
-  /* ESTAÇÃO ORBITAL */
-
-  stationSystem = createStation({ position: [24, 3, -65] });
-  scene.add(stationSystem.group);
-
-  await loadingStep(90, 'Integrando os quatro decks ao casco da nave...');
-  starshipInterior = createStarshipInterior({ position: [0, 0, 0] });
-  shipVisual.add(starshipInterior.group);
-  externalElevator = createExternalElevator({ deckY: starshipInterior.layout.decks[3].y });
-  shipVisual.add(externalElevator.group);
-  activeDeckIndex = 0;
-  nearbyElevator = false;
-
-  // Spawn inicial no Deck 1 — ponte de comando, dentro do casco.
-  characterModel = createCharacterModel({ clothingColor: 0x526879 });
-  characterEquipment.initialize();
-  // O personagem pertence ao referencial da nave: acompanha translação e rotação
-  // sem ficar para trás no espaço quando a Aurora-7 se movimenta.
-  characterModel.group.position.set(0, 8.91, -18);
-  characterModel.group.rotation.y = characterYaw;
-  shipVisual.add(characterModel.group);
-  characterAnimator = createCharacterAnimator(characterModel);
-  characterWeaponController = createCharacterWeaponController(characterModel);
-  characterPhysics = createCharacterPhysics({ gravityKernel });
+  characterCameraInitialized = false;
   characterInWorldFrame = false;
   characterWorldGrounded = false;
   characterWorldVelocity.set(0, 0, 0);
-  characterPhysics.reset(characterModel.group.position.y);
-  characterCore.setGrounded(true);
-  characterAnimator.play('idle');
+  externalElevatorRiding = false;
+  externalElevatorActionAvailable = false;
+  lastEarthSurfaceRotationY = null;
+  updateDeck4Clearance();
 
-  const npc = new THREE.Mesh(
-    new THREE.SphereGeometry(1.3, 16, 12),
-    new THREE.MeshStandardMaterial({
-      color: 0xffc05b,
-      emissive: 0x553000
-    })
-  );
+  // Sincroniza a câmera com o personagem antes do primeiro frame renderizado.
+  // Isso evita reutilizar a posição da câmera da sessão anterior ao voltar do menu.
+  characterModel.group.updateWorldMatrix(true, false);
+  updateCharacterCamera();
+  camera.updateMatrixWorld(true);
 
-  npc.position.set(24, 3, -77);
-  scene.add(npc);
-
-  orbitSystem = createOrbitSystem({ center: [0, 0, -850], radius: 960 });
-  scene.add(orbitSystem.group);
-
-  await loadingStep(96, 'Finalizando cenário e sistemas de voo...');
-
+  window.removeEventListener('resize', resize3D);
   window.addEventListener('resize', resize3D);
-
-  requestAnimationFrame(loop);
+  return world;
 }
 
 /* REDIMENSIONAMENTO */
@@ -981,207 +1024,27 @@ function applyEarthSurfaceRotation(deltaSeconds) {
 }
 
 function updateFlight(dt) {
-  if (!ship || !shipYaw || !shipPitch || !shipVisual) return;
-
-  // Protege a simulação contra saltos de tempo quando o Android pausa ou atrasa um frame.
-  const safeDt = THREE.MathUtils.clamp(Number.isFinite(dt) ? dt : 0, 0, 0.04);
-  const sensitivity = Number(state.settings.sensitivity) || 1;
-  const manualOverride = Math.abs(state.move.x) > 0.015 || Math.abs(state.move.y) > 0.015 ||
-    state.throttle || state.braking || state.nitroButton;
-  if (manualOverride && ship.userData.earthSurfaceAnchored) {
-    ship.userData.earthSurfaceAnchored = false;
-  }
-  if (manualOverride && shipLandingAutopilot?.snapshot?.().active) {
-    cancelLandingGuidance('manual-override');
-    if ($('landing-status')) $('landing-status').textContent = 'Comando manual assumido. A orientação foi cancelada e o botão POUSAR foi restaurado.';
-    toast('Orientação automática cancelada: controle manual assumido.');
-  }
-
-  // Guinada sempre no eixo vertical global; arfagem sempre no eixo lateral local.
-  // No joystick: puxar para cima (Y negativo) sobe; puxar para baixo (Y positivo) desce.
-  shipYaw.rotation.y -= state.move.x * 1.25 * safeDt * sensitivity;
-
-  const pitchInput = state.move.y * safeDt * sensitivity;
-  const maxPitch = THREE.MathUtils.degToRad(65);
-  pitchAngle = THREE.MathUtils.clamp(
-    pitchAngle - pitchInput,
-    -maxPitch,
-    maxPitch
-  );
-  shipPitch.rotation.x = pitchAngle;
-
-  // A inclinação visual é isolada da orientação usada para navegar.
-  const targetRoll = -state.move.x * 0.25;
-  shipVisual.rotation.z = THREE.MathUtils.lerp(
-    shipVisual.rotation.z,
-    targetRoll,
-    Math.min(1, safeDt * 3)
-  );
-
-  /* ACELERAÇÃO */
-
-  if (state.throttle && state.fuel > 0) {
-    state.speed = Math.min(75, state.speed + 18 * safeDt);
-    state.fuel = Math.max(0, state.fuel - 0.28 * safeDt);
-  }
-
-  /* NITRO */
-
-  const boosting =
-    state.nitroButton &&
-    state.nitro > 0 &&
-    state.fuel > 0;
-
-  if (boosting) {
-    state.speed = Math.min(115, state.speed + 55 * safeDt);
-    state.nitro = Math.max(0, state.nitro - 28 * safeDt);
-    state.fuel = Math.max(0, state.fuel - 0.55 * safeDt);
-  } else {
-    state.nitro = Math.min(100, state.nitro + 12 * safeDt);
-  }
-
-  /* FREIO */
-
-  if (state.braking) {
-    state.speed = Math.max(0, state.speed - 30 * safeDt);
-  }
-
-  if (!state.throttle && !boosting) {
-    state.speed = Math.max(0, state.speed - 1.4 * safeDt);
-  }
-
-  shipAudio.updateFlight({
-    throttle: Boolean(state.throttle && state.fuel > 0),
-    boosting,
-    braking: Boolean(state.braking),
-    moveX: state.move.x,
-    moveY: state.move.y,
-    speed: state.speed,
-    nacellesLit: engineLights.some(light => light.visible && light.intensity > 2),
-    dt: safeDt
-  });
-
-  /* DESLOCAMENTO */
-
-  shipPitch.getWorldQuaternion(flightQuaternion);
-  forwardVector
-    .set(0, 0, -1)
-    .applyQuaternion(flightQuaternion)
-    .normalize();
-
-  ship.position.addScaledVector(forwardVector, state.speed * safeDt * 0.45);
-
-  // Colisão da plataforma e do observatório para a nave exploradora.
-  // A abertura e a escadaria continuam livres para o personagem,
-  // mas são tratadas como piso sólido para a nave.
-  const stationCenter = new THREE.Vector3(24, 3, -65);
-  const stationScale = 1.18;
-  const dx = ship.position.x - stationCenter.x;
-  const dz = ship.position.z - stationCenter.z;
-  const horizontalDistance = Math.hypot(dx, dz);
-  let relativeHeight = ship.position.y - stationCenter.y;
-
-  // O vão da escadaria não permite a passagem da nave.
-  // Ao cruzar o nível do piso superior, a nave é mantida acima da plataforma.
-  const landingDeckTop = 2.13 * stationScale;
-  const shipClearance = 1.2;
-  const landingDeckRadius = 11.65 * stationScale - 0.4;
-  if (
-    horizontalDistance < landingDeckRadius &&
-    relativeHeight >= landingDeckTop - shipClearance &&
-    relativeHeight < landingDeckTop + shipClearance
-  ) {
-    ship.position.y = stationCenter.y + landingDeckTop + shipClearance;
-    relativeHeight = ship.position.y - stationCenter.y;
-    state.speed = Math.min(state.speed, 8);
-  }
-
-  // Parede invisível ao redor do observatório inferior.
-  // Não há exceção no corredor da escada: a nave não entra no ambiente de bípedes.
-  const lowerDeckRadius = 8.65 * stationScale + 2.4;
-  if (
-    horizontalDistance < lowerDeckRadius &&
-    relativeHeight > -4.2 &&
-    relativeHeight < landingDeckTop - shipClearance
-  ) {
-    const safeDistance = Math.max(horizontalDistance, 0.001);
-    const nx = horizontalDistance > 0.001 ? dx / safeDistance : 1;
-    const nz = horizontalDistance > 0.001 ? dz / safeDistance : 0;
-    ship.position.x = stationCenter.x + nx * lowerDeckRadius;
-    ship.position.z = stationCenter.z + nz * lowerDeckRadius;
-    state.speed = Math.min(state.speed, 8);
-  }
-
-  // Primeira resposta física da nave ao relevo real da Earth.
-  // A consulta usa a mesma superfície ETOPO que alimenta o mesh visível.
-  ship.userData.earthCollisionResolved = false;
-  const earthCollisionSurface = earthSystem?.getCollisionSurface?.();
-  ship.updateWorldMatrix(true, false);
-  const shipWorldPosition = ship.getWorldPosition(new THREE.Vector3());
-  const terrainContact = earthCollisionSurface?.sampleWorldPosition?.(shipWorldPosition);
-  if (terrainContact?.worldPosition && terrainContact?.worldNormal) {
-    const signedClearance = shipWorldPosition.clone()
-      .sub(terrainContact.worldPosition)
-      .dot(terrainContact.worldNormal);
-    const minimumHullClearance = 18;
-    if (Number.isFinite(signedClearance) && signedClearance < minimumHullClearance) {
-      const correctedWorldPosition = shipWorldPosition.addScaledVector(
-        terrainContact.worldNormal,
-        minimumHullClearance - signedClearance
-      );
-      if (ship.parent) {
-        ship.parent.updateWorldMatrix(true, false);
-        ship.position.copy(ship.parent.worldToLocal(correctedWorldPosition));
-      } else {
-        ship.position.copy(correctedWorldPosition);
-      }
-      // Cancela apenas a aproximação contra a superfície; o piloto pode
-      // voltar a acelerar para se afastar e decolar.
-      if (forwardVector.dot(terrainContact.worldNormal) < 0) state.speed = 0;
-      ship.userData.earthCollisionResolved = true;
-      ship.userData.earthCollisionClearanceUnits = minimumHullClearance;
+  const deployment = shipLandingGear?.update?.(dt) ?? 0;
+  const target = shipLandingGear?.getTargetDeployment?.() ?? 0;
+  const button = $('landing-btn');
+  if (button && Math.abs(deployment - target) < 0.02) {
+    button.classList.remove('gear-deploying');
+    button.classList.toggle('gear-deployed', target > 0.5);
+    button.classList.toggle('gear-retracted', target <= 0.5);
+    if (target > 0.5 && (button.textContent.includes('ABRINDO') || button.textContent.includes('POUSAR'))) {
+      button.textContent = '◉ TREM ABERTO · RECOLHER';
+    }
+    if (target <= 0.5 && button.textContent.includes('RECOLHENDO')) {
+      button.textContent = '◉ TREM RECOLHIDO · POUSAR';
     }
   }
-  
-  /* EFEITOS DAS NACELLES */
-
-  const enginePower = boosting ? 2.5 : (state.throttle ? 1.25 : 0.65);
-
-  engineFlames.forEach(flame => {
-    flame.scale.set(
-      boosting ? 1.45 : 1,
-      boosting ? 2.5 : enginePower,
-      boosting ? 1.45 : 1
-    );
-
-    flame.material.opacity = boosting
-      ? 0.95
-      : (state.throttle ? 0.7 : 0.3);
-  });
-
-  engineLights.forEach(light => {
-    light.intensity = boosting
-      ? 8
-      : (state.throttle ? 4 : 1.5);
-  });
-
-  /* HUD NITRO */
-
-  const nitroPercent = Math.round(state.nitro);
-
-  if ($('nitro-level')) {
-    $('nitro-level').textContent = nitroPercent + '%';
+  const moveStick = $('move-stick');
+  const hasPropulsion = Number(state.fuel) > 0 || Number(state.nitro) > 0;
+  if (moveStick) {
+    moveStick.classList.toggle('no-propulsion', !hasPropulsion);
+    moveStick.setAttribute('aria-disabled', String(!hasPropulsion));
   }
-
-  if ($('nitro-fill')) {
-    $('nitro-fill').style.width = nitroPercent + '%';
-
-    $('nitro-fill').style.background = nitroPercent < 20
-      ? 'linear-gradient(90deg,#b52c2c,#ff7777)'
-      : 'linear-gradient(90deg,#0878d9,#37dfff)';
-  }
-
-  $('nitro-btn')?.classList.toggle('active', boosting);
+  return shipFlightController.update(dt);
 }
 
 /* CÂMERA DO PERSONAGEM — sempre dentro da nave */
@@ -1189,6 +1052,7 @@ function updateFlight(dt) {
 function updateCharacterCamera() {
   if (!camera || !characterModel) return;
   const player = characterModel.group;
+  player.updateWorldMatrix(true, false);
   player.getWorldPosition(characterCameraWorldPosition);
   player.getWorldQuaternion(characterCameraWorldQuaternion);
   characterCameraForward.set(0, 0, -1).applyQuaternion(characterCameraWorldQuaternion).normalize();
@@ -1211,10 +1075,19 @@ function updateCharacterCamera() {
     camera.quaternion.copy(characterCameraWorldQuaternion).multiply(
       new THREE.Quaternion().setFromEuler(characterLookEuler)
     );
+    characterCameraInitialized = true;
   } else {
     characterCameraOffset.set(0, 2.35, 5.2).applyQuaternion(characterCameraWorldQuaternion);
     const desired = characterCameraWorldPosition.clone().add(characterCameraOffset);
-    camera.position.lerp(desired, 0.22);
+    // Na primeira apresentação, posiciona a câmera diretamente atrás do piloto.
+    // O lerp só começa depois disso; evita a câmera atravessar a cena desde a origem,
+    // dando a impressão de que o personagem está caindo/entrando pelo alto.
+    if (!characterCameraInitialized) {
+      camera.position.copy(desired);
+      characterCameraInitialized = true;
+    } else {
+      camera.position.lerp(desired, 0.22);
+    }
     const lookTarget = target.addScaledVector(characterCameraForward, 1.4);
     lookTarget.addScaledVector(cameraUp, Math.sin(characterPitch) * 4.2);
     camera.lookAt(lookTarget);
@@ -1397,7 +1270,7 @@ function updateCharacterMovement(dt) {
   }
   if (characterInWorldFrame) {
     updateCharacterWorldPhysics(dt);
-    const worldInput = characterMoveInput;
+    const worldInput = characterControls.getMoveInput();
     const worldMagnitude = Math.min(1, Math.hypot(worldInput.x, worldInput.y));
     let worldMoving = false;
 
@@ -1471,12 +1344,12 @@ function updateCharacterMovement(dt) {
     if (characterJumpButton) characterJumpButton.disabled = true;
     return;
   }
-  const input = characterMoveInput;
+  const input = characterControls.getMoveInput();
   const magnitude = Math.min(1, Math.hypot(input.x, input.y));
   const deck = characterModel.group.position;
   let movedHorizontally = false;
   const stamina = characterCore.snapshot().stamina;
-  const sprinting = characterSprintHeld && magnitude > 0.08 && stamina > 0;
+  const sprinting = characterControls.isSprinting() && magnitude > 0.08 && stamina > 0;
   if (sprinting) characterStaminaAccumulator -= 22 * dt;
   else if (stamina < 100) characterStaminaAccumulator += 13 * dt;
 
@@ -1491,7 +1364,7 @@ function updateCharacterMovement(dt) {
     characterStaminaAccumulator = 0;
     characterStaminaHudTimer = 0;
     const displayedStamina = characterCore.snapshot().stamina;
-    if (displayedStamina <= 0 && characterSprintHeld) stopCharacterSprint();
+    if (displayedStamina <= 0 && characterControls.isSprinting()) characterControls.stopSprint();
     const staminaFill = $('character-stamina');
     const staminaLabel = $('character-stamina-value');
     if (staminaFill) staminaFill.style.width = displayedStamina + '%';
@@ -1542,12 +1415,11 @@ function updateCharacterMovement(dt) {
   const floorY = leavingDeckThroughAft
     ? -1000000
     : starshipInterior.layout.decks[activeDeckIndex].y + 0.21;
-  if (characterJumpQueued) {
+  if (characterControls.consumeJump()) {
     if (characterPhysics?.jump()) {
       characterAnimator?.play('jump', { restart: true });
       characterAudio.playJump();
     }
-    characterJumpQueued = false;
   }
 
   const physicsState = characterPhysics?.update(dt, {
@@ -1830,14 +1702,13 @@ function enterPilotMode() {
     return;
   }
 
-  characterMoveInput = { x: 0, y: 0 };
-  characterJumpQueued = false;
-  stopCharacterSprint();
+  characterControls.reset();
   characterCore.enterShipSeat();
   pilotInteractionAvailable = false;
   state.camera = 0;
   state.view.x = 0;
   state.view.y = 0;
+  state.aim = { x: 0, y: 0 };
   setPilotInterface(true);
   toast('Comando da Aurora-7 assumido.');
 }
@@ -1851,9 +1722,7 @@ function exitPilotMode() {
   characterPitch = 0;
   characterCore.leaveShipSeat();
 
-  characterMoveInput = { x: 0, y: 0 };
-  characterJumpQueued = false;
-  stopCharacterSprint();
+  characterControls.reset();
   state.move.x = 0;
   state.move.y = 0;
   state.throttle = false;
@@ -1913,173 +1782,6 @@ function updateCamera() {
 
 /* LOOP PRINCIPAL */
 
-function loop(now) {
-  requestAnimationFrame(loop);
-
-  if (!active || !renderer) return;
-
-  const dt = Math.min((now - last) / 1000, 0.04);
-  last = now;
-  earthSystem?.update(dt, camera);
-  applyEarthSurfaceRotation(dt);
-  if (ship) ship.userData.earthCollisionResolved = false;
-
-  updatePhaserWeapon(dt);
-  if (characterCore.snapshot().mode === 'on-foot') {
-    updateCharacterMovement(dt);
-    updateCharacterWeapon(dt);
-    updateExternalElevatorAnimation(dt);
-    updateElevatorInteraction();
-    updatePilotInteraction();
-    updateExternalElevatorInteraction();
-    updateCharacterCamera();
-  } else {
-    updateFlight(dt);
-    updateCamera();
-  }
-  // A Earth é proprietária da infraestrutura; a gameplay consulta a base
-  // criada pelo módulo para contatos e estado de pouso.
-  landingBaseSystem = earthSystem?.getLandingBase?.() ?? null;
-  updateShipLandingGuidance(dt);
-
-  // Mantém uma região local de maior densidade geométrica sob a nave
-  // durante a aproximação. A consulta usa o mesmo sampler do relevo global.
-  if (ship) {
-    const collisionSurface = earthSystem?.getCollisionSurface?.();
-    const landingPatch = collisionSurface?.updateHighResolutionPatch?.(ship.position);
-    if (landingPatch) {
-      // Record the center sample and probe five lower-hull points after
-      // updateFlight has applied any required terrain-clearance correction.
-      ship.userData.earthSurfaceSample =
-        collisionSurface.sampleWorldPosition?.(ship.position) ?? null;
-
-      const sampleShipContacts = () => {
-        shipVisual.updateWorldMatrix(true, true);
-        const pad = landingBaseSystem?.group;
-        if (pad) pad.updateWorldMatrix(true, false);
-        const probePoints = [...shipEarthContactPoints, ...shipLandingGearContactPoints];
-        return probePoints.map(({ id, point }) => {
-          const worldPoint = shipVisual.localToWorld(point.clone());
-          const terrain = collisionSurface.sampleWorldPosition?.(worldPoint);
-          let chosen = terrain?.worldPosition && terrain?.worldNormal
-            ? { worldPosition: terrain.worldPosition, worldNormal: terrain.worldNormal, surface: 'etopo' }
-            : null;
-
-          // A face superior da plataforma entra na mesma consulta de contato do ETOPO.
-          // Não há um segundo motor físico: escolhemos a superfície mais alta sob a sonda.
-          if (pad) {
-            const padLocal = pad.worldToLocal(worldPoint.clone());
-            const insidePad = padLocal.x * padLocal.x + padLocal.z * padLocal.z <= 146 * 146;
-            if (insidePad) {
-              const padTop = pad.localToWorld(new THREE.Vector3(padLocal.x, 0.76, padLocal.z));
-              const padUp = new THREE.Vector3(0, 1, 0).transformDirection(pad.matrixWorld).normalize();
-              const padClearance = worldPoint.clone().sub(padTop).dot(padUp);
-              const terrainClearance = chosen
-                ? worldPoint.clone().sub(chosen.worldPosition).dot(chosen.worldNormal)
-                : Infinity;
-              if (padClearance < terrainClearance) {
-                chosen = { worldPosition: padTop, worldNormal: padUp, surface: 'landing-pad' };
-              }
-            }
-          }
-
-          if (!chosen) return { id, valid: false };
-          const clearanceUnits = worldPoint.clone()
-            .sub(chosen.worldPosition)
-            .dot(chosen.worldNormal);
-          return {
-            id,
-            valid: Number.isFinite(clearanceUnits),
-            clearanceUnits,
-            worldNormal: chosen.worldNormal,
-            surface: chosen.surface,
-            penetrating: clearanceUnits < -0.05
-          };
-        });
-      };
-
-      let contacts = sampleShipContacts();
-      const worstPenetration = contacts
-        .filter(contact => contact.valid && contact.clearanceUnits < -0.05)
-        .sort((a, b) => a.clearanceUnits - b.clearanceUnits)[0];
-      if (worstPenetration) {
-        // Resolve the deepest hull contact, not just the ship's center point.
-        const correctedWorldPosition = ship.getWorldPosition(new THREE.Vector3())
-          .addScaledVector(worstPenetration.worldNormal, -worstPenetration.clearanceUnits + 0.05);
-        if (ship.parent) {
-          ship.parent.updateWorldMatrix(true, false);
-          ship.position.copy(ship.parent.worldToLocal(correctedWorldPosition));
-        } else {
-          ship.position.copy(correctedWorldPosition);
-        }
-        if (forwardVector.dot(worstPenetration.worldNormal) < 0) state.speed = 0;
-        ship.userData.earthCollisionResolved = true;
-        contacts = sampleShipContacts();
-      }
-
-      const validContacts = contacts.filter(contact =>
-        contact.valid && Number.isFinite(contact.clearanceUnits)
-      );
-      const minimumClearance = validContacts.length
-        ? Math.min(...validContacts.map(contact => contact.clearanceUnits))
-        : null;
-      const padUp = landingBaseSystem
-        ? new THREE.Vector3(0, 1, 0).transformDirection(landingBaseSystem.group.matrixWorld).normalize()
-        : ship.userData.earthSurfaceSample?.worldNormal?.clone?.().normalize() ?? null;
-      const shipUp = shipVisual.localToWorld(new THREE.Vector3(0, 1, 0))
-        .sub(shipVisual.getWorldPosition(new THREE.Vector3())).normalize();
-      const upAlignment = padUp ? THREE.MathUtils.clamp(shipUp.dot(padUp), -1, 1) : null;
-      const attitude = upAlignment === null ? 'unavailable'
-        : upAlignment >= Math.cos(THREE.MathUtils.degToRad(12)) ? 'upright'
-        : upAlignment <= -Math.cos(THREE.MathUtils.degToRad(12)) ? 'inverted'
-        : Math.abs(upAlignment) <= Math.sin(THREE.MathUtils.degToRad(12)) ? 'sideways'
-        : 'tilted';
-      const gearContacts = contacts.filter(contact =>
-        contact.id.startsWith('gear-') && contact.valid && contact.clearanceUnits <= 0.35
-      );
-      if (shipLandingGearContactPoints.length > 0 &&
-          gearContacts.length === shipLandingGearContactPoints.length &&
-          attitude === 'upright' && minimumClearance !== null &&
-          minimumClearance <= 0.35 && Math.abs(state.speed) <= 1.5) {
-        ship.userData.earthSurfaceAnchored = true;
-      }
-      ship.userData.earthLandingContacts = {
-        status: validContacts.length !== contacts.length
-          ? 'partial'
-          : minimumClearance <= 0.35 ? 'contact' : 'clear',
-        contacts,
-        minimumClearanceUnits: minimumClearance,
-        physicsApplied: Boolean(ship.userData.earthCollisionResolved),
-        landingGear: {
-          total: shipLandingGearContactPoints.length,
-          touching: gearContacts.length,
-          allTouching: gearContacts.length === shipLandingGearContactPoints.length
-        },
-        attitude,
-        landingComplete: false
-      };
-    } else {
-      delete ship.userData.earthSurfaceSample;
-      delete ship.userData.earthLandingContacts;
-    }
-  }
-  orbitSystem?.update(dt);
-  asteroidSystem?.update(dt);
-  lightingSystem?.update(dt, camera?.position);
-
-  renderer.render(scene, camera);
-
-  if ($('speed')) $('speed').textContent = Math.round(state.speed);
-  if ($('fuel')) $('fuel').textContent = Math.round(state.fuel);
-  if ($('cargo')) $('cargo').textContent = state.cargo + ' / 100';
-  if ($('hull')) $('hull').textContent = state.hull;
-  if ($('shield')) $('shield').textContent = state.shield;
-
-  if ($('hud-credits')) {
-    $('hud-credits').textContent = state.credits.toLocaleString('pt-BR');
-  }
-}
-
 /* JOYSTICK */
 
 function bindStick(id, key) {
@@ -2088,204 +1790,81 @@ function bindStick(id, key) {
 
   const knob = element.querySelector('.knob');
   let pointer = null;
+  const hasPropulsion = () => Number(state.fuel) > 0 || Number(state.nitro) > 0;
+  const reset = () => {
+    state[key].x = 0;
+    state[key].y = 0;
+    if (knob) knob.style.transform = 'translate(-50%,-50%)';
+    element.classList.remove('is-active');
+  };
 
   const moveStick = event => {
     const rect = element.getBoundingClientRect();
-
+    const max = Math.max(1, rect.width * 0.34);
     let x = event.clientX - rect.left - rect.width / 2;
     let y = event.clientY - rect.top - rect.height / 2;
-
-    const max = rect.width * 0.31;
     const length = Math.hypot(x, y);
+    if (length > max) { x *= max / length; y *= max / length; }
 
-    if (length > max) {
-      x *= max / length;
-      y *= max / length;
+    if (key === 'move' && !hasPropulsion()) {
+      reset();
+      element.classList.add('no-propulsion');
+      return;
     }
-
-    const nextX = x / max;
-    const nextY = y / max;
-    // O joystick escreve diretamente no estado consumido por updateFlight.
-    // O computador da nave pode monitorar o voo, mas não pode bloquear a entrada.
-    state[key].x = nextX;
-    state[key].y = nextY;
-
-    if (knob) {
-      knob.style.transform = `translate(${x}px, ${y}px)`;
-    }
+    element.classList.remove('no-propulsion');
+    state[key].x = THREE.MathUtils.clamp(x / max, -1, 1);
+    state[key].y = THREE.MathUtils.clamp(y / max, -1, 1);
+    if (knob) knob.style.transform = `translate(-50%,-50%) translate(${x}px,${y}px)`;
   };
 
   element.addEventListener('pointerdown', event => {
+    if (pointer !== null || (event.pointerType === 'mouse' && event.button !== 0)) return;
+    if (key === 'move' && !hasPropulsion()) {
+      element.classList.add('no-propulsion');
+      return;
+    }
     event.preventDefault();
-
     pointer = event.pointerId;
-    element.setPointerCapture(pointer);
+    element.classList.add('is-active');
+    try { element.setPointerCapture(pointer); } catch {}
     moveStick(event);
   });
 
   element.addEventListener('pointermove', event => {
     if (pointer !== event.pointerId) return;
-
     event.preventDefault();
     moveStick(event);
   });
 
   const end = event => {
     if (pointer !== event.pointerId) return;
-
     pointer = null;
-    state[key].x = 0;
-    state[key].y = 0;
-
-    if (knob) knob.style.transform = 'translate(0,0)';
+    reset();
   };
-
-  element.addEventListener('pointerup', end);
-  element.addEventListener('pointercancel', end);
-  element.addEventListener('lostpointercapture', end);
+  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type => element.addEventListener(type, end));
+  window.addEventListener('blur', () => {
+    pointer = null;
+    reset();
+  });
 }
 
 bindStick('move-stick', 'move');
 
-// Joystick exclusivo do personagem; não altera os comandos de voo.
-const characterStick = $('character-move-stick');
-if (characterStick) {
-  const knob = characterStick.querySelector('.character-move-knob');
-  let pointer = null;
-  const moveCharacterStick = event => {
-    const rect = characterStick.getBoundingClientRect();
-    let x = event.clientX - rect.left - rect.width / 2;
-    let y = event.clientY - rect.top - rect.height / 2;
-    const max = rect.width * 0.31;
-    const length = Math.hypot(x, y);
-    if (length > max) { x *= max / length; y *= max / length; }
-    characterMoveInput = { x: x / max, y: y / max };
-    if (knob) knob.style.transform = `translate(${x}px, ${y}px)`;
-  };
-  characterStick.addEventListener('pointerdown', event => {
-    event.preventDefault();
-    pointer = event.pointerId;
-    characterStick.setPointerCapture(pointer);
-    moveCharacterStick(event);
-  });
-  characterStick.addEventListener('pointermove', event => {
-    if (pointer !== event.pointerId) return;
-    event.preventDefault();
-    moveCharacterStick(event);
-  });
-  const endCharacterMove = event => {
-    if (pointer !== event.pointerId) return;
-    pointer = null;
-    characterMoveInput = { x: 0, y: 0 };
-    if (knob) knob.style.transform = 'translate(0,0)';
-  };
-  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type =>
-    characterStick.addEventListener(type, endCharacterMove)
-  );
-}
-
-// Controles exclusivos do personagem: salto por toque e corrida por pressão.
-const characterJumpButton = $('character-jump-btn');
-const characterSprintButton = $('character-sprint-btn');
-const characterAnimationButton = $('character-animation-btn');
-const characterPhaserButton = $('character-phaser-btn');
-const handlePhaserInput = event => {
-  if (event.type === 'click' && event.detail !== 0) return;
-  event.preventDefault();
-  event.stopPropagation();
-  firePhaser();
-};
-characterPhaserButton?.addEventListener('pointerup', handlePhaserInput);
-characterPhaserButton?.addEventListener('click', handlePhaserInput);
-const characterAimButton = $('character-aim-btn');
-characterAimButton?.addEventListener('click', () => {
-  if (!isPhaserEquipped() || characterCore.snapshot().mode !== 'on-foot') {
-    toast('Equipe o Phaser para usar a mira.');
-    return;
-  }
-  const aiming = characterWeaponController?.toggleAiming() ?? false;
-  toast(aiming ? 'Mira ativada.' : 'Arma abaixada.');
-});
-
-characterAnimationButton?.addEventListener('click', () => {
-  if (characterCore.snapshot().mode !== 'on-foot' || !characterAnimator) return;
-  characterAnimationTestIndex = (characterAnimationTestIndex + 1) % characterAnimationTestPoses.length;
-  const pose = characterAnimationTestPoses[characterAnimationTestIndex];
-  characterAnimationTestRemaining = pose === 'idle' ? 1.1 : 1.45;
-  characterAnimator.play(pose, { restart: true });
-  characterAnimationButton.classList.add('is-active');
-  characterAnimationButton.querySelector('small').textContent = pose.toUpperCase();
-  toast('Teste de animação: ' + pose.toUpperCase());
-});
-
-characterJumpButton?.addEventListener('pointerdown', event => {
-  event.preventDefault();
-  if (characterCore.snapshot().mode !== 'on-foot' || !characterPhysics?.grounded) return;
-  characterJumpQueued = true;
-});
-
-const stopCharacterSprint = () => {
-  characterSprintHeld = false;
-  characterSprintButton?.classList.remove('is-active');
-};
-characterSprintButton?.addEventListener('pointerdown', event => {
-  event.preventDefault();
-  if (characterCore.snapshot().mode !== 'on-foot') return;
-  characterSprintHeld = true;
-  characterSprintButton.classList.add('is-active');
-  characterSprintButton.setPointerCapture(event.pointerId);
-});
-['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type =>
-  characterSprintButton?.addEventListener(type, stopCharacterSprint)
-);
-
-window.addEventListener('keydown', event => {
-  if (characterCore.snapshot().mode !== 'on-foot' || event.repeat) return;
-  if (event.code === 'Space') {
-    event.preventDefault();
-    if (characterPhysics?.grounded) characterJumpQueued = true;
-  }
-  if (event.code === 'ShiftLeft' || event.code === 'ShiftRight') characterSprintHeld = true;
-});
-window.addEventListener('keyup', event => {
-  if (event.code === 'ShiftLeft' || event.code === 'ShiftRight') stopCharacterSprint();
-});
-window.addEventListener('blur', stopCharacterSprint);
-
-function updateCharacterWeapon(dt) {
-  const equipped = isPhaserEquipped();
-  if (!equipped) characterWeaponController?.reset();
-  const result = characterWeaponController?.update(dt, characterPitch);
-  const aimButton = $('character-aim-btn');
-  const reticle = $('character-aim-reticle');
-  if (aimButton) {
-    aimButton.disabled = !equipped;
-    aimButton.classList.toggle('is-active', Boolean(result?.aiming));
-    const label = aimButton.querySelector('small');
-    if (label) label.textContent = !equipped ? 'SEM ARMA' : result?.aiming ? 'MIRANDO' : 'MIRAR';
-  }
-  if (reticle) reticle.classList.toggle('is-visible', equipped && Boolean(result?.aiming));
-}
-
-const characterAim = $('character-aim-area');
-let characterAimPointer = null;
-let characterPreviousX = 0;
-let characterPreviousY = 0;
-if (characterAim) {
-  characterAim.addEventListener('pointerdown', event => {
-    event.preventDefault();
-    characterAimPointer = event.pointerId;
-    characterPreviousX = event.clientX;
-    characterPreviousY = event.clientY;
-    characterAim.setPointerCapture(characterAimPointer);
-  });
-  characterAim.addEventListener('pointermove', event => {
-    if (characterAimPointer !== event.pointerId) return;
-    event.preventDefault();
-    const dx = event.clientX - characterPreviousX;
-    const dy = event.clientY - characterPreviousY;
-    characterPreviousX = event.clientX;
-    characterPreviousY = event.clientY;
+const characterControls = registerCharacterControls({
+  document,
+  window,
+  isOnFoot: () => characterCore.snapshot().mode === 'on-foot',
+  isGrounded: () => Boolean(characterPhysics?.grounded),
+  onFirePhaser: firePhaser,
+  onToggleAim: () => {
+    if (!isPhaserEquipped() || characterCore.snapshot().mode !== 'on-foot') {
+      toast('Equipe o Phaser para usar a mira.');
+      return;
+    }
+    const aiming = characterWeaponController?.toggleAiming() ?? false;
+    toast(aiming ? 'Mira ativada.' : 'Arma abaixada.');
+  },
+  onAimLook: (dx, dy) => {
     const yawDelta = -dx * 0.005;
     characterYaw += yawDelta;
     characterPitch = THREE.MathUtils.clamp(characterPitch - dy * 0.004, -0.65, 0.65);
@@ -2301,13 +1880,36 @@ if (characterAim) {
     } else if (characterModel?.group) {
       characterModel.group.rotation.y = characterYaw;
     }
-  });
-  const endCharacterAim = event => {
-    if (characterAimPointer === event.pointerId) characterAimPointer = null;
-  };
-  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type =>
-    characterAim.addEventListener(type, endCharacterAim)
-  );
+  }
+});
+const characterJumpButton = characterControls.jumpButton;
+const characterSprintButton = characterControls.sprintButton;
+const characterAnimationButton = $('character-animation-btn');
+
+characterAnimationButton?.addEventListener('click', () => {
+  if (characterCore.snapshot().mode !== 'on-foot' || !characterAnimator) return;
+  characterAnimationTestIndex = (characterAnimationTestIndex + 1) % characterAnimationTestPoses.length;
+  const pose = characterAnimationTestPoses[characterAnimationTestIndex];
+  characterAnimationTestRemaining = pose === 'idle' ? 1.1 : 1.45;
+  characterAnimator.play(pose, { restart: true });
+  characterAnimationButton.classList.add('is-active');
+  characterAnimationButton.querySelector('small').textContent = pose.toUpperCase();
+  toast('Teste de animação: ' + pose.toUpperCase());
+});
+
+function updateCharacterWeapon(dt) {
+  const equipped = isPhaserEquipped();
+  if (!equipped) characterWeaponController?.reset();
+  const result = characterWeaponController?.update(dt, characterPitch);
+  const aimButton = $('character-aim-btn');
+  const reticle = $('character-aim-reticle');
+  if (aimButton) {
+    aimButton.disabled = !equipped;
+    aimButton.classList.toggle('is-active', Boolean(result?.aiming));
+    const label = aimButton.querySelector('small');
+    if (label) label.textContent = !equipped ? 'SEM ARMA' : result?.aiming ? 'MIRANDO' : 'MIRAR';
+  }
+  if (reticle) reticle.classList.toggle('is-visible', equipped && Boolean(result?.aiming));
 }
 
 $('character-action-btn')?.addEventListener('click', () => {
@@ -2491,119 +2093,30 @@ if ($('character-action-btn')) $('character-action-btn').disabled = true;
 
 // Ao perder foco no Android, zera entradas para impedir joystick ou aceleração presos.
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) resetTransientState();
+  handleRuntimeVisibility(document.hidden);
 });
 
-/* MIRA POR ARRASTO */
-
-const aimArea = $('aim-touch-area');
-
-let aimPointer = null;
-let previousTouchX = 0;
-let previousTouchY = 0;
-
-if (aimArea) {
-  aimArea.addEventListener('pointerdown', event => {
-    event.preventDefault();
-
-    aimPointer = event.pointerId;
-    previousTouchX = event.clientX;
-    previousTouchY = event.clientY;
-
-    aimArea.setPointerCapture(aimPointer);
-  });
-
-  aimArea.addEventListener('pointermove', event => {
-    if (aimPointer !== event.pointerId) return;
-
-    event.preventDefault();
-
-    const dx = event.clientX - previousTouchX;
-    const dy = event.clientY - previousTouchY;
-
-    previousTouchX = event.clientX;
-    previousTouchY = event.clientY;
-
-    const nextView = {
-      x: THREE.MathUtils.clamp(state.view.x - dy * 0.004, -1.15, 1.15),
-      // A rotação horizontal é contínua: permite completar voltas de 360°.
-      y: THREE.MathUtils.euclideanModulo(
-        state.view.y - dx * 0.004 + Math.PI,
-        Math.PI * 2
-      ) - Math.PI
-    };
-    if (shipComputer.isTerminalConnected('pilot-console')) {
-      shipComputer.dispatch('pilot-console', 'flight', 'look', nextView);
-    } else {
-      state.view.x = nextView.x;
-      state.view.y = nextView.y;
-    }
-  });
-
-  const endAim = event => {
-    if (aimPointer === event.pointerId) {
-      aimPointer = null;
-    }
-  };
-
-  aimArea.addEventListener('pointerup', endAim);
-  aimArea.addEventListener('pointercancel', endAim);
-  aimArea.addEventListener('lostpointercapture', endAim);
-}
-
-/* BOTÕES DE PRESSÃO */
-
-function holdButton(id, key) {
-  const button = $(id);
-  if (!button) return;
-  let activePointer = null;
-
-  const stop = event => {
-    if (activePointer !== null && event?.pointerId !== undefined &&
-        event.pointerId !== activePointer) return;
-    activePointer = null;
-    state[key] = false;
-    button.classList.remove('active');
-  };
-
-  button.addEventListener('pointerdown', event => {
-    if (activePointer !== null || (event.pointerType === 'mouse' && event.button !== 0)) return;
-    event.preventDefault();
-    activePointer = event.pointerId;
-    // Propulsão, freio e nitro são entradas de tempo real: não dependem
-    // da disponibilidade do computador auxiliar nem do estado do terminal.
-    state[key] = true;
-    button.classList.add('active');
-    try {
-      button.setPointerCapture(event.pointerId);
-    } catch {
-      // A entrada permanece ativa; pointerup/blur ainda podem encerrá-la.
-    }
-  });
-
-  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type => {
-    button.addEventListener(type, stop);
-  });
-  window.addEventListener('blur', stop);
-}
-
-holdButton('throttle-btn', 'throttle');
-holdButton('brake-btn', 'braking');
-holdButton('nitro-btn', 'nitroButton');
-
-/* PROTEÇÃO CONTRA SELEÇÃO */
-
-document.addEventListener('contextmenu', event => {
-  if (event.target.closest('#flight-controls')) {
-    event.preventDefault();
-  }
+registerAimControls({ document, THREE, state, shipComputer });
+const instrumentBindings = [
+  ['hull', 'hull-bar', 100], ['shield', 'shield-bar', 100],
+  ['fuel', 'fuel-bar', 100], ['speed', 'speed-bar', 100]
+];
+const updateInstrumentBars = () => instrumentBindings.forEach(([valueId, barId, max]) => {
+  const value = Number($(valueId)?.textContent?.replace(',', '.')) || 0;
+  const fill = $(barId);
+  if (!fill) return;
+  const ratio = Math.max(0, Math.min(100, value / max * 100));
+  fill.style.width = ratio + '%';
+  fill.style.filter = ratio < 25 ? 'saturate(.65) brightness(.8)' : 'none';
 });
-
-document.addEventListener('selectstart', event => {
-  if (event.target.closest('#flight-controls')) {
-    event.preventDefault();
-  }
+const instrumentObserver = new MutationObserver(updateInstrumentBars);
+instrumentBindings.forEach(([valueId]) => {
+  const value = $(valueId);
+  if (value) instrumentObserver.observe(value, { childList:true, characterData:true, subtree:true });
 });
+updateInstrumentBars();
+registerHeldFlightControls({ document, window, state });
+registerFlightSelectionGuards({ document });
 
 function cancelLandingGuidance(reason = 'cancelled') {
   shipLandingAutopilot?.cancel?.();
@@ -2622,11 +2135,50 @@ function cancelLandingGuidance(reason = 'cancelled') {
 $('landing-btn')?.addEventListener('click', () => {
   if (!active || characterCore.snapshot().mode !== 'ship-control') return;
 
+  const gearTarget = shipLandingGear?.getTargetDeployment?.() ?? 0;
+  const gearCurrent = shipLandingGear?.getDeployment?.() ?? 0;
   if (shipLandingAutopilot?.snapshot?.().active) {
     cancelLandingGuidance('standby');
     shipAudio.playConsole();
-    if ($('landing-status')) $('landing-status').textContent = 'Orientação cancelada. Selecione novamente POUSAR para escolher um destino.';
+    if ($('landing-status')) $('landing-status').textContent = 'Orientação cancelada. O trem permanece aberto até novo comando.';
     toast('Guia de pouso cancelada.');
+    return;
+  }
+
+  if (gearTarget > 0.5 && selectedLandingSiteId && gearCurrent < 0.98) {
+    toast('Aguarde o trem de pouso travar na posição aberta.');
+    return;
+  }
+
+  if (gearTarget > 0.5 && !selectedLandingSiteId) {
+    shipLandingGear?.setDeployment?.(0);
+    $('landing-modal')?.classList.add('hidden');
+    $('landing-modal')?.setAttribute('aria-hidden', 'true');
+    const button = $('landing-btn');
+    if (button) {
+      button.textContent = '◉ TREM RECOLHENDO';
+      button.classList.add('gear-deploying');
+      button.classList.remove('gear-deployed');
+    }
+    shipAudio.playConsole();
+    toast('Trem de pouso recolhendo.');
+    return;
+  }
+
+  if (gearTarget <= 0.5) {
+    shipLandingGear?.setDeployment?.(1);
+    const button = $('landing-btn');
+    if (button) {
+      button.textContent = '◉ TREM ABRINDO';
+      button.classList.add('gear-deploying');
+      button.classList.remove('gear-retracted');
+    }
+    $('landing-modal')?.classList.remove('hidden');
+    $('landing-modal')?.setAttribute('aria-hidden', 'false');
+    const status = $('landing-status');
+    if (status) status.textContent = 'Trem de pouso em abertura. Aguarde o travamento antes de iniciar a aproximação.';
+    shipAudio.playConsole();
+    toast('Trem de pouso acionado: abrindo.');
     return;
   }
 
@@ -2640,7 +2192,8 @@ $('landing-btn')?.addEventListener('click', () => {
     ship.userData.landingAutopilotState = 'armed-guidance-only';
     shipAudio.playLandingAlert();
     $('landing-status').textContent = 'Telemetria conectada. A orientação calcula a aproximação, mas não comanda a propulsão nesta versão.';
-    $('landing-btn').textContent = '✕ CANCELAR';
+    $('landing-btn').textContent = '✕ CANCELAR GUIA · TREM ABERTO';
+    $('landing-btn').classList.add('gear-deployed');
     toast('Guia de pouso ativada. Propulsão automática permanece bloqueada.');
     return;
   }
@@ -2727,7 +2280,11 @@ $('landing-select-btn')?.addEventListener('click', () => {
   ship.userData.landingSiteId = site.id;
   ship.userData.landingAutopilotState = 'target-selected';
   const button = $('landing-btn');
-  if (button) button.textContent = '◎ ATIVAR GUIA DE POUSO';
+  if (button) {
+    button.textContent = '◎ ATIVAR GUIA · TREM ABERTO';
+    button.classList.add('gear-deployed');
+    button.classList.remove('gear-deploying','gear-retracted');
+  }
   const status = $('landing-status');
   if (status) status.textContent = 'Destino marcado: Salar de Uyuni · UY04. Ative a guia quando estiver pronto. A orientação calcula a aproximação, mas ainda não comanda a propulsão.';
   closeLandingPanel();
@@ -2736,125 +2293,26 @@ $('landing-select-btn')?.addEventListener('click', () => {
 
 /* CÂMERAS */
 
-$('camera-btn')?.addEventListener('click', () => {
-  state.camera = (state.camera + 1) % 3;
+registerCameraCycleControl({ document, state, cameraNames });
 
-  $('camera-btn').textContent = cameraNames[state.camera];
+registerGameplayActions({
+  document,
+  THREE,
+  getElement: $,
+  state,
+  isActive: () => active,
+  getAsteroids: () => asteroids,
+  getShip: () => ship,
+  getAsteroidSystem: () => asteroidSystem,
+  setAsteroids: value => { asteroids = value; },
+  save,
+  updateWallet,
+  shipAudio,
+  characterAudio,
+  toast,
+  getNpcReady: () => npcReady,
+  setNpcReady: value => { npcReady = value; }
 });
-
-/* MINERAÇÃO */
-
-$('mine-btn')?.addEventListener('click', () => {
-  if (!active) return;
-
-  const target = asteroids.find(asteroid =>
-    asteroid.position.distanceTo(ship.position) < 18
-  );
-
-  if (!target) {
-    toast('Aproxime-se de um asteroide para minerar.');
-    return;
-  }
-
-  if (state.cargo >= 100) {
-    toast('Compartimento de carga cheio.');
-    return;
-  }
-
-  const amount = Math.min(
-    target.userData.ore,
-    state.miningDrill === 'Broca reforçada' ? 12 : 6,
-    100 - state.cargo
-  );
-
-  target.userData.ore -= amount;
-  state.ore += amount;
-  state.cargo += amount;
-
-  if (target.userData.ore <= 0) {
-    asteroidSystem?.remove(target);
-    asteroids = asteroidSystem?.asteroids || [];
-  }
-
-  save();
-  updateWallet();
-  shipAudio.playMining();
-
-  toast(`Extração concluída: +${amount} unidades de minério.`);
-});
-
-/* DISPARO */
-
-$('fire-btn')?.addEventListener('click', () => {
-  toast('Canhões de pulso: sistema de combate em desenvolvimento.');
-});
-
-/* ESTAÇÃO E COMÉRCIO */
-
-$('interact-btn')?.addEventListener('click', () => {
-  if (!active) return;
-
-  const nearStation = ship.position.distanceTo(
-    new THREE.Vector3(24, 3, -65)
-  ) < 22;
-
-  if (!nearStation) {
-    toast('Aproxime-se da estação para interagir.');
-    return;
-  }
-
-  characterAudio.playInteract();
-  shipAudio.playConsole();
-  const bubble = $('npc-bubble');
-
-  if (!npcReady) {
-    npcReady = true;
-
-    if (bubble) {
-      bubble.innerHTML = `
-        <b>Comerciante da estação</b>
-        <p>Posso comprar seu minério por 8 créditos a unidade. Use INTERAGIR novamente para vender.</p>
-        <button id="npc-close">FECHAR</button>
-      `;
-
-      bubble.classList.remove('hidden');
-      $('npc-close')?.addEventListener('click', () => {
-        bubble.classList.add('hidden');
-      });
-    }
-
-    return;
-  }
-
-  if (state.cargo > 0) {
-    const gain = state.cargo * 8;
-
-    state.credits += gain;
-    state.cargo = 0;
-
-    save();
-    updateWallet();
-
-    toast(`Carga vendida: +${gain} créditos.`);
-
-    if (bubble) {
-      bubble.innerHTML = `
-        <b>Comerciante</b>
-        <p>Negócio fechado. Volte quando tiver mais minério.</p>
-        <button id="npc-close">FECHAR</button>
-      `;
-
-      $('npc-close')?.addEventListener('click', () => {
-        bubble.classList.add('hidden');
-      });
-    }
-  } else {
-    toast('Você não tem minério para vender.');
-  }
-
-  npcReady = false;
-});
-
 
 /* Editor do HUD do personagem: não move nem modifica o HUD da nave. */
 const characterHudEditor = $('character-hud-editor');
@@ -2944,6 +2402,10 @@ function startCharacterHudEditing() {
   characterHudEditor?.classList.remove('hidden');
   characterHudEditor?.setAttribute('aria-hidden', 'false');
   characterHudEditable.forEach(element => element.classList.add('hud-editable-active'));
+  // O editor é aberto a partir do menu de pausa, que já interrompeu o Runtime.
+  // Ao ocultar o menu, retoma a simulação para que SALVAR/CANCELAR não deixem
+  // a gameplay presa no estado pausado.
+  if (runtimeBridge?.status === 'paused') runtimeBridge.resume();
   toast('Arraste os elementos do HUD. Depois toque em SALVAR.');
 }
 
@@ -2997,9 +2459,11 @@ updateCharacterCameraButton();
 
 $('character-menu-btn')?.addEventListener('click', () => {
   $('game-menu-modal')?.classList.remove('hidden');
+  if (runtimeBridge?.status === 'running') runtimeBridge.pause();
 });
 
 $('game-menu-btn')?.addEventListener('click', () => {
+  if (runtimeBridge?.status === 'running') runtimeBridge.pause();
   state.throttle = false;
   state.braking = false;
   state.nitroButton = false;
@@ -3009,10 +2473,10 @@ $('game-menu-btn')?.addEventListener('click', () => {
 
 $('resume-btn')?.addEventListener('click', () => {
   $('game-menu-modal')?.classList.add('hidden');
-  last = performance.now();
+  if (runtimeBridge?.status === 'paused') runtimeBridge.resume();
 });
 
-$('return-menu-btn')?.addEventListener('click', () => {
+$('return-menu-btn')?.addEventListener('click', async () => {
   // Nunca abandonar a sessão enquanto o personagem ainda estiver sentado
   // no console: libera o terminal, devolve o personagem ao convés e
   // restaura o HUD a pé antes de ocultar a tela do jogo.
@@ -3024,11 +2488,9 @@ $('return-menu-btn')?.addEventListener('click', () => {
   }
 
   active = false;
+  await runtimeBridge?.shutdown();
   resetTransientState();
-  characterMoveInput = { x: 0, y: 0 };
-
-  const characterStickKnob = $('character-move-stick')?.querySelector('.character-move-knob');
-  if (characterStickKnob) characterStickKnob.style.transform = 'translate(0,0)';
+  characterControls.reset();
 
   $('game-menu-modal')?.classList.add('hidden');
   $('inventory-modal')?.classList.add('hidden');
@@ -3042,7 +2504,6 @@ $('return-menu-btn')?.addEventListener('click', () => {
   renderPanel('play');
   show('menu-screen');
   updateWallet();
-  last = performance.now();
 });
 
 // A tela de entrada é exibida somente depois que o carregamento inicial termina.

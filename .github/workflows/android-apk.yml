@@ -10,7 +10,9 @@ on:
       - feature/ship-orbital-landing-foundation
       - feature/character-human-model-animation
       - feature/startup-loading-login-flow
+      - feature/core-runtime-foundation
       - fix/character-hud-startup-layout
+      - fix/pilot-hud-flight-controls
   pull_request:
     branches:
       - main
@@ -92,6 +94,9 @@ jobs:
 
       - name: Compile shared C++ gravity kernel to WebAssembly
         run: npm run build:gravity:wasm --if-present
+
+      - name: Compile C++ core Runtime to WebAssembly
+        run: npm run build:runtime:wasm --if-present
 
       - name: Run project tests
         run: npm test --if-present
