@@ -1986,6 +1986,16 @@ body {
 }
 .character-hud-editor-panel > b { color: var(--cyan); font-size: 11px; letter-spacing: .08em; }
 .character-hud-editor-panel > span { color: var(--muted); font-size: 10px; }
+.hud-editor-targets { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.hud-editor-targets button {
+  min-height: 34px; border: 1px solid var(--border); border-radius: 8px;
+  background: rgba(9,35,57,.78); color: var(--muted); font-size: 10px;
+  font-weight: 700; letter-spacing: .06em; touch-action: manipulation;
+}
+.hud-editor-targets button[aria-pressed="true"] {
+  border-color: rgba(67,217,255,.8); background: rgba(20,83,112,.72); color: var(--cyan);
+}
+.hud-editor-targets button:disabled { opacity: .38; }
 .character-hud-editor-actions { display: flex; gap: 7px; }
 .character-hud-editor-actions button {
   flex: 1; min-height: 38px; padding: 5px; border: 1px solid var(--border);
