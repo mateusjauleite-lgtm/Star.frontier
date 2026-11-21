@@ -101,6 +101,18 @@ export function createShipComputer({ shipId = 'aurora-7', displayName = 'COMPUTA
     }
   }
 
+  function tick(systemId, payload = {}) {
+    if (!online) return { ok: false, reason: 'computer-offline' };
+    const system = systems.get(systemId);
+    const handler = system?.commands?.tick;
+    if (typeof handler !== 'function') return { ok: false, reason: 'system-tick-unavailable' };
+    try {
+      return { ok: true, result: handler(payload, { shipId, terminalId: 'ship-computer-runtime', operator: 'RUNTIME' }) };
+    } catch (error) {
+      return { ok: false, reason: 'system-tick-failed', error };
+    }
+  }
+
   function subscribe(listener) {
     if (typeof listener !== 'function') throw new TypeError('Listener inválido.');
     listeners.add(listener);
@@ -116,6 +128,7 @@ export function createShipComputer({ shipId = 'aurora-7', displayName = 'COMPUTA
     disconnectTerminal,
     isTerminalConnected,
     dispatch,
+    tick,
     getSnapshot,
     subscribe
   });
