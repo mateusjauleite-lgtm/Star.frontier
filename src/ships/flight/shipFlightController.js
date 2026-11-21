@@ -14,6 +14,7 @@ export function createShipFlightController(dependencies = {}) {
     getEngineFlames,
     getEngineLights,
     getEarthSystem,
+    getLandingGearContactPoints = () => [],
     getLandingAutopilot,
     getFlightQuaternion,
     getForwardVector,
@@ -143,31 +144,57 @@ export function createShipFlightController(dependencies = {}) {
       state.speed = Math.min(state.speed, 8);
     }
 
-    // Contato com a mesma superfície ETOPO usada pelo mesh da Earth.
+    // O contato da nave é medido nas quatro sapatas do trem de pouso,
+    // não na origem do casco. A origem fica no centro do modelo e usar uma
+    // folga fixa nela mantém a nave artificialmente suspensa sobre o terreno.
     ship.userData.earthCollisionResolved = false;
     const earthCollisionSurface = getEarthSystem()?.getCollisionSurface?.();
     ship.updateWorldMatrix(true, false);
-    const shipWorldPosition = ship.getWorldPosition(new THREE.Vector3());
-    const terrainContact = earthCollisionSurface?.sampleWorldPosition?.(shipWorldPosition);
-    if (terrainContact?.worldPosition && terrainContact?.worldNormal) {
-      const signedClearance = shipWorldPosition.clone()
-        .sub(terrainContact.worldPosition)
-        .dot(terrainContact.worldNormal);
-      const minimumHullClearance = 18;
-      if (Number.isFinite(signedClearance) && signedClearance < minimumHullClearance) {
-        const correctedWorldPosition = shipWorldPosition.addScaledVector(
-          terrainContact.worldNormal, minimumHullClearance - signedClearance
-        );
-        if (ship.parent) {
-          ship.parent.updateWorldMatrix(true, false);
-          ship.position.copy(ship.parent.worldToLocal(correctedWorldPosition));
-        } else {
-          ship.position.copy(correctedWorldPosition);
-        }
-        if (forwardVector.dot(terrainContact.worldNormal) < 0) state.speed = 0;
-        ship.userData.earthCollisionResolved = true;
-        ship.userData.earthCollisionClearanceUnits = minimumHullClearance;
+    shipVisual.updateWorldMatrix(true, true);
+    const landingContacts = getLandingGearContactPoints?.() || [];
+    let closestContact = null;
+
+    for (const contactPoint of landingContacts) {
+      if (!contactPoint?.point?.isVector3) continue;
+      const pointWorld = shipVisual.localToWorld(contactPoint.point.clone());
+      const terrain = earthCollisionSurface?.sampleWorldPosition?.(pointWorld);
+      if (!terrain?.worldPosition || !terrain?.worldNormal) continue;
+      const normal = terrain.worldNormal.clone().normalize();
+      const clearance = pointWorld.clone().sub(terrain.worldPosition).dot(normal);
+      if (!Number.isFinite(clearance)) continue;
+      if (!closestContact || clearance < closestContact.clearance) {
+        closestContact = { clearance, normal };
       }
+    }
+
+    // Fallback conservador para mundos/testes sem pontos de trem de pouso.
+    if (!closestContact && !landingContacts.length) {
+      const rootWorldPosition = ship.getWorldPosition(new THREE.Vector3());
+      const terrain = earthCollisionSurface?.sampleWorldPosition?.(rootWorldPosition);
+      if (terrain?.worldPosition && terrain?.worldNormal) {
+        const normal = terrain.worldNormal.clone().normalize();
+        closestContact = {
+          clearance: rootWorldPosition.clone().sub(terrain.worldPosition).dot(normal),
+          normal
+        };
+      }
+    }
+
+    const landingPadClearance = 0.35;
+    if (closestContact && closestContact.clearance < landingPadClearance) {
+      const correction = landingPadClearance - closestContact.clearance;
+      const correctedWorldPosition = ship.getWorldPosition(new THREE.Vector3())
+        .addScaledVector(closestContact.normal, correction);
+      if (ship.parent) {
+        ship.parent.updateWorldMatrix(true, false);
+        ship.position.copy(ship.parent.worldToLocal(correctedWorldPosition));
+      } else {
+        ship.position.copy(correctedWorldPosition);
+      }
+      if (forwardVector.dot(closestContact.normal) < 0) state.speed = 0;
+      ship.userData.earthCollisionResolved = true;
+      ship.userData.earthCollisionClearanceUnits = landingPadClearance;
+      ship.userData.earthLandingContactPoint = closestContact.clearance;
     }
 
     // Efeitos das nacelles.
