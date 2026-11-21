@@ -21,8 +21,9 @@ import { createCharacterEquipmentSystem } from './inventory/characterEquipment.j
 import { isPilotConsoleInRange, attachCharacterToPilotConsole, returnCharacterToDeck } from './ships/bridge/commandBridge.js';
 import { saveState as save, loadState as load } from './core/storage.js';
 import { createShipComputer } from './ships/computer/shipComputer.js';
-import { createShipConsoleController } from './ships/computer/console/consoleController.js';
-import { createShipConsoleRenderer } from './ships/computer/console/consoleRenderer.js';
+import { createShipManagementTerminalController, SHIP_MANAGEMENT_TERMINAL_LOCAL_POSITION, SHIP_MANAGEMENT_TERMINAL_DISPLAY_RADIUS, SHIP_MANAGEMENT_TERMINAL_INTERACTION_RADIUS } from './ships/computer/managementTerminal/managementTerminalController.js';
+import { createShipManagementTerminalRenderer } from './ships/computer/managementTerminal/managementTerminalRenderer.js';
+import { createShipManagementHologram } from './ships/computer/managementTerminal/shipManagementHologram.js';
 import { registerShipComputerSystems } from './ships/computer/shipComputerSystems.js';
 import { advanceShipFlightDynamics } from './ships/flight/flightDynamics.js';
 import { createShipFlightController } from './ships/flight/shipFlightController.js';
@@ -38,40 +39,24 @@ const characterAudio = createCharacterAudio({ core: characterCore });
 characterAudio.attach();
 const shipAudio = createShipAudio();
 const shipComputer = createShipComputer();
-const shipConsole = createShipConsoleController({
-  computer: shipComputer,
-  renderer: createShipConsoleRenderer({ root: $('game-screen') })
-});
-shipComputer.registerSystem('flight', {
-  name: 'Controle de voo',
-  commands: {
-    throttle: value => { state.throttle = Boolean(value); return state.throttle; },
-    brake: value => { state.braking = Boolean(value); return state.braking; },
-    nitro: value => { state.nitroButton = Boolean(value); return state.nitroButton; },
-    movement: value => {
-      if (!value || !Number.isFinite(value.x) || !Number.isFinite(value.y)) return false;
-      state.move.x = THREE.MathUtils.clamp(value.x, -1, 1);
-      state.move.y = THREE.MathUtils.clamp(value.y, -1, 1);
-      return true;
-    },
-    look: value => {
-      if (!value || !Number.isFinite(value.x) || !Number.isFinite(value.y)) return false;
-      state.view.x = THREE.MathUtils.clamp(value.x, -1.15, 1.15);
-      state.view.y = THREE.MathUtils.euclideanModulo(value.y + Math.PI, Math.PI * 2) - Math.PI;
-      return true;
-    }
-  },
-  getStatus: () => characterCore.snapshot().mode === 'ship-control' ? 'active' : 'standby'
-});
 shipComputer.registerTerminal({
-  id: 'pilot-console',
-  name: 'Console de pilotagem',
-  systems: ['flight', 'navigation', 'sensors', 'power']
+  id: 'ship-management-terminal',
+  name: 'Terminal holográfico de gerenciamento',
+  systems: ['navigation', 'sensors', 'power']
+});
+const shipManagementTerminal = createShipManagementTerminalController({
+  computer: shipComputer,
+  renderer: createShipManagementTerminalRenderer({ root: $('game-screen') }),
+  onInteractionChange: active => {
+    $('game-screen')?.classList.toggle('ship-management-active', active);
+    if (active) characterControls?.reset?.();
+  }
 });
 const characterHUD = createCharacterHUD(document);
 let characterCameraMode = 'third-person';
 let characterCameraInitialized = false;
 let characterModel = null;
+let shipManagementHologram = null;
 let characterAnimator = null;
 let characterWeaponController = null;
 let characterPhysics = null;
@@ -92,6 +77,12 @@ let phaserShotFlashRemaining = 0;
 const PHASER_RECHARGE_SECONDS = 2.5;
 const PHASER_FLASH_SECONDS = 0.16;
 let pilotInteractionAvailable = false;
+let shipManagementInteractionAvailable = false;
+const shipManagementTerminalPosition = new THREE.Vector3(
+  SHIP_MANAGEMENT_TERMINAL_LOCAL_POSITION.x,
+  SHIP_MANAGEMENT_TERMINAL_LOCAL_POSITION.y,
+  SHIP_MANAGEMENT_TERMINAL_LOCAL_POSITION.z
+);
 const pilotPlayerWorldPosition = new THREE.Vector3();
 const characterCameraWorldPosition = new THREE.Vector3();
 const characterCameraWorldQuaternion = new THREE.Quaternion();
@@ -668,7 +659,7 @@ async function startGame() {
       const runtimeKernel = await loadRuntimeKernel({ maximumDeltaSeconds: 0.04 });
       runtimeBridge = createRuntimeBridge(runtimeKernel);
       registerGameRuntimeSystems(runtimeBridge, {
-        shipConsole,
+        shipManagementTerminal,
         character: {
           core: characterCore,
           resetTransientState,
@@ -728,7 +719,7 @@ async function startGame() {
             earthSystem, camera, applyEarthSurfaceRotation, ship, updatePhaserWeapon,
             characterCore, updateCharacterMovement, updateCharacterWeapon,
             updateExternalElevatorAnimation, updateElevatorInteraction,
-            updatePilotInteraction, updateExternalElevatorInteraction,
+            updatePilotInteraction, updateShipManagementInteraction, updateExternalElevatorInteraction,
             updateCharacterCamera, updateFlight, updateCamera,
             setLandingBaseSystem: value => { landingBaseSystem = value; },
             updateShipLandingGuidance, THREE, shipVisual, shipEarthContactPoints,
@@ -954,6 +945,18 @@ async function init3D() {
     characterWeaponController,
     characterPhysics
   } = world);
+
+  shipManagementHologram?.dispose?.();
+  shipManagementHologram = createShipManagementHologram({
+    parent: shipVisual,
+    // Campo projetado acima do tampo da estação física no Deck 1.
+    position: {
+      x: SHIP_MANAGEMENT_TERMINAL_LOCAL_POSITION.x,
+      y: SHIP_MANAGEMENT_TERMINAL_LOCAL_POSITION.y + 1.19,
+      z: SHIP_MANAGEMENT_TERMINAL_LOCAL_POSITION.z
+    },
+    scale: 1.35
+  });
 
   characterCameraInitialized = false;
   characterInWorldFrame = false;
@@ -1667,6 +1670,24 @@ function updateExternalElevatorInteraction() {
   }
 }
 
+function updateShipManagementInteraction(dt = 0) {
+  shipManagementHologram?.update(dt);
+  if (!characterModel || !shipVisual || characterCore.snapshot().mode !== 'on-foot' || characterInWorldFrame || nearbyElevator) {
+    shipManagementInteractionAvailable = false;
+    shipManagementHologram?.setVisible(false);
+    shipManagementTerminal.setPresence(false, false);
+    return;
+  }
+
+  // Personagem e ponto de ancoragem compartilham o referencial local do shipVisual.
+  const distanceSquared = characterModel.group.position.distanceToSquared(shipManagementTerminalPosition);
+  const visible = distanceSquared <= SHIP_MANAGEMENT_TERMINAL_DISPLAY_RADIUS ** 2;
+  const available = distanceSquared <= SHIP_MANAGEMENT_TERMINAL_INTERACTION_RADIUS ** 2;
+  shipManagementInteractionAvailable = available;
+  shipManagementHologram?.setVisible(visible);
+  shipManagementTerminal.setPresence(visible, available);
+}
+
 function updatePilotInteraction() {
   if (!characterModel || !shipVisual || characterCore.snapshot().mode !== 'on-foot') return;
 
@@ -1700,14 +1721,7 @@ function enterPilotMode() {
     return;
   }
 
-  if (!shipComputer.connectTerminal('pilot-console', state.user || 'PILOTO')) {
-    toast('Computador da nave indisponível ou console ocupado.');
-    return;
-  }
-  if (!attachCharacterToPilotConsole(characterModel, shipVisual)) {
-    shipComputer.disconnectTerminal('pilot-console');
-    return;
-  }
+  if (!attachCharacterToPilotConsole(characterModel, shipVisual)) return;
 
   characterControls.reset();
   characterCore.enterShipSeat();
@@ -1724,7 +1738,6 @@ function exitPilotMode() {
   if (characterCore.snapshot().mode !== 'ship-control') return;
 
   cancelLandingGuidance('pilot-disconnected');
-  shipComputer.disconnectTerminal('pilot-console');
   characterYaw = returnCharacterToDeck(characterModel, shipVisual, scene);
   characterPitch = 0;
   characterCore.leaveShipSeat();
@@ -1860,7 +1873,7 @@ bindStick('move-stick', 'move');
 const characterControls = registerCharacterControls({
   document,
   window,
-  isOnFoot: () => characterCore.snapshot().mode === 'on-foot',
+  isOnFoot: () => characterCore.snapshot().mode === 'on-foot' && !shipManagementTerminal.getSnapshot().open,
   isGrounded: () => Boolean(characterPhysics?.grounded),
   onFirePhaser: firePhaser,
   onToggleAim: () => {
@@ -1922,6 +1935,11 @@ function updateCharacterWeapon(dt) {
 $('character-action-btn')?.addEventListener('click', () => {
   if (externalElevatorActionAvailable) activateExternalElevator();
   else enterPilotMode();
+});
+window.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && shipManagementTerminal.getSnapshot().open) {
+    shipManagementTerminal.close();
+  }
 });
 $('elevator-up-btn')?.addEventListener('click', () => moveElevator(-1));
 $('elevator-down-btn')?.addEventListener('click', () => moveElevator(1));
@@ -2103,7 +2121,7 @@ document.addEventListener('visibilitychange', () => {
   handleRuntimeVisibility(document.hidden);
 });
 
-registerAimControls({ document, THREE, state, shipComputer });
+registerAimControls({ document, THREE, state });
 const instrumentBindings = [
   ['hull', 'hull-bar', 100], ['shield', 'shield-bar', 100],
   ['fuel', 'fuel-bar', 100], ['speed', 'speed-bar', 100]
@@ -2489,9 +2507,6 @@ $('return-menu-btn')?.addEventListener('click', async () => {
   // restaura o HUD a pé antes de ocultar a tela do jogo.
   if (characterCore.snapshot().mode === 'ship-control') {
     exitPilotMode();
-  } else {
-    // Recupera também uma eventual conexão órfã do computador da nave.
-    shipComputer.disconnectTerminal('pilot-console');
   }
 
   active = false;

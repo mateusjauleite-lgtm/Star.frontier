@@ -1,0 +1,71 @@
+<section class="ship-management-hud" aria-label="HUD de gerenciamento da nave">
+  <button class="management-open-control" type="button" data-management-open hidden disabled>
+    <span class="management-open-indicator"></span>
+    <span><b>SHIP COMPUTER</b><small>ABRIR ESTAÇÃO DE GERENCIAMENTO</small></span>
+    <span class="management-open-key">↗</span>
+  </button>
+
+  <section class="management-os" data-management-interaction hidden aria-label="Sistema operacional do computador da nave">
+    <header class="management-os-topbar">
+      <div class="management-os-brand"><span class="management-os-mark">A7</span><b>AURORA OS</b><small>SHIP COMPUTER</small></div>
+      <div class="management-os-top-center"><span class="management-live-dot"></span> REDE INTERNA DA NAVE <i>/</i> ESTAÇÃO DE COMANDO</div>
+      <div class="management-os-top-actions"><span data-management-status data-state="standby">OFFLINE</span><button type="button" data-management-close aria-label="Fechar estação">FECHAR ×</button></div>
+    </header>
+
+    <div class="management-os-body">
+      <aside class="management-sidebar">
+        <div class="management-sidebar-heading">APLICATIVOS</div>
+        <button type="button" class="management-app-link is-selected" data-management-module="navigation" data-system-id="navigation" aria-pressed="true"><span class="management-app-icon">⌖</span><span>Navegação<small data-module-state>PREPARADO</small></span></button>
+        <button type="button" class="management-app-link" data-management-module="tactical" data-system-id="sensors" aria-pressed="false"><span class="management-app-icon">◎</span><span>Sensores e tático<small data-module-state>PREPARADO</small></span></button>
+        <button type="button" class="management-app-link" data-management-module="weapons" data-system-id="weapons" aria-pressed="false"><span class="management-app-icon">✣</span><span>Arsenal<small data-module-state>PREPARADO</small></span></button>
+        <button type="button" class="management-app-link" data-management-module="engineering" data-system-id="power" aria-pressed="false"><span class="management-app-icon">ϟ</span><span>Engenharia<small data-module-state>PREPARADO</small></span></button>
+        <button type="button" class="management-app-link" data-management-module="defense" data-system-id="defense" aria-pressed="false"><span class="management-app-icon">⬡</span><span>Defesa<small data-module-state>PREPARADO</small></span></button>
+        <button type="button" class="management-app-link" data-management-module="diagnostics" data-system-id="diagnostics" aria-pressed="false"><span class="management-app-icon">▤</span><span>Diagnósticos<small data-module-state>PREPARADO</small></span></button>
+
+        <div class="management-sidebar-bottom">
+          <div class="management-ship-card"><span class="management-ship-avatar">A7</span><span><b>AURORA-7</b><small>NAVE EXPLORADORA</small></span></div>
+          <div class="management-link-state"><span class="management-live-dot"></span><span data-management-connection>AGUARDANDO CONEXÃO</span></div>
+        </div>
+      </aside>
+
+      <main class="management-desktop">
+        <div class="management-desktop-heading">
+          <div><span class="management-os-eyebrow">CENTRAL DE OPERAÇÕES / DECK 01</span><h2>Visão geral da nave</h2><p>Gerenciamento integrado dos sistemas e subsistemas de bordo.</p></div>
+          <div class="management-session-chip"><span class="management-live-dot"></span> SESSÃO LOCAL</div>
+        </div>
+
+        <div class="management-workspace">
+          <section class="management-window management-overview-window">
+            <header class="management-window-title"><span class="management-window-app-icon">▦</span><b>PAINEL DO SISTEMA</b><span class="management-window-controls">— □</span></header>
+            <div class="management-overview-grid">
+              <article class="management-info-card"><small>COMPUTADOR CENTRAL</small><b data-management-central-state>EM ESPERA</b><span>Estado de conexão</span></article>
+              <article class="management-info-card"><small>MÓDULOS REGISTRADOS</small><b data-management-module-count>06</b><span>Sistemas de gerenciamento</span></article>
+              <article class="management-info-card"><small>ESTAÇÃO ATUAL</small><b>DECK 01</b><span>Ponte de comando</span></article>
+            </div>
+            <div class="management-system-summary"><div class="management-section-label">ESTADO DOS SISTEMAS</div><div data-management-system-list class="management-system-list"><span>Carregando telemetria da nave…</span></div></div>
+          </section>
+
+          <section class="management-window management-active-window">
+            <header class="management-window-title"><span class="management-window-app-icon">▣</span><b data-management-detail-title>NAVEGAÇÃO</b><span class="management-window-controls">— □</span></header>
+            <div class="management-active-content">
+              <div class="management-active-heading"><div><span class="management-os-eyebrow">APLICATIVO SELECIONADO</span><h3 data-management-detail-heading>Navegação</h3></div><span data-management-detail-state data-state="standby">AGUARDANDO</span></div>
+              <p class="management-module-description" data-management-detail-description>Dados de navegação e telemetria da nave.</p>
+              <div class="management-telemetry-grid" data-management-detail-output><div class="management-telemetry-empty">Selecione um aplicativo para consultar os dados do sistema.</div></div>
+            </div>
+          </section>
+        </div>
+
+        <div class="management-desktop-shortcuts">
+          <span><i>⌖</i> Navegação</span><span><i>◎</i> Sensores</span><span><i>ϟ</i> Engenharia</span><span><i>▤</i> Diagnóstico</span>
+        </div>
+      </main>
+    </div>
+
+    <footer class="management-taskbar">
+      <div class="management-taskbar-start"><span class="management-os-mark">A7</span><b>INICIAR</b></div>
+      <div class="management-taskbar-active"><span>▦</span> Ship Operations Center</div>
+      <div class="management-taskbar-status"><span class="management-live-dot"></span> SISTEMA DE BORDO <i>•</i> LINK SEGURO</div>
+      <div class="management-taskbar-clock">AURORA OS <small>SHIP MANAGEMENT</small></div>
+    </footer>
+  </section>
+</section>

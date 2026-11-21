@@ -29,8 +29,7 @@ export function registerShipComputerSystems(computer, {
       position: { x, y, z },
       heading: getShipYaw(),
       pitch: getPitchAngle(),
-      speed: state.speed,
-      cameraMode: state.camera
+      speed: state.speed
     };
   };
 

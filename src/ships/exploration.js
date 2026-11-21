@@ -196,6 +196,80 @@ export function createExplorationShip() {
   consoleStatus.position.set(-1.55, 1.39, 0.02);
   bridgeComputer.add(consoleStatus);
 
+  // Estação física independente do Ship Computer no lado de bombordo do Deck 1.
+  // A frente operacional aponta para +Z, permitindo aproximação pelo corredor.
+  const managementStation = new THREE.Group();
+  managementStation.name = 'Bridge-Ship-Management-Station';
+  managementStation.position.set(-10.5, 8.91, -20);
+  visual.add(managementStation);
+
+  const stationDarkMaterial = new THREE.MeshStandardMaterial({
+    color: 0x101f2b, metalness: 0.88, roughness: 0.3
+  });
+  const stationPanelMaterial = new THREE.MeshStandardMaterial({
+    color: 0x31556a, metalness: 0.76, roughness: 0.27
+  });
+  const stationDisplayMaterial = new THREE.MeshStandardMaterial({
+    color: 0x092b3c, emissive: 0x087fa8, emissiveIntensity: 1.15,
+    metalness: 0.28, roughness: 0.22
+  });
+  const stationLightMaterial = new THREE.MeshBasicMaterial({
+    color: 0x55e5ff, transparent: true, opacity: 0.9
+  });
+
+  const stationPart = (name, geometry, material, position, rotation = [0, 0, 0]) => {
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.name = name;
+    mesh.position.set(...position);
+    mesh.rotation.set(...rotation);
+    managementStation.add(mesh);
+    return mesh;
+  };
+
+  stationPart('Management-Station-Floor-Plinth',
+    new THREE.BoxGeometry(3.85, 0.22, 2.7), stationDarkMaterial, [0, 0.11, 0]);
+  stationPart('Management-Station-Lower-Armor',
+    new THREE.BoxGeometry(3.35, 0.72, 2.18), stationPanelMaterial, [0, 0.57, -0.04]);
+  stationPart('Management-Station-Operator-Fascia',
+    new THREE.BoxGeometry(3.18, 0.52, 0.16), stationDarkMaterial, [0, 0.82, 1.06],
+    [-0.12, 0, 0]);
+  stationPart('Management-Station-Worktop',
+    new THREE.BoxGeometry(3.45, 0.14, 2.12), hullMaterial, [0, 1.12, 0.02],
+    [-0.08, 0, 0]);
+
+  // Tela de controle inclinada para o tripulante em pé diante da estação.
+  stationPart('Management-Station-Touch-Display',
+    new THREE.BoxGeometry(2.55, 0.075, 0.82), stationDisplayMaterial,
+    [0, 1.23, 0.48], [-0.34, 0, 0]);
+
+  // Dois módulos laterais reforçam a leitura de equipamento de ponte, sem
+  // fechar o acesso frontal nem ocupar o corredor de circulação.
+  for (const side of [-1, 1]) {
+    stationPart('Management-Station-Side-Module',
+      new THREE.BoxGeometry(0.34, 0.94, 1.56), stationDarkMaterial,
+      [side * 1.48, 0.78, -0.08]);
+    stationPart('Management-Station-Side-Status',
+      new THREE.BoxGeometry(0.12, 0.035, 0.72), stationLightMaterial,
+      [side * 1.48, 1.27, 0.04]);
+    stationPart('Management-Station-Front-Status',
+      new THREE.BoxGeometry(0.62, 0.035, 0.035), stationLightMaterial,
+      [side * 0.78, 0.88, 1.16]);
+  }
+
+  // Linhas luminosas de operação no painel frontal.
+  for (let i = 0; i < 5; i += 1) {
+    stationPart('Management-Station-Control-Indicator',
+      new THREE.BoxGeometry(0.22, 0.035, 0.035), stationLightMaterial,
+      [-0.42 + i * 0.21, 1.29, 0.88]);
+  }
+
+  stationPart('Management-Station-Emitter-Recess',
+    new THREE.CylinderGeometry(0.56, 0.62, 0.08, 32),
+    stationDarkMaterial, [0, 1.22, -0.58]);
+  stationPart('Management-Station-Emitter-Ring',
+    new THREE.TorusGeometry(0.46, 0.025, 8, 40),
+    stationLightMaterial, [0, 1.28, -0.58], [Math.PI / 2, 0, 0]);
+
   // Reforço do casco de engenharia inferior.
 
   addMesh(new THREE.SphereGeometry(1, 36, 24), undersideMaterial,
