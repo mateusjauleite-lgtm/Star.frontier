@@ -2141,9 +2141,13 @@ $('landing-btn')?.addEventListener('click', () => {
     return;
   }
 
-  if (gearTarget > 0.5) {
+  if (gearTarget > 0.5 && selectedLandingSiteId && gearCurrent < 0.98) {
+    toast('Aguarde o trem de pouso travar na posição aberta.');
+    return;
+  }
+
+  if (gearTarget > 0.5 && !selectedLandingSiteId) {
     shipLandingGear?.setDeployment?.(0);
-    selectedLandingSiteId = null;
     $('landing-modal')?.classList.add('hidden');
     $('landing-modal')?.setAttribute('aria-hidden', 'true');
     const button = $('landing-btn');
@@ -2171,24 +2175,6 @@ $('landing-btn')?.addEventListener('click', () => {
     if (status) status.textContent = 'Trem de pouso em abertura. Aguarde o travamento antes de iniciar a aproximação.';
     shipAudio.playConsole();
     toast('Trem de pouso acionado: abrindo.');
-    return;
-  }
-
-  if (gearTarget > 0.5 && gearCurrent > 0.98 && !shipLandingAutopilot?.snapshot?.().active && !selectedLandingSiteId) {
-    shipLandingGear?.setDeployment?.(0);
-    const button = $('landing-btn');
-    if (button) {
-      button.textContent = '◉ TREM RECOLHENDO';
-      button.classList.add('gear-deploying');
-      button.classList.remove('gear-deployed');
-    }
-    shipAudio.playConsole();
-    toast('Trem de pouso recolhendo.');
-    return;
-  }
-
-  if (selectedLandingSiteId && gearCurrent < 0.98) {
-    toast('Aguarde o trem de pouso travar na posição aberta.');
     return;
   }
 
