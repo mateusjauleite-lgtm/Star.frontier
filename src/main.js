@@ -2619,6 +2619,8 @@ function finishCharacterHudEditing({ saveChanges = false, reset = false } = {}) 
   characterHudEditor?.classList.add('hidden');
   characterHudEditor?.setAttribute('aria-hidden', 'true');
   setPilotInterface(hudEditorOriginalPilotMode);
+  scheduleCharacterHudLayout();
+  schedulePilotHudLayout();
   if (saveChanges) toast('Configuração do HUD salva.');
   else if (reset) toast('HUD restaurado ao padrão.');
 }
