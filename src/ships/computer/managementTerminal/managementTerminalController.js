@@ -2,7 +2,8 @@ import { SHIP_COMPUTER_MODULES } from '../modules/index.js';
 
 export const SHIP_MANAGEMENT_TERMINAL_ID = 'ship-management-terminal';
 
-// Posição inicial de referência no convés da ponte; pode ser ajustada após validar o layout 3D.
+// Posição de referência provisória no convés da ponte; a âncora 3D usa este
+// mesmo referencial local e poderá ser refinada após validação visual no APK.
 export const SHIP_MANAGEMENT_TERMINAL_LOCAL_POSITION = Object.freeze({
   x: -6.5,
   y: 8.91,
@@ -28,17 +29,19 @@ export function createShipManagementTerminalController({
   }
   if (!renderer || typeof renderer.mount !== 'function' ||
       typeof renderer.render !== 'function' || typeof renderer.unmount !== 'function') {
-    throw new TypeError('O renderizador do terminal de gerenciamento está incompleto.');
+    throw new TypeError('O renderizador do HUD de gerenciamento está incompleto.');
   }
 
   let initialized = false;
   let present = false;
+  let interactionAvailable = false;
   let opened = false;
   let unsubscribe = null;
 
   const render = snapshot => renderer.render({
     snapshot,
     present,
+    interactionAvailable,
     open: opened,
     modules
   });
@@ -46,6 +49,7 @@ export function createShipManagementTerminalController({
   function initialize() {
     if (initialized) return false;
     renderer.mount({
+      onOpen: () => open(),
       onClose: close,
       onModuleSelect: moduleId => renderer.selectModule?.(moduleId)
     });
@@ -55,18 +59,20 @@ export function createShipManagementTerminalController({
     return true;
   }
 
-  function setPresence(visible) {
+  function setPresence(visible, canInteract = false) {
     if (!initialized) return false;
-    const next = Boolean(visible);
-    if (present === next) return true;
-    present = next;
+    const nextPresent = Boolean(visible);
+    const nextAvailable = nextPresent && Boolean(canInteract);
+    const changed = present !== nextPresent || interactionAvailable !== nextAvailable;
+    present = nextPresent;
+    interactionAvailable = nextAvailable;
     if (!present && opened) close();
-    render(computer.getSnapshot());
+    if (changed) render(computer.getSnapshot());
     return true;
   }
 
   function open(operator = 'TRIPULANTE') {
-    if (!initialized || !present) return false;
+    if (!initialized || !present || !interactionAvailable) return false;
     if (opened) return true;
     if (!computer.connectTerminal(terminalId, operator)) return false;
     opened = true;
@@ -95,6 +101,7 @@ export function createShipManagementTerminalController({
     if (!initialized) return false;
     if (opened) close();
     present = false;
+    interactionAvailable = false;
     unsubscribe?.();
     unsubscribe = null;
     renderer.unmount();
@@ -112,6 +119,7 @@ export function createShipManagementTerminalController({
     getSnapshot: () => ({
       initialized,
       present,
+      interactionAvailable,
       open: opened,
       terminalId,
       modules: modules.map(module => module.id)
