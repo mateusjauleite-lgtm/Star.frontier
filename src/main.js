@@ -2073,15 +2073,6 @@ document.addEventListener('visibilitychange', () => {
 });
 
 registerAimControls({ document, THREE, state, shipComputer });
-const pilotAimButton = $('pilot-aim-btn');
-const pilotAimArea = $('aim-touch-area');
-pilotAimButton?.addEventListener('click', () => {
-  const enabled = pilotAimButton.getAttribute('aria-pressed') !== 'true';
-  pilotAimButton.setAttribute('aria-pressed', String(enabled));
-  pilotAimArea?.classList.toggle('aim-disabled', !enabled);
-  pilotAimButton.classList.toggle('active', enabled);
-  toast(enabled ? 'Mira da nave ativada.' : 'Mira da nave desativada.');
-});
 const instrumentBindings = [
   ['hull', 'hull-bar', 100], ['shield', 'shield-bar', 100],
   ['fuel', 'fuel-bar', 100], ['speed', 'speed-bar', 100]
