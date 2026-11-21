@@ -95,7 +95,8 @@ export function createDilithiumRefinerySystem(state, options = {}) {
       transferredTotal,
       consumedTotal,
       coreRemainingCapacity: Math.max(0, coreCapacity - core),
-      supportRange: core > 0 ? 'SUPORTE DE ENERGIA DISPONÍVEL' : 'NÚCLEO SEM RESERVA'
+      supportRange: core > 0 ? 'NÚCLEO ATIVO · PROPULSÃO DE DOBRA' : 'NÚCLEO SEM RESERVA',
+      supportSystems: ['Propulsão de dobra']
     });
   }
 
