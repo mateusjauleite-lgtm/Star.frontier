@@ -140,7 +140,8 @@ export function createSpaceLighting(scene, options = {}) {
   return {
     stars,
     sun,
-    update(_dt, observerPosition, warp = {}) {
+    update(deltaSeconds, observerPosition, warp = {}) {
+      const dt = Math.max(0, Number(deltaSeconds) || 0);
       if (observerPosition) {
         stars.position.copy(observerPosition);
         streaks.position.copy(observerPosition);
@@ -148,6 +149,36 @@ export function createSpaceLighting(scene, options = {}) {
       const active = Boolean(warp.warpActive);
       const exiting = warp.warpTransition === 'exiting';
       const speed = Math.max(0, Number(warp.speed) || 0);
+      if (warp.cameraQuaternion?.isQuaternion) {
+        cameraBackward.set(0, 0, 1).applyQuaternion(warp.cameraQuaternion).normalize();
+      } else {
+        cameraBackward.set(0, 0, 1);
+      }
+      // O campo estelar desloca-se em sentido oposto ao avanço da nave.
+      // As estrelas que cruzam o limite são reposicionadas no lado oposto do volume.
+      if (speed > 0.01 && dt > 0) {
+        const travel = speed * dt * 0.12;
+        for (let i = 0; i < starCount; i += 1) {
+          const offset = i * 3;
+          let x = positions[offset] + cameraBackward.x * travel;
+          let y = positions[offset + 1] + cameraBackward.y * travel;
+          let z = positions[offset + 2] + cameraBackward.z * travel;
+          const projection = x * cameraBackward.x + y * cameraBackward.y + z * cameraBackward.z;
+          if (projection > radius) {
+            x -= cameraBackward.x * radius * 2;
+            y -= cameraBackward.y * radius * 2;
+            z -= cameraBackward.z * radius * 2;
+          } else if (projection < -radius) {
+            x += cameraBackward.x * radius * 2;
+            y += cameraBackward.y * radius * 2;
+            z += cameraBackward.z * radius * 2;
+          }
+          positions[offset] = x;
+          positions[offset + 1] = y;
+          positions[offset + 2] = z;
+        }
+        starGeometry.getAttribute('position').needsUpdate = true;
+      }
       const speedIntensity = Math.max(0, Math.min(1, (speed - 75) / (350 - 75)));
       const exitProgress = speedIntensity;
       const intensity = active ? speedIntensity : exiting ? exitProgress * 0.78 : 0;
@@ -155,11 +186,6 @@ export function createSpaceLighting(scene, options = {}) {
       streaks.visible = intensity > 0;
       streakMaterial.opacity = intensity * 0.78;
       if (intensity > 0) {
-        if (warp.cameraQuaternion?.isQuaternion) {
-          cameraBackward.set(0, 0, 1).applyQuaternion(warp.cameraQuaternion).normalize();
-        } else {
-          cameraBackward.set(0, 0, 1);
-        }
         const length = 8 + intensity * 92;
         const attribute = streakGeometry.getAttribute('position');
         for (let i = 0; i < streakCount; i += 1) {
