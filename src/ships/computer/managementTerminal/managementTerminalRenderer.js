@@ -16,9 +16,8 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
     const wrapper = document.createElement('div');
     wrapper.className = 'ship-management-terminal-layer';
     wrapper.innerHTML = html.trim();
-    layer = wrapper.firstElementChild;
-    if (!layer) throw new Error('O template do terminal de gerenciamento está vazio.');
-    layer.classList.add('ship-management-terminal-layer');
+    if (!wrapper.firstElementChild) throw new Error('O template do terminal de gerenciamento está vazio.');
+    layer = wrapper;
     closeHandler = onClose;
     selectHandler = onModuleSelect;
     layer.addEventListener('click', event => {
@@ -56,11 +55,10 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
     layer.dataset.mode = open ? 'interactive' : 'passive';
     layer.setAttribute('aria-hidden', String(!present));
 
-    const status = layer.querySelector('[data-management-status]');
-    if (status) {
+    layer.querySelectorAll('[data-management-status]').forEach(status => {
       status.textContent = snapshot?.online ? 'SHIP COMPUTER ONLINE' : 'SISTEMA EM ESPERA';
       status.dataset.state = snapshot?.online ? 'online' : 'standby';
-    }
+    });
 
     const interaction = layer.querySelector('[data-management-interaction]');
     if (interaction) interaction.hidden = !open;
