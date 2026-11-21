@@ -25,6 +25,7 @@ import { createShipManagementTerminalController, SHIP_MANAGEMENT_TERMINAL_LOCAL_
 import { createShipManagementTerminalRenderer } from './ships/computer/managementTerminal/managementTerminalRenderer.js';
 import { createShipManagementHologram } from './ships/computer/managementTerminal/shipManagementHologram.js';
 import { createEngineeringTerminalController, ENGINEERING_CONSOLE_LOCAL_POSITION, ENGINEERING_CONSOLE_DISPLAY_RADIUS, ENGINEERING_CONSOLE_INTERACTION_RADIUS } from './ships/computer/engineeringTerminalController.js';
+import { createEngineeringTerminalRenderer } from './ships/computer/engineeringTerminal/engineeringTerminalRenderer.js';
 import { registerShipComputerSystems } from './ships/computer/shipComputerSystems.js';
 import { advanceShipFlightDynamics } from './ships/flight/flightDynamics.js';
 import { createShipFlightController } from './ships/flight/shipFlightController.js';
@@ -56,11 +57,35 @@ const shipManagementTerminal = createShipManagementTerminalController({
   }
 });
 let engineeringConsoleActive = false;
-const engineeringTerminal = createEngineeringTerminalController({
+let engineeringTerminal = null;
+let engineeringTelemetryAccumulator = 0;
+const engineeringRenderer = createEngineeringTerminalRenderer({
+  root: $('game-screen'),
+  onOpen: () => toggleEngineeringConsole(),
+  onClose: () => toggleEngineeringConsole(),
+  onStageSelect: stage => {
+    const response = engineeringTerminal?.dispatch('engineering', 'setWarpStage', { stage });
+    if (!response?.ok || !response.result?.accepted) toast('Não foi possível alterar o estágio de dobra.');
+  },
+  onExitMode: mode => {
+    const response = engineeringTerminal?.dispatch('engineering', 'setWarpExitMode', { mode });
+    if (!response?.ok || !response.result?.accepted) toast('Modo de saída não disponível.');
+  },
+  onWarpToggle: active => {
+    const response = engineeringTerminal?.dispatch('engineering', 'setWarpActive', { active });
+    if (!response?.ok || !response.result?.accepted) toast('Dobra indisponível: verifique o dilítio refinado.');
+  }
+});
+engineeringRenderer.mount();
+engineeringTerminal = createEngineeringTerminalController({
   computer: shipComputer,
   onInteractionChange: active => {
     engineeringConsoleActive = active;
-    if (active) toast('Console de Engenharia conectado ao Ship Computer. A interface holográfica será construída na próxima etapa.');
+    engineeringRenderer.setOpen(active);
+    if (active) {
+      const response = engineeringTerminal?.dispatch('engineering', 'status');
+      if (response?.ok) engineeringRenderer.update(response.result);
+    }
   }
 });
 const characterHUD = createCharacterHUD(document);
@@ -1067,7 +1092,7 @@ function updateFlight(dt) {
     }
   }
   const moveStick = $('move-stick');
-  const hasPropulsion = Number(state.fuel) > 0 || Number(state.warpDriveCharge) > 0;
+  const hasPropulsion = Number(state.fuel) > 0 || Number(state.refinedDilithium) > 0;
   if (moveStick) {
     moveStick.classList.toggle('no-propulsion', !hasPropulsion);
     moveStick.setAttribute('aria-disabled', String(!hasPropulsion));
@@ -1706,7 +1731,7 @@ function updateShipManagementInteraction(dt = 0) {
   shipManagementTerminal.setPresence(visible, available);
 }
 
-function updateEngineeringConsoleInteraction() {
+function updateEngineeringConsoleInteraction(dt = 0) {
   const previousAvailable = engineeringInteractionAvailable;
   const previousActive = engineeringConsoleActive;
   const validContext = Boolean(characterModel && shipVisual &&
@@ -1715,6 +1740,7 @@ function updateEngineeringConsoleInteraction() {
 
   if (!validContext) {
     engineeringInteractionAvailable = false;
+    engineeringRenderer.setPresence(false, false);
     engineeringTerminal.setPresence(false, false);
     if ((previousAvailable || previousActive) && !nearbyElevator) {
       const button = $('character-action-btn');
@@ -1730,7 +1756,16 @@ function updateEngineeringConsoleInteraction() {
   const visible = distanceSquared <= ENGINEERING_CONSOLE_DISPLAY_RADIUS ** 2;
   const available = distanceSquared <= ENGINEERING_CONSOLE_INTERACTION_RADIUS ** 2;
   engineeringInteractionAvailable = available;
+  engineeringRenderer.setPresence(visible, available);
   engineeringTerminal.setPresence(visible, available);
+  if (engineeringConsoleActive) {
+    engineeringTelemetryAccumulator += Math.max(0, Number(dt) || 0);
+    if (engineeringTelemetryAccumulator >= 0.18) {
+      engineeringTelemetryAccumulator = 0;
+      const response = engineeringTerminal.dispatch('engineering', 'status');
+      if (response.ok) engineeringRenderer.update(response.result);
+    }
+  }
 
   if (available || engineeringConsoleActive) {
     const button = $('character-action-btn');
@@ -1825,6 +1860,9 @@ function exitPilotMode() {
   state.throttle = false;
   state.braking = false;
   state.warpDriveButton = false;
+  state.warpDriveActive = false;
+  state.warpCurrentStage = 0;
+  state.warpTransition = 'idle';
   shipComputer.disconnectTerminal('pilot-console');
 
   const flightStick = $('move-stick')?.querySelector('.knob');
@@ -1888,7 +1926,7 @@ function bindStick(id, key) {
 
   const knob = element.querySelector('.knob');
   let pointer = null;
-  const hasPropulsion = () => Number(state.fuel) > 0 || Number(state.warpDriveCharge) > 0;
+  const hasPropulsion = () => Number(state.fuel) > 0 || Number(state.refinedDilithium) > 0;
   const reset = () => {
     state[key].x = 0;
     state[key].y = 0;
@@ -2225,6 +2263,13 @@ registerHeldFlightControls({
     const response = shipComputer.dispatch('pilot-console', 'propulsion', 'setPilotInput', payload);
     return response.ok ? response.result : { accepted: false, reason: response.reason };
   }
+});
+document.querySelectorAll('[data-warp-stage]').forEach(button => {
+  button.addEventListener('click', () => {
+    const stage = Number(button.dataset.warpStage);
+    const response = shipComputer.dispatch('pilot-console', 'propulsion', 'setWarpStage', { stage });
+    if (!response.ok || !response.result?.accepted) toast('Não foi possível selecionar esse estágio de dobra.');
+  });
 });
 registerFlightSelectionGuards({ document });
 
