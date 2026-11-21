@@ -2236,3 +2236,57 @@ body * {
   .instrument-grid { gap:6px 9px; }
   .instrument-readout b { font-size:13px; }
 }
+
+
+/* HUD de voo v2: pausa, mira independente e módulo único de propulsão */
+#game-menu-btn.pause-hud-button {
+  position:absolute; left:36%; top:8px; z-index:12;
+  width:58px; min-width:58px; height:58px; min-height:58px;
+  padding:0; border-radius:15px; font-size:26px;
+  color:var(--cyan); border:1px solid rgba(67,217,255,.65);
+  background:rgba(4,20,39,.94); box-shadow:0 0 18px rgba(67,217,255,.2);
+  pointer-events:auto;
+}
+#flight-controls { isolation:isolate; }
+#flight-controls .left-side { position:relative; z-index:3; }
+#flight-controls .right-side { position:relative; z-index:3; width:min(34vw,380px); }
+#flight-controls .stick { touch-action:none; }
+#flight-controls .knob { transform:translate(-50%,-50%); transition:transform .09s ease-out; }
+.aim-stick-wrap {
+  position:absolute; right:calc(min(34vw, 380px) + 24px); bottom:12px;
+  display:flex; flex-direction:column; align-items:center; gap:6px;
+  z-index:4; pointer-events:auto;
+}
+.aim-stick { width:clamp(112px,15vw,150px); height:clamp(112px,15vw,150px); }
+.aim-stick .knob { width:58px; height:58px; }
+.propulsion-slot {
+  display:flex; flex-direction:column; gap:8px; width:100%;
+  padding:9px; border:1px solid rgba(67,217,255,.45); border-radius:14px;
+  background:rgba(3,14,29,.86); box-shadow:inset 0 0 16px rgba(67,217,255,.07);
+}
+.propulsion-heading { display:flex; justify-content:space-between; gap:10px; color:var(--cyan); font-size:11px; font-weight:800; letter-spacing:.7px; }
+.propulsion-heading b { color:var(--text); }
+.propulsion-slot .nitro-track { height:10px; border-radius:8px; background:rgba(0,5,15,.9); }
+.propulsion-buttons { display:grid; grid-template-columns:1fr 1fr; width:100%; }
+.propulsion-buttons .control-button { min-width:0; width:100%; }
+#mine-btn { border-color:rgba(255,200,87,.5); }
+#flight-controls .control-button { min-height:54px; padding:10px 12px; font-size:13px; }
+#landing-btn.gear-deploying { border-color:rgba(255,200,87,.8); color:#ffd27c; }
+#landing-btn.gear-deployed { border-color:rgba(84,230,160,.8); color:#9aefc2; }
+@media (orientation:landscape) and (max-height:600px) {
+  #game-menu-btn.pause-hud-button { left:36%; top:6px; width:46px; min-width:46px; height:46px; min-height:46px; }
+  #flight-controls .right-side { width:min(37vw,310px); gap:5px; }
+  .aim-stick-wrap { right:calc(min(37vw,310px) + 18px); bottom:8px; }
+  .aim-stick { width:clamp(88px,13vw,112px); height:clamp(88px,13vw,112px); }
+  .aim-stick .knob { width:46px; height:46px; }
+  #flight-controls .control-button { min-height:44px; padding:7px 8px; font-size:11px; }
+  .propulsion-slot { padding:6px; gap:5px; }
+}
+@media (max-width:420px) {
+  #flight-controls .right-side { width:43vw; }
+  .aim-stick-wrap { right:calc(43vw + 14px); bottom:8px; }
+  .aim-stick { width:88px; height:88px; }
+  .aim-stick .knob { width:42px; height:42px; }
+  #flight-controls .control-button { min-height:42px; padding:6px; font-size:10px; }
+  .propulsion-heading { font-size:9px; }
+}
