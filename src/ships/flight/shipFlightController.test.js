@@ -140,3 +140,14 @@ test('flight controller resolves terrain contact from landing gear pads instead 
   assert.equal(f.ship.userData.earthLandingContactToleranceUnits, 0.35);
   assert.ok(Math.abs(f.ship.position.y - 1.18) < 1e-9);
 });
+
+
+test('flight steering is gated when fuel and nitro are both unavailable', () => {
+  const f = fixture();
+  f.state.fuel = 0;
+  f.state.nitro = 0;
+  f.state.move = { x: 1, y: -1 };
+  f.controller.update(0.04);
+  assert.equal(f.yaw.rotation.y, 0);
+  assert.equal(f.pitch.rotation.x, 0);
+});
