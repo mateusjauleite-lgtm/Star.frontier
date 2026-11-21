@@ -86,7 +86,7 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
   computer.registerSystem('power', {
     name: 'Energia e recursos',
     commands: {
-      status: () => {
+      status: (payload, context) => {
         const propulsion = readPropulsion();
         if (!propulsion.available) return { available: false };
         return {
@@ -100,7 +100,7 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
           warpDriveActive: propulsion.warpDriveActive,
           warpStage: propulsion.warpStage,
           warpTransition: propulsion.warpTransition,
-          refinery: refinerySystem?.snapshot?.() ?? null
+          refinery: { ...(refinerySystem?.snapshot?.() ?? {}), controlAllowed: canControlRefinery(context) }
         };
       }
     },
@@ -164,11 +164,11 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
   computer.registerSystem('engineering', {
     name: 'Engenharia e propulsão de dobra',
     commands: {
-      status: () => ({
+      status: (payload, context) => ({
         ...readPropulsion(),
         warpCore: 'connected-to-ship-computer',
         warpField: 'five-stage-cruise',
-        refinery: { ...(refinerySystem?.snapshot?.() ?? {}), controlAllowed: context?.terminalId === 'ship-management-terminal' }
+        refinery: { ...(refinerySystem?.snapshot?.() ?? {}), controlAllowed: canControlRefinery(context) }
       }),
       setAuthority: (payload, context) => {
         if (!requireEngineering(context)) return { accepted: false, reason: 'engineering-terminal-required' };
