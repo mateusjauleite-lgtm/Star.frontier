@@ -52,7 +52,7 @@ shipComputer.registerTerminal({
   name: 'Terminal holográfico de gerenciamento',
   systems: ['navigation', 'sensors', 'power', 'shields']
 });
-shipComputer.registerTerminal({ id: 'pilot-console', name: 'Console de pilotagem da Ponte', systems: ['navigation', 'propulsion'] });
+shipComputer.registerTerminal({ id: 'pilot-console', name: 'Console de pilotagem da Ponte', systems: ['navigation', 'propulsion', 'shields'] });
 shipComputer.registerTerminal({ id: 'engineering-console', name: 'Console de Engenharia · Deck 3', systems: ['engineering', 'propulsion', 'power', 'shields'] });
 const shipManagementTerminal = createShipManagementTerminalController({
   computer: shipComputer,
