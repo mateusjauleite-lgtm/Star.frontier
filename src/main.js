@@ -954,7 +954,8 @@ async function init3D() {
       x: SHIP_MANAGEMENT_TERMINAL_LOCAL_POSITION.x,
       y: SHIP_MANAGEMENT_TERMINAL_LOCAL_POSITION.y + 1.19,
       z: SHIP_MANAGEMENT_TERMINAL_LOCAL_POSITION.z
-    }
+    },
+    scale: 1.35
   });
 
   characterCameraInitialized = false;
