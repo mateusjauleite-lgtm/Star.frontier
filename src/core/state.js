@@ -8,6 +8,7 @@ export const state = {
   credits: 1000,
   ore: 0,
   fuel: 100,
+  refinedDilithium: 100,
   cargo: 0,
   hull: 100,
   shield: 100,
@@ -18,7 +19,13 @@ export const state = {
   throttle: false,
   braking: false,
   warpDriveButton: false,
-  warpDriveCharge: 100,
+  warpDriveActive: false,
+  warpStage: 5,
+  warpCurrentStage: 0,
+  warpTargetSpeed: 0,
+  warpTransition: 'idle',
+  warpExitMode: 'smooth',
+  warpShutdownReason: null,
   propulsionAuthority: 'bridge',
   move: { x: 0, y: 0 },
   aim: { x: 0, y: 0 },
@@ -61,5 +68,9 @@ export function resetTransientState() {
   state.throttle = false;
   state.braking = false;
   state.warpDriveButton = false;
+  state.warpDriveActive = false;
+  state.warpCurrentStage = 0;
+  state.warpTargetSpeed = 0;
+  state.warpTransition = 'idle';
   state.propulsionAuthority = 'bridge';
 }

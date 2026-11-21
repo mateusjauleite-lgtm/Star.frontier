@@ -53,12 +53,18 @@ export function loadState() {
     }
     if (!data) return false;
 
-    const savedWarpDriveCharge = Number.isFinite(data.warpDriveCharge)
-      ? data.warpDriveCharge
-      : Number.isFinite(data.nitro) ? data.nitro : 100;
     Object.assign(state, data);
-    state.warpDriveCharge = Math.max(0, Math.min(100, savedWarpDriveCharge));
+    // Reservas antigas de Nitro/dobra eram percentuais; não são convertidas
+    // em massa de dilítio. Saves antigos recebem apenas o saldo inicial configurado.
+    state.refinedDilithium = Number.isFinite(data.refinedDilithium)
+      ? Math.max(0, data.refinedDilithium)
+      : 100;
+    state.warpStage = Number.isFinite(data.warpStage)
+      ? Math.max(1, Math.min(5, Math.round(data.warpStage)))
+      : 5;
+    state.warpExitMode = data.warpExitMode === 'direct' ? 'direct' : 'smooth';
     state.propulsionAuthority = 'bridge';
+    delete state.warpDriveCharge;
     delete state.nitro;
     delete state.nitroButton;
     // A nave ativa atual substitui o identificador antigo salvo localmente.

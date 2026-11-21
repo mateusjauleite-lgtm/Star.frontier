@@ -334,7 +334,8 @@ select:focus {
 #hud {
   position: absolute;
   inset: 0 0 auto 0;
-  z-index: 4;
+  /* Mantém os comandos superiores, inclusive PAUSA, acima das áreas de toque da pilotagem. */
+  z-index: 14;
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
@@ -2382,4 +2383,24 @@ body * {
   #flight-controls #move-stick .knob { width: 54px; height: 54px; }
   #flight-controls .right-side { width: 47vw; }
   #flight-controls .right-side .control-button { min-height: 48px; padding: 7px 6px; font-size: 11px; }
+}
+
+/* Controle de dobra em cinco estágios — separado da propulsão convencional. */
+.warp-command-panel{display:flex;align-items:stretch;gap:7px;width:100%}
+.warp-main-control{display:flex;min-width:0;flex:1;flex-direction:column;gap:7px}
+.warp-stage-controls{display:flex;width:42px;flex:0 0 42px;flex-direction:column;gap:4px}
+.warp-stage-controls[hidden]{display:none!important}
+.warp-stage-button{min-height:30px;flex:1;padding:2px;border:1px solid rgba(67,217,255,.34);border-radius:7px;background:linear-gradient(145deg,rgba(13,45,69,.96),rgba(3,14,28,.98));color:#9fcbd9;font-size:11px;font-weight:800;touch-action:manipulation}
+.warp-stage-button.active{border-color:#a5f3ff;background:linear-gradient(145deg,#087fa8,#06314f);color:#fff;box-shadow:0 0 13px rgba(67,217,255,.5)}
+.warp-telemetry-row{display:flex;justify-content:space-between;gap:6px;color:#7fa9ba;font-size:8px;letter-spacing:.04em}
+.warp-telemetry-row b{color:#d5f5ff;font-size:9px;font-variant-numeric:tabular-nums}
+.warp-main-control #warp-drive-btn{width:100%;min-height:44px}
+.warp-command-panel #warp-drive-level{font-size:8px;color:#b8efff}
+@media (orientation:landscape) and (max-height:600px){
+  .warp-stage-controls{width:36px;flex-basis:36px;gap:3px}
+  .warp-stage-button{min-height:25px;font-size:10px}
+  .warp-command-panel{gap:5px}
+  .warp-main-control{gap:4px}
+  .warp-telemetry-row{font-size:7px}
+  .warp-telemetry-row b{font-size:8px}
 }
