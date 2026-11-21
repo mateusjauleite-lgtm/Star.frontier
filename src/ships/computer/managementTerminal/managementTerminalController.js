@@ -2,10 +2,10 @@ import { SHIP_COMPUTER_MODULES } from '../modules/index.js';
 
 export const SHIP_MANAGEMENT_TERMINAL_ID = 'ship-management-terminal';
 
-// Emissor na lateral de bombordo da ponte, afastado do posto de pilotagem.
-// A coordenada permanece provisória até a inspeção visual dentro do APK.
+// Emissor recuado para dentro dos limites da ponte, mantendo distância do posto de pilotagem.
+// Coordenada sujeita à validação visual final no APK.
 export const SHIP_MANAGEMENT_TERMINAL_LOCAL_POSITION = Object.freeze({
-  x: -16,
+  x: -10.5,
   y: 8.91,
   z: -20
 });
