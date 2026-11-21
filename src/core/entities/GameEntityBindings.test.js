@@ -19,7 +19,8 @@ test('registers live world objects as stable entities without serializing Three.
   };
 
   const bindings = registerGameWorldEntities(manager, world);
-  assert.equal(manager.list().length, 6);
+  assert.equal(manager.list().length, 7);
+  assert.equal(manager.get('resource:ore-dilithium').type, 'resource');
   assert.equal(bindings.getObject('ship:exploration'), world.ship);
   assert.equal(bindings.getEntityId(world.characterModel.group), 'character:player');
   assert.equal(manager.get('ship:exploration').metadata.objectKind, 'THREE.Object3D');
