@@ -1,4 +1,5 @@
 import { RESOURCE_IDS, createResourceEntityData } from './resources/resourceCatalog.js';
+import { DILITHIUM_COMPONENT_IDS } from '../../ships/engineering/dilithiumProcessingSystem.js';
 
 /**
  * Connects live Three.js objects to serializable EntityManager records.
@@ -69,6 +70,19 @@ export function registerGameWorldEntities(manager, world = {}) {
       }
     }, asteroid);
     for (const deposit of deposits) ensureRelation(manager, id, 'contains-resource', deposit.resourceId);
+  }
+
+  const interior = world.starshipInterior;
+  const componentDefinitions = [
+    [DILITHIUM_COMPONENT_IDS.WARP_CORE, 'warp-core', 'Núcleo de dobra', interior?.warpCore],
+    [DILITHIUM_COMPONENT_IDS.RAW_STORAGE, 'resource-storage', 'Armazenamento de dilítio bruto', interior?.dilithiumPlant?.userData?.components?.rawStorage],
+    [DILITHIUM_COMPONENT_IDS.REFINERY, 'processing-machine', 'Refinador de dilítio', interior?.dilithiumPlant?.userData?.components?.refinery],
+    [DILITHIUM_COMPONENT_IDS.REFINED_STORAGE, 'resource-storage', 'Armazenamento de dilítio refinado', interior?.dilithiumPlant?.userData?.components?.refinedStorage]
+  ];
+  for (const [id, type, name, object] of componentDefinitions) {
+    if (!object) continue;
+    register(id, { type, name, tags: ['ship-system', 'engineering', 'dilithium'], metadata: { runtimeBinding: true, objectKind: 'THREE.Group', deck: 3, recognitionPriority: [DILITHIUM_COMPONENT_IDS.WARP_CORE, DILITHIUM_COMPONENT_IDS.REFINERY, DILITHIUM_COMPONENT_IDS.REFINED_STORAGE, DILITHIUM_COMPONENT_IDS.RAW_STORAGE].indexOf(id) } }, object);
+    if (manager.get('ship:interior')) ensureRelation(manager, id, 'installed-in', 'ship:interior');
   }
 
   const has = id => liveObjects.has(id);
