@@ -25,10 +25,6 @@ export function registerGameplayActions({
       toast('Aproxime-se de um asteroide para minerar.');
       return;
     }
-    if (state.cargo >= 100) {
-      toast('Compartimento de carga cheio.');
-      return;
-    }
     const dilithiumDeposit = target.userData.resources?.['resource:ore-dilithium'];
     if (Number(dilithiumDeposit?.amount) > 0) {
       const rawStorageCapacity = 500;
@@ -58,6 +54,10 @@ export function registerGameplayActions({
       updateWallet();
       shipAudio.playMining();
       toast(`Mineração concluída: +${amount} unidades de minério bruto de dilítio.`);
+      return;
+    }
+    if (state.cargo >= 100) {
+      toast('Compartimento de carga cheio.');
       return;
     }
     const amount = Math.min(target.userData.ore, state.miningDrill === 'Broca reforçada' ? 12 : 6, 100 - state.cargo);
