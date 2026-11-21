@@ -87,6 +87,7 @@ export function createEngineeringTerminalRenderer({
     layer.querySelectorAll('[data-engineering-stage]').forEach(button => {
       const selected = Number(button.dataset.engineeringStage) === selectedStage;
       button.classList.toggle('is-selected', selected);
+      button.disabled = !opened || !online || !active;
       button.setAttribute('aria-pressed', String(selected));
     });
     layer.querySelectorAll('[data-engineering-exit-mode]').forEach(button => {
@@ -104,7 +105,7 @@ export function createEngineeringTerminalRenderer({
     }
     const toggle = layer.querySelector('[data-engineering-warp-toggle]');
     if (toggle) toggle.textContent = active ? 'DESATIVAR PROPULSÃO DE DOBRA' : 'ATIVAR PROPULSÃO DE DOBRA';
-    layer.querySelectorAll('[data-engineering-stage],[data-engineering-exit-mode],[data-engineering-warp-toggle]').forEach(control => {
+    layer.querySelectorAll('[data-engineering-exit-mode],[data-engineering-warp-toggle]').forEach(control => {
       control.disabled = !opened || !online;
     });
   }
