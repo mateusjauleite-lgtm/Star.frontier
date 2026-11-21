@@ -200,7 +200,7 @@ export function createExplorationShip() {
   // A frente operacional aponta para +Z, permitindo aproximação pelo corredor.
   const managementStation = new THREE.Group();
   managementStation.name = 'Bridge-Ship-Management-Station';
-  managementStation.position.set(-16, 8.91, -20);
+  managementStation.position.set(-10.5, 8.91, -20);
   visual.add(managementStation);
 
   const stationDarkMaterial = new THREE.MeshStandardMaterial({
