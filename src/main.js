@@ -2662,9 +2662,9 @@ function captureHudLayout(scope, profile = hudEditorPilotProfile) {
 
 function readPilotHudButtonSize(profile = hudEditorPilotProfile) {
   const profileSizes = state.settings?.pilotHudProfileButtonSizes;
-  const saved = profileSizes
+  const saved = (profileSizes
     ? profileSizes[profile]
-    : (['flight', 'combat'].includes(profile) ? state.settings?.pilotHudButtonSize : null) || {};
+    : (['flight', 'combat'].includes(profile) ? state.settings?.pilotHudButtonSize : null)) || {};
   return {
     width: Number.isFinite(saved.width) ? Math.max(82, Math.min(180, saved.width)) : 112,
     height: Number.isFinite(saved.height) ? Math.max(40, Math.min(88, saved.height)) : 52
