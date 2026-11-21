@@ -2252,8 +2252,8 @@ body * {
 #flight-controls .right-side { position:relative; z-index:3; width:min(34vw,380px); }
 #flight-controls .stick { touch-action:none; }
 #flight-controls .knob { transform:translate(-50%,-50%); transition:transform .09s ease-out; }
-.aim-stick-wrap {
-  position:absolute; right:calc(min(34vw, 380px) + 24px); bottom:12px;
+ .aim-stick-wrap {
+  position:absolute; left:50%; bottom:12px; transform:translateX(-50%);
   display:flex; flex-direction:column; align-items:center; gap:6px;
   z-index:4; pointer-events:auto;
 }
@@ -2276,7 +2276,7 @@ body * {
 @media (orientation:landscape) and (max-height:600px) {
   #game-menu-btn.pause-hud-button { left:36%; top:6px; width:46px; min-width:46px; height:46px; min-height:46px; }
   #flight-controls .right-side { width:min(37vw,310px); gap:5px; }
-  .aim-stick-wrap { right:calc(min(37vw,310px) + 18px); bottom:8px; }
+  .aim-stick-wrap { left:50%; bottom:8px; transform:translateX(-50%); }
   .aim-stick { width:clamp(88px,13vw,112px); height:clamp(88px,13vw,112px); }
   .aim-stick .knob { width:46px; height:46px; }
   #flight-controls .control-button { min-height:44px; padding:7px 8px; font-size:11px; }
@@ -2284,7 +2284,7 @@ body * {
 }
 @media (max-width:420px) {
   #flight-controls .right-side { width:43vw; }
-  .aim-stick-wrap { right:calc(43vw + 14px); bottom:8px; }
+  .aim-stick-wrap { left:50%; bottom:8px; transform:translateX(-50%); }
   .aim-stick { width:88px; height:88px; }
   .aim-stick .knob { width:42px; height:42px; }
   #flight-controls .control-button { min-height:42px; padding:6px; font-size:10px; }
