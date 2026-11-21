@@ -51,7 +51,9 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
     return { accepted: true, control, active, authority: state.propulsionAuthority };
   };
   const resetPropulsionInputs = () => {
-    for (const control of PROPULSION_INPUTS) state[control] = false;
+    // A dobra é um modo travado, não uma entrada momentânea como acelerador/freio.
+    state.throttle = false;
+    state.braking = false;
   };
   const requireEngineering = context => context?.terminalId === 'engineering-console';
 
