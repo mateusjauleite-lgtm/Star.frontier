@@ -64,7 +64,7 @@ export function createDilithiumProcessingSystem({ state, plant = null } = {}) {
   }
 
   function update(deltaSeconds) {
-    const dt = Math.max(0, Math.min(0.25, Number(deltaSeconds) || 0));
+    const dt = Math.max(0, Number(deltaSeconds) || 0);
     if (!state.dilithiumRefineryActive || dt <= 0) return snapshot();
     if (state.rawDilithiumOre <= 0) {
       state.dilithiumRefineryActive = false;
