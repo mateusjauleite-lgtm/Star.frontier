@@ -172,6 +172,8 @@ export function createGameplayFramePhases(getDependencies) {
       asteroidSystem?.update(dt);
       lightingSystem?.update(dt, camera?.position, {
         warpActive: Boolean(state?.warpDriveActive),
+        speed: Number(state?.speed) || 0,
+        warpTargetSpeed: Number(state?.warpTargetSpeed) || 0,
         warpStage: state?.warpCurrentStage || 0,
         warpTransition: state?.warpTransition || 'idle',
         cameraQuaternion: camera?.quaternion
