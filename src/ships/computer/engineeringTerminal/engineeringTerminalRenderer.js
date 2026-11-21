@@ -176,6 +176,7 @@ export function createEngineeringTerminalRenderer({
     setFill('[data-refinery-core-fill]', core / coreCapacity);
     setText('[data-refinery-core-space]', units(refinery.coreRemainingCapacity));
     setText('[data-refinery-consumed-total]', units(refinery.consumedTotal));
+    setText('[data-refinery-consumption-rate]', units(refinery.consumptionRate) + '/s');
     setText('[data-refinery-refined-total]', units(refinery.refinedTotal));
     setText('[data-refinery-support]', refinery.supportRange || 'AGUARDANDO TELEMETRIA');
     setText('[data-refinery-state]', refineryOn ? 'ONLINE' : 'DESLIGADA');
