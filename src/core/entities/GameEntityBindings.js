@@ -1,4 +1,4 @@
-import { RESOURCE_IDS, createResourceEntityData } from './resources/resourceCatalog.js';
+import { RESOURCE_IDS, createResourceEntityData } from '../resources/resourceCatalog.js';
 import { DILITHIUM_COMPONENT_IDS } from '../../ships/engineering/dilithiumProcessingSystem.js';
 
 /**
