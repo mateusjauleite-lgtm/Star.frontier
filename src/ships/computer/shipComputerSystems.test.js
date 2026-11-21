@@ -13,6 +13,7 @@ function createHarness() {
     speed: 42,
     fuel: 80,
     refinedDilithium: 60,
+    warpCoreDilithium: 60,
     warpDriveButton: false,
     warpDriveActive: false,
     warpStage: 5,
@@ -112,7 +113,7 @@ test('controles do piloto passam pelo Ship Computer e ativam dobra no estágio 5
 
 test('piloto não ativa dobra sem dilítio refinado', () => {
   const { computer, state } = createHarness();
-  state.refinedDilithium = 0;
+  state.warpCoreDilithium = 0;
   const response = computer.dispatch('pilot-console', 'propulsion', 'setPilotInput', {
     control: 'warpDriveButton',
     active: true
