@@ -11,11 +11,14 @@ export function createWorldRuntimeSystem({
     throw new TypeError('O registro de entidades do mundo precisa ser uma função.');
   }
 
+  let initializedWorld = null;
+
   return {
     priority: 20,
     async initialize(context = {}) {
       onStage('inicialização do mundo Three.js');
-      if (!isReady()) await initializeWorld();
+      if (!isReady()) initializedWorld = await initializeWorld(context);
+      if (initializedWorld && typeof initializedWorld === 'object') context.world = initializedWorld;
       registerEntities(context);
     }
   };

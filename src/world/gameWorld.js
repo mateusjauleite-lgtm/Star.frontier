@@ -14,6 +14,7 @@ import { createCharacterAnimator } from '../character/characterAnimator.js';
 import { createCharacterWeaponController } from '../character/characterWeaponController.js';
 import { createCharacterPhysics } from '../character/characterPhysics.js';
 import { loadGravityKernel } from '../physics/gravityKernel.js';
+import { createShipOrbitalTelemetrySource } from '../ships/flight/orbitalTelemetrySource.js';
 
 export async function createGameWorld({
   THREE,
@@ -155,6 +156,7 @@ export async function createGameWorld({
     stationSystem,
     shipFlightKernel,
     gravityKernel,
+    orbitalTelemetrySource: createShipOrbitalTelemetrySource({ THREE, earthSystem, ship, shipVisual }),
     shipLandingAutopilot,
     shipLandingGear,
     shipLandingGearContactPoints,

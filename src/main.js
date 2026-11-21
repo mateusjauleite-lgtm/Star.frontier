@@ -684,33 +684,6 @@ async function startGame() {
           },
           onStage: stage => { startupStage = stage; }
         },
-        orbitalPhysics: {
-          getShipFlightKernel: () => shipFlightKernel,
-          getGravityKernel: () => gravityKernel,
-          getEarthOrbitalFrame: () => {
-            if (!earthSystem?.group) return null;
-            earthSystem.group.updateWorldMatrix(true, false);
-            const profile = earthSystem.getPlanetaryProfile?.();
-            if (!profile?.render?.visualUnitsPerKm) return null;
-            return {
-              originWorld: earthSystem.group.getWorldPosition(new THREE.Vector3()).toArray(),
-              // O referencial orbital usa os eixos globais inerciais; a rotação
-              // da superfície terrestre permanece no referencial terrestre.
-              orientationWorld: [0, 0, 0, 1],
-              visualUnitsPerKm: profile.render.visualUnitsPerKm
-            };
-          },
-          getShipWorldPosition: () => {
-            if (!ship) return null;
-            ship.updateWorldMatrix(true, false);
-            return ship.getWorldPosition(new THREE.Vector3()).toArray();
-          },
-          getShipForwardWorld: () => {
-            if (!shipPitch) return null;
-            const orientation = shipVisual.getWorldQuaternion(new THREE.Quaternion());
-            return new THREE.Vector3(0, 0, -1).applyQuaternion(orientation).normalize().toArray();
-          }
-        },
         shipComputer: {
           registerSystems: () => {
             try {
@@ -989,6 +962,7 @@ async function init3D() {
 
   window.removeEventListener('resize', resize3D);
   window.addEventListener('resize', resize3D);
+  return world;
 }
 
 /* REDIMENSIONAMENTO */

@@ -1,18 +1,7 @@
 import { createOrbitalFlightAuthority } from '../../../ships/flight/orbitalFlightAuthority.js';
 import { createEarthOrbitalFrame } from '../../../world/earth/orbitalFrame.js';
 
-export function createOrbitalPhysicsRuntimeSystem({
-  getShipFlightKernel,
-  getGravityKernel,
-  getEarthOrbitalFrame,
-  getShipWorldPosition,
-  getShipForwardWorld
-} = {}) {
-  if (typeof getShipFlightKernel !== 'function' ||
-      typeof getGravityKernel !== 'function') {
-    throw new TypeError('Os kernels de física orbital não foram fornecidos ao Runtime.');
-  }
-
+export function createOrbitalPhysicsRuntimeSystem() {
   let service = null;
   let orbitalState = null;
   let previousRelativeWorldPosition = null;
@@ -20,110 +9,74 @@ export function createOrbitalPhysicsRuntimeSystem({
   const controlAuthority = createOrbitalFlightAuthority();
 
   return {
-    // Sample after gameplay so telemetry reflects the ship's final transform for this frame.
+    // A gameplay termina os movimentos manuais e colisões antes da amostragem.
     priority: 45,
     initialize(context = {}) {
-      const shipFlightKernel = getShipFlightKernel();
-      const gravityKernel = getGravityKernel();
-
-      if (!shipFlightKernel ||
+      const world = context.world;
+      const shipFlightKernel = world?.shipFlightKernel;
+      const gravityKernel = world?.gravityKernel;
+      if (!world?.orbitalTelemetrySource ||
+          typeof world.orbitalTelemetrySource.sample !== 'function' ||
+          !shipFlightKernel ||
           typeof shipFlightKernel.gravityAcceleration !== 'function' ||
           typeof shipFlightKernel.integrateOrbitStep !== 'function' ||
           !gravityKernel ||
           typeof gravityKernel.acceleration !== 'function' ||
           typeof gravityKernel.integrateVelocity !== 'function') {
-        throw new Error('Os kernels físicos não estão prontos após a inicialização do mundo.');
+        throw new Error('O mundo não forneceu a telemetria e os kernels orbitais ao Runtime.');
       }
 
       service = Object.freeze({
-        get backend() {
-          return shipFlightKernel.backend;
-        },
-        get gravityBackend() {
-          return gravityKernel.backend;
-        },
-        get earthGravitationalParameter() {
-          return shipFlightKernel.earthGravitationalParameter;
-        },
-        get controlAuthority() {
-          return controlAuthority.snapshot();
-        },
-        calibrateControlAuthority(calibration) {
-          return controlAuthority.calibrate(calibration);
-        },
-        setControlProposalEnabled(enabled, blend) {
-          return controlAuthority.setProposalEnabled(enabled, blend);
-        },
-        proposeControlCorrection(input) {
-          return controlAuthority.proposeCorrection(input);
-        },
+        get backend() { return shipFlightKernel.backend; },
+        get gravityBackend() { return gravityKernel.backend; },
+        get earthGravitationalParameter() { return shipFlightKernel.earthGravitationalParameter; },
+        get controlAuthority() { return controlAuthority.snapshot(); },
+        calibrateControlAuthority(calibration) { return controlAuthority.calibrate(calibration); },
+        setControlProposalEnabled(enabled, blend) { return controlAuthority.setProposalEnabled(enabled, blend); },
+        proposeControlCorrection(input) { return controlAuthority.proposeCorrection(input); },
         get state() {
-          return orbitalState ? {
+          if (!orbitalState) return null;
+          return {
             ...orbitalState,
             positionMeters: [...orbitalState.positionMeters],
             velocityMetersPerSecond: orbitalState.velocityMetersPerSecond
-              ? [...orbitalState.velocityMetersPerSecond]
-              : null,
+              ? [...orbitalState.velocityMetersPerSecond] : null,
             gravityAccelerationMetersPerSecond2: orbitalState.gravityAccelerationMetersPerSecond2
-              ? [...orbitalState.gravityAccelerationMetersPerSecond2]
-              : null,
+              ? [...orbitalState.gravityAccelerationMetersPerSecond2] : null,
             predictedNextPositionMeters: orbitalState.predictedNextPositionMeters
-              ? [...orbitalState.predictedNextPositionMeters]
-              : null,
+              ? [...orbitalState.predictedNextPositionMeters] : null,
             predictedNextVelocityMetersPerSecond: orbitalState.predictedNextVelocityMetersPerSecond
-              ? [...orbitalState.predictedNextVelocityMetersPerSecond]
-              : null,
+              ? [...orbitalState.predictedNextVelocityMetersPerSecond] : null,
             predictionResidualMeters: orbitalState.predictionResidualMeters
-              ? [...orbitalState.predictionResidualMeters]
-              : null,
+              ? [...orbitalState.predictionResidualMeters] : null,
             controlAuthority: controlAuthority.snapshot()
-          } : null;
+          };
         },
-        gravityAcceleration(position, gravitationalParameter) {
-          return shipFlightKernel.gravityAcceleration(position, gravitationalParameter);
+        gravityAcceleration(position, mu) { return shipFlightKernel.gravityAcceleration(position, mu); },
+        integrateOrbitStep(position, velocity, mu, dt) {
+          return shipFlightKernel.integrateOrbitStep(position, velocity, mu, dt);
         },
-        integrateOrbitStep(position, velocity, gravitationalParameter, deltaSeconds) {
-          return shipFlightKernel.integrateOrbitStep(
-            position,
-            velocity,
-            gravitationalParameter,
-            deltaSeconds
-          );
-        },
-        acceleration(input) {
-          return gravityKernel.acceleration(input);
-        },
-        integrateVelocity(velocity, acceleration, deltaSeconds, maximumSpeed) {
-          return gravityKernel.integrateVelocity(
-            velocity,
-            acceleration,
-            deltaSeconds,
-            maximumSpeed
-          );
+        acceleration(input) { return gravityKernel.acceleration(input); },
+        integrateVelocity(velocity, acceleration, dt, maximumSpeed) {
+          return gravityKernel.integrateVelocity(velocity, acceleration, dt, maximumSpeed);
         }
       });
-
       context.orbitalPhysics = service;
     },
     update(deltaSeconds, context = {}) {
-      if (typeof getEarthOrbitalFrame !== 'function' ||
-          typeof getShipWorldPosition !== 'function') return;
-      if (!Number.isFinite(deltaSeconds) || deltaSeconds <= 0) return;
-
-      const earth = getEarthOrbitalFrame();
-      const shipPositionWorld = getShipWorldPosition();
-      const shipForwardWorld = typeof getShipForwardWorld === 'function'
-        ? getShipForwardWorld()
-        : null;
-      if (!earth || !shipPositionWorld) return;
+      if (!service || !Number.isFinite(deltaSeconds) || deltaSeconds <= 0 || deltaSeconds > 0.04) return;
+      const source = context.world?.orbitalTelemetrySource;
+      if (!source || typeof source.sample !== 'function') return;
+      const sample = source.sample();
+      if (!sample?.earthOrbitalFrame || !sample.shipWorldPosition) return;
 
       try {
-        const frame = createEarthOrbitalFrame(earth);
-        const positionMeters = frame.worldPositionToMeters(shipPositionWorld);
+        const frame = createEarthOrbitalFrame(sample.earthOrbitalFrame);
+        const positionMeters = frame.worldPositionToMeters(sample.shipWorldPosition);
         if (!positionMeters) return;
 
-        const relativeWorldPosition = shipPositionWorld.map(
-          (value, axis) => value - earth.originWorld[axis]
+        const relativeWorldPosition = sample.shipWorldPosition.map(
+          (value, axis) => value - sample.earthOrbitalFrame.originWorld[axis]
         );
         let velocityMetersPerSecond = null;
         if (previousRelativeWorldPosition) {
@@ -134,39 +87,26 @@ export function createOrbitalPhysicsRuntimeSystem({
         }
         previousRelativeWorldPosition = relativeWorldPosition;
 
-        const forwardVectorMeters = shipForwardWorld
-          ? frame.worldVectorToMeters(shipForwardWorld)
-          : null;
+        const forwardVectorMeters = sample.shipForwardWorld
+          ? frame.worldVectorToMeters(sample.shipForwardWorld) : null;
         const forwardLength = forwardVectorMeters ? Math.hypot(...forwardVectorMeters) : 0;
         const forwardDirection = forwardLength > 1e-9
-          ? forwardVectorMeters.map(value => value / forwardLength)
-          : null;
-        const velocityLength = velocityMetersPerSecond
-          ? Math.hypot(...velocityMetersPerSecond)
-          : 0;
+          ? forwardVectorMeters.map(value => value / forwardLength) : null;
+        const velocityLength = velocityMetersPerSecond ? Math.hypot(...velocityMetersPerSecond) : 0;
         const velocityDirectionAlignment = forwardDirection && velocityLength > 1e-6
           ? velocityMetersPerSecond.reduce(
             (sum, value, axis) => sum + (value / velocityLength) * forwardDirection[axis], 0
-          )
-          : null;
-        const gravitationalParameter = shipFlightKernelValue(service);
+          ) : null;
+
+        const mu = service.earthGravitationalParameter;
         const gravityAccelerationMetersPerSecond2 = velocityMetersPerSecond
-          ? service.gravityAcceleration(positionMeters, gravitationalParameter)
-          : null;
+          ? service.gravityAcceleration(positionMeters, mu) : null;
         const predictionResidualMeters = previousPredictedPositionMeters
-          ? positionMeters.map((value, axis) => value - previousPredictedPositionMeters[axis])
-          : null;
+          ? positionMeters.map((value, axis) => value - previousPredictedPositionMeters[axis]) : null;
         const predictedStep = velocityMetersPerSecond
-          ? service.integrateOrbitStep(
-            positionMeters,
-            velocityMetersPerSecond,
-            gravitationalParameter,
-            deltaSeconds
-          )
-          : null;
+          ? service.integrateOrbitStep(positionMeters, velocityMetersPerSecond, mu, deltaSeconds) : null;
         previousPredictedPositionMeters = predictedStep?.position
-          ? [...predictedStep.position]
-          : null;
+          ? [...predictedStep.position] : null;
 
         orbitalState = Object.freeze({
           positionMeters,
@@ -177,7 +117,7 @@ export function createOrbitalPhysicsRuntimeSystem({
           predictionResidualMeters,
           forwardDirection,
           velocityDirectionAlignment,
-          gravitationalParameterM3PerSecond2: shipFlightKernelValue(service),
+          gravitationalParameterM3PerSecond2: mu,
           coordinateFrame: 'earth-centred-global-axes',
           positionUnit: 'm',
           velocityUnit: 'm/s',
@@ -190,7 +130,7 @@ export function createOrbitalPhysicsRuntimeSystem({
         });
         context.orbitalState = service.state;
       } catch {
-        // A transient transform/calibration failure must not interrupt gameplay.
+        // Uma falha transitória de transformação não interrompe a gameplay.
       }
     },
     shutdown(context = {}) {
@@ -204,8 +144,4 @@ export function createOrbitalPhysicsRuntimeSystem({
       controlAuthority.calibrate({});
     }
   };
-}
-
-function shipFlightKernelValue(service) {
-  return service?.earthGravitationalParameter ?? null;
 }

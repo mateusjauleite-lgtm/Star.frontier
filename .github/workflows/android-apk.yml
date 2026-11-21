@@ -10,6 +10,7 @@ on:
       - feature/ship-orbital-landing-foundation
       - feature/character-human-model-animation
       - feature/startup-loading-login-flow
+      - feature/core-runtime-foundation
       - fix/character-hud-startup-layout
   pull_request:
     branches:
