@@ -14,14 +14,14 @@ function parseStoredObject(raw) {
 function normalizeDeflectorState(data) {
   const storedEnergy = Number.isFinite(data.deflectorCoreEnergy)
     ? data.deflectorCoreEnergy
-    : state.deflectorCoreEnergy;
+    : 0;
   state.deflectorCoreEnergy = Math.max(0, Math.min(DEFLECTOR_CORE_CAPACITY, Number(storedEnergy) || 0));
   state.deflectorCoreEnabled = data.deflectorCoreEnabled !== false;
   state.deflectorCoreChargingEnabled = data.deflectorCoreChargingEnabled !== false;
   state.deflectorCoreTransferredTotal = nonNegative(data.deflectorCoreTransferredTotal ?? state.deflectorCoreTransferredTotal);
   state.deflectorCoreConsumedTotal = nonNegative(data.deflectorCoreConsumedTotal ?? state.deflectorCoreConsumedTotal);
 
-  const totals = data.deflectorBranchConsumptionTotals ?? state.deflectorBranchConsumptionTotals;
+  const totals = data.deflectorBranchConsumptionTotals;
   state.deflectorBranchConsumptionTotals = {};
   if (totals && typeof totals === 'object' && !Array.isArray(totals)) {
     for (const [id, amount] of Object.entries(totals)) {
