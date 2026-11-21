@@ -7,6 +7,7 @@ export function createShipComputer({ shipId = 'aurora-7', displayName = 'COMPUTA
   const listeners = new Set();
   let online = false;
   let activeTerminalId = null;
+  const connectedTerminalIds = new Set();
   let revision = 0;
 
   const publish = () => {
@@ -31,7 +32,7 @@ export function createShipComputer({ shipId = 'aurora-7', displayName = 'COMPUTA
       terminals: [...terminals.values()].map(terminal => ({
         id: terminal.id,
         name: terminal.name,
-        connected: terminal.id === activeTerminalId
+        connected: connectedTerminalIds.has(terminal.id)
       }))
     };
   }
@@ -58,6 +59,7 @@ export function createShipComputer({ shipId = 'aurora-7', displayName = 'COMPUTA
 
   function shutdown() {
     activeTerminalId = null;
+    connectedTerminalIds.clear();
     online = false;
     publish();
     return getSnapshot();
@@ -65,7 +67,8 @@ export function createShipComputer({ shipId = 'aurora-7', displayName = 'COMPUTA
 
   function connectTerminal(id, operator = 'PILOTO') {
     const terminal = terminals.get(id);
-    if (!online || !terminal || (activeTerminalId && activeTerminalId !== id)) return false;
+    if (!online || !terminal) return false;
+    connectedTerminalIds.add(id);
     activeTerminalId = id;
     terminal.operator = String(operator || 'PILOTO').slice(0, 32);
     publish();
@@ -73,14 +76,15 @@ export function createShipComputer({ shipId = 'aurora-7', displayName = 'COMPUTA
   }
 
   function disconnectTerminal(id) {
-    if (activeTerminalId !== id) return false;
-    activeTerminalId = null;
+    if (!connectedTerminalIds.has(id)) return false;
+    connectedTerminalIds.delete(id);
+    activeTerminalId = [...connectedTerminalIds].at(-1) ?? null;
     publish();
     return true;
   }
 
   function isTerminalConnected(id) {
-    return online && activeTerminalId === id;
+    return online && connectedTerminalIds.has(id);
   }
 
   function dispatch(terminalId, systemId, command, payload) {
