@@ -30,7 +30,12 @@ import { createEngineeringTerminalRenderer } from './ships/computer/engineeringT
 import { registerShipComputerSystems } from './ships/computer/shipComputerSystems.js';
 import { advanceShipFlightDynamics } from './ships/flight/flightDynamics.js';
 import { createShipFlightController } from './ships/flight/shipFlightController.js';
+import { createArtificialGravityField } from './ships/systems/artificialGravityField.js';
+import { createShipShieldSystem } from './ships/systems/shieldSystem.js';
 import { registerTextInteractionGuard } from './core/ui/textInteractionGuard.js';
+
+const artificialGravityField = createArtificialGravityField();
+const shipShieldSystem = createShipShieldSystem(state);
 
 registerTextInteractionGuard();
 
@@ -45,10 +50,10 @@ const shipComputer = createShipComputer();
 shipComputer.registerTerminal({
   id: 'ship-management-terminal',
   name: 'Terminal holográfico de gerenciamento',
-  systems: ['navigation', 'sensors', 'power']
+  systems: ['navigation', 'sensors', 'power', 'shields']
 });
 shipComputer.registerTerminal({ id: 'pilot-console', name: 'Console de pilotagem da Ponte', systems: ['navigation', 'propulsion'] });
-shipComputer.registerTerminal({ id: 'engineering-console', name: 'Console de Engenharia · Deck 3', systems: ['engineering', 'propulsion', 'power'] });
+shipComputer.registerTerminal({ id: 'engineering-console', name: 'Console de Engenharia · Deck 3', systems: ['engineering', 'propulsion', 'power', 'shields'] });
 const shipManagementTerminal = createShipManagementTerminalController({
   computer: shipComputer,
   renderer: createShipManagementTerminalRenderer({ root: $('game-screen') }),
@@ -98,6 +103,7 @@ let engineeringHologram = null;
 let characterAnimator = null;
 let characterWeaponController = null;
 let characterPhysics = null;
+let shieldVisual = null;
 let characterYaw = 0;
 let characterPitch = 0;
 const characterForward = new THREE.Vector3();
@@ -634,7 +640,8 @@ function registerComputerSubsystems() {
     getShip: () => ship,
     getShipYaw: () => shipYaw?.rotation.y ?? 0,
     getPitchAngle: () => shipFlightController.pitchAngle,
-    getAsteroids: () => asteroids
+    getAsteroids: () => asteroids,
+    shieldSystem: shipShieldSystem
   });
   shipComputerSystemsRegistered = true;
 }
@@ -976,6 +983,7 @@ async function init3D() {
     shipLandingAutopilot,
     shipLandingGear,
     shipLandingGearContactPoints,
+    shieldVisual,
     shipYaw,
     shipPitch,
     shipVisual,
@@ -1346,8 +1354,17 @@ function updateCharacterWorldPhysics(deltaSeconds) {
   }
 }
 
+function updateShipSystems(dt) {
+  const shields = shipShieldSystem.update(dt);
+  if (shieldVisual) {
+    shieldVisual.visible = shields.enabled && shields.shield > 0;
+    shieldVisual.material.opacity = 0.025 + shields.integrity * 0.075;
+  }
+}
+
 function updateCharacterMovement(dt) {
   if (!characterModel || characterCore.snapshot().mode !== 'on-foot') return;
+  artificialGravityField.update(dt, state);
   if (externalElevator?.moving && externalElevatorRiding) {
     characterAnimator?.play('idle');
     characterAnimator?.update(dt);
@@ -1510,7 +1527,8 @@ function updateCharacterMovement(dt) {
 
   const physicsState = characterPhysics?.update(dt, {
     position: deck,
-    floorY
+    floorY,
+    gravityField: artificialGravityField.getField([deck.x, deck.y, deck.z])
   });
 
   if (magnitude > 0.08 && movedHorizontally && physicsState?.grounded) {
