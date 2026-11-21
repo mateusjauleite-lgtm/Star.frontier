@@ -49,7 +49,7 @@ test('limite de consumo respeita o dt real e não pode ser contornado por chamad
   const first = core.consumeEnergy('test-branch', 0.4, 0.25);
   const second = core.consumeEnergy('test-branch', 0.4, 0.25);
   assert.equal(first.consumed, 0.4);
-  assert.equal(second.consumed, 0.1);
+  assert.ok(Math.abs(second.consumed - 0.1) < 1e-9);
   assert.equal(second.accepted, false);
 });
 
