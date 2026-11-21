@@ -43,6 +43,14 @@ const dilithiumRefinerySystem = createDilithiumRefinerySystem(state);
 registerTextInteractionGuard();
 
 const $ = id => document.getElementById(id);
+
+// Os layouts do HUD são dados JSON simples; mantenha compatibilidade com WebViews sem structuredClone.
+function cloneHudData(value) {
+  if (value === undefined) return undefined;
+  if (value === null || typeof value !== 'object') return value;
+  if (typeof structuredClone === 'function') return cloneHudData(value);
+  return JSON.parse(JSON.stringify(value));
+}
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 
 const characterCore = createCharacterCore();
@@ -2612,14 +2620,17 @@ function getPilotHudElements(profile = hudEditorPilotProfile) {
 }
 
 function readHudLayout(scope, profile = hudEditorPilotProfile) {
+  if (scope === 'character' && hudEditorWorkingLayouts?.character !== undefined) {
+    return cloneHudData(hudEditorWorkingLayouts.character);
+  }
   if (scope === 'pilot') {
     return hudEditorWorkingLayouts?.pilot?.[profile] !== undefined
-      ? structuredClone(hudEditorWorkingLayouts.pilot[profile])
+      ? cloneHudData(hudEditorWorkingLayouts.pilot[profile])
       : pilotHudProfiles.getLayout(profile);
   }
   const key = hudLayoutKey(scope);
   return state.settings?.[key] && typeof state.settings[key] === 'object'
-    ? structuredClone(state.settings[key])
+    ? cloneHudData(state.settings[key])
     : {};
 }
 
@@ -2769,8 +2780,12 @@ function setHudEditorPilotProfile(profile) {
 
 function setHudEditorTarget(scope) {
   if (!['character', 'pilot'].includes(scope)) return;
-  if (characterHudEditing && hudEditorTarget === 'pilot' && hudEditorWorkingLayouts) {
-    hudEditorWorkingLayouts.pilot[hudEditorPilotProfile] = captureHudLayout('pilot', hudEditorPilotProfile);
+  if (characterHudEditing && hudEditorWorkingLayouts) {
+    if (hudEditorTarget === 'character' && scope !== 'character') {
+      hudEditorWorkingLayouts.character = captureHudLayout('character');
+    } else if (hudEditorTarget === 'pilot' && scope !== 'pilot') {
+      hudEditorWorkingLayouts.pilot[hudEditorPilotProfile] = captureHudLayout('pilot', hudEditorPilotProfile);
+    }
   }
   hudEditorTarget = scope;
   const characterSelected = scope === 'character';
@@ -2916,10 +2931,10 @@ function startCharacterHudEditing() {
     ]))
   };
   hudEditorWorkingLayouts = {
-    character: structuredClone(hudEditorBeforeEdit.character),
-    pilot: structuredClone(hudEditorBeforeEdit.pilotProfiles)
+    character: cloneHudData(hudEditorBeforeEdit.character),
+    pilot: cloneHudData(hudEditorBeforeEdit.pilotProfiles)
   };
-  hudEditorWorkingButtonSizes = structuredClone(hudEditorBeforeEdit.pilotButtonSizes);
+  hudEditorWorkingButtonSizes = cloneHudData(hudEditorBeforeEdit.pilotButtonSizes);
   hudEditorWorkingButtonSize = { ...hudEditorWorkingButtonSizes[hudEditorPilotProfile] };
   hudEditorChangedButtonSizes = new Set();
   $('game-menu-modal')?.classList.add('hidden');
