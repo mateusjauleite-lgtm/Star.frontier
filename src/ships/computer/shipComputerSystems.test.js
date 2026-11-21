@@ -146,11 +146,12 @@ test('Engenharia seleciona os cinco estágios e define o modo de saída', () => 
 test('o piloto pode mudar estágio durante a dobra sem reiniciar a propulsão', () => {
   const { computer, state } = createHarness();
   state.warpDriveActive = true;
+  state.warpDriveButton = true;
   state.warpCurrentStage = 5;
   const response = computer.dispatch('pilot-console', 'propulsion', 'setWarpStage', { stage: 2 });
   assert.equal(response.result.accepted, true);
   assert.equal(state.warpStage, 2);
-  assert.equal(state.warpDriveButton, false);
+  assert.equal(state.warpDriveButton, true);
 });
 
 test('autoridade automática devolve o controle à Ponte quando o piloto intervém', () => {
