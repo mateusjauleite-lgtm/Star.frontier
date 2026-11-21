@@ -42,7 +42,7 @@ export function advanceShipFlightDynamics(state, deltaSeconds) {
     state.fuel = Math.max(0, state.fuel - 0.28 * dt);
   }
 
-  const refinedDilithium = Math.max(0, Number(state.refinedDilithium) || 0);
+  const refinedDilithium = Math.max(0, Number(state.warpCoreDilithium) || 0);
   const requestedWarp = Boolean(state.warpDriveButton && refinedDilithium > 0);
 
   if (requestedWarp) {
@@ -59,9 +59,9 @@ export function advanceShipFlightDynamics(state, deltaSeconds) {
     if (!state.braking) state.speed = approach(state.speed, targetSpeed, WARP_ACCELERATION * dt);
     if (conventionalWarpAssist) state.speed += 18 * dt;
     const consumption = WARP_DILITHIUM_CONSUMPTION[stage] * dt;
-    state.refinedDilithium = Math.max(0, refinedDilithium - consumption);
+    state.warpCoreDilithium = Math.max(0, refinedDilithium - consumption);
 
-    if (state.refinedDilithium <= 0) {
+    if (state.warpCoreDilithium <= 0) {
       state.warpDriveButton = false;
       state.warpDriveActive = false;
       state.warpCurrentStage = 0;
