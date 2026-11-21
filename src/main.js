@@ -1489,9 +1489,14 @@ function updateCharacterMovement(dt) {
   if (magnitude > 0.08) {
     // Movimento horizontal no referencial local da nave; a física vertical
     // é independente da translação/rotação do casco.
-    const yaw = characterModel.group.rotation.y;
-    characterForward.set(0, 0, -1).applyAxisAngle(THREE.Object3D.DEFAULT_UP, yaw);
-    characterRight.set(1, 0, 0).applyAxisAngle(THREE.Object3D.DEFAULT_UP, yaw);
+    // Converte a orientação mundial do personagem para o referencial da nave.
+    // Assim, o joystick continua usando frente/direita do convés mesmo quando
+    // a nave muda de orientação durante entrada, cruzeiro ou saída de dobra.
+    const shipWorldQuaternion = shipVisual.getWorldQuaternion(new THREE.Quaternion());
+    const playerWorldQuaternion = characterModel.group.getWorldQuaternion(new THREE.Quaternion());
+    const deckRelativeQuaternion = shipWorldQuaternion.invert().multiply(playerWorldQuaternion);
+    characterForward.set(0, 0, -1).applyQuaternion(deckRelativeQuaternion).setY(0).normalize();
+    characterRight.set(1, 0, 0).applyQuaternion(deckRelativeQuaternion).setY(0).normalize();
     characterMove.copy(characterForward).multiplyScalar(-input.y)
       .addScaledVector(characterRight, input.x);
 
