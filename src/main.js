@@ -2277,7 +2277,10 @@ registerHeldFlightControls({
   dispatchPropulsionCommand: payload => {
     const response = shipComputer.dispatch('pilot-console', 'propulsion', 'setPilotInput', payload);
     return response.ok ? response.result : { accepted: false, reason: response.reason };
-  }
+  },
+  onWarpRejected: reason => toast(reason === 'dilithium-unavailable'
+    ? 'Dilítio refinado insuficiente para iniciar a dobra.'
+    : 'O Ship Computer recusou o comando de dobra.')
 });
 document.querySelectorAll('[data-warp-stage]').forEach(button => {
   button.addEventListener('click', () => {
