@@ -53,7 +53,16 @@ export function loadState() {
     }
     if (!data) return false;
 
+    const savedWarpDriveCharge = Number.isFinite(data.warpDriveCharge)
+      ? data.warpDriveCharge
+      : Number.isFinite(data.nitro) ? data.nitro : 100;
     Object.assign(state, data);
+    state.warpDriveCharge = Math.max(0, Math.min(100, savedWarpDriveCharge));
+    state.propulsionAuthority = ['bridge', 'engineering', 'automatic'].includes(data.propulsionAuthority)
+      ? data.propulsionAuthority
+      : 'bridge';
+    delete state.nitro;
+    delete state.nitroButton;
     // A nave ativa atual substitui o identificador antigo salvo localmente.
     state.ship = 'Nave exploradora';
     state.settings = {
@@ -67,7 +76,6 @@ export function loadState() {
     };
 
     resetTransientState();
-    state.nitro = Number.isFinite(data.nitro) ? data.nitro : 100;
 
     if (restoredFromBackup) {
       try {
