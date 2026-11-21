@@ -24,6 +24,7 @@ export function createEngineeringTerminalController({ computer, terminalId = ENG
   }
   function close() {
     if (!connected) return false;
+    computer.dispatch(terminalId, 'engineering', 'setAuthority', { mode: 'bridge' });
     connected = false;
     computer.disconnectTerminal(terminalId);
     onInteractionChange(false);
