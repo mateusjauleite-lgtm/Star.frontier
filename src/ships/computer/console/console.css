@@ -1,0 +1,103 @@
+.ship-console-panel {
+  position: fixed;
+  inset: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
+    max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: clamp(14px, 2.4vw, 28px);
+  overflow: auto;
+  color: #e7f4ff;
+  background: rgba(4, 12, 24, 0.94);
+  border: 1px solid rgba(92, 190, 226, 0.36);
+  border-radius: 12px;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.48), inset 0 0 32px rgba(33, 111, 145, 0.08);
+  font-family: Arial, Helvetica, sans-serif;
+  pointer-events: auto;
+}
+
+.ship-console-panel[hidden] {
+  display: none;
+}
+
+.ship-console-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(92, 190, 226, 0.22);
+}
+
+.ship-console-eyebrow,
+.ship-console-caption,
+.ship-console-footnote {
+  color: #83a8bc;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+}
+
+.ship-console-header h2 {
+  margin: 7px 0 0;
+  font-size: clamp(15px, 2.4vw, 22px);
+  letter-spacing: 0.12em;
+}
+
+.ship-console-status {
+  padding: 7px 10px;
+  border: 1px solid rgba(131, 168, 188, 0.3);
+  border-radius: 3px;
+  color: #a8c1d0;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+}
+
+.ship-console-status[data-state="online"] {
+  color: #86e5c0;
+  border-color: rgba(86, 220, 166, 0.42);
+}
+
+.ship-console-body {
+  width: min(100%, 920px);
+  margin: 0 auto;
+}
+
+.ship-console-modules {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 12px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ship-console-module {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 48px;
+  padding: 10px 12px;
+  background: rgba(20, 43, 62, 0.52);
+  border: 1px solid rgba(92, 190, 226, 0.18);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+}
+
+.ship-console-module small {
+  color: #83a8bc;
+  font-size: 9px;
+  white-space: nowrap;
+}
+
+.ship-console-footnote {
+  line-height: 1.5;
+  letter-spacing: 0.04em;
+}
+
+@media (max-width: 520px) {
+  .ship-console-panel { border-radius: 8px; }
+  .ship-console-modules { grid-template-columns: 1fr; }
+}
