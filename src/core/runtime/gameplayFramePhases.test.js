@@ -66,7 +66,7 @@ test('extracted gameplay phases preserve the existing frame order and delta time
     'earth', 'earth-rotation', 'phaser',
     'character-movement', 'character-weapon', 'elevator-animation',
     'elevator-interaction', 'pilot-interaction', 'external-elevator-interaction',
-    'character-camera', 'ship-management-interaction', 'landing-guidance', 'orbits', 'asteroids',
+    'flight', 'character-camera', 'ship-management-interaction', 'landing-guidance', 'orbits', 'asteroids',
     'lighting', 'render'
   ]);
   assert.ok(f.calls.filter(call => call.length > 1 && typeof call[1] === 'number')
@@ -76,6 +76,15 @@ test('extracted gameplay phases preserve the existing frame order and delta time
   assert.equal(f.elements.get('fuel').textContent, '80');
   assert.equal(f.elements.get('cargo').textContent, '3 / 100');
   assert.equal(f.elements.get('hud-credits').textContent, '1.250');
+});
+
+test('ship flight continues while the character is on foot if warp is active', () => {
+  const f = fixture();
+  f.dependencies.state.speed = 0;
+  f.dependencies.state.warpDriveButton = true;
+  f.phases.updateCharacterMode(0.02);
+  assert.ok(f.calls.some(([name]) => name === 'flight'));
+  assert.ok(f.calls.some(([name]) => name === 'character-camera'));
 });
 
 test('character phase switches to ship flight and camera outside on-foot mode', () => {
