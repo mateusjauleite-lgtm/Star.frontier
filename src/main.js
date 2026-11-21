@@ -2920,7 +2920,8 @@ function startCharacterHudEditing() {
 allHudEditable.forEach(element => {
   element.addEventListener('pointerdown', event => {
     if (!characterHudEditing || element.dataset.hudScope !== hudEditorTarget ||
-        (hudEditorTarget === 'pilot' && element.dataset.hudProfile !== hudEditorPilotProfile)) return;
+        (hudEditorTarget === 'pilot' && element.dataset.hudProfile !== 'all' &&
+          !element.dataset.hudProfile.split(/\s+/).includes(hudEditorPilotProfile))) return;
     event.preventDefault();
     event.stopPropagation();
     const rect = element.getBoundingClientRect();
