@@ -136,6 +136,7 @@ test('flight controller resolves terrain contact from landing gear pads instead 
   f.ship.getWorldPosition = () => vector(0, 0, 0);
   f.controller.update(0.016);
   assert.equal(f.ship.userData.earthCollisionResolved, true);
-  assert.equal(f.ship.userData.earthCollisionClearanceUnits, 0.35);
-  assert.ok(Math.abs(f.ship.position.y - 1.53) < 1e-9);
+  assert.equal(f.ship.userData.earthCollisionClearanceUnits, 0);
+  assert.equal(f.ship.userData.earthLandingContactToleranceUnits, 0.35);
+  assert.ok(Math.abs(f.ship.position.y - 1.18) < 1e-9);
 });
