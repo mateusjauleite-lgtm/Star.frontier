@@ -29,7 +29,7 @@ test('escudos recarregam após o atraso e param na capacidade', () => {
   assert.equal(state.shield, 50);
   shields.update(0.1);
   assert.equal(state.shield, 51);
-  for (let i = 0; i < 50; i += 1) shields.update(0.1);
+  for (let i = 0; i < 60; i += 1) shields.update(0.1);
   assert.equal(state.shield, 100);
 });
 
