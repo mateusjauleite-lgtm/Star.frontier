@@ -9,7 +9,7 @@ const HOLOGRAM_COLOR = 0x67e8ff;
 export function createShipManagementHologram({
   parent,
   position,
-  scale = 1
+  scale = 1.35
 } = {}) {
   if (!parent?.add || !position ||
       ![position.x, position.y, position.z].every(Number.isFinite)) {
@@ -72,17 +72,17 @@ export function createShipManagementHologram({
 
   const projection = new THREE.Group();
   projection.name = 'ManagementHologramProjection';
-  projection.position.set(0, 1.72, 0);
+  projection.position.set(0, 1.88, 0);
   root.add(projection);
 
   const panel = new THREE.Mesh(
-    new THREE.PlaneGeometry(2.55, 2.75),
+    new THREE.PlaneGeometry(3.25, 3.35),
     panelMaterial
   );
   panel.name = 'ManagementHologramField';
   projection.add(panel);
 
-  const framePlaneGeometry = new THREE.PlaneGeometry(2.65, 2.85);
+  const framePlaneGeometry = new THREE.PlaneGeometry(3.35, 3.45);
   const frameGeometry = new THREE.EdgesGeometry(framePlaneGeometry);
   framePlaneGeometry.dispose();
   const frame = new THREE.LineSegments(frameGeometry, lineMaterial);
@@ -112,6 +112,12 @@ export function createShipManagementHologram({
     const y = -0.82 - i * 0.105;
     makeLine([[-1.02, y, 0.014], [-0.36 + (i % 2) * 0.2, y, 0.014]]);
   }
+
+  const scanMaterial = addMaterial(new THREE.LineBasicMaterial({
+    color: 0xb5f7ff, transparent: true, opacity: 0.9
+  }));
+  const scanLine = makeLine([[-1.52, 0, 0.025], [1.52, 0, 0.025]], scanMaterial);
+  scanLine.name = 'ManagementHologramScanSweep';
 
   const rings = [];
   for (const [radius, tube, tilt] of [[0.58, 0.012, 0], [0.78, 0.009, 0.32]]) {
@@ -150,10 +156,14 @@ export function createShipManagementHologram({
     if (disposed || !root.visible) return;
     const dt = THREE.MathUtils.clamp(Number(deltaSeconds) || 0, 0, 0.05);
     elapsed += dt;
-    rings[0].rotation.z = elapsed * 0.34;
-    rings[1].rotation.z = -elapsed * 0.22;
-    projection.position.y = 1.72 + Math.sin(elapsed * 1.35) * 0.035;
-    emitterGlow.opacity = 0.62 + (Math.sin(elapsed * 2.4) + 1) * 0.12;
+    rings[0].rotation.z = elapsed * 0.92;
+    rings[1].rotation.z = -elapsed * 0.68;
+    emitterRing.rotation.y = elapsed * 0.42;
+    projection.position.y = 1.88 + Math.sin(elapsed * 1.55) * 0.095;
+    projection.scale.setScalar(1 + Math.sin(elapsed * 1.1) * 0.018);
+    scanLine.position.y = -1.42 + ((elapsed * 0.72) % 2.84);
+    scanMaterial.opacity = 0.58 + (Math.sin(elapsed * 3.1) + 1) * 0.19;
+    emitterGlow.opacity = 0.58 + (Math.sin(elapsed * 2.4) + 1) * 0.18;
   }
 
   function dispose() {
