@@ -18,8 +18,8 @@ function normalizeDeflectorState(data) {
   state.deflectorCoreEnergy = Math.max(0, Math.min(DEFLECTOR_CORE_CAPACITY, Number(storedEnergy) || 0));
   state.deflectorCoreEnabled = data.deflectorCoreEnabled !== false;
   state.deflectorCoreChargingEnabled = data.deflectorCoreChargingEnabled !== false;
-  state.deflectorCoreTransferredTotal = nonNegative(data.deflectorCoreTransferredTotal ?? state.deflectorCoreTransferredTotal);
-  state.deflectorCoreConsumedTotal = nonNegative(data.deflectorCoreConsumedTotal ?? state.deflectorCoreConsumedTotal);
+  state.deflectorCoreTransferredTotal = nonNegative(data.deflectorCoreTransferredTotal ?? 0);
+  state.deflectorCoreConsumedTotal = nonNegative(data.deflectorCoreConsumedTotal ?? 0);
 
   const totals = data.deflectorBranchConsumptionTotals;
   state.deflectorBranchConsumptionTotals = {};
