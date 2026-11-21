@@ -48,6 +48,14 @@ test('selecionar um estágio inferior mantém a velocidade e muda o alvo progres
   assert.equal(state.warpDriveActive, true);
 });
 
+test('acelerador convencional continua independente durante a dobra', () => {
+  const state = makeState({ speed: 155, warpDriveButton: true, warpStage: 2, throttle: true });
+  const initialFuel = state.fuel;
+  advanceShipFlightDynamics(state, 0.04);
+  assert.ok(state.speed > 155);
+  assert.ok(state.fuel < initialFuel);
+});
+
 test('dobra mantém cruzeiro e consome dilítio continuamente por estágio', () => {
   const state = makeState({ speed: 155, warpDriveButton: true, warpStage: 2 });
   advanceShipFlightDynamics(state, 0.04);
