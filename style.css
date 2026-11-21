@@ -582,7 +582,7 @@ select:focus {
 
 /* ÁREA DE MOVIMENTO DA CÂMERA */
 
-#aim-touch-area { position:absolute; inset:0 0 0 34%; z-index:1; background:transparent; pointer-events:auto; touch-action:none; }
+#aim-touch-area { position:absolute; inset:74px 0 0 34%; z-index:1; background:transparent; pointer-events:auto; touch-action:none; }
 #aim-touch-area.aim-disabled { pointer-events:none; }
 .pilot-aim-button { position:absolute; z-index:4; left:50%; bottom:calc(18px + env(safe-area-inset-bottom)); transform:translateX(-50%); min-width:92px; min-height:48px; border:1px solid rgba(67,217,255,.7); border-radius:14px; color:var(--cyan); background:linear-gradient(145deg,rgba(10,48,75,.96),rgba(2,12,27,.97)); box-shadow:0 0 18px rgba(67,217,255,.18),inset 0 0 12px rgba(67,217,255,.1); font-weight:800; letter-spacing:1px; pointer-events:auto; }
 .pilot-aim-button[aria-pressed="false"] { opacity:.65; border-color:rgba(150,180,195,.4); color:var(--muted); }
@@ -2403,3 +2403,52 @@ body * {
   .warp-telemetry-row{font-size:7px}
   .warp-telemetry-row b{font-size:8px}
 }
+
+
+/* Controles prioritários da pilotagem: não podem ficar atrás da área de mira. */
+#leave-pilot-btn {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  z-index: 18;
+  transform: translate(-50%, -50%);
+  min-width: 124px;
+  min-height: 46px;
+  padding: 8px 14px;
+  border: 1px solid rgba(67, 217, 255, .78);
+  border-radius: 12px;
+  background: rgba(4, 20, 39, .94);
+  color: var(--cyan);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .55px;
+  box-shadow: 0 0 18px rgba(67, 217, 255, .24);
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+#leave-pilot-btn:active {
+  transform: translate(-50%, -50%) scale(.96);
+}
+
+
+/* Editor de HUD unificado: alterna entre perfis independentes. */
+.hud-editor-tabs { display:flex; gap:7px; }
+.hud-editor-tabs button {
+  flex:1; min-height:38px; padding:6px; border:1px solid var(--border);
+  border-radius:8px; background:rgba(7,25,44,.96); color:var(--muted);
+  font-size:10px; font-weight:800; touch-action:manipulation;
+}
+.hud-editor-tabs button.active { border-color:var(--cyan); color:var(--cyan); background:rgba(16,67,94,.92); }
+.pilot-hud-size-controls {
+  display:grid; grid-template-columns:1fr auto; align-items:center; gap:5px 9px;
+  padding:8px; border:1px solid rgba(67,217,255,.25); border-radius:9px;
+  background:rgba(5,20,36,.88); text-align:left;
+}
+.pilot-hud-size-controls label { color:var(--muted); font-size:9px; font-weight:800; }
+.pilot-hud-size-controls output { color:var(--cyan); font-size:10px; font-weight:800; text-align:right; }
+.pilot-hud-size-controls input { grid-column:1 / -1; width:100%; accent-color:var(--cyan); touch-action:pan-y; }
+.pilot-hud-size-controls small { grid-column:1 / -1; color:var(--muted); font-size:9px; text-align:center; }
+#character-hud.hud-editor-preview { display:flex !important; }
+#hud.hud-editor-preview { display:flex !important; }
+#flight-controls.hud-editor-preview { display:flex !important; }
+#leave-pilot-btn.hud-editor-preview { display:block !important; }

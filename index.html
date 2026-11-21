@@ -261,7 +261,7 @@
     <!-- HUD -->
     <div id="hud" class="ship-interface hidden">
 
-      <section class="hud-card pilot-instruments" aria-label="Instrumentos da nave">
+      <section class="hud-card pilot-instruments" data-hud-editable="instruments" data-hud-scope="pilot" aria-label="Instrumentos da nave">
         <header class="instrument-header"><b id="hud-user">PILOTO</b><span>FLIGHT SYSTEMS</span></header>
         <div class="instrument-grid">
           <div class="instrument" data-instrument="speed"><div class="instrument-readout"><span>VELOCIDADE</span><b><span id="speed">0</span></b></div><div class="instrument-track"><i id="speed-bar"></i></div></div>
@@ -272,11 +272,10 @@
         <div class="instrument-cargo">CARGA <b id="cargo">0</b></div>
       </section>
 
-      <div class="hud-card right">
+      <div class="hud-card right" data-hud-editable="credits" data-hud-scope="pilot">
         <span>Créditos: <b id="hud-credits">0</b></span>
-        <button id="leave-pilot-btn" class="hud-menu" type="button">SAIR</button>
       </div>
-      <button id="game-menu-btn" class="hud-menu pause-hud-button" type="button" aria-label="Pausar jogo">Ⅱ</button>
+      <button id="game-menu-btn" data-hud-editable="pause" data-hud-scope="pilot" class="hud-menu pause-hud-button" type="button" aria-label="Pausar jogo">Ⅱ</button>
 
     </div>
 
@@ -290,7 +289,7 @@
     <div id="flight-controls" class="ship-interface hidden">
 
       <div id="aim-touch-area" aria-label="Arraste para olhar ao redor"></div>
-      <div class="aim-stick-wrap">
+      <div class="aim-stick-wrap" data-hud-editable="aim" data-hud-scope="pilot">
         <div class="control-label">MIRA</div>
         <div id="aim-stick" class="stick aim-stick" aria-label="Joystick independente de mira">
           <div class="knob"></div>
@@ -298,7 +297,7 @@
       </div>
 
       <!-- LADO ESQUERDO -->
-      <div class="control-side left-side">
+      <div class="control-side left-side" data-hud-editable="movement" data-hud-scope="pilot">
 
         <div class="control-label">MOVIMENTO DA NAVE</div>
 
@@ -311,14 +310,14 @@
       </div>
 
       <!-- LADO DIREITO -->
-      <div class="control-side right-side">
+      <div class="control-side right-side" data-hud-editable="commands" data-hud-scope="pilot">
 
         <div class="control-label">COMANDOS</div>
 
 
         <div class="button-pair command-buttons">
-          <button id="fire-btn" class="control-button" type="button">◎ DISPARAR</button>
-          <button id="interact-btn" class="control-button" type="button">F INTERAGIR</button>
+          <button id="fire-btn" data-pilot-size-button class="control-button" type="button">◎ DISPARAR</button>
+          <button id="interact-btn" data-pilot-size-button class="control-button" type="button">F INTERAGIR</button>
         </div>
 
         <div class="button-pair system-buttons">
@@ -329,8 +328,8 @@
         <div class="propulsion-slot">
           <div class="propulsion-heading"><span>PROPULSÃO CONVENCIONAL</span><b>VOO</b></div>
           <div class="button-pair propulsion-buttons">
-            <button id="throttle-btn" class="control-button" type="button">▲ ACELERAR</button>
-            <button id="brake-btn" class="control-button" type="button">▼ FREAR</button>
+            <button id="throttle-btn" data-pilot-size-button class="control-button" type="button">▲ ACELERAR</button>
+            <button id="brake-btn" data-pilot-size-button class="control-button" type="button">▼ FREAR</button>
           </div>
           <div class="warp-command-panel">
             <div id="warp-stage-controls" class="warp-stage-controls" hidden aria-label="Estágios de dobra">
@@ -358,6 +357,8 @@
       </div>
 
     </div>
+
+    <button id="leave-pilot-btn" data-hud-editable="leave" data-hud-scope="pilot" class="hud-menu hidden" type="button" aria-label="Sair do modo piloto">SAIR DO PILOTO</button>
 
     <!-- DESTINO DE POUSO PREDEFINIDO -->
     <div id="landing-modal" class="landing-modal hidden" aria-hidden="true">
@@ -391,7 +392,7 @@
           CONTINUAR
         </button>
 
-        <button id="edit-character-hud-btn" class="secondary" type="button">CONFIGURAR HUD DO PERSONAGEM</button>
+        <button id="edit-character-hud-btn" class="secondary" type="button">EDITOR DE HUD</button>
 
         <button id="return-menu-btn" class="secondary">
           VOLTAR AO MENU
@@ -401,11 +402,22 @@
     </div>
 
 
-    <!-- Editor exclusivo do HUD do personagem -->
+    <!-- Editor único com perfis independentes para personagem e piloto -->
     <div id="character-hud-editor" class="character-hud-editor hidden" aria-hidden="true">
       <div class="character-hud-editor-panel">
-        <b>EDITAR HUD DO PERSONAGEM</b>
-        <span>Arraste os elementos para a posição desejada. O HUD da nave permanece inalterado.</span>
+        <b>EDITOR DE HUD</b>
+        <div class="hud-editor-tabs" role="group" aria-label="Escolher HUD para editar">
+          <button id="hud-editor-character-tab" class="active" type="button" data-hud-editor-target="character">HUD DO PERSONAGEM</button>
+          <button id="hud-editor-pilot-tab" type="button" data-hud-editor-target="pilot">HUD DO PILOTO</button>
+        </div>
+        <span id="hud-editor-hint">Arraste os elementos do HUD para ajustar suas posições.</span>
+        <div id="pilot-hud-size-controls" class="pilot-hud-size-controls hidden">
+          <label for="pilot-hud-button-width">LARGURA DOS BOTÕES <output id="pilot-hud-button-width-value">112 px</output></label>
+          <input id="pilot-hud-button-width" type="range" min="82" max="180" step="2" value="112">
+          <label for="pilot-hud-button-height">ALTURA DOS BOTÕES <output id="pilot-hud-button-height-value">52 px</output></label>
+          <input id="pilot-hud-button-height" type="range" min="40" max="88" step="2" value="52">
+          <small>Aplica somente a DISPARAR, INTERAGIR, ACELERAR e FREAR.</small>
+        </div>
         <div class="character-hud-editor-actions">
           <button id="character-hud-reset-btn" type="button">PADRÃO</button>
           <button id="character-hud-cancel-btn" type="button">CANCELAR</button>
