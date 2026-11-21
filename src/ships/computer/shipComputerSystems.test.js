@@ -195,8 +195,8 @@ test('console de Engenharia controla a refinaria e transfere dilítio pelo Ship 
   assert.equal(started.result.accepted, true);
   assert.equal(state.dilithiumRefineryActive, true);
   const denied = computer.dispatch('pilot-console', 'engineering', 'transferDilithiumToCore', { amount: 10 });
-  assert.equal(denied.result.accepted, false);
-  assert.equal(denied.result.reason, 'access-denied');
+  assert.equal(denied.ok, false);
+  assert.equal(denied.reason, 'access-denied');
   const transfer = computer.dispatch('engineering-console', 'engineering', 'transferDilithiumToCore', { amount: 10 });
   assert.equal(transfer.result.accepted, true);
   assert.equal(transfer.result.transferred, 10);
