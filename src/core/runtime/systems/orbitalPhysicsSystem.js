@@ -1,7 +1,9 @@
 import { createOrbitalFlightAuthority } from '../../../ships/flight/orbitalFlightAuthority.js';
 import { createEarthOrbitalFrame } from '../../../world/earth/orbitalFrame.js';
 
-export function createOrbitalPhysicsRuntimeSystem() {
+export function createOrbitalPhysicsRuntimeSystem(dependencies = {}) {
+  const { getShipFlightKernel, getGravityKernel, getEarthOrbitalFrame, getShipWorldPosition, getShipForwardWorld } = dependencies;
+  let telemetrySource = null;
   let service = null;
   let orbitalState = null;
   let previousRelativeWorldPosition = null;
@@ -13,17 +15,25 @@ export function createOrbitalPhysicsRuntimeSystem() {
     priority: 45,
     initialize(context = {}) {
       const world = context.world;
-      const shipFlightKernel = world?.shipFlightKernel;
-      const gravityKernel = world?.gravityKernel;
-      if (!world?.orbitalTelemetrySource ||
-          typeof world.orbitalTelemetrySource.sample !== 'function' ||
+      const shipFlightKernel = world?.shipFlightKernel ?? getShipFlightKernel?.();
+      const gravityKernel = world?.gravityKernel ?? getGravityKernel?.();
+      telemetrySource = world?.orbitalTelemetrySource ?? {
+        sample() {
+          const earthOrbitalFrame = getEarthOrbitalFrame?.();
+          const shipWorldPosition = getShipWorldPosition?.();
+          if (!earthOrbitalFrame || !shipWorldPosition) return null;
+          return { earthOrbitalFrame, shipWorldPosition, shipForwardWorld: getShipForwardWorld?.() ?? null };
+        }
+      };
+      if (!telemetrySource ||
+          typeof telemetrySource.sample !== 'function' ||
           !shipFlightKernel ||
           typeof shipFlightKernel.gravityAcceleration !== 'function' ||
           typeof shipFlightKernel.integrateOrbitStep !== 'function' ||
           !gravityKernel ||
           typeof gravityKernel.acceleration !== 'function' ||
           typeof gravityKernel.integrateVelocity !== 'function') {
-        throw new Error('O mundo não forneceu a telemetria e os kernels orbitais ao Runtime.');
+        throw new Error('Os kernels físicos não estão prontos após a inicialização do mundo.');
       }
 
       service = Object.freeze({
@@ -64,10 +74,8 @@ export function createOrbitalPhysicsRuntimeSystem() {
       context.orbitalPhysics = service;
     },
     update(deltaSeconds, context = {}) {
-      if (!service || !Number.isFinite(deltaSeconds) || deltaSeconds <= 0 || deltaSeconds > 0.04) return;
-      const source = context.world?.orbitalTelemetrySource;
-      if (!source || typeof source.sample !== 'function') return;
-      const sample = source.sample();
+      if (!service || !Number.isFinite(deltaSeconds) || deltaSeconds <= 0) return;
+      const sample = telemetrySource?.sample?.();
       if (!sample?.earthOrbitalFrame || !sample.shipWorldPosition) return;
 
       try {
@@ -137,6 +145,7 @@ export function createOrbitalPhysicsRuntimeSystem() {
       if (context.orbitalPhysics === service) delete context.orbitalPhysics;
       if ('orbitalState' in context) delete context.orbitalState;
       service = null;
+      telemetrySource = null;
       orbitalState = null;
       previousRelativeWorldPosition = null;
       previousPredictedPositionMeters = null;
