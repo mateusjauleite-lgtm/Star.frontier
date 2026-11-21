@@ -571,6 +571,7 @@ const shipFlightController = createShipFlightController({
   getEngineFlames: () => engineFlames,
   getEngineLights: () => engineLights,
   getEarthSystem: () => earthSystem,
+  getLandingGearContactPoints: () => shipLandingGearContactPoints,
   getLandingAutopilot: () => shipLandingAutopilot,
   getFlightQuaternion: () => flightQuaternion,
   getForwardVector: () => forwardVector,
