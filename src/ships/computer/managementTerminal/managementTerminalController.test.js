@@ -54,7 +54,7 @@ test('terminal holográfico permanece passivo até receber presença e interaç�
 test('perder presença fecha a interface e libera o terminal', () => {
   const h = createHarness();
   h.controller.initialize();
-  h.controller.setPresence(true);
+  h.controller.setPresence(true, true);
   assert.equal(h.controller.open(), true);
   h.controller.setPresence(false);
   assert.equal(h.controller.getSnapshot().open, false);
@@ -65,7 +65,7 @@ test('perder presença fecha a interface e libera o terminal', () => {
 test('terminal de gerenciamento não acessa sistemas não autorizados', () => {
   const h = createHarness();
   h.controller.initialize();
-  h.controller.setPresence(true);
+  h.controller.setPresence(true, true);
   h.controller.open();
   assert.deepEqual(h.controller.dispatch('flight', 'movement', { x: 1, y: 0 }), {
     ok: false,
