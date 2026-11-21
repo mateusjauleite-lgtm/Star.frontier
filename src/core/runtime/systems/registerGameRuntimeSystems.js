@@ -1,4 +1,6 @@
 import { EntityManager } from '../../entities/EntityManager.js';
+import { state } from '../state.js';
+import { saveState } from '../storage.js';
 import { createEntityRuntimeSystem } from './entitySystem.js';
 import { createCharacterRuntimeSystem } from './characterSystem.js';
 import { createWorldRuntimeSystem } from './worldSystem.js';
@@ -8,6 +10,7 @@ import { createEngineeringTerminalRuntimeSystem } from '../../../ships/computer/
 import { createPauseMenuRuntimeSystem } from './pauseMenuSystem.js';
 import { createOrbitalPhysicsRuntimeSystem } from './orbitalPhysicsSystem.js';
 import { createGameplayRuntimeSystem } from './gameplaySystem.js';
+import { createDeflectorRuntimeSystem } from '../../../ships/systems/deflectorRuntimeSystem.js';
 
 export function registerGameRuntimeSystems(runtime, dependencies) {
   if (!runtime || typeof runtime.registerSystem !== 'function') {
@@ -24,7 +27,8 @@ export function registerGameRuntimeSystems(runtime, dependencies) {
     mining,
     pauseMenu,
     orbitalPhysics,
-    gameplay
+    gameplay,
+    deflector = createDeflectorRuntimeSystem({ state, persist: saveState })
   } = dependencies;
 
   runtime.registerSystem('entity-manager', createEntityRuntimeSystem({ manager: entityManager }));
@@ -40,6 +44,7 @@ export function registerGameRuntimeSystems(runtime, dependencies) {
   if (mining) runtime.registerSystem('mining', mining);
   if (pauseMenu) runtime.registerSystem('pause-menu', createPauseMenuRuntimeSystem({ ...pauseMenu, runtime }));
   runtime.registerSystem('gameplay', createGameplayRuntimeSystem(gameplay));
+  if (deflector) runtime.registerSystem('deflector-core', deflector);
   runtime.registerSystem('orbital-physics', createOrbitalPhysicsRuntimeSystem(orbitalPhysics));
 
   return runtime;
