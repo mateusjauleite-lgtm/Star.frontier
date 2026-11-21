@@ -214,16 +214,16 @@ export function createGameplayFramePhases(getDependencies) {
       if (coordinates && position && [position.x, position.y, position.z].every(Number.isFinite)) {
         coordinates.textContent = [position.x, position.y, position.z]
           .map(value => value.toFixed(1)).join(' / ');
+        const fullCoordinates = $('navigation-full-coordinates');
+        if (fullCoordinates) fullCoordinates.textContent = coordinates.textContent;
       }
       const target = ship?.userData?.navigationTarget;
-      if ($('navigation-distance')) {
-        $('navigation-distance').textContent = Number.isFinite(target?.distance)
-          ? target.distance.toFixed(1) + ' u' : 'SEM ALVO';
-      }
-      if ($('navigation-bearing')) {
-        $('navigation-bearing').textContent = Number.isFinite(target?.bearing)
-          ? target.bearing.toFixed(1) + '°' : '—';
-      }
+      const distance = Number.isFinite(target?.distance) ? target.distance.toFixed(1) + ' u' : 'SEM ALVO';
+      const bearing = Number.isFinite(target?.bearing) ? target.bearing.toFixed(1) + '°' : '—';
+      if ($('navigation-distance')) $('navigation-distance').textContent = distance;
+      if ($('navigation-full-distance')) $('navigation-full-distance').textContent = distance;
+      if ($('navigation-bearing')) $('navigation-bearing').textContent = bearing;
+      if ($('navigation-full-bearing')) $('navigation-full-bearing').textContent = bearing;
       const combatTarget = ship?.userData?.combatTarget;
       if ($('combat-target-name')) {
         $('combat-target-name').textContent = String(combatTarget?.name || 'SEM ALVO');
