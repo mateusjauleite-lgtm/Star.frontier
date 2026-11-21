@@ -53,4 +53,5 @@ test('consumo externo do núcleo é contabilizado separadamente da transferênci
   state.refinedDilithium -= 1;
   const status = system.update(0.1);
   assert.equal(status.consumedTotal, 1);
+  assert.equal(status.consumptionRate, 10);
 });
