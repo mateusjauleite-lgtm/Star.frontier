@@ -1842,6 +1842,10 @@ function bindStick(id, key) {
     reset();
   };
   ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type => element.addEventListener(type, end));
+  window.addEventListener('blur', () => {
+    pointer = null;
+    reset();
+  });
 }
 
 bindStick('move-stick', 'move');
