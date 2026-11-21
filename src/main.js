@@ -724,7 +724,8 @@ async function startGame() {
               characterModel,
               stationSystem,
               starshipInterior,
-              externalElevator
+              externalElevator,
+              asteroidSystem
             });
           },
           onStage: stage => { startupStage = stage; }
