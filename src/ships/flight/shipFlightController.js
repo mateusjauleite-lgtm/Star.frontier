@@ -237,12 +237,13 @@ export function createShipFlightController(dependencies = {}) {
     stageButtons.forEach(button => {
       const selected = warpDriveActive && Number(button.dataset.warpStage) === warpStage;
       button.classList.toggle('active', selected);
+      button.disabled = state.propulsionAuthority === 'engineering';
       button.setAttribute('aria-pressed', String(selected));
     });
     const warpButton = getElement('warp-drive-btn');
     if (warpButton) {
       warpButton.classList.toggle('active', warpDriveActive || Boolean(state.warpDriveButton));
-      warpButton.textContent = warpDriveActive ? '⚡ DESATIVAR DOBRA' : '⚡ ATIVAR DOBRA';
+      warpButton.textContent = warpDriveActive ? '⚡ DESATIVAR DOBRA' : state.warpTransition === 'exiting' ? 'SAINDO DA DOBRA' : '⚡ ATIVAR DOBRA';
       warpButton.setAttribute('aria-pressed', String(Boolean(state.warpDriveButton)));
     }
     return true;
