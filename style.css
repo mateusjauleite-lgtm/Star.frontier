@@ -2448,7 +2448,7 @@ body * {
 .pilot-hud-size-controls output { color:var(--cyan); font-size:10px; font-weight:800; text-align:right; }
 .pilot-hud-size-controls input { grid-column:1 / -1; width:100%; accent-color:var(--cyan); touch-action:pan-y; }
 .pilot-hud-size-controls small { grid-column:1 / -1; color:var(--muted); font-size:9px; text-align:center; }
-#character-hud.hud-editor-preview { display:block !important; }
+#character-hud.hud-editor-preview { display:flex !important; }
 #hud.hud-editor-preview { display:flex !important; }
 #flight-controls.hud-editor-preview { display:flex !important; }
 #leave-pilot-btn.hud-editor-preview { display:block !important; }
