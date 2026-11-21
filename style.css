@@ -2540,3 +2540,6 @@ body * {
   .combat-weapon-controls { right: 7px; bottom: max(10px, env(safe-area-inset-bottom)); width: 32vw; min-width: 132px; padding: 7px; }
   .warp-profile-controls { right: 7px; bottom: max(10px, env(safe-area-inset-bottom)); width: 38vw; min-width: 156px; padding: 6px; }
 }
+
+.combat-status-readout { display:flex; justify-content:space-between; gap:8px; padding-top:5px; border-top:1px solid rgba(255,91,104,.2); color:#9eb4c0; font-size:8px; }
+.combat-status-readout b { color:#fff; font-size:10px; font-variant-numeric:tabular-nums; }
