@@ -1030,8 +1030,19 @@ function updateFlight(dt) {
   if (button && Math.abs(deployment - target) < 0.02) {
     button.classList.remove('gear-deploying');
     button.classList.toggle('gear-deployed', target > 0.5);
-    if (button.textContent.includes('ABRINDO')) button.textContent = '◉ TREM ABERTO · POUSAR';
-    if (button.textContent.includes('RECOLHENDO')) button.textContent = '◉ TREM RECOLHIDO';
+    button.classList.toggle('gear-retracted', target <= 0.5);
+    if (target > 0.5 && (button.textContent.includes('ABRINDO') || button.textContent.includes('POUSAR'))) {
+      button.textContent = '◉ TREM ABERTO · RECOLHER';
+    }
+    if (target <= 0.5 && button.textContent.includes('RECOLHENDO')) {
+      button.textContent = '◉ TREM RECOLHIDO · POUSAR';
+    }
+  }
+  const moveStick = $('move-stick');
+  const hasPropulsion = Number(state.fuel) > 0 || Number(state.nitro) > 0;
+  if (moveStick) {
+    moveStick.classList.toggle('no-propulsion', !hasPropulsion);
+    moveStick.setAttribute('aria-disabled', String(!hasPropulsion));
   }
   return shipFlightController.update(dt);
 }
@@ -1779,68 +1790,58 @@ function bindStick(id, key) {
 
   const knob = element.querySelector('.knob');
   let pointer = null;
+  const hasPropulsion = () => Number(state.fuel) > 0 || Number(state.nitro) > 0;
+  const reset = () => {
+    state[key].x = 0;
+    state[key].y = 0;
+    if (knob) knob.style.transform = 'translate(-50%,-50%)';
+    element.classList.remove('is-active');
+  };
 
   const moveStick = event => {
     const rect = element.getBoundingClientRect();
-
+    const max = Math.max(1, rect.width * 0.34);
     let x = event.clientX - rect.left - rect.width / 2;
     let y = event.clientY - rect.top - rect.height / 2;
-
-    const max = rect.width * 0.31;
     const length = Math.hypot(x, y);
+    if (length > max) { x *= max / length; y *= max / length; }
 
-    if (length > max) {
-      x *= max / length;
-      y *= max / length;
-    }
-
-    if (key === 'move' && state.fuel <= 0 && state.nitro <= 0) {
-      state[key].x = 0;
-      state[key].y = 0;
-      if (knob) knob.style.transform = 'translate(-50%,-50%)';
+    if (key === 'move' && !hasPropulsion()) {
+      reset();
+      element.classList.add('no-propulsion');
       return;
     }
-
-    const nextX = x / max;
-    const nextY = y / max;
-    // O joystick escreve diretamente no estado consumido por updateFlight.
-    // O computador da nave pode monitorar o voo, mas não pode bloquear a entrada.
-    state[key].x = nextX;
-    state[key].y = nextY;
-
-    if (knob) {
-      knob.style.transform = `translate(-50%,-50%) translate(${x}px,${y}px)`;
-    }
+    element.classList.remove('no-propulsion');
+    state[key].x = THREE.MathUtils.clamp(x / max, -1, 1);
+    state[key].y = THREE.MathUtils.clamp(y / max, -1, 1);
+    if (knob) knob.style.transform = `translate(-50%,-50%) translate(${x}px,${y}px)`;
   };
 
   element.addEventListener('pointerdown', event => {
+    if (pointer !== null || (event.pointerType === 'mouse' && event.button !== 0)) return;
+    if (key === 'move' && !hasPropulsion()) {
+      element.classList.add('no-propulsion');
+      return;
+    }
     event.preventDefault();
-
     pointer = event.pointerId;
-    element.setPointerCapture(pointer);
+    element.classList.add('is-active');
+    try { element.setPointerCapture(pointer); } catch {}
     moveStick(event);
   });
 
   element.addEventListener('pointermove', event => {
     if (pointer !== event.pointerId) return;
-
     event.preventDefault();
     moveStick(event);
   });
 
   const end = event => {
     if (pointer !== event.pointerId) return;
-
     pointer = null;
-    state[key].x = 0;
-    state[key].y = 0;
-
-    if (knob) knob.style.transform = 'translate(-50%,-50%)';
+    reset();
   };
-
-  element.addEventListener('pointerup', end);
-  element.addEventListener('pointercancel', end);
-  element.addEventListener('lostpointercapture', end);
+  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type => element.addEventListener(type, end));
 }
 
 bindStick('move-stick', 'move');
@@ -2132,7 +2133,31 @@ $('landing-btn')?.addEventListener('click', () => {
 
   const gearTarget = shipLandingGear?.getTargetDeployment?.() ?? 0;
   const gearCurrent = shipLandingGear?.getDeployment?.() ?? 0;
-  if (gearTarget < 0.5 && gearCurrent < 0.5) {
+  if (shipLandingAutopilot?.snapshot?.().active) {
+    cancelLandingGuidance('standby');
+    shipAudio.playConsole();
+    if ($('landing-status')) $('landing-status').textContent = 'Orientação cancelada. O trem permanece aberto até novo comando.';
+    toast('Guia de pouso cancelada.');
+    return;
+  }
+
+  if (gearTarget > 0.5) {
+    shipLandingGear?.setDeployment?.(0);
+    selectedLandingSiteId = null;
+    $('landing-modal')?.classList.add('hidden');
+    $('landing-modal')?.setAttribute('aria-hidden', 'true');
+    const button = $('landing-btn');
+    if (button) {
+      button.textContent = '◉ TREM RECOLHENDO';
+      button.classList.add('gear-deploying');
+      button.classList.remove('gear-deployed');
+    }
+    shipAudio.playConsole();
+    toast('Trem de pouso recolhendo.');
+    return;
+  }
+
+  if (gearTarget <= 0.5) {
     shipLandingGear?.setDeployment?.(1);
     const button = $('landing-btn');
     if (button) {
@@ -2164,14 +2189,6 @@ $('landing-btn')?.addEventListener('click', () => {
 
   if (selectedLandingSiteId && gearCurrent < 0.98) {
     toast('Aguarde o trem de pouso travar na posição aberta.');
-    return;
-  }
-
-  if (shipLandingAutopilot?.snapshot?.().active) {
-    cancelLandingGuidance('standby');
-    shipAudio.playConsole();
-    if ($('landing-status')) $('landing-status').textContent = 'Orientação cancelada. Selecione novamente POUSAR para escolher um destino.';
-    toast('Guia de pouso cancelada.');
     return;
   }
 
