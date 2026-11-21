@@ -56,6 +56,7 @@ function fixture(overrides = {}) {
     getEngineFlames: () => [],
     getEngineLights: () => [],
     getEarthSystem: () => null,
+    getLandingGearContactPoints: () => [],
     getLandingAutopilot: () => null,
     getFlightQuaternion: () => ({}),
     getForwardVector: () => vector(),
@@ -101,4 +102,39 @@ test('flight controller exposes a resettable pitch state', () => {
   assert.notEqual(f.controller.pitchAngle, 0);
   f.controller.resetPitch();
   assert.equal(f.controller.pitchAngle, 0);
+});
+
+test('flight controller resolves terrain contact from landing gear pads instead of ship origin', () => {
+  const f = fixture({
+    getLandingGearContactPoints: () => [{
+      id: 'gear-test',
+      point: {
+        isVector3: true,
+        x: 0, y: -23.18, z: 0,
+        clone() {
+          return {
+            x: this.x, y: this.y, z: this.z,
+            clone: this.clone,
+            sub(other) { this.x -= other.x; this.y -= other.y; this.z -= other.z; return this; },
+            dot(other) { return this.x * other.x + this.y * other.y + this.z * other.z; }
+          };
+        }
+      }
+    }],
+    getEarthSystem: () => ({
+      getCollisionSurface: () => ({
+        sampleWorldPosition: () => ({
+          worldPosition: { x: 0, y: -22, z: 0 },
+          worldNormal: { x: 0, y: 1, z: 0, clone() { return { ...this, normalize() { return this; } }; } }
+        })
+      })
+    })
+  });
+  f.visual.updateWorldMatrix = () => {};
+  f.visual.localToWorld = point => point;
+  f.ship.getWorldPosition = () => vector(0, 0, 0);
+  f.controller.update(0.016);
+  assert.equal(f.ship.userData.earthCollisionResolved, true);
+  assert.equal(f.ship.userData.earthCollisionClearanceUnits, 0.35);
+  assert.ok(Math.abs(f.ship.position.y - 1.53) < 1e-9);
 });
