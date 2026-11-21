@@ -23,6 +23,7 @@ import { saveState as save, loadState as load } from './core/storage.js';
 import { createShipComputer } from './ships/computer/shipComputer.js';
 import { createShipManagementTerminalController, SHIP_MANAGEMENT_TERMINAL_LOCAL_POSITION, SHIP_MANAGEMENT_TERMINAL_DISPLAY_RADIUS, SHIP_MANAGEMENT_TERMINAL_INTERACTION_RADIUS } from './ships/computer/managementTerminal/managementTerminalController.js';
 import { createShipManagementTerminalRenderer } from './ships/computer/managementTerminal/managementTerminalRenderer.js';
+import { createShipManagementHologram } from './ships/computer/managementTerminal/shipManagementHologram.js';
 import { registerShipComputerSystems } from './ships/computer/shipComputerSystems.js';
 import { advanceShipFlightDynamics } from './ships/flight/flightDynamics.js';
 import { createShipFlightController } from './ships/flight/shipFlightController.js';
@@ -55,6 +56,7 @@ const characterHUD = createCharacterHUD(document);
 let characterCameraMode = 'third-person';
 let characterCameraInitialized = false;
 let characterModel = null;
+let shipManagementHologram = null;
 let characterAnimator = null;
 let characterWeaponController = null;
 let characterPhysics = null;
@@ -944,6 +946,12 @@ async function init3D() {
     characterPhysics
   } = world);
 
+  shipManagementHologram?.dispose?.();
+  shipManagementHologram = createShipManagementHologram({
+    parent: shipVisual,
+    position: SHIP_MANAGEMENT_TERMINAL_LOCAL_POSITION
+  });
+
   characterCameraInitialized = false;
   characterInWorldFrame = false;
   characterWorldGrounded = false;
@@ -1656,32 +1664,22 @@ function updateExternalElevatorInteraction() {
   }
 }
 
-function updateShipManagementInteraction() {
+function updateShipManagementInteraction(dt = 0) {
+  shipManagementHologram?.update(dt);
   if (!characterModel || !shipVisual || characterCore.snapshot().mode !== 'on-foot' || characterInWorldFrame || nearbyElevator) {
     shipManagementInteractionAvailable = false;
-    shipManagementTerminal.setPresence(false);
-    const button = $('ship-computer-action-btn');
-    if (button) {
-      button.classList.add('hidden');
-      button.disabled = true;
-    }
+    shipManagementHologram?.setVisible(false);
+    shipManagementTerminal.setPresence(false, false);
     return;
   }
 
+  // Personagem e ponto de ancoragem compartilham o referencial local do shipVisual.
   const distanceSquared = characterModel.group.position.distanceToSquared(shipManagementTerminalPosition);
-  const displayRadiusSquared = SHIP_MANAGEMENT_TERMINAL_DISPLAY_RADIUS ** 2;
-  const interactionRadiusSquared = SHIP_MANAGEMENT_TERMINAL_INTERACTION_RADIUS ** 2;
-  const visible = distanceSquared <= displayRadiusSquared;
-  const available = distanceSquared <= interactionRadiusSquared;
-  shipManagementTerminal.setPresence(visible);
+  const visible = distanceSquared <= SHIP_MANAGEMENT_TERMINAL_DISPLAY_RADIUS ** 2;
+  const available = distanceSquared <= SHIP_MANAGEMENT_TERMINAL_INTERACTION_RADIUS ** 2;
   shipManagementInteractionAvailable = available;
-
-  const button = $('ship-computer-action-btn');
-  if (button) {
-    button.classList.toggle('hidden', !available);
-    button.disabled = !available;
-    button.classList.toggle('available', available);
-  }
+  shipManagementHologram?.setVisible(visible);
+  shipManagementTerminal.setPresence(visible, available);
 }
 
 function updatePilotInteraction() {
@@ -1931,13 +1929,6 @@ function updateCharacterWeapon(dt) {
 $('character-action-btn')?.addEventListener('click', () => {
   if (externalElevatorActionAvailable) activateExternalElevator();
   else enterPilotMode();
-});
-$('ship-computer-action-btn')?.addEventListener('click', () => {
-  if (!shipManagementInteractionAvailable) return;
-  characterControls.reset();
-  if (!shipManagementTerminal.open(state.user || 'TRIPULANTE')) {
-    toast('Terminal de gerenciamento indisponível.');
-  }
 });
 window.addEventListener('keydown', event => {
   if (event.key === 'Escape' && shipManagementTerminal.getSnapshot().open) {
