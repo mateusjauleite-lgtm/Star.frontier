@@ -2772,6 +2772,7 @@ function setHudEditorTarget(scope) {
   $('hud-editor-character-tab')?.classList.toggle('active', characterSelected);
   $('hud-editor-pilot-tab')?.classList.toggle('active', !characterSelected);
   $('pilot-hud-profile-tabs')?.classList.toggle('hidden', characterSelected);
+  updateHudProfileButtons('#pilot-hud-profile-tabs', 'data-hud-editor-profile', hudEditorPilotProfile);
   updateHudEditorButtonSizeVisibility();
   $('hud-editor-hint').textContent = characterSelected
     ? 'Arraste os elementos do HUD do personagem para ajustar suas posições.'
