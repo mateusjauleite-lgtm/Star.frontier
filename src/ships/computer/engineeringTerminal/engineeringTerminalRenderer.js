@@ -81,7 +81,7 @@ export function createEngineeringTerminalRenderer({
     setText('[data-engineering-speed]', speed);
     setText('[data-engineering-dilithium]', dilithium.toFixed(2) + ' u');
     setText('[data-engineering-propulsion]', active ? 'DOBRA ATIVA' : 'CONVENCIONAL');
-    setText('[data-engineering-transition]', transition === 'entering' ? 'ACELERANDO' : transition === 'cruise' ? 'CRUZEIRO' : transition === 'exiting' ? 'SAÍDA' : 'ESTÁVEL');
+    setText('[data-engineering-transition]', transition === 'entering' ? 'ACELERANDO' : transition === 'cruise' ? 'CRUZEIRO' : transition === 'reducing' ? 'AJUSTANDO' : transition === 'exiting' ? 'SAÍDA' : 'ESTÁVEL');
     setText('[data-engineering-exit-label]', exitMode === 'direct' ? 'DIRETA' : 'SUAVE');
 
     layer.querySelectorAll('[data-engineering-stage]').forEach(button => {
