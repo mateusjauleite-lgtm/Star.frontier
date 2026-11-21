@@ -8,6 +8,10 @@ test('landing gear builds four compact articulated wheel assemblies', () => {
   assert.equal(gear.contactPoints.length, 4);
   assert.equal(gear.assemblyPositions.length, 4);
   assert.equal(gear.group.name, 'Four-Point-Articulated-Wheel-Gear');
+  const fixedMounts = [];
+  gear.group.traverse(object => { if (object.name === 'Gear-Upper-Mount') fixedMounts.push(object); });
+  assert.equal(fixedMounts.length, 4);
+  assert.ok(fixedMounts.every(mount => mount.parent === gear.group));
 
   let tires = 0;
   let oleoStruts = 0;
