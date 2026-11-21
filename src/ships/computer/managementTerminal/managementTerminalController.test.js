@@ -2,8 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createShipComputer } from '../shipComputer.js';
 import {
-  createShipManagementTerminalController
+  createShipManagementTerminalController,
+  SHIP_MANAGEMENT_TERMINAL_LOCAL_POSITION,
+  SHIP_MANAGEMENT_TERMINAL_INTERACTION_RADIUS
 } from './managementTerminalController.js';
+import { PILOT_CONSOLE_LOCAL_POSITION } from '../../bridge/commandBridge.js';
 
 function createHarness() {
   const computer = createShipComputer();
@@ -74,4 +77,13 @@ test('terminal de gerenciamento não acessa sistemas não autorizados', () => {
     reason: 'access-denied'
   });
   h.controller.shutdown();
+});
+
+test('estação de gerenciamento fica separada do raio de interação do posto de pilotagem', () => {
+  const distance = Math.hypot(
+    SHIP_MANAGEMENT_TERMINAL_LOCAL_POSITION.x - PILOT_CONSOLE_LOCAL_POSITION.x,
+    SHIP_MANAGEMENT_TERMINAL_LOCAL_POSITION.z - PILOT_CONSOLE_LOCAL_POSITION.z
+  );
+  assert.ok(distance > SHIP_MANAGEMENT_TERMINAL_INTERACTION_RADIUS + 5);
+  assert.equal(SHIP_MANAGEMENT_TERMINAL_LOCAL_POSITION.y, 8.91);
 });
