@@ -39,6 +39,7 @@ export function registerCharacterControls({
   };
 
   const moveStick = event => {
+    if (!isOnFoot()) { setMoveInput(0, 0); return; }
     const rect = characterStick.getBoundingClientRect();
     const max = rect.width * 0.31;
     if (!(max > 0)) {
@@ -58,6 +59,7 @@ export function registerCharacterControls({
 
   if (characterStick) {
     characterStick.addEventListener('pointerdown', event => {
+      if (!isOnFoot()) return;
       event.preventDefault();
       movePointer = event.pointerId;
       characterStick.setPointerCapture(movePointer);

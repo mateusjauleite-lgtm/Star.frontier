@@ -1,4 +1,4 @@
-export function registerAimControls({ document, THREE, state, shipComputer }) {
+export function registerAimControls({ document, THREE, state }) {
   // Arrasto livre de câmera em 360°: não altera a orientação física da nave.
   const aimArea = document.getElementById('aim-touch-area');
   let aimPointer = null;
@@ -25,12 +25,8 @@ export function registerAimControls({ document, THREE, state, shipComputer }) {
         x: THREE.MathUtils.clamp(state.view.x - dy * 0.004, -1.45, 1.45),
         y: THREE.MathUtils.euclideanModulo(state.view.y - dx * 0.004 + Math.PI, Math.PI * 2) - Math.PI
       };
-      if (shipComputer.isTerminalConnected('pilot-console')) {
-        shipComputer.dispatch('pilot-console', 'flight', 'look', nextView);
-      } else {
-        state.view.x = nextView.x;
-        state.view.y = nextView.y;
-      }
+      state.view.x = nextView.x;
+      state.view.y = nextView.y;
     });
     const endAim = event => { if (aimPointer === event.pointerId) aimPointer = null; };
     aimArea.addEventListener('pointerup', endAim);
