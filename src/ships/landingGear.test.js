@@ -27,3 +27,25 @@ test('wheel contact anchors are authored at the tire bottom, not at the old foot
     assert.ok(contact.id.startsWith('gear-'));
   }
 });
+
+
+test('landing gear deployment API preserves wheel contact anchors and retracts all four pivots', () => {
+  const gear = createLandingGear(THREE);
+  assert.equal(gear.getDeployment(), 1);
+  for (const contact of gear.contactPoints) {
+    assert.equal(contact.point.y, -25.72);
+  }
+
+  assert.equal(gear.setDeployment(0), 0);
+  assert.equal(gear.getDeployment(), 0);
+  for (const contact of gear.contactPoints) {
+    assert.ok(Number.isFinite(contact.point.x));
+    assert.ok(Number.isFinite(contact.point.y));
+    assert.ok(Number.isFinite(contact.point.z));
+  }
+
+  assert.equal(gear.setDeployment(1), 1);
+  for (const contact of gear.contactPoints) {
+    assert.equal(contact.point.y, -25.72);
+  }
+});

@@ -160,7 +160,7 @@ export function createLandingGear(THREERef = THREE) {
       group.add(doorPivot);
       const door = new THREERef.Mesh(
         new THREERef.BoxGeometry(7.2, 0.28, 10.2),
-        undersideMaterial
+        jointMaterial
       );
       door.name = 'Landing-Gear-Bay-Door';
       door.position.set(0, 0, fore * -5.1);
@@ -176,7 +176,7 @@ export function createLandingGear(THREERef = THREE) {
       pivot.rotation.x = foldDirection * (1 - deployment) * Math.PI * 0.5;
     }
     for (const { doorPivot, foldDirection } of doors) {
-      doorPivot.rotation.x = -foldDirection * deployment * 0.72;
+      doorPivot.rotation.x = -foldDirection * Math.sin(Math.PI * deployment) * 0.72;
     }
     return deployment;
   };
