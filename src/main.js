@@ -2725,6 +2725,15 @@ function setActivePilotHudProfile(profile) {
   return true;
 }
 
+function updateHudEditorButtonSizeVisibility() {
+  const hasResizableButtons = getPilotHudElements(hudEditorPilotProfile)
+    .some(element => element.querySelector('[data-pilot-size-button]'));
+  $('pilot-hud-size-controls')?.classList.toggle(
+    'hidden',
+    hudEditorTarget !== 'pilot' || !hasResizableButtons
+  );
+}
+
 function setHudEditorPilotProfile(profile) {
   if (!PILOT_HUD_PROFILES.some(item => item.id === profile)) return;
   if (characterHudEditing && hudEditorTarget === 'pilot' && hudEditorWorkingLayouts) {
@@ -2736,6 +2745,7 @@ function setHudEditorPilotProfile(profile) {
     ? { ...hudEditorWorkingButtonSizes[profile] }
     : readPilotHudButtonSize(profile);
   updateHudProfileButtons('#pilot-hud-profile-tabs', 'data-hud-editor-profile', profile);
+  updateHudEditorButtonSizeVisibility();
   applyPilotHudButtonSize(hudEditorWorkingButtonSize, true, profile);
   if (characterHudEditing && hudEditorTarget === 'pilot') {
     applyHudProfileVisibility(profile);
@@ -2756,8 +2766,8 @@ function setHudEditorTarget(scope) {
   const characterSelected = scope === 'character';
   $('hud-editor-character-tab')?.classList.toggle('active', characterSelected);
   $('hud-editor-pilot-tab')?.classList.toggle('active', !characterSelected);
-  $('pilot-hud-size-controls')?.classList.toggle('hidden', characterSelected);
   $('pilot-hud-profile-tabs')?.classList.toggle('hidden', characterSelected);
+  updateHudEditorButtonSizeVisibility();
   $('hud-editor-hint').textContent = characterSelected
     ? 'Arraste os elementos do HUD do personagem para ajustar suas posições.'
     : `Editando o perfil ${PILOT_HUD_PROFILES.find(item => item.id === hudEditorPilotProfile)?.label || 'Voo'}. Cada perfil mantém posições e dimensões próprias.`;
