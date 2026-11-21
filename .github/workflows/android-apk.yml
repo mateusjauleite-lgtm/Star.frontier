@@ -15,6 +15,7 @@ on:
       - fix/pilot-hud-flight-controls
   pull_request:
     branches:
+      - feature/core-runtime-foundation
       - main
       - architecture/modules-skeleton
       - integration/threejs-recovery

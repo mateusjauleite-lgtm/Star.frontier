@@ -21,6 +21,8 @@ import { createCharacterEquipmentSystem } from './inventory/characterEquipment.j
 import { isPilotConsoleInRange, attachCharacterToPilotConsole, returnCharacterToDeck } from './ships/bridge/commandBridge.js';
 import { saveState as save, loadState as load } from './core/storage.js';
 import { createShipComputer } from './ships/computer/shipComputer.js';
+import { createShipConsoleController } from './ships/computer/console/consoleController.js';
+import { createShipConsoleRenderer } from './ships/computer/console/consoleRenderer.js';
 import { registerShipComputerSystems } from './ships/computer/shipComputerSystems.js';
 import { advanceShipFlightDynamics } from './ships/flight/flightDynamics.js';
 import { createShipFlightController } from './ships/flight/shipFlightController.js';
@@ -36,6 +38,10 @@ const characterAudio = createCharacterAudio({ core: characterCore });
 characterAudio.attach();
 const shipAudio = createShipAudio();
 const shipComputer = createShipComputer();
+const shipConsole = createShipConsoleController({
+  computer: shipComputer,
+  renderer: createShipConsoleRenderer({ root: $('game-screen') })
+});
 shipComputer.registerSystem('flight', {
   name: 'Controle de voo',
   commands: {
@@ -662,6 +668,7 @@ async function startGame() {
       const runtimeKernel = await loadRuntimeKernel({ maximumDeltaSeconds: 0.04 });
       runtimeBridge = createRuntimeBridge(runtimeKernel);
       registerGameRuntimeSystems(runtimeBridge, {
+        shipConsole,
         character: {
           core: characterCore,
           resetTransientState,
