@@ -4,7 +4,7 @@ This branch is a foundation, not a claim that the ship can already land.
 
 ## Six stages
 
-1. **Audit and boundary:** current flight movement, nitro, model, Earth collision and four-deck interior are preserved. The existing playerShip.js and shipControls.js files are placeholders; flight movement currently lives in src/main.js.
+1. **Audit and boundary:** current flight movement, warp propulsion, model, Earth collision and four-deck interior are preserved. The existing playerShip.js and shipControls.js files are placeholders; flight movement currently lives in src/main.js.
 2. **C++/WASM Ship Core:** an independent orbital kernel uses SI units. Three.js remains responsible for rendering, HUD, input and animation. The arcade speed value is not silently treated as SI velocity.
 3. **Orbital calculations:** Earth gravity and a velocity-Verlet integration step use Earth's standard gravitational parameter. State conversion, orbital initial conditions, atmosphere and rotating reference frames remain to be integrated and validated.
 4. **Predefined site and base:** the project candidate is anchored to GPS survey point UY04 in Salar de Uyuni: WGS84 latitude -20.211888829°, longitude -67.422529683°, reference elevation 3697.2995 m. A compact base and landing platform are now positioned from the ETOPO collision surface at this anchor. This is a visual candidate, not a landing approval; local DEM, seasonal water/brine, crust, roughness, hazards and approach corridor still require validation.
