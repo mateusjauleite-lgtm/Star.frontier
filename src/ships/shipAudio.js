@@ -9,7 +9,7 @@ const TONES = Object.freeze({
   engineStop: { frequency: 88, endFrequency: 42, duration: 0.58, attack: 0.08, volume: 0.035, waveform: 'sine' },
   engineBed: { frequency: 58, endFrequency: 72, duration: 1.65, attack: 0.22, volume: 0.026, waveform: 'triangle' },
   nacelleHum: { frequency: 112, endFrequency: 104, duration: 1.45, attack: 0.24, volume: 0.012, waveform: 'sine' },
-  boost: { frequency: 74, endFrequency: 118, duration: 0.62, attack: 0.055, volume: 0.075, waveform: 'triangle' },
+  warpDrive: { frequency: 74, endFrequency: 118, duration: 0.62, attack: 0.055, volume: 0.075, waveform: 'triangle' },
   brake: { frequency: 185, endFrequency: 68, duration: 0.30, attack: 0.025, volume: 0.045, waveform: 'sine' },
   maneuver: { frequency: 92, endFrequency: 68, duration: 0.24, attack: 0.035, volume: 0.022, waveform: 'sine' },
   landingAlert: { frequency: 520, endFrequency: 660, duration: 0.22, volume: 0.065, waveform: 'sine' },
@@ -22,7 +22,7 @@ const TONES = Object.freeze({
 export function createShipAudio() {
   let disposed = false;
   let engineActive = false;
-  let boostActive = false;
+  let warpDriveActive = false;
   let brakeActive = false;
   let maneuverCooldown = 0;
   let engineBedTimer = 0;
@@ -44,12 +44,12 @@ export function createShipAudio() {
   }
 
   function updateFlight({
-    throttle = false, boosting = false, braking = false,
+    throttle = false, warpDriveActive = false, braking = false,
     nacellesLit = false, moveX = 0, moveY = 0, dt = 0
   } = {}) {
     if (disposed) return;
     const delta = Math.max(0, Math.min(0.08, Number(dt) || 0));
-    const engineRequested = Boolean(throttle || boosting);
+    const engineRequested = Boolean(throttle || warpDriveActive);
 
     if (engineRequested !== engineActive) {
       play(engineRequested ? 'engineStart' : 'engineStop');
@@ -62,9 +62,9 @@ export function createShipAudio() {
       engineBedTimer -= delta;
       if (engineBedTimer <= 0) {
         play('engineBed', {
-          frequency: boosting ? 68 : 58,
-          endFrequency: boosting ? 82 : 70,
-          volume: boosting ? 0.032 : 0.024
+          frequency: warpDriveActive ? 68 : 58,
+          endFrequency: warpDriveActive ? 82 : 70,
+          volume: warpDriveActive ? 0.032 : 0.024
         });
         engineBedTimer = 1.35;
       }
@@ -83,9 +83,9 @@ export function createShipAudio() {
       nacelleHumTimer = 0;
     }
 
-    if (Boolean(boosting) !== boostActive) {
-      if (boosting) play('boost');
-      boostActive = Boolean(boosting);
+    if (Boolean(warpDriveActive) !== warpDriveActive) {
+      if (warpDriveActive) play('warpDrive');
+      warpDriveActive = Boolean(warpDriveActive);
     }
     if (Boolean(braking) !== brakeActive) {
       if (braking) play('brake');
@@ -102,7 +102,7 @@ export function createShipAudio() {
 
   function resetFlight() {
     engineActive = false;
-    boostActive = false;
+    warpDriveActive = false;
     brakeActive = false;
     maneuverCooldown = 0;
     engineBedTimer = 0;
