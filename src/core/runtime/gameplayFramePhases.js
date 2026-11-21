@@ -32,7 +32,7 @@ export function createGameplayFramePhases(getDependencies) {
     updateCamera();
   }
   updateShipManagementInteraction(dt);
-  updateEngineeringConsoleInteraction?.();
+  updateEngineeringConsoleInteraction?.(dt);
     },
 
     updateLanding(dt) {
@@ -167,10 +167,15 @@ export function createGameplayFramePhases(getDependencies) {
     },
 
     updateWorld(dt) {
-      const { orbitSystem, asteroidSystem, lightingSystem, camera } = getDependencies();
-  orbitSystem?.update(dt);
-  asteroidSystem?.update(dt);
-  lightingSystem?.update(dt, camera?.position);
+      const { orbitSystem, asteroidSystem, lightingSystem, camera, state } = getDependencies();
+      orbitSystem?.update(dt);
+      asteroidSystem?.update(dt);
+      lightingSystem?.update(dt, camera?.position, {
+        warpActive: Boolean(state?.warpDriveActive),
+        warpStage: state?.warpCurrentStage || 0,
+        warpTransition: state?.warpTransition || 'idle',
+        cameraQuaternion: camera?.quaternion
+      });
     },
 
     render() {
