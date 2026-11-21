@@ -949,7 +949,12 @@ async function init3D() {
   shipManagementHologram?.dispose?.();
   shipManagementHologram = createShipManagementHologram({
     parent: shipVisual,
-    position: SHIP_MANAGEMENT_TERMINAL_LOCAL_POSITION
+    // Campo projetado acima do tampo da estação física no Deck 1.
+    position: {
+      x: SHIP_MANAGEMENT_TERMINAL_LOCAL_POSITION.x,
+      y: SHIP_MANAGEMENT_TERMINAL_LOCAL_POSITION.y + 1.19,
+      z: SHIP_MANAGEMENT_TERMINAL_LOCAL_POSITION.z
+    }
   });
 
   characterCameraInitialized = false;
