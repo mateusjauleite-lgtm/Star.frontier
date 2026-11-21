@@ -1,6 +1,5 @@
 // Ramificação de sensores do defletor.
-// Esta camada controla alimentação e disponibilidade; a detecção de objetos
-// será conectada ao subsistema de sensores existente, sem criar um detector duplicado.
+// A detecção de objetos será conectada ao subsistema existente, sem duplicá-lo.
 const DEFAULT_DRAW_PER_SECOND = 0.65;
 
 export function createDeflectorSensorSystem(core, options = {}) {
@@ -18,12 +17,12 @@ export function createDeflectorSensorSystem(core, options = {}) {
   let signalQuality = 0;
 
   function update(deltaSeconds) {
-    const dt = clamp(deltaSeconds, 0, 0.1);
+    const dt = Math.max(0, finite(deltaSeconds));
     operational = false;
     signalQuality = 0;
     if (!enabled || dt <= 0) return snapshot();
     const requested = energyPerSecond * dt;
-    const result = core.consumeEnergy(branchId, requested);
+    const result = core.consumeEnergy(branchId, requested, dt);
     signalQuality = requested > 0 ? result.consumed / requested : 0;
     operational = result.accepted;
     return snapshot();
@@ -50,7 +49,7 @@ function positive(value, fallback) {
   const number = Number(value);
   return Number.isFinite(number) && number > 0 ? number : fallback;
 }
-function clamp(value, min, max) {
+function finite(value) {
   const number = Number(value);
-  return Math.max(min, Math.min(max, Number.isFinite(value) ? value : min));
+  return Number.isFinite(number) ? number : 0;
 }
