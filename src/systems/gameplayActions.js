@@ -20,7 +20,13 @@ export function registerGameplayActions({
     if (!isActive()) return;
     const asteroids = getAsteroids();
     const ship = getShip();
-    const target = asteroids.find(asteroid => asteroid.position.distanceTo(ship.position) < 18);
+    const inRange = asteroids
+      .map(asteroid => ({ asteroid, distance: asteroid.position.distanceTo(ship.position) }))
+      .filter(entry => entry.distance < 18)
+      .sort((a, b) => a.distance - b.distance);
+    const target = inRange.find(({ asteroid }) =>
+      Number(asteroid.userData.resources?.['resource:ore-dilithium']?.amount) > 0
+    )?.asteroid ?? inRange[0]?.asteroid;
     if (!target) {
       toast('Aproxime-se de um asteroide para minerar.');
       return;
