@@ -2073,6 +2073,33 @@ document.addEventListener('visibilitychange', () => {
 });
 
 registerAimControls({ document, THREE, state, shipComputer });
+const pilotAimButton = $('pilot-aim-btn');
+const pilotAimArea = $('aim-touch-area');
+pilotAimButton?.addEventListener('click', () => {
+  const enabled = pilotAimButton.getAttribute('aria-pressed') !== 'true';
+  pilotAimButton.setAttribute('aria-pressed', String(enabled));
+  pilotAimArea?.classList.toggle('aim-disabled', !enabled);
+  pilotAimButton.classList.toggle('active', enabled);
+  toast(enabled ? 'Mira da nave ativada.' : 'Mira da nave desativada.');
+});
+const instrumentBindings = [
+  ['hull', 'hull-bar', 100], ['shield', 'shield-bar', 100],
+  ['fuel', 'fuel-bar', 100], ['speed', 'speed-bar', 100]
+];
+const updateInstrumentBars = () => instrumentBindings.forEach(([valueId, barId, max]) => {
+  const value = Number($(valueId)?.textContent?.replace(',', '.')) || 0;
+  const fill = $(barId);
+  if (!fill) return;
+  const ratio = Math.max(0, Math.min(100, value / max * 100));
+  fill.style.width = ratio + '%';
+  fill.style.filter = ratio < 25 ? 'saturate(.65) brightness(.8)' : 'none';
+});
+const instrumentObserver = new MutationObserver(updateInstrumentBars);
+instrumentBindings.forEach(([valueId]) => {
+  const value = $(valueId);
+  if (value) instrumentObserver.observe(value, { childList:true, characterData:true, subtree:true });
+});
+updateInstrumentBars();
 registerHeldFlightControls({ document, window, state });
 registerFlightSelectionGuards({ document });
 

@@ -261,15 +261,16 @@
     <!-- HUD -->
     <div id="hud" class="ship-interface hidden">
 
-      <div class="hud-card">
-        <b id="hud-user">PILOTO</b>
-
-        <span>Casco: <b id="hull">100</b>%</span>
-        <span>Escudo: <b id="shield">100</b>%</span>
-        <span>Velocidade: <b id="speed">0</b></span>
-        <span>Combustível: <b id="fuel">100</b>%</span>
-        <span>Carga: <b id="cargo">0</b></span>
-      </div>
+      <section class="hud-card pilot-instruments" aria-label="Instrumentos da nave">
+        <header class="instrument-header"><b id="hud-user">PILOTO</b><span>FLIGHT SYSTEMS</span></header>
+        <div class="instrument-grid">
+          <div class="instrument" data-instrument="speed"><div class="instrument-readout"><span>VELOCIDADE</span><b><span id="speed">0</span></b></div><div class="instrument-track"><i id="speed-bar"></i></div></div>
+          <div class="instrument" data-instrument="hull"><div class="instrument-readout"><span>CASCO</span><b><span id="hull">100</span>%</b></div><div class="instrument-track"><i id="hull-bar"></i></div></div>
+          <div class="instrument" data-instrument="shield"><div class="instrument-readout"><span>ESCUDO</span><b><span id="shield">100</span>%</b></div><div class="instrument-track"><i id="shield-bar"></i></div></div>
+          <div class="instrument" data-instrument="fuel"><div class="instrument-readout"><span>COMBUSTÍVEL</span><b><span id="fuel">100</span>%</b></div><div class="instrument-track"><i id="fuel-bar"></i></div></div>
+        </div>
+        <div class="instrument-cargo">CARGA <b id="cargo">0</b></div>
+      </section>
 
       <div class="hud-card right">
         <span>Créditos: <b id="hud-credits">0</b></span>
@@ -302,10 +303,8 @@
     <!-- CONTROLES DE VOO -->
     <div id="flight-controls" class="ship-interface hidden">
 
-      <div
-        id="aim-touch-area"
-        aria-label="Área de controle da mira"
-      ></div>
+      <div id="aim-touch-area" aria-label="Área de controle da mira"></div>
+      <button id="pilot-aim-btn" class="pilot-aim-button" type="button" aria-pressed="true">◎ MIRA</button>
 
       <!-- LADO ESQUERDO -->
       <div class="control-side left-side">
