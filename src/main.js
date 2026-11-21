@@ -2721,6 +2721,7 @@ function updateHudProfileButtons(selector, attribute, selectedProfile) {
 function setActivePilotHudProfile(profile) {
   if (!PILOT_HUD_PROFILES.some(item => item.id === profile)) return false;
   activePilotHudProfile = profile;
+  if (profile !== 'navigation') $('navigation-full-panel')?.classList.add('hidden');
   applyHudProfileVisibility(profile);
   updateHudProfileButtons('#pilot-hud-profile-selector', 'data-hud-gameplay-profile', profile);
   applyHudLayout('pilot', pilotHudProfiles.getLayout(profile), profile);
@@ -2890,6 +2891,7 @@ function finishCharacterHudEditing({ saveChanges = false, reset = false } = {}) 
 
 function startCharacterHudEditing() {
   if (characterHudEditing) return;
+  $('navigation-full-panel')?.classList.add('hidden');
   characterHudEditing = true;
   hudEditorTarget = characterCore.snapshot().mode === 'ship-control' ? 'pilot' : 'character';
   hudEditorPilotProfile = activePilotHudProfile;
@@ -2984,7 +2986,10 @@ $('character-hud-save-btn')?.addEventListener('click', () => finishCharacterHudE
 $('character-hud-cancel-btn')?.addEventListener('click', () => finishCharacterHudEditing());
 $('character-hud-reset-btn')?.addEventListener('click', () => finishCharacterHudEditing({ reset: true }));
 $('navigation-panel-open-btn')?.addEventListener('click', () => {
-  $('navigation-hud-panel')?.classList.toggle('navigation-panel-expanded');
+  $('navigation-full-panel')?.classList.remove('hidden');
+});
+$('navigation-panel-close-btn')?.addEventListener('click', () => {
+  $('navigation-full-panel')?.classList.add('hidden');
 });
 applyHudProfileVisibility(activePilotHudProfile);
 applyHudLayout('character', readHudLayout('character'));
