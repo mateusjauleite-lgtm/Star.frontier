@@ -133,6 +133,17 @@ test('Engenharia assume autoridade e comanda a mesma propulsão', () => {
   assert.equal(state.warpDriveButton, true);
 });
 
+test('troca de autoridade não desliga uma dobra já em cruzeiro', () => {
+  const { computer, state } = createHarness();
+  state.warpDriveButton = true;
+  state.warpDriveActive = true;
+  state.warpCurrentStage = 5;
+  const response = computer.dispatch('engineering-console', 'engineering', 'setAuthority', { mode: 'engineering' });
+  assert.equal(response.result.accepted, true);
+  assert.equal(state.warpDriveButton, true);
+  assert.equal(state.warpDriveActive, true);
+});
+
 test('Engenharia seleciona os cinco estágios e define o modo de saída', () => {
   const { computer, state } = createHarness();
   const stage = computer.dispatch('engineering-console', 'engineering', 'setWarpStage', { stage: 3 });
