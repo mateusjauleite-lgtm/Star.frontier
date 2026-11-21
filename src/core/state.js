@@ -61,4 +61,5 @@ export function resetTransientState() {
   state.throttle = false;
   state.braking = false;
   state.warpDriveButton = false;
+  state.propulsionAuthority = 'bridge';
 }
