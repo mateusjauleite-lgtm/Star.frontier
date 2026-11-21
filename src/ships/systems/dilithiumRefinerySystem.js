@@ -1,8 +1,8 @@
 // Refinaria de dilítio e alimentação do núcleo da nave.
 // Mantém separados minério bruto, produto refinado em buffer e reserva do núcleo.
 const MAX_DELTA_SECONDS = 0.1;
-const REFINING_UNITS_PER_SECOND = 1;
-const TRANSFER_UNITS_PER_SECOND = 2;
+const REFINING_UNITS_PER_SECOND = 0.08;
+const TRANSFER_UNITS_PER_SECOND = 0.06;
 const DEFAULT_RAW_CAPACITY = 200;
 const DEFAULT_REFINED_CAPACITY = 120;
 const DEFAULT_CORE_CAPACITY = 250;
