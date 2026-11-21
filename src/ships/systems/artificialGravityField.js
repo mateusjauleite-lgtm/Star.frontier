@@ -1,5 +1,5 @@
 // Campo gravitacional artificial no referencial local da nave.
-// A compensação longitudinal usa a mesma conversão de velocidade aplicada pelo voo (0,45).
+// A compensação longitudinal atua no sentido oposto à aceleração da nave no eixo local Z.
 const SPEED_TO_WORLD_UNITS = 0.45;
 const MAX_COMPENSATION = 24;
 
@@ -34,7 +34,7 @@ export function createArtificialGravityField({ gravity = 18 } = {}) {
     return Object.freeze({
       position: safePosition,
       // Gravidade vertical constante e força de compensação oposta à aceleração longitudinal.
-      uniformAcceleration: [0, -baseGravity, -longitudinalCompensation],
+      uniformAcceleration: [0, -baseGravity, longitudinalCompensation],
       bodies: [],
       warpCompensationActive,
       longitudinalCompensation
