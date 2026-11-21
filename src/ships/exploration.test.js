@@ -7,7 +7,7 @@ test('ponte do Deck 1 contém estação física independente do Ship Computer', 
   const station = ship.visual.getObjectByName('Bridge-Ship-Management-Station');
 
   assert.ok(station, 'estação física deve existir no modelo 3D da nave');
-  assert.deepEqual(station.position.toArray(), [-16, 8.91, -20]);
+  assert.deepEqual(station.position.toArray(), [-10.5, 8.91, -20]);
   assert.ok(station.getObjectByName('Management-Station-Floor-Plinth'));
   assert.ok(station.getObjectByName('Management-Station-Worktop'));
   assert.ok(station.getObjectByName('Management-Station-Touch-Display'));
