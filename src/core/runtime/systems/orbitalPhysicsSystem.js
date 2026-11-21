@@ -33,7 +33,7 @@ export function createOrbitalPhysicsRuntimeSystem(dependencies = {}) {
           !gravityKernel ||
           typeof gravityKernel.acceleration !== 'function' ||
           typeof gravityKernel.integrateVelocity !== 'function') {
-        throw new Error('Os kernels orbitais físicos não estão prontos após a inicialização do mundo.');
+        throw new Error('Os kernels orbitais não estão prontos; os kernels físicos não estão prontos após a inicialização do mundo.');
       }
 
       service = Object.freeze({
