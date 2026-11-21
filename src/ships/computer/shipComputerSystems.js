@@ -5,7 +5,7 @@ const PROPULSION_INPUTS = new Set(['throttle', 'braking', 'warpDriveButton']);
 const CONTROL_AUTHORITIES = new Set(['bridge', 'engineering', 'automatic']);
 const WARP_EXIT_MODES = new Set(['smooth', 'direct']);
 
-export function registerShipComputerSystems(computer, { state, getShip, getShipYaw, getPitchAngle, getAsteroids }) {
+export function registerShipComputerSystems(computer, { state, getShip, getShipYaw, getPitchAngle, getAsteroids, shieldSystem = null }) {
   if (!computer || !state || typeof getShip !== 'function' || typeof getShipYaw !== 'function' || typeof getPitchAngle !== 'function' || typeof getAsteroids !== 'function') {
     throw new TypeError('Dependências dos sistemas do computador incompletas.');
   }
@@ -94,6 +94,7 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
           conventionalFuel: state.fuel,
           refinedDilithium: state.refinedDilithium,
           shields: state.shield,
+          shieldEnabled: state.shieldEnabled !== false,
           hull: state.hull,
           propulsionAuthority: propulsion.authority,
           warpDriveActive: propulsion.warpDriveActive,
@@ -103,6 +104,22 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
       }
     },
     getStatus: () => readShip() ? 'monitoring' : 'standby'
+  });
+  computer.registerSystem('shields', {
+    name: 'Escudos defletores',
+    commands: {
+      status: () => shieldSystem?.snapshot?.() ?? {
+        enabled: state.shieldEnabled !== false, shield: state.shield, hull: state.hull
+      },
+      setEnabled: (payload, context) => {
+        if (context?.terminalId !== 'engineering-console') {
+          return { accepted: false, reason: 'engineering-terminal-required' };
+        }
+        const status = shieldSystem?.setEnabled?.(Boolean(payload?.enabled));
+        return { accepted: Boolean(status), status };
+      }
+    },
+    getStatus: () => readShip() ? 'online' : 'standby'
   });
   computer.registerSystem('propulsion', {
     name: 'Propulsão',
