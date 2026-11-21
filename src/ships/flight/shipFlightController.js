@@ -46,7 +46,7 @@ export function createShipFlightController(dependencies = {}) {
       Number.isFinite(deltaSeconds) ? deltaSeconds : 0, 0, 0.04
     );
     const sensitivity = Number(state.settings.sensitivity) || 1;
-    const hasPropulsion = state.fuel > 0 || state.refinedDilithium > 0;
+    const hasPropulsion = state.fuel > 0 || state.warpCoreDilithium > 0;
     const moveX = hasPropulsion ? state.move.x : 0;
     const moveY = hasPropulsion ? state.move.y : 0;
     const manualOverride = Math.abs(moveX) > 0.015 ||
@@ -228,7 +228,7 @@ export function createShipFlightController(dependencies = {}) {
         : state.warpTransition === 'exiting' ? 'SAINDO DA DOBRA' : 'DESATIVADA';
     }
     const dilithiumReadout = getElement('warp-dilithium-readout');
-    if (dilithiumReadout) dilithiumReadout.textContent = (Math.max(0, Number(state.refinedDilithium) || 0)).toFixed(2) + ' u';
+    if (dilithiumReadout) dilithiumReadout.textContent = (Math.max(0, Number(state.warpCoreDilithium) || 0)).toFixed(2) + ' u';
     const warpSpeedReadout = getElement('warp-speed-readout');
     if (warpSpeedReadout) warpSpeedReadout.textContent = String(Math.round(state.speed));
     const stageControls = getElement('warp-stage-controls');
