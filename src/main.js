@@ -571,7 +571,9 @@ const shipFlightController = createShipFlightController({
   getEngineFlames: () => engineFlames,
   getEngineLights: () => engineLights,
   getEarthSystem: () => earthSystem,
-  getLandingGearContactPoints: () => shipLandingGearContactPoints,
+  getLandingGearContactPoints: () => shipLandingGear?.getDeployment?.() > 0.95
+    ? shipLandingGearContactPoints
+    : shipEarthContactPoints,
   getLandingAutopilot: () => shipLandingAutopilot,
   getFlightQuaternion: () => flightQuaternion,
   getForwardVector: () => forwardVector,
@@ -1022,6 +1024,15 @@ function applyEarthSurfaceRotation(deltaSeconds) {
 }
 
 function updateFlight(dt) {
+  const deployment = shipLandingGear?.update?.(dt) ?? 0;
+  const target = shipLandingGear?.getTargetDeployment?.() ?? 0;
+  const button = $('landing-btn');
+  if (button && Math.abs(deployment - target) < 0.02) {
+    button.classList.remove('gear-deploying');
+    button.classList.toggle('gear-deployed', target > 0.5);
+    if (button.textContent.includes('ABRINDO')) button.textContent = '◉ TREM ABERTO · POUSAR';
+    if (button.textContent.includes('RECOLHENDO')) button.textContent = '◉ TREM RECOLHIDO';
+  }
   return shipFlightController.update(dt);
 }
 
@@ -1686,6 +1697,7 @@ function enterPilotMode() {
   state.camera = 0;
   state.view.x = 0;
   state.view.y = 0;
+  state.aim = { x: 0, y: 0 };
   setPilotInterface(true);
   toast('Comando da Aurora-7 assumido.');
 }
@@ -1782,6 +1794,13 @@ function bindStick(id, key) {
       y *= max / length;
     }
 
+    if (key === 'move' && state.fuel <= 0 && state.nitro <= 0) {
+      state[key].x = 0;
+      state[key].y = 0;
+      if (knob) knob.style.transform = 'translate(-50%,-50%)';
+      return;
+    }
+
     const nextX = x / max;
     const nextY = y / max;
     // O joystick escreve diretamente no estado consumido por updateFlight.
@@ -1790,7 +1809,7 @@ function bindStick(id, key) {
     state[key].y = nextY;
 
     if (knob) {
-      knob.style.transform = `translate(${x}px, ${y}px)`;
+      knob.style.transform = `translate(-50%,-50%) translate(${x}px,${y}px)`;
     }
   };
 
@@ -1816,7 +1835,7 @@ function bindStick(id, key) {
     state[key].x = 0;
     state[key].y = 0;
 
-    if (knob) knob.style.transform = 'translate(0,0)';
+    if (knob) knob.style.transform = 'translate(-50%,-50%)';
   };
 
   element.addEventListener('pointerup', end);
@@ -2111,6 +2130,43 @@ function cancelLandingGuidance(reason = 'cancelled') {
 $('landing-btn')?.addEventListener('click', () => {
   if (!active || characterCore.snapshot().mode !== 'ship-control') return;
 
+  const gearTarget = shipLandingGear?.getTargetDeployment?.() ?? 0;
+  const gearCurrent = shipLandingGear?.getDeployment?.() ?? 0;
+  if (gearTarget < 0.5 && gearCurrent < 0.5) {
+    shipLandingGear?.setDeployment?.(1);
+    const button = $('landing-btn');
+    if (button) {
+      button.textContent = '◉ TREM ABRINDO';
+      button.classList.add('gear-deploying');
+      button.classList.remove('gear-retracted');
+    }
+    $('landing-modal')?.classList.remove('hidden');
+    $('landing-modal')?.setAttribute('aria-hidden', 'false');
+    const status = $('landing-status');
+    if (status) status.textContent = 'Trem de pouso em abertura. Aguarde o travamento antes de iniciar a aproximação.';
+    shipAudio.playConsole();
+    toast('Trem de pouso acionado: abrindo.');
+    return;
+  }
+
+  if (gearTarget > 0.5 && gearCurrent > 0.98 && !shipLandingAutopilot?.snapshot?.().active && !selectedLandingSiteId) {
+    shipLandingGear?.setDeployment?.(0);
+    const button = $('landing-btn');
+    if (button) {
+      button.textContent = '◉ TREM RECOLHENDO';
+      button.classList.add('gear-deploying');
+      button.classList.remove('gear-deployed');
+    }
+    shipAudio.playConsole();
+    toast('Trem de pouso recolhendo.');
+    return;
+  }
+
+  if (selectedLandingSiteId && gearCurrent < 0.98) {
+    toast('Aguarde o trem de pouso travar na posição aberta.');
+    return;
+  }
+
   if (shipLandingAutopilot?.snapshot?.().active) {
     cancelLandingGuidance('standby');
     shipAudio.playConsole();
@@ -2129,7 +2185,8 @@ $('landing-btn')?.addEventListener('click', () => {
     ship.userData.landingAutopilotState = 'armed-guidance-only';
     shipAudio.playLandingAlert();
     $('landing-status').textContent = 'Telemetria conectada. A orientação calcula a aproximação, mas não comanda a propulsão nesta versão.';
-    $('landing-btn').textContent = '✕ CANCELAR';
+    $('landing-btn').textContent = '✕ CANCELAR GUIA · TREM ABERTO';
+    $('landing-btn').classList.add('gear-deployed');
     toast('Guia de pouso ativada. Propulsão automática permanece bloqueada.');
     return;
   }
@@ -2216,7 +2273,11 @@ $('landing-select-btn')?.addEventListener('click', () => {
   ship.userData.landingSiteId = site.id;
   ship.userData.landingAutopilotState = 'target-selected';
   const button = $('landing-btn');
-  if (button) button.textContent = '◎ ATIVAR GUIA DE POUSO';
+  if (button) {
+    button.textContent = '◎ ATIVAR GUIA · TREM ABERTO';
+    button.classList.add('gear-deployed');
+    button.classList.remove('gear-deploying','gear-retracted');
+  }
   const status = $('landing-status');
   if (status) status.textContent = 'Destino marcado: Salar de Uyuni · UY04. Ative a guia quando estiver pronto. A orientação calcula a aproximação, mas ainda não comanda a propulsão.';
   closeLandingPanel();
