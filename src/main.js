@@ -2587,7 +2587,7 @@ const characterHudEditor = $('character-hud-editor');
 const characterHudEditable = [...document.querySelectorAll('#character-hud [data-hud-editable]')];
 characterHudEditable.forEach(element => { element.dataset.hudScope = 'character'; });
 const pilotHudEditable = [...document.querySelectorAll('[data-hud-scope="pilot"][data-hud-editable]')]
-  .filter(element => element.dataset.hudProfile && element.dataset.hudProfile !== 'all');
+  .filter(element => Boolean(element.dataset.hudProfile));
 const allHudEditable = [...characterHudEditable, ...pilotHudEditable];
 const pilotHudProfiles = createPilotHudProfileStore(state.settings);
 let activePilotHudProfile = 'flight';
@@ -2606,7 +2606,9 @@ function hudLayoutKey(scope) {
 }
 
 function getPilotHudElements(profile = hudEditorPilotProfile) {
-  return pilotHudEditable.filter(element => element.dataset.hudProfile.split(/\s+/).includes(profile));
+  return pilotHudEditable.filter(element =>
+    element.dataset.hudProfile === 'all' || element.dataset.hudProfile.split(/\s+/).includes(profile)
+  );
 }
 
 function readHudLayout(scope, profile = hudEditorPilotProfile) {
@@ -2751,7 +2753,7 @@ function setHudEditorPilotProfile(profile) {
     applyHudProfileVisibility(profile);
     pilotHudEditable.forEach(element => element.classList.toggle(
       'hud-editable-active',
-      element.dataset.hudProfile.split(/\s+/).includes(profile)
+      element.dataset.hudProfile === 'all' || element.dataset.hudProfile.split(/\s+/).includes(profile)
     ));
     applyHudLayout('pilot', readHudLayout('pilot', profile), profile);
   }
