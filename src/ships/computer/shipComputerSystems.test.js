@@ -180,6 +180,15 @@ test('autoridade automática devolve o controle à Ponte quando o piloto interv�
   assert.equal(state.throttle, true);
 });
 
+test('avanço da refinaria também é executado pelo Ship Computer', () => {
+  const { computer, state } = createHarness();
+  computer.dispatch('engineering-console', 'engineering', 'setRefineryActive', { active: true });
+  const tick = computer.tick('engineering', { dt: 1 });
+  assert.equal(tick.ok, true);
+  assert.equal(state.rawDilithiumOre, 7);
+  assert.equal(state.refinedDilithium, 61);
+});
+
 test('console de Engenharia controla a refinaria e transfere dilítio pelo Ship Computer', () => {
   const { computer, state } = createHarness();
   const started = computer.dispatch('engineering-console', 'engineering', 'setRefineryActive', { active: true });
