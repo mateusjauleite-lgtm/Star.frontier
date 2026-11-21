@@ -12,6 +12,12 @@ export const SHIP_MANAGEMENT_TERMINAL_LOCAL_POSITION = Object.freeze({
 export const SHIP_MANAGEMENT_TERMINAL_DISPLAY_RADIUS = 11;
 export const SHIP_MANAGEMENT_TERMINAL_INTERACTION_RADIUS = 3.5;
 
+const MODULE_COMMANDS = Object.freeze({
+  navigation: 'telemetry',
+  tactical: 'scan',
+  engineering: 'status'
+});
+
 export function createShipManagementTerminalController({
   computer,
   renderer,
@@ -36,6 +42,8 @@ export function createShipManagementTerminalController({
   let present = false;
   let interactionAvailable = false;
   let opened = false;
+  let selectedModuleId = modules[0]?.id ?? 'navigation';
+  let moduleData = null;
   let unsubscribe = null;
 
   const render = snapshot => renderer.render({
@@ -43,18 +51,56 @@ export function createShipManagementTerminalController({
     present,
     interactionAvailable,
     open: opened,
-    modules
+    modules,
+    selectedModuleId,
+    moduleData
   });
+
+  function refreshSelectedModule() {
+    const module = modules.find(item => item.id === selectedModuleId);
+    if (!module) {
+      moduleData = { available: false, label: 'MÓDULO DESCONHECIDO', message: 'Módulo não registrado.' };
+      return moduleData;
+    }
+    if (!opened || !computer.isTerminalConnected(terminalId)) {
+      moduleData = { available: false, label: module.label, phase: module.phase, message: module.scope };
+      return moduleData;
+    }
+    if (!module.systemId || !MODULE_COMMANDS[module.id]) {
+      moduleData = { available: false, label: module.label, phase: 'prepared', message: module.scope };
+      return moduleData;
+    }
+
+    const response = computer.dispatch(
+      terminalId,
+      module.systemId,
+      MODULE_COMMANDS[module.id]
+    );
+    moduleData = response.ok
+      ? { available: true, label: module.label, phase: module.phase, data: response.result }
+      : { available: false, label: module.label, phase: module.phase, message: module.scope, reason: response.reason };
+    return moduleData;
+  }
+
+  function selectModule(moduleId) {
+    if (!modules.some(module => module.id === moduleId)) return false;
+    selectedModuleId = moduleId;
+    renderer.selectModule?.(moduleId);
+    refreshSelectedModule();
+    render(computer.getSnapshot());
+    return true;
+  }
 
   function initialize() {
     if (initialized) return false;
     renderer.mount({
       onOpen: () => open(),
       onClose: close,
-      onModuleSelect: moduleId => renderer.selectModule?.(moduleId)
+      onModuleSelect: selectModule
     });
     unsubscribe = computer.subscribe(render);
     initialized = true;
+    refreshSelectedModule();
     render(computer.getSnapshot());
     return true;
   }
@@ -76,6 +122,7 @@ export function createShipManagementTerminalController({
     if (opened) return true;
     if (!computer.connectTerminal(terminalId, operator)) return false;
     opened = true;
+    refreshSelectedModule();
     onInteractionChange(true);
     render(computer.getSnapshot());
     return true;
@@ -85,6 +132,7 @@ export function createShipManagementTerminalController({
     if (!initialized || !opened) return false;
     opened = false;
     computer.disconnectTerminal(terminalId);
+    moduleData = null;
     onInteractionChange(false);
     render(computer.getSnapshot());
     return true;
@@ -115,12 +163,14 @@ export function createShipManagementTerminalController({
     open,
     close,
     dispatch,
+    selectModule,
     shutdown,
     getSnapshot: () => ({
       initialized,
       present,
       interactionAvailable,
       open: opened,
+      selectedModuleId,
       terminalId,
       modules: modules.map(module => module.id)
     })
