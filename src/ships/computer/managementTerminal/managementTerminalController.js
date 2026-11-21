@@ -2,12 +2,12 @@ import { SHIP_COMPUTER_MODULES } from '../modules/index.js';
 
 export const SHIP_MANAGEMENT_TERMINAL_ID = 'ship-management-terminal';
 
-// Posição de referência provisória no convés da ponte; a âncora 3D usa este
-// mesmo referencial local e poderá ser refinada após validação visual no APK.
+// Emissor na lateral de bombordo da ponte, afastado do posto de pilotagem.
+// A coordenada permanece provisória até a inspeção visual dentro do APK.
 export const SHIP_MANAGEMENT_TERMINAL_LOCAL_POSITION = Object.freeze({
-  x: -6.5,
+  x: -16,
   y: 8.91,
-  z: -29.5
+  z: -20
 });
 export const SHIP_MANAGEMENT_TERMINAL_DISPLAY_RADIUS = 11;
 export const SHIP_MANAGEMENT_TERMINAL_INTERACTION_RADIUS = 3.5;
