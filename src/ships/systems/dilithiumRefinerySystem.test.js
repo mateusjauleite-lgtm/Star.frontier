@@ -23,7 +23,7 @@ test('refinaria converte minério bruto em reserva refinada sem alimentar o núc
 });
 
 test('transferência alimenta o núcleo e atualiza o total transferido', () => {
-  const { state, system } = setup({ refineryRefinedStorage: 5, refineryTransferEnabled: true });
+  const { state, system } = setup({ rawDilithiumOre: 0, refineryRefinedStorage: 5, refineryTransferEnabled: true });
   const status = system.update(0.1);
   assert.equal(state.refinedDilithium, 20.2);
   assert.equal(state.refineryRefinedStorage, 4.8);
@@ -32,7 +32,7 @@ test('transferência alimenta o núcleo e atualiza o total transferido', () => {
 });
 
 test('núcleo respeita capacidade e interrompe transferência quando cheio', () => {
-  const { state, system } = setup({ refinedDilithium: 249.9, refineryRefinedStorage: 5, refineryTransferEnabled: true });
+  const { state, system } = setup({ rawDilithiumOre: 0, refinedDilithium: 249.9, refineryRefinedStorage: 5, refineryTransferEnabled: true });
   const status = system.update(0.1);
   assert.equal(state.refinedDilithium, 250);
   assert.equal(state.refineryRefinedStorage, 4.9);
