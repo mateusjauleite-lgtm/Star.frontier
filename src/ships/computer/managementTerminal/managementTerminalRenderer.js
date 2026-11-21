@@ -54,6 +54,8 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
     layer.hidden = !present;
     layer.dataset.mode = open ? 'interactive' : 'passive';
     layer.setAttribute('aria-hidden', String(!present));
+    const hologram = layer.querySelector('.ship-management-terminal');
+    hologram?.setAttribute('aria-hidden', String(!present));
 
     layer.querySelectorAll('[data-management-status]').forEach(status => {
       status.textContent = snapshot?.online ? 'SHIP COMPUTER ONLINE' : 'SISTEMA EM ESPERA';
