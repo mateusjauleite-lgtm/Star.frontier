@@ -11,7 +11,9 @@ test('landing gear builds four compact articulated wheel assemblies', () => {
   const fixedMounts = [];
   gear.group.traverse(object => { if (object.name === 'Gear-Upper-Mount') fixedMounts.push(object); });
   assert.equal(fixedMounts.length, 4);
-  assert.ok(fixedMounts.every(mount => mount.parent === gear.group));
+  assert.ok(fixedMounts.every(mount => mount.parent?.name.startsWith('Landing-Gear-Retract-Pivot-')));
+  // The mounting brackets retract with their own wheel assembly instead of
+  // remaining as exposed structures on the underside of the hull.
 
   let tires = 0;
   let oleoStruts = 0;
