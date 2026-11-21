@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { createLandingGear } from './landingGear.js';
 
 // Casco principal e duas nacelles da nave exploradora.
 // Os grupos de guinada e arfagem são separados para manter os eixos estáveis.
@@ -226,12 +227,25 @@ export function createExplorationShip() {
       new THREE.Vector3(side * 11.5, -0.8, 51),
       new THREE.Vector3(side * 12.2, 0.1, 56)
     ]);
-    const support = new THREE.Mesh(
-      new THREE.TubeGeometry(supportCurve, 24, 2.0, 12, false),
-      undersideMaterial
-    );
+    const supportGeometry = new THREE.TubeGeometry(supportCurve, 32, 2.7, 16, false);
+    // Longarina achatada e larga, com acabamento metálico integrado ao casco.
+    supportGeometry.scale(1, 0.62, 1);
+    const support = new THREE.Mesh(supportGeometry, hullMaterial);
     support.name = side < 0 ? 'Port-Integrated-Aft-Support' : 'Starboard-Integrated-Aft-Support';
     aftNacelleJunction.add(support);
+
+    const railCurve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(side * 7.8, -7.55, 37.4),
+      new THREE.Vector3(side * 9.8, -3.55, 43.4),
+      new THREE.Vector3(side * 11.8, -0.15, 51.4),
+      new THREE.Vector3(side * 12.5, 0.75, 56.4)
+    ]);
+    const insetRail = new THREE.Mesh(
+      new THREE.TubeGeometry(railCurve, 28, 0.24, 10, false),
+      trimMaterial
+    );
+    insetRail.name = side < 0 ? 'Port-Aft-Support-Inset-Rail' : 'Starboard-Aft-Support-Inset-Rail';
+    aftNacelleJunction.add(insetRail);
   }
 
   const engineFlames = [];
@@ -242,6 +256,7 @@ export function createExplorationShip() {
     const nacelle = new THREE.Group();
     nacelle.name = side < 0 ? 'Port-Warp-Nacelle' : 'Starboard-Warp-Nacelle';
     nacelle.position.set(side * 12.2, 0.1, 61);
+    nacelle.scale.setScalar(0.82);
     aftNacelleJunction.add(nacelle);
 
     // Anel estrutural na raiz da nacelle, encaixado no término do suporte
@@ -269,6 +284,27 @@ export function createExplorationShip() {
     );
     body.rotation.x = Math.PI / 2;
     nacelle.add(body);
+
+    // Painéis de fluxo e anéis técnicos para dar leitura de nacelle de dobra,
+    // mantendo os detalhes dentro do volume já existente da estrutura.
+    for (const [index, z] of [-27, -18, 18, 27].entries()) {
+      const band = new THREE.Mesh(
+        new THREE.TorusGeometry(index % 2 === 0 ? 3.18 : 3.28, 0.16, 8, 28),
+        trimMaterial
+      );
+      band.name = `Nacelle-Armor-Band-${side}-${index}`;
+      band.rotation.x = Math.PI / 2;
+      band.position.z = z;
+      nacelle.add(band);
+    }
+
+    const upperSpine = new THREE.Mesh(
+      new THREE.BoxGeometry(0.34, 0.22, 48),
+      trimMaterial
+    );
+    upperSpine.name = side < 0 ? 'Port-Nacelle-Dorsal-Spine' : 'Starboard-Nacelle-Dorsal-Spine';
+    upperSpine.position.set(0, 2.95, 0);
+    nacelle.add(upperSpine);
 
     const nacelleGlow = new THREE.Mesh(
       new THREE.BoxGeometry(0.42, 0.5, 54), glowMaterial
@@ -338,56 +374,10 @@ export function createExplorationShip() {
   }
 
 
-  // Trem de pouso com quatro pernas independentes, distribuídas sob o casco.
-  // As sapatas ficam fora do eixo central para dar uma base larga de apoio.
-  const landingGear = new THREE.Group();
-  landingGear.name = 'Four-Point-Landing-Gear';
+  // Quatro conjuntos compactos de trem de pouso articulado com rodas.
+  const { group: landingGear, contactPoints: landingGearContactPoints } =
+    createLandingGear(THREE);
   visual.add(landingGear);
-
-  const gearMetal = new THREE.MeshStandardMaterial({
-    color: 0x71899b, metalness: 0.86, roughness: 0.28
-  });
-  const gearJoint = new THREE.MeshStandardMaterial({
-    color: 0x263b4c, metalness: 0.82, roughness: 0.34
-  });
-  const gearPad = new THREE.MeshStandardMaterial({
-    color: 0x36caff, emissive: 0x075c80, emissiveIntensity: 0.28,
-    metalness: 0.58, roughness: 0.38
-  });
-
-  const landingGearContactPoints = [];
-  for (const side of [-1, 1]) {
-    for (const fore of [-1, 1]) {
-      const x = side * 18;
-      const z = fore * 30;
-      const upper = new THREE.Vector3(side * 13.5, -13.2, fore * 23);
-      const lower = new THREE.Vector3(x, -22.2, z);
-      const direction = lower.clone().sub(upper);
-      const leg = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.72, 1.05, direction.length(), 12),
-        gearMetal
-      );
-      leg.name = `Landing-Gear-Leg-${side}-${fore}`;
-      leg.position.copy(upper).add(lower).multiplyScalar(0.5);
-      leg.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.normalize());
-      landingGear.add(leg);
-
-      const joint = new THREE.Mesh(new THREE.SphereGeometry(1.25, 12, 10), gearJoint);
-      joint.name = `Landing-Gear-Hinge-${side}-${fore}`;
-      joint.position.copy(upper);
-      landingGear.add(joint);
-
-      const foot = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.6, 0.85, 16), gearPad);
-      foot.name = `Landing-Gear-Foot-${side}-${fore}`;
-      foot.position.set(x, -22.75, z);
-      landingGear.add(foot);
-
-      landingGearContactPoints.push({
-        id: `gear-${side < 0 ? 'port' : 'starboard'}-${fore < 0 ? 'fore' : 'aft'}`,
-        point: new THREE.Vector3(x, -23.18, z)
-      });
-    }
-  }
 
   return { group, yaw, pitch, visual, engineFlames, engineLights, landingGear, landingGearContactPoints };
 }
