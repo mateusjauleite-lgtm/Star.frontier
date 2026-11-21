@@ -1,4 +1,4 @@
-import { RESOURCE_IDS, createResourceEntityData } from './resources/resourceCatalog.js';
+import { RESOURCE_IDS, createResourceEntityData } from '../resources/resourceCatalog.js';
 
 /**
  * Connects live Three.js objects to serializable EntityManager records.
