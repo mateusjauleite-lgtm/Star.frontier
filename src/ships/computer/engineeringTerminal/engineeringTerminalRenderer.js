@@ -171,6 +171,7 @@ export function createEngineeringTerminalRenderer({
     setText('[data-refinery-transfer-rate]', units(refinery.transferRate) + '/s');
     setText('[data-refinery-transferred-total]', units(refinery.transferredTotal));
     setFill('[data-refinery-transfer-fill]', core / coreCapacity);
+    layer.querySelector('[data-refinery-core-link]')?.classList.toggle('is-active', transferOn);
     setText('[data-refinery-core]', units(core));
     setText('[data-refinery-core-capacity]', 'CAPACIDADE ' + units(coreCapacity));
     setFill('[data-refinery-core-fill]', core / coreCapacity);
