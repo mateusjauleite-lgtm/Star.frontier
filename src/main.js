@@ -2661,8 +2661,10 @@ function captureHudLayout(scope, profile = hudEditorPilotProfile) {
 }
 
 function readPilotHudButtonSize(profile = hudEditorPilotProfile) {
-  const saved = state.settings?.pilotHudProfileButtonSizes?.[profile] ||
-    (profile === 'flight' ? state.settings?.pilotHudButtonSize : null) || {};
+  const profileSizes = state.settings?.pilotHudProfileButtonSizes;
+  const saved = profileSizes
+    ? profileSizes[profile]
+    : (['flight', 'combat'].includes(profile) ? state.settings?.pilotHudButtonSize : null) || {};
   return {
     width: Number.isFinite(saved.width) ? Math.max(82, Math.min(180, saved.width)) : 112,
     height: Number.isFinite(saved.height) ? Math.max(40, Math.min(88, saved.height)) : 52
@@ -2908,7 +2910,9 @@ function startCharacterHudEditing() {
     pilotButtonSizes: Object.fromEntries(PILOT_HUD_PROFILES.map(profile => [profile.id, readPilotHudButtonSize(profile.id)])),
     hasCustomPilotButtonSizes: Object.fromEntries(PILOT_HUD_PROFILES.map(profile => [
       profile.id,
-      Boolean(state.settings?.pilotHudProfileButtonSizes?.[profile.id] || (profile.id === 'flight' && state.settings?.pilotHudButtonSize))
+      Boolean(state.settings?.pilotHudProfileButtonSizes
+        ? state.settings.pilotHudProfileButtonSizes[profile.id]
+        : (['flight', 'combat'].includes(profile.id) && state.settings?.pilotHudButtonSize))
     ]))
   };
   hudEditorWorkingLayouts = {
@@ -3002,8 +3006,9 @@ applyHudProfileVisibility(activePilotHudProfile);
 applyHudLayout('character', readHudLayout('character'));
 applyHudLayout('pilot', pilotHudProfiles.getLayout(activePilotHudProfile), activePilotHudProfile);
 for (const profile of PILOT_HUD_PROFILES) {
-  if (state.settings?.pilotHudProfileButtonSizes?.[profile.id] ||
-      (profile.id === 'flight' && state.settings?.pilotHudButtonSize)) {
+  if (state.settings?.pilotHudProfileButtonSizes
+      ? state.settings.pilotHudProfileButtonSizes[profile.id]
+      : (['flight', 'combat'].includes(profile.id) && state.settings?.pilotHudButtonSize)) {
     applyPilotHudButtonSize(readPilotHudButtonSize(profile.id), true, profile.id);
   } else {
     clearPilotHudButtonSize(profile.id);
