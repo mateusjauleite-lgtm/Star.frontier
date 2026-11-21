@@ -1,3 +1,4 @@
+import { WARP_STAGE_SPEEDS } from '../../flight/flightDynamics.js';
 import template from './engineering-terminal.html?raw';
 import '../managementTerminal/management-terminal.css';
 import './engineering-terminal.css';
@@ -85,7 +86,10 @@ export function createEngineeringTerminalRenderer({
     setText('[data-engineering-exit-label]', exitMode === 'direct' ? 'DIRETA' : 'SUAVE');
 
     layer.querySelectorAll('[data-engineering-stage]').forEach(button => {
-      const selected = Number(button.dataset.engineeringStage) === selectedStage;
+      const stageNumber = Number(button.dataset.engineeringStage);
+      const selected = stageNumber === selectedStage;
+      const speedLabel = button.querySelector('small');
+      if (speedLabel) speedLabel.textContent = String(WARP_STAGE_SPEEDS[stageNumber] || 0);
       button.classList.toggle('is-selected', selected);
       button.disabled = !opened || !online || !active;
       button.setAttribute('aria-pressed', String(selected));
