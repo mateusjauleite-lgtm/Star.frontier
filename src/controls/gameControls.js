@@ -76,7 +76,7 @@ export function registerAimControls({ document, THREE, state }) {
   aimStick.addEventListener('lostpointercapture', endStick);
 }
 
-export function registerHeldFlightControls({ document, window, state, dispatchPropulsionCommand = null }) {
+export function registerHeldFlightControls({ document, window, state, dispatchPropulsionCommand = null, onWarpRejected = () => {} }) {
   function holdButton(id, key, control) {
     const button = document.getElementById(id);
     if (!button) return;
@@ -119,7 +119,7 @@ export function registerHeldFlightControls({ document, window, state, dispatchPr
       const active = !Boolean(state.warpDriveButton);
       if (typeof dispatchPropulsionCommand === 'function') {
         const result = dispatchPropulsionCommand({ control: 'warpDriveButton', active });
-        if (result?.accepted !== true) return;
+        if (result?.accepted !== true) { onWarpRejected(result?.reason || 'warp-command-rejected'); return; }
       } else {
         state.warpDriveButton = active;
         if (active) state.warpStage = 5;
