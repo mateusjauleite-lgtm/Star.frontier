@@ -1851,7 +1851,7 @@ function updatePilotInteraction() {
 
 function setPilotInterface(activePilot) {
   characterHUD.show(!activePilot);
-  ['hud', 'warp-drive-display', 'flight-controls'].forEach(id => {
+  ['hud', 'warp-drive-display', 'flight-controls', 'leave-pilot-btn'].forEach(id => {
     $(id)?.classList.toggle('hidden', !activePilot);
   });
 }
