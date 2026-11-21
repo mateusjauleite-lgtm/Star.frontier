@@ -2744,6 +2744,7 @@ function setHudEditorPilotProfile(profile) {
   }
   if (hudEditorWorkingButtonSizes) hudEditorWorkingButtonSizes[hudEditorPilotProfile] = { ...hudEditorWorkingButtonSize };
   hudEditorPilotProfile = profile;
+  if (profile !== 'navigation') $('navigation-full-panel')?.classList.add('hidden');
   hudEditorWorkingButtonSize = hudEditorWorkingButtonSizes?.[profile]
     ? { ...hudEditorWorkingButtonSizes[profile] }
     : readPilotHudButtonSize(profile);
@@ -2767,6 +2768,7 @@ function setHudEditorTarget(scope) {
   }
   hudEditorTarget = scope;
   const characterSelected = scope === 'character';
+  if (characterSelected) $('navigation-full-panel')?.classList.add('hidden');
   $('hud-editor-character-tab')?.classList.toggle('active', characterSelected);
   $('hud-editor-pilot-tab')?.classList.toggle('active', !characterSelected);
   $('pilot-hud-profile-tabs')?.classList.toggle('hidden', characterSelected);
