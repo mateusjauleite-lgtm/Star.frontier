@@ -227,6 +227,16 @@ export function createGameplayFramePhases(getDependencies) {
       if ($('combat-target-name')) {
         $('combat-target-name').textContent = String(target?.name || 'SEM ALVO');
       }
+      if ($('warp-core-consumption')) {
+        $('warp-core-consumption').textContent =
+          (Math.max(0, Number(state.coreDilithiumConsumedTotal) || 0)).toFixed(2) + ' u';
+      }
+      if ($('warp-stability-readout')) {
+        const stability = ship?.userData?.warpStability;
+        $('warp-stability-readout').textContent = Number.isFinite(stability)
+          ? Math.round(Math.max(0, Math.min(1, stability)) * 100) + '%'
+          : '—';
+      }
     }
   };
 }
