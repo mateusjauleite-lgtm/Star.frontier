@@ -31,6 +31,7 @@ export function createAudioCore(options = {}) {
   const soundDefinitions = new Map();
   const decodedBuffers = new Map();
   const activeSources = new Map();
+  const inputSources = new Map();
   const listeners = new Map();
 
   function emit(type, detail = {}) {
@@ -313,6 +314,63 @@ export function createAudioCore(options = {}) {
     }
   }
 
+  // Conecta uma captura de microfone ao analisador do núcleo sem encaminhar
+  // o sinal para os alto-falantes. Isso evita realimentação acústica por padrão.
+  function connectInputStream(stream, options = {}) {
+    if (!stream || typeof stream.getAudioTracks !== 'function') {
+      throw new TypeError('É necessário fornecer um MediaStream de áudio válido.');
+    }
+    const audioContext = ensureContext();
+    const audioTracks = stream.getAudioTracks();
+    if (audioTracks.length === 0 || audioTracks.every(track => track.readyState !== 'live')) {
+      throw new Error('O fluxo não possui uma faixa de áudio ativa.');
+    }
+    const inputId = options.id || `microphone:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
+    if (inputSources.has(inputId)) {
+      throw new Error(`Entrada de áudio já conectada: ${inputId}`);
+    }
+    const source = audioContext.createMediaStreamSource(stream);
+    const analyser = audioContext.createAnalyser();
+    analyser.fftSize = 1024;
+    analyser.smoothingTimeConstant = 0.72;
+    source.connect(analyser);
+    const samples = new Uint8Array(analyser.fftSize);
+    let closed = false;
+    const connection = {
+      id: inputId,
+      getLevel() {
+        if (closed) return 0;
+        analyser.getByteTimeDomainData(samples);
+        let sum = 0;
+        for (const sample of samples) {
+          const normalized = (sample - 128) / 128;
+          sum += normalized * normalized;
+        }
+        return Math.sqrt(sum / samples.length);
+      },
+      get active() {
+        return !closed && audioTracks.some(track => track.readyState === 'live' && track.enabled);
+      },
+      disconnect() {
+        if (closed) return false;
+        closed = true;
+        try { source.disconnect(); } catch {}
+        try { analyser.disconnect(); } catch {}
+        inputSources.delete(inputId);
+        emit('inputdisconnected', { id: inputId });
+        return true;
+      }
+    };
+    inputSources.set(inputId, connection);
+    emit('inputconnected', { id: inputId, tracks: audioTracks.length });
+    return connection;
+  }
+
+  function disconnectAllInputs() {
+    for (const input of [...inputSources.values()]) input.disconnect();
+    return true;
+  }
+
   function setListenerTransform(position, forward, up = { x: 0, y: 1, z: 0 }) {
     if (!context) return false;
 
@@ -387,6 +445,7 @@ export function createAudioCore(options = {}) {
   async function dispose() {
     if (disposed) return;
     stopAll();
+    disconnectAllInputs();
     disposed = true;
     listeners.clear();
     decodedBuffers.clear();
@@ -411,6 +470,8 @@ export function createAudioCore(options = {}) {
     stop,
     stopBySound,
     stopAll,
+    connectInputStream,
+    disconnectAllInputs,
     setBusVolume,
     setMasterVolume,
     setMuted,
@@ -421,6 +482,7 @@ export function createAudioCore(options = {}) {
     get isUnlocked() { return unlocked; },
     get isMuted() { return config.muted; },
     get activeCount() { return activeSources.size; },
+    get inputCount() { return inputSources.size; },
     get contextState() { return context?.state ?? 'not-created'; }
   };
 }
