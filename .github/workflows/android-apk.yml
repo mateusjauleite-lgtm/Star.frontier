@@ -23,6 +23,7 @@ on:
       - feature/warp-dilithium-transfer-management
       - feature/warp-core-energy-matrix
       - feature/dilithium-matrix-console
+      - feature/ship-computer-matrix-integration
       - feature/aurora-ship-computer-ai-core
   pull_request:
     branches:
