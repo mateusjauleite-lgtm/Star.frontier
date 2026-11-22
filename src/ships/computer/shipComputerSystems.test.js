@@ -129,6 +129,7 @@ test('aplicativo do núcleo informa reserva, estágio e taxa real de consumo', (
   assert.equal(response.result.warpCore.consumedTotal, 4.5);
   assert.equal(response.result.personalRawDilithiumOre, 10);
   assert.equal(response.result.warpCore.conventionalFuelConsumptionRate, 0.28);
+  assert.equal(response.result.warpCore.conventionalThrottleActive, true);
   assert.equal(computer.dispatch('engineering-console', 'power', 'status').ok, true);
   assert.equal(computer.dispatch('pilot-console', 'power', 'status').reason, 'access-denied');
 });
