@@ -14,6 +14,7 @@ export function createShipComputerAI({
   inspectSystem,
   dispatchAuthorized,
   isOnline,
+  initialName = 'Alexia',
   databaseAdapter = null,
   onChange = () => {}
 } = {}) {
@@ -34,6 +35,7 @@ export function createShipComputerAI({
     actions: []
   };
   const listeners = new Set();
+  let aiName = String(initialName || 'Alexia').trim().slice(0, 32) || 'Alexia';
   let voiceRecognition = null;
   let voiceState = (globalThis.SpeechRecognition || globalThis.webkitSpeechRecognition) ? 'ready' : 'unsupported';
 
@@ -64,7 +66,7 @@ export function createShipComputerAI({
   function snapshot() {
     return {
       id: 'aurora-onboard-ai',
-      name: 'AURORA',
+      name: aiName,
       status: isOnline() ? 'online' : 'offline',
       shipId: database.shipId,
       database: {
@@ -80,7 +82,7 @@ export function createShipComputerAI({
     };
   }
 
-  function learn(entry) {
+  function setName(name) {\n    const next = String(name || '').trim().slice(0, 32);\n    if (!next) return { accepted: false, reason: 'invalid-name' };\n    aiName = next;\n    append('observations', { type: 'identity-name-change', name: aiName });\n    return { accepted: true, name: aiName };\n  }\n\n  function learn(entry) {
     if (!entry || typeof entry !== 'object' || !entry.topic || !entry.content) {
       return { accepted: false, reason: 'invalid-knowledge-entry' };
     }
