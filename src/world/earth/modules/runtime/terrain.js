@@ -199,6 +199,7 @@ export function createTerrainRuntime({ options, layers }) {
           const longitudes = new Float32Array(positions.count);
           const latitudes = new Float32Array(positions.count);
           for (let i = 0; i < positions.count; i++) {
+            if (disposed || revision !== elevationRevision) return false;
             vertexDirection.fromBufferAttribute(positions, i).normalize();
             latitudes[i] = THREE.MathUtils.radToDeg(Math.asin(
               THREE.MathUtils.clamp(vertexDirection.y, -1, 1)
@@ -206,6 +207,7 @@ export function createTerrainRuntime({ options, layers }) {
             longitudes[i] = THREE.MathUtils.radToDeg(Math.atan2(
               vertexDirection.z, vertexDirection.x
             ));
+            if (i > 0 && i % 4096 === 0) await yieldToFrame();
           }
 
           // Batch the NOAA samples once, then displace in short frame-sized
