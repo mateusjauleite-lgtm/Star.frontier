@@ -1,4 +1,5 @@
 import { WARP_STAGE_SPEEDS } from '../flight/flightDynamics.js';
+import { RESOURCE_IDS } from '../../core/resources/resourceCatalog.js';
 // Adaptadores entre o computador central e os sistemas reais da nave.
 // Ponte e Engenharia consultam e comandam a mesma fonte de estado.
 const PROPULSION_INPUTS = new Set(['throttle', 'braking', 'warpDriveButton']);
@@ -73,12 +74,28 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
         const contacts = (Array.isArray(asteroids) ? asteroids : [])
           .filter(asteroid => asteroid?.position)
           .map((asteroid, index) => ({
-            id: asteroid.name || `asteroid-${index + 1}`,
+            id: asteroid.name || asteroid.userData?.entityId || `asteroid-${index + 1}`,
             distance: ship.position.distanceTo(asteroid.position),
-            ore: asteroid.userData?.ore ?? null
+            ore: asteroid.userData?.ore ?? null,
+            resources: Object.entries(asteroid.userData?.resources ?? {})
+              .filter(([, deposit]) => Number(deposit?.amount) > 0)
+              .map(([resourceId, deposit]) => ({
+                resourceId,
+                amount: Number(deposit.amount),
+                purity: Number.isFinite(Number(deposit.purity)) ? Number(deposit.purity) : null
+              })),
+            resourceIds: Object.keys(asteroid.userData?.resources ?? {})
+              .filter(resourceId => Number(asteroid.userData.resources[resourceId]?.amount) > 0)
           }))
           .sort((a, b) => a.distance - b.distance);
-        return { available: true, totalContacts: contacts.length, nearestContact: contacts[0] || null, contacts };
+        return {
+          available: true,
+          totalContacts: contacts.length,
+          resourceIds: [...new Set(contacts.flatMap(contact => contact.resourceIds))],
+          resourceCatalog: [RESOURCE_IDS.DILITHIUM_ORE],
+          nearestContact: contacts[0] || null,
+          contacts
+        };
       }
     },
     getStatus: () => readShip() ? 'online' : 'standby'
