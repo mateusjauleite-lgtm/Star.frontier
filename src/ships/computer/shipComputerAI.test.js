@@ -67,7 +67,7 @@ test('somente o Ship Computer concede permissão para a IA executar comandos já
     terminalId: 'engineering-console', systemId: 'power', command: 'repairBus'
   });
   assert.equal(repaired.ok, true);
-  assert.deepEqual(repaired.result, { accepted: true, authority: 'onboard-ai', operator: 'AURORA-IA' });
+  assert.deepEqual(repaired.result, { accepted: true, authority: 'onboard-ai', operator: 'ALEXIA' });
   assert.equal(executed, 1);
   assert.equal(computer.onboardAI.executeAuthorized({
     terminalId: 'engineering-console', systemId: 'power', command: 'createNewSystem'
