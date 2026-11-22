@@ -65,10 +65,10 @@ test('matriz converte dilítio refinado da reserva em plasma estabilizado', () =
   const state = { refinedDilithium: 5, plasma: 0, plasmaCapacity: 250 };
   const core = createWarpCorePowerSystem({ state });
   const status = core.update(1);
-  assert.equal(state.matrixDilithiumConsumedTotal, 0.18);
-  assert.equal(state.plasmaProducedTotal, 0.18);
-  assert.equal(state.plasmaConsumedTotal, 0.04);
-  assert.equal(state.refinedDilithium, 4.82);
-  assert.equal(state.plasma, 0.14);
+  assert.ok(Math.abs(state.matrixDilithiumConsumedTotal - 0.18) < 1e-12);
+  assert.ok(Math.abs(state.plasmaProducedTotal - 0.18) < 1e-12);
+  assert.ok(Math.abs(state.plasmaConsumedTotal - 0.04) < 1e-12);
+  assert.ok(Math.abs(state.refinedDilithium - 4.82) < 1e-12);
+  assert.ok(Math.abs(state.plasma - 0.14) < 1e-12);
   assert.equal(status.outputPerSecond, 16);
 });
