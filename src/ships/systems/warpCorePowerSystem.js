@@ -202,12 +202,17 @@ export function createWarpCorePowerSystem(options = {}) {
     });
   }
 
-  function setEnabled(value) { state.warpCoreEnabled = Boolean(value); return snapshot(); }
-  function setMatrixEnabled(value) { state.warpCoreMatrixEnabled = Boolean(value); return snapshot(); }
-  function setContainmentStable(value) { state.warpCoreContainmentStable = Boolean(value); return snapshot(); }
+  function publishSnapshot() {
+    telemetry = snapshot();
+    state.warpCorePowerTelemetry = telemetry;
+    return telemetry;
+  }
+  function setEnabled(value) { state.warpCoreEnabled = Boolean(value); return publishSnapshot(); }
+  function setMatrixEnabled(value) { state.warpCoreMatrixEnabled = Boolean(value); return publishSnapshot(); }
+  function setContainmentStable(value) { state.warpCoreContainmentStable = Boolean(value); return publishSnapshot(); }
   function setMatrixRegulation(value) {
     state.warpCoreMatrixRegulation = clamp(value, 0, 1);
-    return snapshot();
+    return publishSnapshot();
   }
   function initialize() {
     state.warpCorePowerBusConnected = true;
