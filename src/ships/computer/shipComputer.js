@@ -164,7 +164,7 @@ export function createShipComputer({
       const result = handler(payload, {
         shipId,
         terminalId,
-        operator: 'AURORA-IA',
+        operator: 'ALEXIA',
         authority: authority || 'onboard-ai'
       });
       return { ok: true, result };
