@@ -28,7 +28,10 @@ export function createDeflectorRuntimeSystem(options={}) {
   const protectionStatus=protection.update(dt,{...input,routeRisk:navigationStatus.routeRisk});
   const emitterStatus=emitter.update(dt,{...input,protection:protectionStatus});
   const scienceStatus=science.update(dt,input);
-  telemetry=Object.freeze({...coreStatus,emitter:emitterStatus,sensors:sensorStatus,
+  // Captura o núcleo após os cinco módulos consumirem energia neste frame,
+  // para que a telemetria das ramificações não fique um ciclo atrasada.
+  const finalCoreStatus=core.snapshot();
+  telemetry=Object.freeze({...finalCoreStatus,emitter:emitterStatus,sensors:sensorStatus,
    navigation:navigationStatus,protection:protectionStatus,science:scienceStatus});
   state.deflectorCoreTelemetry=telemetry;
   elapsed+=dt;
