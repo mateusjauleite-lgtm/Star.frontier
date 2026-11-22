@@ -121,8 +121,30 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
         if (!propulsion.available) return { available: false };
         const integrated = Boolean(state.warpCorePowerBusConnected);
         const plasmaAmount = integrated ? Math.max(0, Number(state.plasma) || 0) : Math.max(0, Number(state.refinedDilithium) || 0);
+        const deflectorSnapshot = deflectorRuntime?.snapshot?.() || null;
+        const deflectorPower = deflectorSnapshot ? {
+          available: true,
+          enabled: Boolean(deflectorSnapshot.enabled),
+          chargingEnabled: Boolean(deflectorSnapshot.chargingEnabled),
+          storedEnergy: Math.max(0, Number(deflectorSnapshot.energy) || 0),
+          capacity: Math.max(0, Number(deflectorSnapshot.capacity) || 0),
+          transferRate: Math.max(0, Number(deflectorSnapshot.transferRate) || 0),
+          consumptionRate: Math.max(0, Number(deflectorSnapshot.consumptionRate) || 0),
+          consumedTotal: Math.max(0, Number(deflectorSnapshot.consumedTotal) || 0),
+          transferredTotal: Math.max(0, Number(deflectorSnapshot.transferredTotal) || 0),
+          powerBusConnected: Boolean(deflectorSnapshot.powerBusConnected),
+          branches: (Array.isArray(deflectorSnapshot.branches) ? deflectorSnapshot.branches : []).map(branch => ({
+            id: branch.id,
+            name: branch.name,
+            enabled: Boolean(branch.enabled),
+            available: Boolean(branch.available),
+            consumptionRate: Math.max(0, Number(branch.consumptionRate) || 0),
+            consumedTotal: Math.max(0, Number(branch.consumedTotal) || 0)
+          }))
+        } : { available: false };
         return {
           available: true,
+          deflectorPower,
           ...(!integrated ? { conventionalFuel: state.fuel, refinedDilithium: state.refinedDilithium } : {}),
           personalRawDilithiumOre: readPersonalRawOre(),
           matrixDilithiumFeedstock: Math.max(0, Number(state.refinedDilithium) || 0),
