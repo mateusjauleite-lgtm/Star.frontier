@@ -126,6 +126,7 @@ export function createEarthCore(options = {}) {
           verticalDatum: layers.terrain.verticalDatum ?? null,
           gridResolutionArcSeconds: layers.terrain.gridResolutionArcSeconds ?? null,
           verticalExaggeration: layers.terrain.verticalExaggeration,
+          visualVerticalExaggeration: layers.terrain.visualVerticalExaggeration,
           regionalSurface: layers.terrain.regionalSurface ?? null,
           regionalDem: layers.terrain.regionalDem ?? null
         } : null,
