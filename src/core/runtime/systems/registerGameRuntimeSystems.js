@@ -11,6 +11,8 @@ import { createPauseMenuRuntimeSystem } from './pauseMenuSystem.js';
 import { createOrbitalPhysicsRuntimeSystem } from './orbitalPhysicsSystem.js';
 import { createGameplayRuntimeSystem } from './gameplaySystem.js';
 import { createDeflectorRuntimeSystem } from '../../../ships/systems/deflectorRuntimeSystem.js';
+import { createDilithiumRefineryRuntimeSystem } from '../../../ships/systems/dilithiumRefinerySystem.js';
+import { createRefineryTerminalRuntimeSystem } from '../../../ships/computer/refineryTerminalController.js';
 
 export function registerGameRuntimeSystems(runtime, dependencies) {
   if (!runtime || typeof runtime.registerSystem !== 'function') {
@@ -24,6 +26,8 @@ export function registerGameRuntimeSystems(runtime, dependencies) {
     shipComputer,
     shipManagementTerminal,
     engineeringTerminal,
+    refineryTerminal,
+    refinery,
     mining,
     pauseMenu,
     orbitalPhysics,
@@ -38,13 +42,13 @@ export function registerGameRuntimeSystems(runtime, dependencies) {
   if (shipManagementTerminal) {
     runtime.registerSystem('ship-management-terminal', createShipManagementTerminalRuntimeSystem(shipManagementTerminal));
   }
-  if (engineeringTerminal) {
-    runtime.registerSystem('engineering-terminal', createEngineeringTerminalRuntimeSystem(engineeringTerminal));
-  }
+  if (engineeringTerminal) runtime.registerSystem('engineering-terminal', createEngineeringTerminalRuntimeSystem(engineeringTerminal));
+  if (refineryTerminal) runtime.registerSystem('refinery-terminal', createRefineryTerminalRuntimeSystem(refineryTerminal));
   if (mining) runtime.registerSystem('mining', mining);
   if (pauseMenu) runtime.registerSystem('pause-menu', createPauseMenuRuntimeSystem({ ...pauseMenu, runtime }));
   runtime.registerSystem('gameplay', createGameplayRuntimeSystem(gameplay));
   if (deflector) runtime.registerSystem('deflector-core', deflector);
+  if (refinery) runtime.registerSystem('dilithium-refinery', createDilithiumRefineryRuntimeSystem(refinery));
   runtime.registerSystem('orbital-physics', createOrbitalPhysicsRuntimeSystem(orbitalPhysics));
 
   return runtime;

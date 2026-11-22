@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { createEngineeringWarpCore } from './engineering/warpCore.js';
+import { createDilithiumProcessingPlant } from './engineering/dilithiumProcessingPlant.js';
 
 // Estrutura física inicial da nave exploradora.
 // Escala de trabalho: 120 x 64 x 32 m. Sem consoles, máquinas ou mobiliário.
@@ -184,6 +185,8 @@ export function createStarshipInterior(options = {}) {
   // O conjunto não registra paredes nem caixas de colisão adicionais.
   const engineeringWarpCore = createEngineeringWarpCore();
   group.add(engineeringWarpCore);
+  const dilithiumPlant = createDilithiumProcessingPlant();
+  group.add(dilithiumPlant);
 
   // D3 — convés aberto. Sem paredes ou anteparas internas.
 
