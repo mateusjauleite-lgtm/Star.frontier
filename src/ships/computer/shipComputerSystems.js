@@ -21,6 +21,14 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
     const { x, y, z } = ship.position;
     return { available: true, position: { x, y, z }, heading: getShipYaw(), pitch: getPitchAngle(), speed: state.speed };
   };
+  const readPersonalRawOre = () => {
+    const inventory = state.inventory && typeof state.inventory === 'object' ? state.inventory : {};
+    const items = [...(Array.isArray(inventory.items) ? inventory.items : []), ...(Array.isArray(inventory.overflowItems) ? inventory.overflowItems : [])];
+    return items.reduce((total, item) => {
+      const id = item?.definitionId || item?.itemId;
+      return id === 'ore.dilithium.raw' ? total + Math.max(0, Number(item.quantity) || 0) : total;
+    }, 0);
+  };
   const readPropulsion = () => {
     if (!readShip()) return { available: false };
     const warpDriveActive = Boolean(state.warpDriveActive);
@@ -109,6 +117,7 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
         return {
           available: true,
           conventionalFuel: state.fuel,
+          personalRawDilithiumOre: readPersonalRawOre(),
           refinedDilithium: state.refinedDilithium,
           warpCore: {
             resourceId: RESOURCE_IDS.REFINED_DILITHIUM,
