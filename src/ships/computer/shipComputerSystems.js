@@ -100,7 +100,6 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
           warpDriveActive: propulsion.warpDriveActive,
           warpStage: propulsion.warpStage,
           warpTransition: propulsion.warpTransition,
-          refinery: { ...(refinerySystem?.snapshot?.() ?? {}), controlAllowed: canControlRefinery(context) }
         };
       }
     },
@@ -122,20 +121,12 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
     },
     getStatus: () => readShip() ? 'online' : 'standby'
   });
-  const canControlRefinery = context => context?.terminalId === 'ship-management-terminal' ||
-    (context?.terminalId === 'engineering-console' && !computer.isTerminalConnected('ship-management-terminal'));
   computer.registerSystem('refinery', {
-    name: 'Refinaria e transferência do núcleo',
+    name: 'Refinaria de dilítio',
     commands: {
-      status: (payload, context) => ({ ...(refinerySystem?.snapshot?.() ?? { available: false }), controlAllowed: canControlRefinery(context) }),
-      setRefineryEnabled: (payload, context) => {
-        if (!canControlRefinery(context)) return { accepted: false, reason: 'higher-power-console-authority' };
-        return { accepted: true, status: refinerySystem?.setRefineryEnabled?.(Boolean(payload?.enabled)) };
-      },
-      setTransferEnabled: (payload, context) => {
-        if (!canControlRefinery(context)) return { accepted: false, reason: 'higher-power-console-authority' };
-        return { accepted: true, status: refinerySystem?.setTransferEnabled?.(Boolean(payload?.enabled)) };
-      }
+      status: () => refinerySystem?.snapshot?.() ?? { available: false },
+      setRefineryEnabled: (payload, context) => context?.terminalId !== 'refinery-console' ? { accepted: false, reason: 'refinery-terminal-required' } : { accepted: true, status: refinerySystem?.setRefineryEnabled?.(Boolean(payload?.enabled)) },
+      setTransferEnabled: (payload, context) => context?.terminalId !== 'refinery-console' ? { accepted: false, reason: 'refinery-terminal-required' } : { accepted: true, status: refinerySystem?.setTransferEnabled?.(Boolean(payload?.enabled)) }
     },
     getStatus: () => readShip() ? (refinerySystem?.snapshot?.().refineryEnabled ? 'online' : 'offline') : 'standby'
   });
@@ -167,8 +158,7 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
       status: (payload, context) => ({
         ...readPropulsion(),
         warpCore: 'connected-to-ship-computer',
-        warpField: 'five-stage-cruise',
-        refinery: { ...(refinerySystem?.snapshot?.() ?? {}), controlAllowed: canControlRefinery(context) }
+        warpField: 'five-stage-cruise'
       }),
       setAuthority: (payload, context) => {
         if (!requireEngineering(context)) return { accepted: false, reason: 'engineering-terminal-required' };

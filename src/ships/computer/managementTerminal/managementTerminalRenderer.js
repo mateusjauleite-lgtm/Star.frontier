@@ -43,9 +43,8 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
   let openHandler = null;
   let closeHandler = null;
   let selectHandler = null;
-  let powerCommandHandler = null;
 
-  function mount({ onOpen = () => {}, onClose = () => {}, onModuleSelect = () => {}, onPowerCommand = () => {} } = {}) {
+  function mount({ onOpen = () => {}, onClose = () => {}, onModuleSelect = () => {} } = {}) {
     if (layer) return false;
     const wrapper = document.createElement('div');
     wrapper.className = 'ship-management-hud-layer';
@@ -55,22 +54,9 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
     openHandler = onOpen;
     closeHandler = onClose;
     selectHandler = onModuleSelect;
-    powerCommandHandler = onPowerCommand;
     layer.addEventListener('click', event => {
       if (event.target.closest('[data-management-open]')) { openHandler?.(); return; }
       if (event.target.closest('[data-management-close]')) { closeHandler?.(); return; }
-      const refinery = event.target.closest('[data-management-refinery-toggle]');
-      if (refinery) {
-        const enabled = refinery.dataset.enabled !== 'true';
-        powerCommandHandler?.('setRefineryEnabled', { enabled });
-        return;
-      }
-      const transfer = event.target.closest('[data-management-transfer-toggle]');
-      if (transfer) {
-        const enabled = transfer.dataset.enabled !== 'true';
-        powerCommandHandler?.('setTransferEnabled', { enabled });
-        return;
-      }
       const button = event.target.closest('[data-management-module]');
       if (!button) return;
       selectedModule = button.dataset.managementModule;
@@ -120,39 +106,6 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
       reading.textContent = value;
       card.append(caption, reading);
       output.append(card);
-    }
-  }
-
-  function renderPowerControls(moduleData, selectedModuleId, open) {
-    const controls = layer.querySelector('[data-management-power-controls]');
-    if (!controls) return;
-    const visible = selectedModuleId === 'engineering' && Boolean(moduleData?.available) && Boolean(open);
-    controls.hidden = !visible;
-    if (!visible) return;
-    const refinery = moduleData.data?.refinery || {};
-    const units = value => (Number(value) || 0).toFixed(2) + ' u';
-    const set = (selector, value) => {
-      const node = layer.querySelector(selector);
-      if (node) node.textContent = value;
-    };
-    set('[data-management-core-amount]', units(refinery.coreDilithium ?? moduleData.data.refinedDilithium));
-    set('[data-management-raw-amount]', units(refinery.rawOre));
-    set('[data-management-buffer-amount]', units(refinery.refinedBuffer));
-    set('[data-management-consumed-amount]', units(refinery.consumedTotal));
-    set('[data-management-transfer-rate]', units(refinery.transferRate) + '/s');
-    set('[data-management-support]', Array.isArray(refinery.supportSystems) && refinery.supportSystems.length ? refinery.supportSystems.join(', ').toUpperCase() : 'SEM RESERVA');
-    layer.querySelector('[data-management-core-link]')?.classList.toggle('is-active', Boolean(refinery.transferEnabled));
-    const refineryButton = layer.querySelector('[data-management-refinery-toggle]');
-    const transferButton = layer.querySelector('[data-management-transfer-toggle]');
-    if (refineryButton) {
-      refineryButton.dataset.enabled = String(Boolean(refinery.refineryEnabled));
-      refineryButton.textContent = refinery.refineryEnabled ? 'DESLIGAR REFINARIA' : 'LIGAR REFINARIA';
-      refineryButton.disabled = refinery.controlAllowed === false;
-    }
-    if (transferButton) {
-      transferButton.dataset.enabled = String(Boolean(refinery.transferEnabled));
-      transferButton.textContent = refinery.transferEnabled ? 'DESATIVAR TRANSFERÊNCIA' : 'ATIVAR TRANSFERÊNCIA';
-      transferButton.disabled = refinery.controlAllowed === false;
     }
   }
 
@@ -220,7 +173,6 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
       detailState.dataset.state = moduleData?.available ? 'online' : 'standby';
     }
     renderTelemetry(moduleData);
-    renderPowerControls(moduleData, selectedModuleId || selectedModule, open);
     updateSelection();
   }
 
@@ -230,7 +182,6 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
     openHandler = null;
     closeHandler = null;
     selectHandler = null;
-    powerCommandHandler = null;
   }
   return Object.freeze({ mount, render, selectModule, unmount });
 }

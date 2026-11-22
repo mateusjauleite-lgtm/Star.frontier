@@ -1,126 +1,13 @@
-// Refinaria de dilítio e alimentação do núcleo da nave.
-// Mantém separados minério bruto, produto refinado em buffer e reserva do núcleo.
-const MAX_DELTA_SECONDS = 0.1;
-const REFINING_UNITS_PER_SECOND = 0.08;
-const TRANSFER_UNITS_PER_SECOND = 0.06;
-const DEFAULT_RAW_CAPACITY = 200;
-const DEFAULT_REFINED_CAPACITY = 120;
-const DEFAULT_CORE_CAPACITY = 250;
-
-export function createDilithiumRefinerySystem(state, options = {}) {
-  if (!state || typeof state !== 'object') throw new TypeError('O estado da nave é obrigatório.');
-  const rawCapacity = positive(options.rawCapacity, DEFAULT_RAW_CAPACITY);
-  const refinedCapacity = positive(options.refinedCapacity, DEFAULT_REFINED_CAPACITY);
-  const coreCapacity = positive(options.coreCapacity, DEFAULT_CORE_CAPACITY);
-  const refiningRate = positive(options.refiningRate, REFINING_UNITS_PER_SECOND);
-  const transferRate = positive(options.transferRate, TRANSFER_UNITS_PER_SECOND);
-  state.rawDilithiumOre = clamp(state.rawDilithiumOre, 0, rawCapacity);
-  state.refineryRefinedStorage = clamp(state.refineryRefinedStorage, 0, refinedCapacity);
-  state.refinedDilithium = clamp(state.refinedDilithium, 0, coreCapacity);
-  state.refineryEnabled = state.refineryEnabled !== false;
-  state.refineryTransferEnabled = state.refineryTransferEnabled === true;
-  let refinedTotal = Math.max(0, Number(state.refineryRefinedTotal) || 0);
-  let transferredTotal = Math.max(0, Number(state.refineryTransferredTotal) || 0);
-  let consumedTotal = Math.max(0, Number(state.coreDilithiumConsumedTotal) || 0);
-  let lastCoreAmount = state.refinedDilithium;
-  let hasObservedCore = false;
-  let lastTransferRate = 0;
-  let lastRefiningRate = 0;
-  let lastConsumptionRate = 0;
-
-  function update(deltaSeconds) {
-    const dt = clamp(deltaSeconds, 0, MAX_DELTA_SECONDS);
-    const currentCore = clamp(state.refinedDilithium, 0, coreCapacity);
-    if (!hasObservedCore) {
-      lastCoreAmount = currentCore;
-      hasObservedCore = true;
-    } else if (currentCore < lastCoreAmount) {
-      const consumed = lastCoreAmount - currentCore;
-      consumedTotal += consumed;
-      lastConsumptionRate = dt > 0 ? consumed / dt : 0;
-    } else {
-      lastConsumptionRate = 0;
-    }
-    lastCoreAmount = currentCore;
-    lastTransferRate = 0;
-    lastRefiningRate = 0;
-
-    if (state.refineryEnabled && dt > 0) {
-      const raw = clamp(state.rawDilithiumOre, 0, rawCapacity);
-      const outputSpace = Math.max(0, refinedCapacity - state.refineryRefinedStorage);
-      const refined = Math.min(raw, outputSpace, refiningRate * dt);
-      if (refined > 0) {
-        state.rawDilithiumOre = raw - refined;
-        state.refineryRefinedStorage += refined;
-        refinedTotal += refined;
-        lastRefiningRate = refined / dt;
-      }
-    }
-
-    if (state.refineryEnabled && state.refineryTransferEnabled && dt > 0) {
-      const coreSpace = Math.max(0, coreCapacity - state.refinedDilithium);
-      const amount = Math.min(state.refineryRefinedStorage, coreSpace, transferRate * dt);
-      if (amount > 0) {
-        state.refineryRefinedStorage -= amount;
-        state.refinedDilithium += amount;
-        transferredTotal += amount;
-        lastTransferRate = amount / dt;
-      }
-    }
-    lastCoreAmount = clamp(state.refinedDilithium, 0, coreCapacity);
-    state.refineryRefinedTotal = refinedTotal;
-    state.refineryTransferredTotal = transferredTotal;
-    state.coreDilithiumConsumedTotal = consumedTotal;
-    return snapshot();
-  }
-
-  function setRefineryEnabled(enabled) {
-    state.refineryEnabled = Boolean(enabled);
-    if (!state.refineryEnabled) lastRefiningRate = 0;
-    return snapshot();
-  }
-
-  function setTransferEnabled(enabled) {
-    state.refineryTransferEnabled = Boolean(enabled);
-    if (!state.refineryTransferEnabled) lastTransferRate = 0;
-    return snapshot();
-  }
-
-  function snapshot() {
-    const raw = clamp(state.rawDilithiumOre, 0, rawCapacity);
-    const buffer = clamp(state.refineryRefinedStorage, 0, refinedCapacity);
-    const core = clamp(state.refinedDilithium, 0, coreCapacity);
-    return Object.freeze({
-      refineryEnabled: Boolean(state.refineryEnabled),
-      transferEnabled: Boolean(state.refineryTransferEnabled),
-      rawOre: raw,
-      rawCapacity,
-      refinedBuffer: buffer,
-      refinedCapacity,
-      coreDilithium: core,
-      coreCapacity,
-      coreFill: coreCapacity > 0 ? core / coreCapacity : 0,
-      refiningRate: lastRefiningRate,
-      transferRate: lastTransferRate,
-      refinedTotal,
-      transferredTotal,
-      consumedTotal,
-      consumptionRate: lastConsumptionRate,
-      coreRemainingCapacity: Math.max(0, coreCapacity - core),
-      supportRange: core > 0 ? 'NÚCLEO ATIVO · PROPULSÃO DE DOBRA' : 'NÚCLEO SEM RESERVA',
-      supportSystems: core > 0 ? ['Propulsão de dobra'] : []
-    });
-  }
-
-  return Object.freeze({ update, snapshot, setRefineryEnabled, setTransferEnabled });
-}
-
-function positive(value, fallback) {
-  const number = Number(value);
-  return Number.isFinite(number) && number > 0 ? number : fallback;
-}
-
-function clamp(value, min, max) {
-  const number = Number(value);
-  return Math.max(min, Math.min(max, Number.isFinite(number) ? number : min));
-}
+import {loadDilithiumRefineryKernel} from './dilithiumRefineryKernel.js';
+const DT=.1,RAW=200,BUFFER=120,CORE=250,REFINE=.08,TRANSFER=.06;
+export function createDilithiumRefinerySystem(state,options={}){if(!state||typeof state!=='object')throw TypeError('Estado da nave obrigatório.');const rawCapacity=positive(options.rawCapacity,RAW),refinedCapacity=positive(options.refinedCapacity,BUFFER),coreCapacity=positive(options.coreCapacity,CORE),refiningRate=positive(options.refiningRate,REFINE),transferRate=positive(options.transferRate,TRANSFER);state.rawDilithiumOre=clamp(state.rawDilithiumOre,0,rawCapacity);state.refineryRefinedStorage=clamp(state.refineryRefinedStorage,0,refinedCapacity);state.refinedDilithium=clamp(state.refinedDilithium,0,coreCapacity);state.refineryEnabled=state.refineryEnabled!==false;state.refineryTransferEnabled=state.refineryTransferEnabled===true;state.refineryRefinedTotal=nn(state.refineryRefinedTotal);state.refineryTransferredTotal=nn(state.refineryTransferredTotal);let kernel=null,refining=0,transferring=0;
+ function visual(){const plant=options.getPlant?.()||options.plant,m=plant?.userData?.components?.refinery,l=plant?.userData?.components?.statusLight;if(m)m.userData.processing=Boolean(state.refineryEnabled&&state.rawDilithiumOre>0);if(l?.material?.color?.setHex)l.material.color.setHex(state.refineryEnabled&&state.rawDilithiumOre>0?0x54f0b2:0x43dcff);}
+ async function initialize(){if(kernel)return false;kernel=await loadDilithiumRefineryKernel();visual();return true;}
+ function apply(r){state.rawDilithiumOre=clamp(r.rawOre,0,rawCapacity);state.refineryRefinedStorage=clamp(r.refinedBuffer,0,refinedCapacity);state.refinedDilithium=clamp(r.sharedCore,0,coreCapacity);state.refineryRefinedTotal=nn(state.refineryRefinedTotal)+nn(r.refined);state.refineryTransferredTotal=nn(state.refineryTransferredTotal)+nn(r.transferred);refining=nn(r.refiningRate);transferring=nn(r.transferRate);}
+ function update(dt){const i={deltaSeconds:clamp(dt,0,DT),rawOre:state.rawDilithiumOre,refinedBuffer:state.refineryRefinedStorage,sharedCore:state.refinedDilithium,rawCapacity,refinedCapacity,coreCapacity,refiningRate,transferRate,refineryEnabled:state.refineryEnabled,transferEnabled:state.refineryTransferEnabled};const r=kernel?.step(i)||fallback(i);if(r)apply(r);else{refining=0;transferring=0;}visual();return snapshot();}
+ function setRefineryEnabled(v){state.refineryEnabled=Boolean(v);if(!state.refineryEnabled)refining=0;visual();return snapshot();}function setTransferEnabled(v){state.refineryTransferEnabled=Boolean(v);if(!state.refineryTransferEnabled)transferring=0;return snapshot();}
+ function snapshot(){const rawOre=clamp(state.rawDilithiumOre,0,rawCapacity),refinedBuffer=clamp(state.refineryRefinedStorage,0,refinedCapacity),coreDilithium=clamp(state.refinedDilithium,0,coreCapacity);return Object.freeze({available:true,refineryEnabled:Boolean(state.refineryEnabled),transferEnabled:Boolean(state.refineryTransferEnabled),rawOre,rawCapacity,refinedBuffer,refinedCapacity,coreDilithium,coreCapacity,coreFill:coreDilithium/coreCapacity,coreRemainingCapacity:Math.max(0,coreCapacity-coreDilithium),refiningRate:refining,transferRate:transferring,refinedTotal:nn(state.refineryRefinedTotal),transferredTotal:nn(state.refineryTransferredTotal),kernel:kernel?.backend||'javascript-fallback'});}
+ function shutdown(){kernel?.dispose?.();kernel=null;refining=0;transferring=0;}return Object.freeze({initialize,update,setRefineryEnabled,setTransferEnabled,snapshot,shutdown});}
+export function createDilithiumRefineryRuntimeSystem(s){if(!s||!['initialize','update','shutdown'].every(k=>typeof s[k]==='function'))throw TypeError('Refinaria inválida para Runtime.');return {priority:46,initialize(){return s.initialize();},update(dt){s.update(dt);},shutdown(){s.shutdown();}};}
+function fallback(i){const dt=clamp(i.deltaSeconds,0,DT);let rawOre=clamp(i.rawOre,0,i.rawCapacity),refinedBuffer=clamp(i.refinedBuffer,0,i.refinedCapacity),sharedCore=clamp(i.sharedCore,0,i.coreCapacity),refined=0,transferred=0;if(i.refineryEnabled&&dt>0){refined=Math.min(rawOre,i.refinedCapacity-refinedBuffer,i.refiningRate*dt);rawOre-=refined;refinedBuffer+=refined;if(i.transferEnabled){transferred=Math.min(refinedBuffer,i.coreCapacity-sharedCore,i.transferRate*dt);refinedBuffer-=transferred;sharedCore+=transferred;}}return {rawOre,refinedBuffer,sharedCore,refined,transferred,refiningRate:dt?refined/dt:0,transferRate:dt?transferred/dt:0};}
+function positive(v,f){const n=Number(v);return Number.isFinite(n)&&n>0?n:f;}function nn(v){const n=Number(v);return Number.isFinite(n)?Math.max(0,n):0;}function clamp(v,a,b){const n=Number(v);return Math.max(a,Math.min(b,Number.isFinite(n)?n:a));}

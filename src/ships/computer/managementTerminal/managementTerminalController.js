@@ -96,15 +96,7 @@ export function createShipManagementTerminalController({
     renderer.mount({
       onOpen: () => open(),
       onClose: close,
-      onModuleSelect: selectModule,
-      onPowerCommand: (command, payload) => {
-        const response = dispatch('refinery', command, payload);
-        if (response.ok && response.result?.accepted) {
-          refreshSelectedModule();
-          render(computer.getSnapshot());
-        }
-        return response;
-      }
+      onModuleSelect: selectModule
     });
     unsubscribe = computer.subscribe(render);
     initialized = true;
