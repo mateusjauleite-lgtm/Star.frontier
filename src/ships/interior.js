@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { createEngineeringWarpCore } from './engineering/warpCore.js';
+import { createDilithiumMatrix } from './engineering/dilithiumMatrix.js';
 import { createDilithiumProcessingPlant } from './engineering/dilithiumProcessingPlant.js';
 
 // Estrutura física inicial da nave exploradora.
@@ -185,6 +186,8 @@ export function createStarshipInterior(options = {}) {
   // O conjunto não registra paredes nem caixas de colisão adicionais.
   const engineeringWarpCore = createEngineeringWarpCore();
   group.add(engineeringWarpCore);
+  const dilithiumMatrix = createDilithiumMatrix();
+  group.add(dilithiumMatrix);
   const dilithiumPlant = createDilithiumProcessingPlant();
   group.add(dilithiumPlant);
 
@@ -199,6 +202,7 @@ export function createStarshipInterior(options = {}) {
   return {
     group,
     dilithiumPlant,
+    dilithiumMatrix,
     layout: STARSHIP_LAYOUT,
     collisionBoxes,
     dispose() {
