@@ -1,14 +1,21 @@
-// Núcleo central do computador da nave — Star Frontier.
-// Coordena acesso aos sistemas sem duplicar a lógica de cada ramificação.
+import { createShipComputerAI } from './shipComputerAI.js';
 
-export function createShipComputer({ shipId = 'aurora-7', displayName = 'COMPUTADOR DA NAVE' } = {}) {
+// Núcleo central do computador da nave — Star Frontier.
+// Coordena sistemas, terminais e permissões sem duplicar a lógica das ramificações.
+export function createShipComputer({
+  shipId = 'aurora-7',
+  displayName = 'COMPUTADOR DA NAVE',
+  aiDatabaseAdapter = null
+} = {}) {
   const systems = new Map();
   const terminals = new Map();
   const listeners = new Set();
+  const aiPermissions = new Map();
   let online = false;
   let activeTerminalId = null;
   const connectedTerminalIds = new Set();
   let revision = 0;
+  let onboardAI = null;
 
   const publish = () => {
     revision += 1;
@@ -33,7 +40,8 @@ export function createShipComputer({ shipId = 'aurora-7', displayName = 'COMPUTA
         id: terminal.id,
         name: terminal.name,
         connected: connectedTerminalIds.has(terminal.id)
-      }))
+      })),
+      onboardAI: onboardAI?.snapshot?.() ?? { status: 'offline' }
     };
   }
 
@@ -58,8 +66,10 @@ export function createShipComputer({ shipId = 'aurora-7', displayName = 'COMPUTA
   }
 
   function shutdown() {
+    onboardAI?.stopVoiceRecognition?.();
     activeTerminalId = null;
     connectedTerminalIds.clear();
+    aiPermissions.clear();
     online = false;
     publish();
     return getSnapshot();
@@ -95,11 +105,90 @@ export function createShipComputer({ shipId = 'aurora-7', displayName = 'COMPUTA
     const handler = system?.commands?.[command];
     if (typeof handler !== 'function') return { ok: false, reason: 'command-unavailable' };
     try {
-      return { ok: true, result: handler(payload, { shipId, terminalId, operator: terminal.operator }) };
+      return { ok: true, result: handler(payload, { shipId, terminalId, operator: terminal.operator, authority: 'terminal' }) };
     } catch (error) {
       return { ok: false, reason: 'command-failed', error };
     }
   }
+
+  // Somente o Ship Computer concede ou revoga permissões da IA.
+  function grantAIPermission({ terminalId, systemId, commands = [] } = {}) {
+    const terminal = terminals.get(terminalId);
+    const system = systems.get(systemId);
+    if (!online || !terminal || !system || !terminal.systems.has(systemId)) {
+      return { granted: false, reason: 'terminal-system-link-unavailable' };
+    }
+    const registeredCommands = commands.filter(command => typeof system.commands?.[command] === 'function');
+    if (registeredCommands.length === 0) return { granted: false, reason: 'no-registered-commands' };
+    let systemsForTerminal = aiPermissions.get(terminalId);
+    if (!systemsForTerminal) {
+      systemsForTerminal = new Map();
+      aiPermissions.set(terminalId, systemsForTerminal);
+    }
+    systemsForTerminal.set(systemId, new Set(registeredCommands));
+    publish();
+    return { granted: true, terminalId, systemId, commands: registeredCommands };
+  }
+
+  function revokeAIPermission({ terminalId, systemId } = {}) {
+    const systemsForTerminal = aiPermissions.get(terminalId);
+    if (!systemsForTerminal) return false;
+    const revoked = systemId ? systemsForTerminal.delete(systemId) : (aiPermissions.delete(terminalId), true);
+    if (systemsForTerminal.size === 0) aiPermissions.delete(terminalId);
+    if (revoked) publish();
+    return Boolean(revoked);
+  }
+
+  function listAIPermissions() {
+    return [...aiPermissions.entries()].flatMap(([terminalId, systemsForTerminal]) =>
+      [...systemsForTerminal.entries()].map(([systemId, commands]) => ({
+        terminalId, systemId, commands: [...commands]
+      }))
+    );
+  }
+
+  function dispatchAuthorizedAI({ terminalId, systemId, command, payload = {}, authority } = {}) {
+    if (!online) return { ok: false, reason: 'ship-computer-offline' };
+    const terminal = terminals.get(terminalId);
+    const system = systems.get(systemId);
+    const allowedCommands = aiPermissions.get(terminalId)?.get(systemId);
+    if (!terminal || !system || !allowedCommands?.has(command)) {
+      return { ok: false, reason: 'ai-permission-denied' };
+    }
+    const handler = system.commands?.[command];
+    if (typeof handler !== 'function') return { ok: false, reason: 'command-unavailable' };
+    try {
+      const result = handler(payload, {
+        shipId,
+        terminalId,
+        operator: 'AURORA-IA',
+        authority: authority || 'onboard-ai'
+      });
+      return { ok: true, result };
+    } catch (error) {
+      return { ok: false, reason: 'command-failed', error };
+    }
+  }
+
+  function inspectSystem(id) {
+    const system = systems.get(id);
+    if (!system) return { status: 'unknown', reason: 'system-not-registered' };
+    let status = 'standby';
+    try { status = system.getStatus ? system.getStatus() : 'registered'; }
+    catch (error) { return { status: 'error', error: String(error?.message || error) }; }
+    return { status, name: system.name };
+  }
+
+  onboardAI = createShipComputerAI({
+    shipId,
+    getSnapshot,
+    getSystemIds: () => [...systems.keys()],
+    inspectSystem,
+    dispatchAuthorized: dispatchAuthorizedAI,
+    isOnline: () => online,
+    databaseAdapter: aiDatabaseAdapter,
+    onChange: publish
+  });
 
   function subscribe(listener) {
     if (typeof listener !== 'function') throw new TypeError('Listener inválido.');
@@ -116,6 +205,10 @@ export function createShipComputer({ shipId = 'aurora-7', displayName = 'COMPUTA
     disconnectTerminal,
     isTerminalConnected,
     dispatch,
+    grantAIPermission,
+    revokeAIPermission,
+    listAIPermissions,
+    onboardAI,
     getSnapshot,
     subscribe
   });
