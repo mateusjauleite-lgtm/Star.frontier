@@ -103,6 +103,17 @@ export function createShipManagementTerminalController({
       onOpen: () => open(),
       onClose: close,
       onModuleSelect: selectModule,
+      onAIAction: action => {
+        const ai = computer.onboardAI;
+        if (!ai) return { ok: false, reason: 'ai-unavailable' };
+        let result;
+        if (action === 'patrol') result = ai.runPatrol();
+        else if (action === 'diagnose') result = ai.diagnose();
+        else if (action === 'voice') result = ai.startVoiceRecognition();
+        else if (action === 'stop-voice') result = ai.stopVoiceRecognition();
+        else return { ok: false, reason: 'unknown-ai-action' };
+        refreshSelectedModule(); render(computer.getSnapshot()); return result;
+      },
       onCommand: (systemId, command, payload) => {
         const response = dispatch(systemId, command, payload);
         if (response.ok) { refreshSelectedModule(); render(computer.getSnapshot()); }
