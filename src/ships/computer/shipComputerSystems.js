@@ -262,6 +262,10 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
         if (context?.terminalId !== 'deflector-console') return { accepted: false, reason: 'deflector-terminal-required' };
         return { accepted: true, status: deflectorRuntime?.setCoreEnabled?.(Boolean(payload?.enabled)) };
       },
+      setChargingEnabled: (payload, context) => {
+        if (context?.terminalId !== 'deflector-console') return { accepted: false, reason: 'deflector-terminal-required' };
+        return { accepted: true, status: deflectorRuntime?.setChargingEnabled?.(Boolean(payload?.enabled)) };
+      },
       setEmitterEnabled: (payload, context) => {
         if (context?.terminalId !== 'deflector-console') return { accepted: false, reason: 'deflector-terminal-required' };
         return { accepted: true, status: deflectorRuntime?.setEmitterEnabled?.(Boolean(payload?.enabled)) };
