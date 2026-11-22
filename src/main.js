@@ -1129,7 +1129,7 @@ async function init3D() {
     characterPhysics
   } = world);
 
-  alexiaInteractionMenu?.close?.();
+  alexiaInteractionMenu?.dispose?.();
   alexiaInteractionMenu = alexiaCharacter ? createCharacterInteractionMenu({
     root: document.body, camera, actor: alexiaCharacter.group,
     onConfirm: action => {
@@ -1737,7 +1737,13 @@ function updateAlexiaInteraction(dt = 0) {
     const dx = target.x - from.x, dz = target.z - from.z, distance = Math.hypot(dx, dz);
     if (distance > 1.45) {
       const step = Math.min(distance - 1.35, 2.25 * Math.max(0, dt));
-      from.x += dx / distance * step; from.z += dz / distance * step;
+      const nextX = from.x + dx / distance * step;
+      const nextZ = from.z + dz / distance * step;
+      const previousX = from.x, previousZ = from.z;
+      from.x = nextX;
+      if (isCharacterPositionBlocked(from, 0) || !isCharacterInsideDeck(from, 0)) from.x = previousX;
+      from.z = nextZ;
+      if (isCharacterPositionBlocked(from, 0) || !isCharacterInsideDeck(from, 0)) from.z = previousZ;
       alexiaCharacter.group.rotation.y = Math.atan2(-dx, -dz);
       alexiaCharacter.core?.setMovement?.({ x: 0, y: 1 });
     } else alexiaCharacter.core?.setMovement?.({ x: 0, y: 0 });
