@@ -213,7 +213,7 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
         }
       }
       const form = document.createElement('form'); form.className = 'management-ai-chat-form'; form.dataset.aiChatForm = 'true';
-      const input = document.createElement('input'); input.type = 'text'; input.maxLength = 2000; input.autocomplete = 'off';
+      const input = document.createElement('input'); input.type = 'text'; input.maxLength = 2000; input.autocomplete = 'off'; input.inputMode = 'text'; input.enterKeyHint = 'send';
       input.placeholder = 'Escreva uma mensagem para Alexia…'; input.setAttribute('aria-label', 'Mensagem para Alexia'); input.dataset.aiChatInput = 'true';
       const send = document.createElement('button'); send.type = 'submit'; send.textContent = 'ENVIAR';
       form.append(input, send);
