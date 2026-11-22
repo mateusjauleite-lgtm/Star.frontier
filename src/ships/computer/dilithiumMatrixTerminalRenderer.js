@@ -56,13 +56,14 @@ export function createDilithiumMatrixTerminalRenderer({ root } = {}) {
     const fill = (selector, value) => { const node = layer.querySelector(selector); if (node) node.style.width = percent(value); };
     const p = data?.power || {}, matrix = p.matrix || {}, plasma = p.plasma || {}, buses = p.buses || {};
     const deflector = data?.deflector || {};
+    const branchIds = { emitter: 'deflector-emitter', sensors: 'deflector-sensors', navigation: 'deflector-navigation', protection: 'deflector-protection', science: 'deflector-science' };
     const branches = [
       ['emitter', 'Emissor', deflector.emitter],
       ['sensors', 'Sensores', deflector.sensors],
       ['navigation', 'Navegação', deflector.navigation],
       ['protection', 'Proteção', deflector.protection],
       ['science', 'Ciência', deflector.science]
-    ];
+    ].map(([id, label, module]) => [id, label, module, (deflector.branches || []).find(branch => branch.id === branchIds[id])]);
     const online = Boolean(data?.available && matrix.online);
     const status = layer.querySelector('[data-matrix-status]');
     if (status) { status.textContent = opened && online ? 'ONLINE' : opened ? 'ATENÇÃO' : 'EM ESPERA'; status.dataset.state = online ? 'online' : 'standby'; }
@@ -89,17 +90,17 @@ export function createDilithiumMatrixTerminalRenderer({ root } = {}) {
       fill('[data-matrix-bus-' + key + '-fill]', bus?.fill);
     }
     const branchRoot = layer.querySelector('[data-matrix-branches]');
-    if (branchRoot) branchRoot.innerHTML = branches.map(([id, label, item]) => {
-      const entry = item || {};
-      return '<article class="matrix-branch-row"><span><b>' + label + '</b><small>' + (entry.enabled === false ? 'DESATIVADA' : 'ATIVA') + '</small></span><strong>' + number(entry.consumptionRate).toFixed(3) + ' u/s</strong><small>TOTAL ' + units(entry.consumedTotal) + '</small></article>';
+    if (branchRoot) branchRoot.innerHTML = branches.map(([id, label, item, coreBranch]) => {
+      const entry = item || {}, usage = coreBranch || {};
+      return '<article class="matrix-branch-row"><span><b>' + label + '</b><small>' + (usage.enabled === false ? 'DESATIVADA' : entry.active ? 'ATIVA' : 'EM ESPERA') + '</small></span><strong>' + number(usage.consumptionRate).toFixed(3) + ' u/s</strong><small>TOTAL ' + units(usage.consumedTotal) + '</small></article>';
     }).join('');
     const enabled = Boolean(matrix.enabled);
     const toggle = layer.querySelector('[data-matrix-command="matrix:setEnabled"]');
-    if (toggle) { toggle.textContent = enabled ? 'DESLIGAR MATRIZ' : 'ATIVAR MATRIZ'; toggle.dataset.matrixEnabled = String(enabled); toggle.disabled = !opened || !data?.available || (enabled && Boolean(data?.warpDriveActive)); }
+    if (toggle) { toggle.textContent = enabled ? 'DESLIGAR MATRIZ' : 'ATIVAR MATRIZ'; toggle.dataset.matrixEnabled = String(enabled); toggle.disabled = !opened || !data?.available || (enabled && (Boolean(data?.warpDriveActive) || ['entering', 'cruise', 'reducing', 'exiting'].includes(data?.warpTransition))); }
     const regulation = layer.querySelector('[data-matrix-regulation]');
     if (regulation) { regulation.value = String(Math.round(number(matrix.regulation) * 100)); regulation.disabled = !opened || !data?.available; }
     const diag = layer.querySelector('[data-matrix-diagnostic]');
-    if (diag) diag.textContent = data?.warpDriveActive ? 'INTERTRAVA ATIVO · DOBRA EM OPERAÇÃO' : matrix.online ? 'SEM BLOQUEIOS · MATRIZ OPERACIONAL' : 'VERIFIQUE NÚCLEO, CONTENÇÃO E RESERVA DE PLASMA';
+    if (diag) diag.textContent = data?.warpDriveActive || ['entering', 'cruise', 'reducing', 'exiting'].includes(data?.warpTransition) ? 'INTERTRAVA ATIVO · DOBRA EM OPERAÇÃO' : matrix.online ? 'SEM BLOQUEIOS · MATRIZ OPERACIONAL' : 'VERIFIQUE NÚCLEO, CONTENÇÃO E RESERVA DE PLASMA';
     layer.querySelectorAll('[data-matrix-view]').forEach(button => {
       const selected = button.dataset.matrixView === view;
       button.classList.toggle('is-selected', selected);
