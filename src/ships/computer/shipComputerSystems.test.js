@@ -38,6 +38,7 @@ function createHarness() {
   const computer = createShipComputer();
   Object.assign(state, { rawDilithiumOre: 12, refineryRefinedStorage: 3, refineryEnabled: true, refineryTransferEnabled: false, refineryRefinedTotal: 0, refineryTransferredTotal: 0 });
   state.warpDilithiumConsumedTotal = 4.5;
+  state.inventory = { items: [{ definitionId: 'ore.dilithium.raw', quantity: 8 }], overflowItems: [{ itemId: 'ore.dilithium.raw', quantity: 2 }] };
   const refinerySystem = createDilithiumRefinerySystem(state);
   computer.registerTerminal({ id: 'ship-management-terminal', name: 'Terminal de gerenciamento', systems: ['navigation', 'sensors', 'engineering', 'power'] });
   computer.registerTerminal({ id: 'pilot-console', name: 'Console de pilotagem', systems: ['navigation', 'propulsion'] });
@@ -126,6 +127,7 @@ test('aplicativo do núcleo informa reserva, estágio e taxa real de consumo', (
   assert.equal(response.result.warpCore.active, true);
   assert.equal(response.result.warpCore.consumptionRate, 0.045);
   assert.equal(response.result.warpCore.consumedTotal, 4.5);
+  assert.equal(response.result.personalRawDilithiumOre, 10);
   assert.equal(response.result.warpCore.conventionalFuelConsumptionRate, 0);
   assert.equal(computer.dispatch('engineering-console', 'power', 'status').ok, true);
   assert.equal(computer.dispatch('pilot-console', 'power', 'status').reason, 'access-denied');
