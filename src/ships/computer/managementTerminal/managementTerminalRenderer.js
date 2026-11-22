@@ -214,6 +214,7 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
       const coreNode = layer.querySelector('[data-power-transfer-core]');
       const capacityNode = layer.querySelector('[data-power-transfer-capacity]');
       const rawNode = layer.querySelector('[data-warp-core-raw]');
+      const personalRawNode = layer.querySelector('[data-warp-core-personal-raw]');
       const consumptionNode = layer.querySelector('[data-warp-core-consumption]');
       const stageNode = layer.querySelector('[data-warp-core-stage]');
       const consumedNode = layer.querySelector('[data-warp-core-consumed-total]');
@@ -223,6 +224,7 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
       if (coreNode) coreNode.textContent = (Number(refinery?.coreDilithium) || 0).toFixed(2) + ' u';
       if (capacityNode) capacityNode.textContent = free.toFixed(2) + ' u';
       if (rawNode) rawNode.textContent = rawOre.toFixed(2) + ' u';
+      if (personalRawNode) personalRawNode.textContent = (Number(moduleData?.data?.personalRawDilithiumOre) || 0).toFixed(2) + ' u';
       if (consumptionNode) consumptionNode.textContent = (Number(core.consumptionRate) || 0).toFixed(3) + ' u/s';
       if (stageNode) stageNode.textContent = core.active ? `DOBRA ${Number(core.stage) || 0} · ATIVA` : 'DESATIVADA';
       if (consumedNode) consumedNode.textContent = (Number(core.consumedTotal) || 0).toFixed(2) + ' u';
