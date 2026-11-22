@@ -32,6 +32,7 @@ function fixture() {
     updateElevatorInteraction: () => calls.push(['elevator-interaction']),
     updatePilotInteraction: () => calls.push(['pilot-interaction']),
     updateShipManagementInteraction: dt => calls.push(['ship-management-interaction', dt]),
+    updateRefineryConsoleInteraction: dt => calls.push(['refinery-console-interaction', dt]),
     updateExternalElevatorInteraction: () => calls.push(['external-elevator-interaction']),
     updateCharacterCamera: () => calls.push(['character-camera']),
     updateFlight: dt => calls.push(['flight', dt]),
@@ -69,7 +70,7 @@ test('extracted gameplay phases preserve the existing frame order and delta time
     'earth', 'earth-rotation', 'phaser',
     'character-movement', 'character-weapon', 'elevator-animation',
     'elevator-interaction', 'pilot-interaction', 'external-elevator-interaction',
-    'flight', 'character-camera', 'ship-management-interaction', 'landing-guidance', 'orbits', 'asteroids',
+    'flight', 'character-camera', 'ship-management-interaction', 'refinery-console-interaction', 'landing-guidance', 'orbits', 'asteroids',
     'lighting', 'render'
   ]);
   assert.ok(f.calls.filter(call => call.length > 1 && typeof call[1] === 'number')
@@ -94,7 +95,7 @@ test('character phase switches to ship flight and camera outside on-foot mode', 
   const f = fixture();
   f.dependencies.characterCore.snapshot = () => ({ mode: 'ship-control' });
   f.phases.updateCharacterMode(0.02);
-  assert.deepEqual(f.calls.map(([name]) => name), ['flight', 'ship-camera', 'ship-management-interaction']);
+  assert.deepEqual(f.calls.map(([name]) => name), ['flight', 'ship-camera', 'ship-management-interaction', 'refinery-console-interaction']);
 });
 
 test('phase factory rejects a missing dependency getter', () => {
@@ -153,4 +154,11 @@ test('combat target telemetry does not reuse a navigation waypoint', () => {
   };
   f.phases.updateHud();
   assert.equal(f.elements.get('combat-target-name').textContent, 'SEM ALVO');
+});
+
+
+test('refinery console interaction is updated every gameplay frame with the real delta', () => {
+  const f = fixture();
+  f.phases.updateCharacterMode(0.032);
+  assert.ok(f.calls.some(([name, dt]) => name === 'refinery-console-interaction' && dt === 0.032));
 });
