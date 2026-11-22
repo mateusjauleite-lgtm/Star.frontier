@@ -6,7 +6,7 @@ const PROPULSION_INPUTS = new Set(['throttle', 'braking', 'warpDriveButton']);
 const CONTROL_AUTHORITIES = new Set(['bridge', 'engineering', 'automatic']);
 const WARP_EXIT_MODES = new Set(['smooth', 'direct']);
 
-export function registerShipComputerSystems(computer, { state, getShip, getShipYaw, getPitchAngle, getAsteroids, shieldSystem = null, refinerySystem = null }) {
+export function registerShipComputerSystems(computer, { state, getShip, getShipYaw, getPitchAngle, getAsteroids, shieldSystem = null, refinerySystem = null, deflectorRuntime = null }) {
   if (!computer || !state || typeof getShip !== 'function' || typeof getShipYaw !== 'function' || typeof getPitchAngle !== 'function' || typeof getAsteroids !== 'function') {
     throw new TypeError('Dependências dos sistemas do computador incompletas.');
   }
@@ -248,6 +248,50 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
       }
     },
     getStatus: () => readShip() ? 'online' : 'standby'
+  });
+  computer.registerSystem('deflector', {
+    name: 'Defletor principal',
+    commands: {
+      status: () => {
+        if (!deflectorRuntime) return { available: false, reason: 'deflector-runtime-unavailable' };
+        const snapshot = deflectorRuntime.snapshot?.() || {};
+        const { emitter, sensors, navigation, protection, science, ...core } = snapshot;
+        return { available: true, core, emitter: emitter || {}, sensors: sensors || {}, navigation: navigation || {}, protection: protection || {}, science: science || {} };
+      },
+      setCoreEnabled: (payload, context) => {
+        if (context?.terminalId !== 'deflector-console') return { accepted: false, reason: 'deflector-terminal-required' };
+        return { accepted: true, status: deflectorRuntime?.setCoreEnabled?.(Boolean(payload?.enabled)) };
+      },
+      setChargingEnabled: (payload, context) => {
+        if (context?.terminalId !== 'deflector-console') return { accepted: false, reason: 'deflector-terminal-required' };
+        return { accepted: true, status: deflectorRuntime?.setChargingEnabled?.(Boolean(payload?.enabled)) };
+      },
+      setEmitterEnabled: (payload, context) => {
+        if (context?.terminalId !== 'deflector-console') return { accepted: false, reason: 'deflector-terminal-required' };
+        return { accepted: true, status: deflectorRuntime?.setEmitterEnabled?.(Boolean(payload?.enabled)) };
+      },
+      setSensorsEnabled: (payload, context) => {
+        if (context?.terminalId !== 'deflector-console') return { accepted: false, reason: 'deflector-terminal-required' };
+        return { accepted: true, status: deflectorRuntime?.setSensorsEnabled?.(Boolean(payload?.enabled)) };
+      },
+      setNavigationEnabled: (payload, context) => {
+        if (context?.terminalId !== 'deflector-console') return { accepted: false, reason: 'deflector-terminal-required' };
+        return { accepted: true, status: deflectorRuntime?.setNavigationEnabled?.(Boolean(payload?.enabled)) };
+      },
+      setProtectionEnabled: (payload, context) => {
+        if (context?.terminalId !== 'deflector-console') return { accepted: false, reason: 'deflector-terminal-required' };
+        return { accepted: true, status: deflectorRuntime?.setProtectionEnabled?.(Boolean(payload?.enabled)) };
+      },
+      setScienceEnabled: (payload, context) => {
+        if (context?.terminalId !== 'deflector-console') return { accepted: false, reason: 'deflector-terminal-required' };
+        return { accepted: true, status: deflectorRuntime?.setScienceEnabled?.(Boolean(payload?.enabled)) };
+      },
+      setScienceMode: (payload, context) => {
+        if (context?.terminalId !== 'deflector-console') return { accepted: false, reason: 'deflector-terminal-required' };
+        return { accepted: true, status: deflectorRuntime?.setScienceMode?.(payload?.mode) };
+      }
+    },
+    getStatus: () => deflectorRuntime ? 'online' : 'standby'
   });
   return true;
 }

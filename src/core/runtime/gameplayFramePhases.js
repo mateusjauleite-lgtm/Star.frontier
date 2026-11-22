@@ -18,7 +18,7 @@ export function createGameplayFramePhases(getDependencies) {
     },
 
     updateCharacterMode(dt) {
-      const { characterCore, updateCharacterMovement, updateCharacterWeapon, updateExternalElevatorAnimation, updateElevatorInteraction, updatePilotInteraction, updateShipManagementInteraction, updateEngineeringConsoleInteraction, updateRefineryConsoleInteraction, updateExternalElevatorInteraction, updateCharacterCamera, updateFlight, updateCamera, state } = getDependencies();
+      const { characterCore, updateCharacterMovement, updateCharacterWeapon, updateExternalElevatorAnimation, updateElevatorInteraction, updatePilotInteraction, updateShipManagementInteraction, updateEngineeringConsoleInteraction, updateRefineryConsoleInteraction, updateDeflectorConsoleInteraction, updateExternalElevatorInteraction, updateCharacterCamera, updateFlight, updateCamera, state } = getDependencies();
   if (characterCore.snapshot().mode === 'on-foot') {
     updateCharacterMovement(dt);
     updateCharacterWeapon(dt);
@@ -40,6 +40,7 @@ export function createGameplayFramePhases(getDependencies) {
   updateEngineeringConsoleInteraction?.(dt);
   // Mantém presença, holograma e ação da Refinaria sincronizados com a posição do personagem.
   updateRefineryConsoleInteraction?.(dt);
+  updateDeflectorConsoleInteraction?.(dt);
     },
 
     updateLanding(dt) {

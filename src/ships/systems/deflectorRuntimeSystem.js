@@ -24,7 +24,8 @@ export function createDeflectorRuntimeSystem(options={}) {
   const dt=Math.max(0,finite(deltaSeconds)),input=readInputs()||{};
   const coreStatus=core.update(dt);
   const sensorStatus=sensors.update(dt,input);
-  const navigationStatus=navigation.update(dt,{...input,contacts:input.contacts||sensorStatus.contacts||[]});
+  const navigationContacts = sensorStatus.operational ? sensorStatus.contacts : [];
+  const navigationStatus=navigation.update(dt,{...input,contacts:navigationContacts});
   const protectionStatus=protection.update(dt,{...input,routeRisk:navigationStatus.routeRisk});
   const emitterStatus=emitter.update(dt,{...input,protection:protectionStatus});
   const scienceStatus=science.update(dt,input);

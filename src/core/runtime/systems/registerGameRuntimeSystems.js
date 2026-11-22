@@ -14,6 +14,7 @@ import { createDeflectorRuntimeSystem } from '../../../ships/systems/deflectorRu
 import { createWarpCorePowerSystem } from '../../../ships/systems/warpCorePowerSystem.js';
 import { createDilithiumRefineryRuntimeSystem } from '../../../ships/systems/dilithiumRefinerySystem.js';
 import { createRefineryTerminalRuntimeSystem } from '../../../ships/computer/refineryTerminalController.js';
+import { createDeflectorTerminalRuntimeSystem } from '../../../ships/computer/deflectorTerminalController.js';
 
 export function registerGameRuntimeSystems(runtime, dependencies) {
   if (!runtime || typeof runtime.registerSystem !== 'function') {
@@ -28,28 +29,36 @@ export function registerGameRuntimeSystems(runtime, dependencies) {
     shipManagementTerminal,
     engineeringTerminal,
     refineryTerminal,
+    deflectorTerminal,
     refinery,
     mining,
     pauseMenu,
     orbitalPhysics,
     gameplay,
     warpCore: suppliedWarpCore,
-    deflector: suppliedDeflector
+    deflector: suppliedDeflector,
+    readDeflectorInputs = () => ({}),
+    onDeflectorCreated = () => {}
   } = dependencies;
   const warpCore = suppliedWarpCore || createWarpCorePowerSystem({ state, persist: saveState });
   const deflector = suppliedDeflector || createDeflectorRuntimeSystem({
-    state, persist: saveState, powerBus: warpCore.powerBus
+    state, persist: saveState, powerBus: warpCore.powerBus, readInputs: readDeflectorInputs
   });
+  onDeflectorCreated(deflector);
 
   runtime.registerSystem('entity-manager', createEntityRuntimeSystem({ manager: entityManager }));
   runtime.registerSystem('character', createCharacterRuntimeSystem(character));
   runtime.registerSystem('world', createWorldRuntimeSystem(world));
-  runtime.registerSystem('ship-computer', createShipComputerRuntimeSystem(shipComputer));
+  const shipComputerRuntime = shipComputer && typeof shipComputer.registerSystems === 'function'
+    ? { ...shipComputer, registerSystems: () => shipComputer.registerSystems(deflector) }
+    : shipComputer;
+  runtime.registerSystem('ship-computer', createShipComputerRuntimeSystem(shipComputerRuntime));
   if (shipManagementTerminal) {
     runtime.registerSystem('ship-management-terminal', createShipManagementTerminalRuntimeSystem(shipManagementTerminal));
   }
   if (engineeringTerminal) runtime.registerSystem('engineering-terminal', createEngineeringTerminalRuntimeSystem(engineeringTerminal));
   if (refineryTerminal) runtime.registerSystem('refinery-terminal', createRefineryTerminalRuntimeSystem(refineryTerminal));
+  if (deflectorTerminal) runtime.registerSystem('deflector-terminal', createDeflectorTerminalRuntimeSystem(deflectorTerminal));
   if (mining) runtime.registerSystem('mining', mining);
   if (pauseMenu) runtime.registerSystem('pause-menu', createPauseMenuRuntimeSystem({ ...pauseMenu, runtime }));
   if (warpCore) runtime.registerSystem('warp-core-power', warpCore);

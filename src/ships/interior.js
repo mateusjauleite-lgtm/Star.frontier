@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { createEngineeringWarpCore } from './engineering/warpCore.js';
 import { createDilithiumProcessingPlant } from './engineering/dilithiumProcessingPlant.js';
+import { DECK_3_DEFLECTOR_APERTURE } from './engineering/deflectorAperture.js';
+import { createDeflectorInteriorStructure } from './engineering/deflectorInteriorStructure.js';
 
 // Estrutura física inicial da nave exploradora.
 // Escala de trabalho: 120 x 64 x 32 m. Sem consoles, máquinas ou mobiliário.
@@ -117,14 +119,63 @@ export function createStarshipInterior(options = {}) {
 
   const addDeckPlate = (y, width, length, material, name, thickness, centerZ = -2) => {
     // Planta elíptica acompanha o casco arredondado, sem criar uma moldura retangular.
-    const shape = new THREE.Shape();
-    shape.absellipse(0, 0, width / 2, length / 2, 0, Math.PI * 2, false, 0);
+    let shape;
     if (name === 'D2-Floor') {
-      // Abertura circular real para o núcleo de Engenharia entre D2 e D3.
-      // O recorte fica no centro do convés; o Deck 1 não é alterado.
+      // O recorte do defletor chega à borda de proa do Deck 2.
+      // Um furo fechado ultrapassaria o contorno elíptico do convés e
+      // invalidaria a triangulação; por isso o recorte é uma reentrância
+      // contínua no próprio perímetro do piso.
+      const outerRadiusX = width / 2;
+      const outerRadiusZ = length / 2;
+      const notchRadiusX = DECK_3_DEFLECTOR_APERTURE.radiusX;
+      const notchRadiusZ = DECK_3_DEFLECTOR_APERTURE.radiusZ;
+      const notchCenterZ = DECK_3_DEFLECTOR_APERTURE.centerZ - centerZ;
+      const outerY = -outerRadiusZ * Math.sqrt(1 - (notchRadiusX / outerRadiusX) ** 2);
+      const rightAngle = Math.atan2(outerY / outerRadiusZ, notchRadiusX / outerRadiusX);
+      const leftAngle = Math.PI - rightAngle;
+      shape = new THREE.Shape();
+      shape.moveTo(notchRadiusX, outerY);
+
+      const outerSteps = 96;
+      for (let i = 1; i <= outerSteps; i++) {
+        const angle = rightAngle + ((leftAngle - rightAngle) * i) / outerSteps;
+        shape.lineTo(outerRadiusX * Math.cos(angle), outerRadiusZ * Math.sin(angle));
+      }
+
+      // Retorna pela borda superior da elipse de folga do defletor,
+      // deixando o recorte aberto até a extremidade frontal do convés.
+      const innerSteps = 48;
+      for (let i = 1; i <= innerSteps; i++) {
+        const angle = Math.PI - (Math.PI * i) / innerSteps;
+        shape.lineTo(
+          DECK_3_DEFLECTOR_APERTURE.centerX + notchRadiusX * Math.cos(angle),
+          notchCenterZ + notchRadiusZ * Math.sin(angle)
+        );
+      }
+      shape.closePath();
+
       const engineeringCoreOpening = new THREE.Path();
       engineeringCoreOpening.absellipse(0, -2 - centerZ, 3.58, 3.58, 0, Math.PI * 2, true, 0);
       shape.holes.push(engineeringCoreOpening);
+    } else {
+      shape = new THREE.Shape();
+      shape.absellipse(0, 0, width / 2, length / 2, 0, Math.PI * 2, false, 0);
+    }
+    if (name === 'D3-Floor') {
+      // O defletor atravessa o plano do Deck 3: reservar o volume da concha
+      // parabólica e do aro estrutural para que o piso não corte o emissor.
+      const deflectorServiceOpening = new THREE.Path();
+      deflectorServiceOpening.absellipse(
+        DECK_3_DEFLECTOR_APERTURE.centerX,
+        DECK_3_DEFLECTOR_APERTURE.centerZ - centerZ,
+        9.35,
+        6.25,
+        0,
+        Math.PI * 2,
+        true,
+        0
+      );
+      shape.holes.push(deflectorServiceOpening);
     }
     if (name === 'D4-Floor') {
       // Abertura exclusiva do elevador externo; o piso original permanece
@@ -187,6 +238,8 @@ export function createStarshipInterior(options = {}) {
   group.add(engineeringWarpCore);
   const dilithiumPlant = createDilithiumProcessingPlant();
   group.add(dilithiumPlant);
+  const deflectorInterior = createDeflectorInteriorStructure();
+  group.add(deflectorInterior);
 
   // D3 — convés aberto. Sem paredes ou anteparas internas.
 
