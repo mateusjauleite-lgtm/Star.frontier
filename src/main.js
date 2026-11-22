@@ -104,8 +104,11 @@ const engineeringRenderer = createEngineeringTerminalRenderer({
   },
 });
 engineeringRenderer.mount();
-const refineryRenderer = createRefineryTerminalRenderer({
-  root: $('game-screen'),
+const refineryRenderer = createRefineryTerminalRenderer({ root: $('game-screen') });
+refineryTerminal = createRefineryTerminalController({
+  computer: shipComputer,
+  renderer: refineryRenderer,
+  onInteractionChange: active => { refineryConsoleActive = active; },
   onReceive: () => {
     if (!refineryConsoleActive) { toast('Conecte-se ao console da Refinaria para receber minério.'); return; }
     refineryInventoryTransferMode = true;
@@ -114,7 +117,6 @@ const refineryRenderer = createRefineryTerminalRenderer({
     toast('Inventário do personagem aberto. Selecione o minério para enviar à Refinaria.');
   }
 });
-refineryTerminal = createRefineryTerminalController({ computer: shipComputer, renderer: refineryRenderer, onInteractionChange: active => { refineryConsoleActive = active; } });
 engineeringTerminal = createEngineeringTerminalController({
   computer: shipComputer,
   onInteractionChange: active => {
