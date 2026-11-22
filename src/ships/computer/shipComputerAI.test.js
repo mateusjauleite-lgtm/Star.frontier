@@ -17,7 +17,7 @@ test('Alexia mantém banco de dados próprio vinculado ao identificador da nave'
   assert.equal(computer.getSnapshot().onboardAI.database.knowledgeEntries, 4);
 });
 
-test('AURORA faz ronda de sistemas consultando o estado registrado sem alterar a simulação', () => {
+test('Alexia faz ronda de sistemas consultando o estado registrado sem alterar a simulação', () => {
   const state = { reserve: 14 };
   const computer = createShipComputer();
   computer.registerSystem('power', {
