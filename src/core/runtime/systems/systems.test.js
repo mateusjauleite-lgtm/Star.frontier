@@ -57,9 +57,10 @@ test('game runtime systems are registered in deterministic lifecycle order', () 
   registerGameRuntimeSystems(runtime, dependencies());
 
   assert.deepEqual(runtime.systems.map(system => system.name), [
-    'entity-manager', 'character', 'world', 'ship-computer', 'warp-core-power', 'gameplay', 'deflector-core', 'orbital-physics'
+    'entity-manager', 'character', 'world', 'ship-computer', 'alexia-crew',
+    'warp-core-power', 'gameplay', 'deflector-core', 'orbital-physics'
   ]);
-  assert.deepEqual(runtime.systems.map(system => system.priority), [5, 10, 20, 30, 39, 40, 45, 45]);
+  assert.deepEqual(runtime.systems.map(system => system.priority), [5, 10, 20, 30, 40, 39, 40, 45, 45]);
 });
 
 test('EntityManager is exposed in runtime context and detached without losing its data', async () => {
