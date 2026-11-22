@@ -53,7 +53,8 @@ export function createTerrariumElevationProvider({
   fetchImpl = globalThis.fetch,
   createImageBitmapImpl = globalThis.createImageBitmap,
   urlTemplate = DEFAULT_TERRARIUM_URL,
-  maxCachedTiles = 96
+  maxCachedTiles = 96,
+  createCanvasImpl = createCanvas
 } = {}) {
   const cache = new Map();
   const pending = new Map();
@@ -79,7 +80,7 @@ export function createTerrariumElevationProvider({
       const bitmap = await createImageBitmapImpl(await response.blob());
       const tileWidth = bitmap.width;
       const tileHeight = bitmap.height;
-      const canvas = createCanvas(tileWidth, tileHeight);
+      const canvas = createCanvasImpl(tileWidth, tileHeight);
       const context = canvas?.getContext('2d', { willReadFrequently: true });
       if (!context) throw new Error('Canvas 2D is unavailable for DEM decoding.');
       context.drawImage(bitmap, 0, 0);
@@ -129,6 +130,16 @@ export function createTerrariumElevationProvider({
         if (Number.isFinite(value)) result[index] = value;
       });
       return result;
+    },
+    sampleCached(longitudeDeg, latitudeDeg, { zoom = 12 } = {}) {
+      if (disposed) return null;
+      const coordinate = terrariumTileCoordinate(longitudeDeg, latitudeDeg, zoom);
+      if (!coordinate || !cache.has(coordinate.key)) return null;
+      const tile = cache.get(coordinate.key);
+      cache.delete(coordinate.key);
+      cache.set(coordinate.key, tile);
+      const elevation = sampleTerrariumTile(tile, coordinate.pixelX, coordinate.pixelY);
+      return Number.isFinite(elevation) ? elevation : null;
     },
     getStatus() {
       return {
