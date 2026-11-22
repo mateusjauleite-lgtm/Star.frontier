@@ -39,7 +39,7 @@ import { createDilithiumRefinerySystem } from './ships/systems/dilithiumRefinery
 import { createWarpCorePowerSystem } from './ships/systems/warpCorePowerSystem.js';
 import { createDilithiumMatrixTerminalController, DILITHIUM_MATRIX_TERMINAL_ID, DILITHIUM_MATRIX_DISPLAY_RADIUS, DILITHIUM_MATRIX_INTERACTION_RADIUS } from './ships/computer/dilithiumMatrixTerminalController.js';
 import { createDilithiumMatrixTerminalRenderer } from './ships/computer/dilithiumMatrixTerminalRenderer.js';
-import { DILITHIUM_MATRIX_TERMINAL_LOCAL_POSITION } from './ships/engineering/dilithiumMatrix.js';
+import { DILITHIUM_MATRIX_INTERACTION_LOCAL_POSITION } from './ships/engineering/dilithiumMatrix.js';
 import { registerTextInteractionGuard } from './core/ui/textInteractionGuard.js';
 import { createPilotHudProfileStore, PILOT_HUD_PROFILES } from './ui/hudProfiles.js';
 
@@ -182,7 +182,7 @@ const PHASER_FLASH_SECONDS = 0.16;
 let pilotInteractionAvailable = false;
 let shipManagementInteractionAvailable = false;
 let engineeringInteractionAvailable = false;
-const matrixTerminalPosition = new THREE.Vector3(DILITHIUM_MATRIX_TERMINAL_LOCAL_POSITION.x, DILITHIUM_MATRIX_TERMINAL_LOCAL_POSITION.y, DILITHIUM_MATRIX_TERMINAL_LOCAL_POSITION.z);
+const matrixTerminalPosition = new THREE.Vector3(DILITHIUM_MATRIX_INTERACTION_LOCAL_POSITION.x, DILITHIUM_MATRIX_INTERACTION_LOCAL_POSITION.y, DILITHIUM_MATRIX_INTERACTION_LOCAL_POSITION.z);
 const shipManagementTerminalPosition = new THREE.Vector3(
   SHIP_MANAGEMENT_TERMINAL_LOCAL_POSITION.x,
   SHIP_MANAGEMENT_TERMINAL_LOCAL_POSITION.y,
