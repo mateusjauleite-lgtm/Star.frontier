@@ -35,7 +35,7 @@ export function createShipComputerAI({
   };
   const listeners = new Set();
   let voiceRecognition = null;
-  let voiceState = 'unsupported';
+  let voiceState = (globalThis.SpeechRecognition || globalThis.webkitSpeechRecognition) ? 'ready' : 'unsupported';
 
   function persist() {
     database.updatedAt = new Date().toISOString();
