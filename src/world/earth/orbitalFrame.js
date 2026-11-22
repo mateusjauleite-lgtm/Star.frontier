@@ -38,7 +38,7 @@ export function createEarthOrbitalFrame({
 
   const orientation = orientationWorld.map(value => value / quaternionLength);
   const inverseOrientation = inverseQuaternion(orientation);
-  const metersPerVisualUnit = 1000 / visualUnitsPerKm;
+  const resolvedVisualUnitsPerKm = 1000 / resolvedMetersPerVisualUnit;
   const clean = values => values.map(value => Object.is(value, -0) ? 0 : value);
 
   return Object.freeze({
@@ -49,12 +49,12 @@ export function createEarthOrbitalFrame({
     worldPositionToMeters(positionWorld) {
       if (!isVector3(positionWorld)) return null;
       const relative = positionWorld.map((value, axis) => value - originWorld[axis]);
-      return clean(rotateVector(relative, inverseOrientation).map(value => value * metersPerVisualUnit));
+      return clean(rotateVector(relative, inverseOrientation).map(value => value * resolvedMetersPerVisualUnit));
     },
     metersToWorldPosition(positionMeters) {
       if (!isVector3(positionMeters)) return null;
       const relativeWorld = rotateVector(
-        positionMeters.map(value => value / metersPerVisualUnit),
+        positionMeters.map(value => value / resolvedMetersPerVisualUnit),
         orientation
       );
       return clean(relativeWorld.map((value, axis) => value + originWorld[axis]));
@@ -66,7 +66,7 @@ export function createEarthOrbitalFrame({
     metersVectorToWorld(vectorMeters) {
       if (!isVector3(vectorMeters)) return null;
       return clean(rotateVector(
-        vectorMeters.map(value => value / metersPerVisualUnit),
+        vectorMeters.map(value => value / resolvedMetersPerVisualUnit),
         orientation
       ));
     }
