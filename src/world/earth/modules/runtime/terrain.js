@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { createEarthLandMask } from './surface.js';
 import { createEarthKernelAdapter, loadEarthKernel } from '../../wasm/earthKernel.js';
 import { loadEtopo2022GlobalGrid } from '../../references/etopo2022.js';
+import { createEarthRegionalSurfaceRuntime } from './regionalSurface.js';
+import { createTerrariumElevationProvider } from '../../references/regionalElevation.js';
 
 const clamp01 = value => THREE.MathUtils.clamp(value, 0, 1);
 const surfacePatchDispose = patch => {
@@ -566,6 +568,32 @@ export function createTerrainRuntime({ options, layers }) {
         return true;
       };
 
+      // Regional cube-sphere tiles replace the former single local high-res
+      // patch as the scalable near-player surface. The global ETOPO grid remains
+      // the fallback and the authoritative base for the collision sampler.
+      const regionalDemProvider = createTerrariumElevationProvider({
+        urlTemplate: options.regionalDemUrlTemplate ??
+          'https://elevation-tiles-prod.s3.amazonaws.com/terrarium/{z}/{x}/{y}.png',
+        maxCachedTiles: options.regionalDemCacheTiles ?? 96
+      });
+      const regionalSurfaceRuntime = createEarthRegionalSurfaceRuntime({
+        surface,
+        radius,
+        elevationSampler,
+        sampleElevationMetersBatch: points => regionalDemProvider.sampleBatch(points, {
+          zoom: options.regionalDemZoom ?? 12
+        }),
+        elevationMetersToUnits: meters => earthKernel.elevationMetersToUnits(
+          meters, radius, 6371.0088, exaggeration
+        ),
+        maxLevel: options.regionalSurfaceMaxLevel ?? 12,
+        maxTiles: options.regionalSurfaceMaxTiles ?? 48,
+        segments: options.regionalSurfaceSegments ?? 24,
+        buildPerUpdate: 1
+      });
+      layers.terrain.regionalSurface = regionalSurfaceRuntime.getStatus();
+      layers.terrain.regionalDem = regionalDemProvider.getStatus();
+
       // Replace the procedural first frame with NOAA ETOPO data. Reusing
       // applyElevationToMeshes also applies the identical no-data fallback
       // used by point queries from the collision surface.
@@ -619,9 +647,17 @@ export function createTerrainRuntime({ options, layers }) {
         // Keep the already-generated JS terrain if WASM loading fails.
       });
     },
-    update() {},
+    update(delta, context) {
+      regionalSurfaceRuntime?.update(delta, context);
+      if (layers.terrain && regionalSurfaceRuntime) {
+        layers.terrain.regionalSurface = regionalSurfaceRuntime.getStatus();
+        layers.terrain.regionalDem = regionalDemProvider?.getStatus?.() ?? null;
+      }
+    },
     dispose() {
       disposed = true;
+      regionalSurfaceRuntime?.dispose();
+      regionalDemProvider?.dispose();
       for (const patch of highResolutionPatches) {
         surfacePatchDispose(patch);
       }
