@@ -100,8 +100,9 @@ test('comandos de voz em português acionam somente diagnóstico e ronda cadastr
   assert.equal(diagnostic.ok, true);
   assert.equal(diagnostic.report.systemsChecked, 1);
   const unknown = computer.onboardAI.processUtterance('Alexia, mude a arquitetura da nave');
-  assert.equal(unknown.ok, false);
-  assert.equal(unknown.reason, 'voice-intent-not-mapped');
+  assert.equal(unknown.ok, true);
+  assert.equal(unknown.intent, 'unknown');
+  assert.match(unknown.response, /ainda não encontrei uma resposta segura/i);
   assert.equal(computer.onboardAI.processUtterance('faça uma ronda').reason, 'wake-name-not-detected');
   assert.equal(computer.onboardAI.setName('ALEXIA').accepted, true);
 });
