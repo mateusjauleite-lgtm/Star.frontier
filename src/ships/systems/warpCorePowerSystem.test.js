@@ -43,7 +43,7 @@ test('contenção instável e matriz desligada interrompem geração com seguran
   assert.equal(core.update(1).generatedThisFrame, 0);
 });
 
-test('a matriz limita a saída e o estoque refinado não é consumido pelo gerador', () => {
+test('a matriz limita a saída sem converter estoque enquanto o plasma está acima do limiar', () => {
   const state = { refinedDilithium: 5, warpCoreMatrixRegulation: 0.5 };
   const core = createWarpCorePowerSystem({ state });
   const status = core.update(1);
@@ -58,4 +58,17 @@ test('fonte de reação externa pode limitar a potência solicitada', () => {
     reactionSource: { produce: requested => requested * 0.25 }
   });
   assert.equal(core.update(1).outputPerSecond, 4);
+});
+
+
+test('matriz converte dilítio refinado da reserva em plasma estabilizado', () => {
+  const state = { refinedDilithium: 5, plasma: 0, plasmaCapacity: 250 };
+  const core = createWarpCorePowerSystem({ state });
+  const status = core.update(1);
+  assert.equal(state.matrixDilithiumConsumedTotal, 0.18);
+  assert.equal(state.plasmaProducedTotal, 0.18);
+  assert.equal(state.plasmaConsumedTotal, 0.04);
+  assert.equal(state.refinedDilithium, 4.82);
+  assert.equal(state.plasma, 0.14);
+  assert.equal(status.outputPerSecond, 16);
 });
