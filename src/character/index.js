@@ -118,7 +118,7 @@ export function createCharacterSystem(options = {}) {
     if (!initialized) initialize();
     if (core.snapshot().mode !== 'on-foot') return false;
     weapon.fire();
-    audio.playAction('weaponFire');
+    audio?.playAction?.('weaponFire');
     return true;
   }
 
