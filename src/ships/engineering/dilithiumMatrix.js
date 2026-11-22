@@ -50,16 +50,12 @@ export function createDilithiumMatrix() {
   add(root, new THREE.CylinderGeometry(1.38, 1.38, 0.18, 48), alloy, 'Matrix-Upper-Cap', [0, 2.42, 0]);
   add(root, new THREE.TorusGeometry(1.22, 0.055, 10, 48), cyan, 'Matrix-Upper-Cap-Light', [0, 2.53, 0]);
 
-  // Três conectores identificados; as linhas EPS existentes continuam sendo a rede real.
-  const ports = [
-    { id: 'critical', x: -0.86, z: -1.18 },
-    { id: 'operations', x: 0.86, z: -1.18 },
-    { id: 'warp', x: 0, z: 1.42 }
-  ];
-  for (const port of ports) {
-    add(root, new THREE.CylinderGeometry(0.12, 0.12, 0.34, 16), alloy, 'Matrix-EPS-Port-' + port.id, [port.x, 0.3, port.z]);
-    add(root, new THREE.TorusGeometry(0.13, 0.025, 8, 20), cyan, 'Matrix-EPS-Port-Light-' + port.id, [port.x, 0.48, port.z]);
-  }
+  // A matriz envia plasma condicionado ao núcleo; os três barramentos EPS
+  // continuam saindo do núcleo, não diretamente desta instalação.
+  add(root, new THREE.CylinderGeometry(0.18, 0.18, 0.42, 20), alloy,
+    'Matrix-Plasma-Feed-Port', [0, 0.3, -1.38]);
+  add(root, new THREE.TorusGeometry(0.19, 0.028, 8, 24), cyan,
+    'Matrix-Plasma-Feed-Status-Light', [0, 0.52, -1.38]);
 
   // Terminal físico lateral: a tela abre o AURORA OS dedicado da matriz.
   const terminal = new THREE.Group();
