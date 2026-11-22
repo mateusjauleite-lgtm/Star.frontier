@@ -160,8 +160,8 @@ export function createEarthQuadtreeTileGeometry(node, radius, {
       positions[vertex++] = direction.x * finalRadius;
       positions[vertex++] = direction.y * finalRadius;
       positions[vertex++] = direction.z * finalRadius;
-      uvs[index * 2] = column / segments;
-      uvs[index * 2 + 1] = 1 - row / segments;
+      uvs[index * 2] = (geographic.longitudeDeg + 180) / 360;
+      uvs[index * 2 + 1] = (90 - geographic.latitudeDeg) / 180;
     }
   }
   for (let row = 0; row < segments; row++) {
