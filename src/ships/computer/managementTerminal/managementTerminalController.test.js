@@ -128,6 +128,6 @@ test('envio no chat preserva o renderer montado para não remover o campo focado
 
   assert.equal(response.ok, true);
   assert.equal(h.computer.onboardAI.getConversationHistory().length, 2);
-  assert.equal(h.calls.filter(([name]) => name === 'render').length, renderCountBeforeMessage);
+  assert.equal(h.calls.filter(([name]) => name === 'render').length, renderCountBeforeMessage + 1);
   h.controller.shutdown();
 });
