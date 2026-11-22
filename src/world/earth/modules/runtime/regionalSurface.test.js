@@ -45,6 +45,25 @@ test('near-surface selection is bounded by the regional tile budget', () => {
   assert.ok(tiles.every(tile => tile.level <= 12));
 });
 
+test('horizon fallback can still select regional tiles when the camera view cone rejects all tiles', () => {
+  const camera = new THREE.Vector3(0, 0, 601);
+  const lookingAway = new THREE.Vector3(0, 0, 1);
+  const rejected = selectEarthQuadtreeTiles(camera, 600, {
+    maxLevel: 8,
+    maxTiles: 24,
+    cameraForwardLocal: lookingAway,
+    cameraFovDeg: 40,
+    cameraAspect: 1
+  });
+  const horizonFallback = selectEarthQuadtreeTiles(camera, 600, {
+    maxLevel: 8,
+    maxTiles: 24
+  });
+  assert.equal(rejected.length, 0);
+  assert.ok(horizonFallback.length > 0);
+  assert.ok(horizonFallback.length <= 24);
+});
+
 test('tile geometry uses the requested segment budget and finite positions', () => {
   const geometry = createEarthQuadtreeTileGeometry(createEarthQuadtreeNode(4), 600, {
     segments: 8,
