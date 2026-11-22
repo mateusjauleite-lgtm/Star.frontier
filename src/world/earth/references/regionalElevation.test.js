@@ -11,6 +11,7 @@ test('maps longitude and latitude to Web Mercator DEM tile coordinates', () => {
   assert.equal(coordinate.x, 2);
   assert.equal(coordinate.y, 2);
   assert.equal(coordinate.key, '2/2/2');
+  assert.equal(terrariumTileCoordinate(180, 0, 2).x, 0);
 });
 
 test('clamps polar coordinates to the Web Mercator limit', () => {
