@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createShipComputer } from './shipComputer.js';
 import { registerShipComputerSystems } from './shipComputerSystems.js';
 import { createDilithiumRefinerySystem } from '../systems/dilithiumRefinerySystem.js';
+import { RESOURCE_IDS } from '../../core/resources/resourceCatalog.js';
 
 function createHarness() {
   const position = {
@@ -29,7 +30,7 @@ function createHarness() {
   };
   const asteroids = [
     { name: 'Contato distante', position: { x: 20, y: 4, z: -2 }, userData: { ore: 12 } },
-    { name: 'Contato próximo', position: { x: 13, y: 4, z: -2 }, userData: { ore: 4 } },
+    { name: 'Contato próximo', position: { x: 13, y: 4, z: -2 }, userData: { ore: 4, resources: { [RESOURCE_IDS.DILITHIUM_ORE]: { amount: 7, purity: 0.88 } } } },
     { name: 'Contato sem posição', userData: { ore: 9 } }
   ];
   let currentShip = ship;
@@ -91,6 +92,8 @@ test('sensores retornam contatos válidos ordenados pela distância', () => {
   assert.equal(response.result.totalContacts, 2);
   assert.equal(response.result.nearestContact.id, 'Contato próximo');
   assert.deepEqual(response.result.contacts.map(contact => contact.distance), [3, 10]);
+  assert.deepEqual(response.result.resourceIds, [RESOURCE_IDS.DILITHIUM_ORE]);
+  assert.deepEqual(response.result.nearestContact.resources, [{ resourceId: RESOURCE_IDS.DILITHIUM_ORE, amount: 7, purity: 0.88 }]);
 });
 
 test('energia informa reserva real de dilítio e estado da dobra', () => {
