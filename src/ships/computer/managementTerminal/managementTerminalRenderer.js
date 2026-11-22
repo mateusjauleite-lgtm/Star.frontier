@@ -6,6 +6,7 @@ const MODULE_LABELS = Object.freeze({
   tactical: 'Sensores e tático',
   weapons: 'Arsenal',
   engineering: 'Energia do núcleo',
+  'warp-core': 'Núcleo de dobra',
   defense: 'Defesa',
   diagnostics: 'Diagnósticos'
 });
@@ -201,20 +202,28 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
     renderTelemetry(moduleData);
     const transferPanel = layer.querySelector('[data-power-transfer-panel]');
     if (transferPanel) {
-      const powerSelected = (selectedModuleId || selectedModule) === 'engineering';
+      const powerSelected = (selectedModuleId || selectedModule) === 'warp-core';
       transferPanel.hidden = !powerSelected;
       const refinery = moduleData?.data?.refinery;
       const buffer = Math.max(0, Number(refinery?.refinedBuffer) || 0);
       const free = Math.max(0, Number(refinery?.coreRemainingCapacity) || 0);
       const transferable = Math.min(buffer, free);
+      const core = moduleData?.data?.warpCore || {};
+      const rawOre = Math.max(0, Number(refinery?.rawOre) || 0);
       const bufferNode = layer.querySelector('[data-power-transfer-buffer]');
       const coreNode = layer.querySelector('[data-power-transfer-core]');
       const capacityNode = layer.querySelector('[data-power-transfer-capacity]');
+      const rawNode = layer.querySelector('[data-warp-core-raw]');
+      const consumptionNode = layer.querySelector('[data-warp-core-consumption]');
+      const stageNode = layer.querySelector('[data-warp-core-stage]');
       const input = layer.querySelector('[data-power-transfer-amount]');
       const button = layer.querySelector('[data-power-transfer]');
       if (bufferNode) bufferNode.textContent = buffer.toFixed(2) + ' u';
       if (coreNode) coreNode.textContent = (Number(refinery?.coreDilithium) || 0).toFixed(2) + ' u';
       if (capacityNode) capacityNode.textContent = free.toFixed(2) + ' u';
+      if (rawNode) rawNode.textContent = rawOre.toFixed(2) + ' u';
+      if (consumptionNode) consumptionNode.textContent = (Number(core.consumptionRate) || 0).toFixed(3) + ' u/s';
+      if (stageNode) stageNode.textContent = core.active ? `DOBRA ${Number(core.stage) || 0} · ATIVA` : 'DESATIVADA';
       if (input) input.max = transferable.toFixed(2);
       if (button) button.disabled = !moduleData?.available || !refinery?.available || transferable <= 0;
     }
