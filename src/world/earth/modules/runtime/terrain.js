@@ -289,124 +289,25 @@ export function createTerrainRuntime({ options, layers }) {
             const divisions = Number.isFinite(segments)
               ? Math.round(THREE.MathUtils.clamp(segments, 8, 128))
               : calculateEtopoPatchSegments(safeRadiusKm, latitudeDeg, gridIsReady ? grid : null);
-            const angularSegments = Math.max(32, Math.ceil(divisions * Math.PI * 2));
-            const positions = [];
-            const uvs = [];
-            const indices = [];
-            const longitudes = [];
-            const latitudes = [];
-            const centerLatitude = THREE.MathUtils.degToRad(latitudeDeg);
-            const centerLongitude = THREE.MathUtils.degToRad(longitudeDeg);
-            const point = new THREE.Vector3();
 
-            const appendPoint = (longitude, latitude) => {
-              longitudes.push(longitude);
-              latitudes.push(latitude);
-              uvs.push((longitude + 180) / 360, (90 - latitude) / 180);
-              return true;
-            };
-
-            if (!appendPoint(longitudeDeg, latitudeDeg)) return null;
-            for (let ring = 1; ring <= divisions; ring++) {
-              const angularDistance = (ring / divisions * safeRadiusKm) / 6371.0088;
-              const sinCenter = Math.sin(centerLatitude);
-              const cosCenter = Math.cos(centerLatitude);
-              const sinDistance = Math.sin(angularDistance);
-              const cosDistance = Math.cos(angularDistance);
-              for (let segment = 0; segment < angularSegments; segment++) {
-                const bearing = segment / angularSegments * Math.PI * 2;
-                const latitude = Math.asin(THREE.MathUtils.clamp(
-                  sinCenter * cosDistance + cosCenter * sinDistance * Math.cos(bearing),
-                  -1, 1
-                ));
-                const longitude = centerLongitude + Math.atan2(
-                  Math.sin(bearing) * sinDistance * cosCenter,
-                  cosDistance - sinCenter * Math.sin(latitude)
-                );
-                const longitudeDegAtPoint = THREE.MathUtils.euclideanModulo(
-                  THREE.MathUtils.radToDeg(longitude) + 180, 360
-                ) - 180;
-                if (!appendPoint(longitudeDegAtPoint, THREE.MathUtils.radToDeg(latitude))) {
-                  return null;
-                }
-              }
-
-              const outerStart = 1 + (ring - 1) * angularSegments;
-              const innerStart = ring === 1 ? 0 : 1 + (ring - 2) * angularSegments;
-              for (let segment = 0; segment < angularSegments; segment++) {
-                const next = (segment + 1) % angularSegments;
-                if (ring === 1) {
-                  indices.push(0, outerStart + segment, outerStart + next);
-                } else {
-                  indices.push(
-                    innerStart + segment, outerStart + segment, innerStart + next,
-                    outerStart + segment, outerStart + next, innerStart + next
-                  );
-                }
-              }
-            }
-
-            // Sample the complete regional disk in one batch, using the same
-            // ETOPO grid path as the global LOD meshes. Fall back per point
-            // only when a source cell is no-data or WASM allocation fails.
-            const sampledMeters = gridIsReady
-              ? earthKernel.sampleElevationBatch(
-                grid, new Float32Array(longitudes), new Float32Array(latitudes)
-              )
-              : null;
-            for (let i = 0; i < longitudes.length; i++) {
-              const elevationUnits = Number.isFinite(sampledMeters?.[i])
-                ? earthKernel.elevationMetersToUnits(
-                  sampledMeters[i], radius, 6371.0088, exaggeration
-                )
-                : elevationSampler(longitudes[i], latitudes[i]);
-              if (!Number.isFinite(elevationUnits)) return null;
-              const latRad = THREE.MathUtils.degToRad(latitudes[i]);
-              const lonRad = THREE.MathUtils.degToRad(longitudes[i]);
-              const patchRadius = radius + elevationUnits + 0.025;
-              point.set(
-                Math.cos(lonRad) * Math.cos(latRad) * patchRadius,
-                Math.sin(latRad) * patchRadius,
-                Math.sin(lonRad) * Math.cos(latRad) * patchRadius
-              );
-              positions.push(point.x, point.y, point.z);
-            }
-
-            const geometry = new THREE.BufferGeometry();
-            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-            geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-            geometry.setIndex(indices);
-            geometry.computeVertexNormals();
-            geometry.computeBoundingSphere();
-            const patchMaterial = surface.material.clone();
-            patchMaterial.polygonOffset = true;
-            patchMaterial.polygonOffsetFactor = -1;
-            patchMaterial.polygonOffsetUnits = -1;
-            const patch = new THREE.Mesh(geometry, patchMaterial);
-            patch.name = 'Earth-Local-HighResolution-Collision-Proxy';
-            // Rendering is now owned by the streamed quadtree tiles. Keep this
-            // legacy geometry as a temporary proximity/collision activation
-            // marker until regional collision replaces the ETOPO proxy.
-            patch.visible = false;
-            patch.userData.earthPatch = {
+            // Compatibility marker only: regional quadtree tiles now own the
+            // visible surface. Avoid allocating a second invisible terrain mesh.
+            const marker = new THREE.Object3D();
+            marker.name = 'Earth-Regional-Collision-Activation';
+            marker.visible = false;
+            marker.userData.earthPatch = {
               longitudeDeg,
               latitudeDeg,
               radiusKm: safeRadiusKm,
               segments: divisions,
-              angularSegments,
-              shape: 'geodesic-disk',
-              meshSpacingKm: safeRadiusKm / divisions,
-              sourceGridSpacingKm: gridIsReady
-                ? (grid.north - grid.south) / (grid.height - 1) * 111.195
-                : 0.25 * 111.195,
-              patchAreaDiameterKm: safeRadiusKm * 2,
-              samplingFollowsEtopo: true,
+              shape: 'quadtree-activation-marker',
               elevationSource: gridIsReady ? (grid.source ?? 'provided-global-grid') : 'procedural-fallback'
             };
-            surface.add(patch);
-            highResolutionPatches.add(patch);
-            return patch;
+            surface.add(marker);
+            highResolutionPatches.add(marker);
+            return marker;
           },
+
           updateHighResolutionPatch(worldPosition, {
             activationAltitudeUnits = 120,
             radiusKm = 750,
