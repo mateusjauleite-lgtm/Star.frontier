@@ -8,7 +8,8 @@ const MODULE_LABELS = Object.freeze({
   engineering: 'Energia do núcleo',
   'warp-core': 'Núcleo de dobra',
   defense: 'Defesa',
-  diagnostics: 'Diagnósticos'
+  diagnostics: 'Diagnósticos',
+  'onboard-ai': 'ALEXIA · IA de bordo'
 });
 
 function humanizeKey(value) {
@@ -45,8 +46,9 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
   let closeHandler = null;
   let selectHandler = null;
   let commandHandler = null;
+  let aiActionHandler = null;
 
-  function mount({ onOpen = () => {}, onClose = () => {}, onModuleSelect = () => {}, onCommand = () => ({ ok: false }) } = {}) {
+  function mount({ onOpen = () => {}, onClose = () => {}, onModuleSelect = () => {}, onCommand = () => ({ ok: false }), onAIAction = () => ({ ok: false }) } = {}) {
     if (layer) return false;
     const wrapper = document.createElement('div');
     wrapper.className = 'ship-management-hud-layer';
@@ -57,9 +59,17 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
     closeHandler = onClose;
     selectHandler = onModuleSelect;
     commandHandler = onCommand;
+    aiActionHandler = onAIAction;
     layer.addEventListener('click', event => {
       if (event.target.closest('[data-management-open]')) { openHandler?.(); return; }
       if (event.target.closest('[data-management-close]')) { closeHandler?.(); return; }
+      const aiAction = event.target.closest('[data-ai-action]');
+      if (aiAction) {
+        const feedback = layer.querySelector('[data-ai-feedback]');
+        const result = aiActionHandler?.(aiAction.dataset.aiAction);
+        if (feedback) feedback.textContent = result?.ok ? 'SOLICITAÇÃO PROCESSADA · ' + (result.report ? result.report.systemsChecked + ' SISTEMAS VERIFICADOS' : 'COMANDO ENCAMINHADO') : 'AÇÃO NÃO DISPONÍVEL · ' + (result?.reason || 'ERRO');
+        return;
+      }
       if (event.target.closest('[data-shield-toggle]')) {
         const enabled = event.target.closest('[data-shield-toggle]').dataset.enabled === 'true';
         const response = commandHandler?.('shields', 'setEnabled', { enabled: !enabled });
@@ -130,6 +140,15 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
       empty.textContent = 'Sistema conectado. Aguardando dados de telemetria.';
       output.append(empty);
       return;
+    }
+    if (selectedModuleId === 'onboard-ai') {
+      const actions = document.createElement('section'); actions.className = 'management-telemetry-card';
+      const title = document.createElement('b'); title.textContent = 'CONTROLE DA ALEXIA';
+      const description = document.createElement('small'); description.textContent = 'A IA opera somente por permissões concedidas pelo Ship Computer.';
+      const controls = document.createElement('div'); controls.className = 'management-ai-controls';
+      for (const [action, label] of [['voice','CHAMAR POR VOZ'],['patrol','INICIAR RONDA'],['diagnose','DIAGNÓSTICO GERAL'],['stop-voice','ENCERRAR ESCUTA']]) { const button = document.createElement('button'); button.type = 'button'; button.dataset.aiAction = action; button.textContent = label; controls.append(button); }
+      const feedback = document.createElement('small'); feedback.dataset.aiFeedback = 'true'; feedback.textContent = 'Aguardando comando do operador.';
+      actions.append(title, description, controls, feedback); output.append(actions);
     }
     for (const [label, value] of rows) {
       const card = document.createElement('article');

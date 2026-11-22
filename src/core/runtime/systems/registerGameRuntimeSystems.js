@@ -15,6 +15,7 @@ import { createWarpCorePowerSystem } from '../../../ships/systems/warpCorePowerS
 import { createDilithiumRefineryRuntimeSystem } from '../../../ships/systems/dilithiumRefinerySystem.js';
 import { createRefineryTerminalRuntimeSystem } from '../../../ships/computer/refineryTerminalController.js';
 import { createDeflectorTerminalRuntimeSystem } from '../../../ships/computer/deflectorTerminalController.js';
+import { createDilithiumMatrixTerminalRuntimeSystem } from '../../../ships/computer/dilithiumMatrixTerminalController.js';
 
 export function registerGameRuntimeSystems(runtime, dependencies) {
   if (!runtime || typeof runtime.registerSystem !== 'function') {
@@ -30,6 +31,7 @@ export function registerGameRuntimeSystems(runtime, dependencies) {
     engineeringTerminal,
     refineryTerminal,
     deflectorTerminal,
+    matrixTerminal,
     refinery,
     mining,
     pauseMenu,
@@ -50,7 +52,7 @@ export function registerGameRuntimeSystems(runtime, dependencies) {
   runtime.registerSystem('character', createCharacterRuntimeSystem(character));
   runtime.registerSystem('world', createWorldRuntimeSystem(world));
   const shipComputerRuntime = shipComputer && typeof shipComputer.registerSystems === 'function'
-    ? { ...shipComputer, registerSystems: () => shipComputer.registerSystems(deflector) }
+    ? { ...shipComputer, onboardAI: shipComputer.onboardAI || null, registerSystems: () => shipComputer.registerSystems(deflector) }
     : shipComputer;
   runtime.registerSystem('ship-computer', createShipComputerRuntimeSystem(shipComputerRuntime));
   if (shipManagementTerminal) {
@@ -59,6 +61,7 @@ export function registerGameRuntimeSystems(runtime, dependencies) {
   if (engineeringTerminal) runtime.registerSystem('engineering-terminal', createEngineeringTerminalRuntimeSystem(engineeringTerminal));
   if (refineryTerminal) runtime.registerSystem('refinery-terminal', createRefineryTerminalRuntimeSystem(refineryTerminal));
   if (deflectorTerminal) runtime.registerSystem('deflector-terminal', createDeflectorTerminalRuntimeSystem(deflectorTerminal));
+  if (matrixTerminal) runtime.registerSystem('dilithium-matrix-terminal', createDilithiumMatrixTerminalRuntimeSystem(matrixTerminal));
   if (mining) runtime.registerSystem('mining', mining);
   if (pauseMenu) runtime.registerSystem('pause-menu', createPauseMenuRuntimeSystem({ ...pauseMenu, runtime }));
   if (warpCore) runtime.registerSystem('warp-core-power', warpCore);

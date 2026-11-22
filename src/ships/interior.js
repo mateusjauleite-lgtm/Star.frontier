@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { createEngineeringWarpCore } from './engineering/warpCore.js';
+import { createDilithiumMatrix } from './engineering/dilithiumMatrix.js';
 import { createDilithiumProcessingPlant } from './engineering/dilithiumProcessingPlant.js';
 import { DECK_3_DEFLECTOR_APERTURE } from './engineering/deflectorAperture.js';
 import { createDeflectorInteriorStructure } from './engineering/deflectorInteriorStructure.js';
@@ -236,6 +237,13 @@ export function createStarshipInterior(options = {}) {
   // O conjunto não registra paredes nem caixas de colisão adicionais.
   const engineeringWarpCore = createEngineeringWarpCore();
   group.add(engineeringWarpCore);
+  const dilithiumMatrix = createDilithiumMatrix();
+  group.add(dilithiumMatrix);
+  // Colisão compacta acompanha a instalação e o terminal, preservando o acesso lateral.
+  collisionBoxes.push(
+    { x: 2.3, y: -1.34, z: 5.3, halfX: 1.65, halfY: 1.35, halfZ: 1.65 },
+    { x: 5.05, y: -2.02, z: 5.15, halfX: 0.65, halfY: 0.62, halfZ: 0.4 }
+  );
   const dilithiumPlant = createDilithiumProcessingPlant();
   group.add(dilithiumPlant);
   const deflectorInterior = createDeflectorInteriorStructure();
@@ -252,6 +260,7 @@ export function createStarshipInterior(options = {}) {
   return {
     group,
     dilithiumPlant,
+    dilithiumMatrix,
     layout: STARSHIP_LAYOUT,
     collisionBoxes,
     dispose() {

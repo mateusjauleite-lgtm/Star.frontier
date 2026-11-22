@@ -5,7 +5,7 @@ import { SHIP_COMPUTER_MODULES, getShipComputerModule } from './index.js';
 test('computer module manifest exposes the seven registered applications in stable order', () => {
   assert.deepEqual(
     SHIP_COMPUTER_MODULES.map(module => module.id),
-    ['navigation', 'tactical', 'weapons', 'engineering', 'warp-core', 'deflector', 'defense', 'diagnostics']
+    ['navigation', 'tactical', 'weapons', 'engineering', 'warp-core', 'deflector', 'onboard-ai', 'defense', 'diagnostics']
   );
   assert.equal(Object.isFrozen(SHIP_COMPUTER_MODULES), true);
 });

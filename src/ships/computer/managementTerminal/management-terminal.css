@@ -1,3 +1,4 @@
+[hidden]{display:none!important}
 .ship-management-hud-layer{position:absolute;inset:0;z-index:68;pointer-events:none;color:#d9f4fb;font-family:Arial,Helvetica,sans-serif}
 .ship-management-hud-layer[hidden],.ship-management-hud [hidden]{display:none!important}
 .ship-management-hud{position:absolute;inset:0;pointer-events:none}
@@ -96,3 +97,7 @@
 .management-power-transfer-controls button:disabled{opacity:.4}
 .management-power-transfer>p{margin:0;color:#7eb5c3;font-size:8px;line-height:1.4}
 @media(max-width:520px){.management-power-transfer-controls{grid-template-columns:1fr}.management-power-transfer-controls label{grid-column:1}.management-power-transfer-controls button{width:100%}.management-power-transfer-readouts small{font-size:6px}}
+
+.management-ai-controls{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+.management-ai-controls button{padding:8px 10px;border:1px solid rgba(82,202,235,.36);background:rgba(20,78,102,.38);color:#bceefa;font-size:8px;letter-spacing:.08em}
+.management-ai-controls button:active{background:rgba(38,145,177,.5)}

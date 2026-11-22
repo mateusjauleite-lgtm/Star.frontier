@@ -1,12 +1,13 @@
 import { WARP_STAGE_SPEEDS, WARP_DILITHIUM_CONSUMPTION } from '../flight/flightDynamics.js';
 import { RESOURCE_IDS } from '../../core/resources/resourceCatalog.js';
+import { DILITHIUM_MATRIX_TERMINAL_ID } from './dilithiumMatrixTerminalController.js';
 // Adaptadores entre o computador central e os sistemas reais da nave.
 // Ponte e Engenharia consultam e comandam a mesma fonte de estado.
 const PROPULSION_INPUTS = new Set(['throttle', 'braking', 'warpDriveButton']);
 const CONTROL_AUTHORITIES = new Set(['bridge', 'engineering', 'automatic']);
 const WARP_EXIT_MODES = new Set(['smooth', 'direct']);
 
-export function registerShipComputerSystems(computer, { state, getShip, getShipYaw, getPitchAngle, getAsteroids, shieldSystem = null, refinerySystem = null, deflectorRuntime = null }) {
+export function registerShipComputerSystems(computer, { state, getShip, getShipYaw, getPitchAngle, getAsteroids, shieldSystem = null, refinerySystem = null, deflectorRuntime = null, warpCoreSystem = null }) {
   if (!computer || !state || typeof getShip !== 'function' || typeof getShipYaw !== 'function' || typeof getPitchAngle !== 'function' || typeof getAsteroids !== 'function') {
     throw new TypeError('Dependências dos sistemas do computador incompletas.');
   }
@@ -249,10 +250,41 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
     },
     getStatus: () => readShip() ? 'online' : 'standby'
   });
+// A matriz é uma ramificação de controle do Ship Computer e reutiliza
+  // a instância única do sistema de energia registrada no Runtime.
+  computer.registerSystem('matrix', {
+    name: 'Matriz de dilítio e distribuição EPS',
+    commands: {
+      status: () => ({
+        available: Boolean(readShip() && warpCoreSystem),
+        power: warpCoreSystem?.snapshot?.() ?? state.warpCorePowerTelemetry ?? null,
+        warpDriveActive: Boolean(state.warpDriveActive),
+        warpTransition: state.warpTransition || 'idle'
+      }),
+      setEnabled: (payload, context) => {
+        if (context?.terminalId !== DILITHIUM_MATRIX_TERMINAL_ID) return { accepted: false, reason: 'matrix-terminal-required' };
+        const enabled = Boolean(payload?.enabled);
+        const unsafeWarp = Boolean(state.warpDriveActive) || ['entering', 'cruise', 'reducing', 'exiting'].includes(state.warpTransition);
+        if (!enabled && unsafeWarp) return { accepted: false, reason: 'warp-interlock-active' };
+        if (enabled && (!state.warpCoreEnabled || !state.warpCoreContainmentStable)) return { accepted: false, reason: 'core-or-containment-unavailable' };
+        if (typeof warpCoreSystem?.setMatrixEnabled !== 'function') return { accepted: false, reason: 'matrix-system-unavailable' };
+        return { accepted: true, status: warpCoreSystem.setMatrixEnabled(enabled) };
+      },
+      setRegulation: (payload, context) => {
+        if (context?.terminalId !== 'dilithium-matrix-console') return { accepted: false, reason: 'matrix-terminal-required' };
+        const regulation = Number(payload?.regulation);
+        if (!Number.isFinite(regulation) || regulation < 0.1 || regulation > 1) return { accepted: false, reason: 'regulation-out-of-range' };
+        if (typeof warpCoreSystem?.setMatrixRegulation !== 'function') return { accepted: false, reason: 'matrix-system-unavailable' };
+        return { accepted: true, status: warpCoreSystem.setMatrixRegulation(regulation) };
+      }
+    },
+    getStatus: () => readShip() && warpCoreSystem ? (state.warpCoreMatrixEnabled === false ? 'standby' : 'online') : 'standby'
+  });
   computer.registerSystem('deflector', {
     name: 'Defletor principal',
     commands: {
-      status: () => {
+      status: (payload, context) => {
+        if (!['deflector-console', DILITHIUM_MATRIX_TERMINAL_ID, 'ship-management-terminal'].includes(context?.terminalId)) return { available: false, reason: 'deflector-terminal-required' };
         if (!deflectorRuntime) return { available: false, reason: 'deflector-runtime-unavailable' };
         const snapshot = deflectorRuntime.snapshot?.() || {};
         const { emitter, sensors, navigation, protection, science, ...core } = snapshot;
