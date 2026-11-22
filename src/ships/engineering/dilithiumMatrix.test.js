@@ -14,9 +14,8 @@ test('instalação independente da matriz inclui câmara, cristal, reguladores e
     'Matrix-Regulator-Ring-2',
     'Matrix-Regulator-Ring-3',
     'Matrix-Terminal-Display',
-    'Matrix-EPS-Port-critical',
-    'Matrix-EPS-Port-operations',
-    'Matrix-EPS-Port-warp'
+    'Matrix-Plasma-Feed-Port',
+    'Matrix-Plasma-Feed-Status-Light'
   ]) assert.ok(matrix.getObjectByName(name), 'elemento ausente: ' + name);
   assert.equal(matrix.userData.footprint.radius, 1.95);
   matrix.traverse(object => {
