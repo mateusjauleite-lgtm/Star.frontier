@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - feature/earth-regional-quadtree-dem-2026-11-22
       - feature/dilithium-inventory-refinery-transfer
       - feature/deflector-core-runtime
       - architecture/modules-skeleton
