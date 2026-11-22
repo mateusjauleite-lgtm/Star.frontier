@@ -198,3 +198,23 @@ test('snapshot persistido inclui IDs, capacidade, peso e excedentes', () => {
   assert.equal(state.inventory.overflowItems.length, snapshot.overflowItems.length);
   assert.ok(state.inventory.items.every(item => item.instanceId && item.definitionId && item.itemId));
 });
+
+test('inventário inicial recebe minério bruto de dilítio para transferência à refinaria', () => {
+  const system = createSystem();
+  const snapshot = system.initialize();
+  const ore = snapshot.items.find(item => item.definitionId === 'ore.dilithium.raw');
+  assert.ok(ore);
+  assert.equal(ore.quantity, 12);
+});
+
+test('transferência remove e restauração preserva a mesma pilha de minério', () => {
+  const system = createSystem();
+  const snapshot = system.initialize();
+  const ore = snapshot.items.find(item => item.definitionId === 'ore.dilithium.raw');
+  const removed = system.removeInstance(ore.instanceId);
+  assert.equal(removed.ok, true);
+  assert.equal(system.snapshot().items.some(item => item.instanceId === ore.instanceId), false);
+  assert.equal(system.restoreInstance(removed.item).ok, true);
+  const restored = system.snapshot().items.find(item => item.instanceId === ore.instanceId);
+  assert.equal(restored.quantity, 12);
+});
