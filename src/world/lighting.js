@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 
-// Referencial espacial fixo do sistema.
-// Terra e estação mantêm suas coordenadas; o Sol foi reposicionado uma única vez.
-const SUN_POSITION = new THREE.Vector3(-1760, 922, -2526);
+// Referencial espacial fixo do sistema. O Sol fica dez vezes mais distante
+// sem alterar a direção da luz em relação à Terra.
+export const SUN_DISTANCE_SCALE = 10;
+const SUN_POSITION = new THREE.Vector3(-1760, 922, -2526).multiplyScalar(SUN_DISTANCE_SCALE);
 const SUN_RADIUS = 1200;
 const STAR_FIELD_RADIUS = 6500;
 const STAR_FIELD_COUNT = 8800;
@@ -13,7 +14,7 @@ export function createSpaceLighting(scene, options = {}) {
   scene.add(ambientLight);
 
   const sunPosition = SUN_POSITION.clone();
-  const sunLight = new THREE.PointLight(0xffd6a0, 260, 18000, 1.15);
+  const sunLight = new THREE.PointLight(0xffd6a0, 260, 40000, 1.15);
   sunLight.position.copy(sunPosition);
   scene.add(sunLight);
 
@@ -31,7 +32,7 @@ export function createSpaceLighting(scene, options = {}) {
 
   const sunCore = new THREE.Mesh(
     new THREE.SphereGeometry(SUN_RADIUS, 64, 48),
-    new THREE.MeshBasicMaterial({ color: 0xffc45c })
+    new THREE.MeshBasicMaterial({ color: 0xffc45c, fog: false })
   );
   sun.add(sunCore);
 
@@ -39,6 +40,7 @@ export function createSpaceLighting(scene, options = {}) {
     new THREE.SphereGeometry(SUN_RADIUS * 1.10, 48, 32),
     new THREE.MeshBasicMaterial({
       color: 0xff9e35,
+      fog: false,
       transparent: true,
       opacity: 0.20,
       blending: THREE.AdditiveBlending,
@@ -52,6 +54,7 @@ export function createSpaceLighting(scene, options = {}) {
     new THREE.SphereGeometry(SUN_RADIUS * 1.25, 48, 32),
     new THREE.MeshBasicMaterial({
       color: 0xff6b28,
+      fog: false,
       transparent: true,
       opacity: 0.07,
       blending: THREE.AdditiveBlending,
