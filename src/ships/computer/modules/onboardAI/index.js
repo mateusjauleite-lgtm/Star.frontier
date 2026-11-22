@@ -3,5 +3,5 @@ export const onboardAIModule = Object.freeze({
   label: 'ALEXIA · IA de bordo',
   phase: 'integrated',
   systemId: null,
-  scope: 'Identidade, banco de conhecimento, rondas, diagnósticos, reconhecimento de voz e permissões concedidas pelo Ship Computer.'
+  scope: 'Chat e histórico persistente, banco de conhecimento, consultas de telemetria, rondas, diagnósticos, reconhecimento de voz e permissões concedidas pelo Ship Computer.'
 });

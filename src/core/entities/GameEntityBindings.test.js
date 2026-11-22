@@ -59,3 +59,21 @@ test('registration is idempotent and refreshes live object bindings', () => {
   assert.equal(bindings.getObject('ship:exploration'), secondShip);
   assert.equal(manager.relations.getFrom('ship:exploration', 'orbits').length, 0);
 });
+
+
+test('registra o corpo físico da Alexia como tripulante separado do jogador', () => {
+  const manager = new EntityManager({ idFactory: () => 'generated', eventEmitter: () => {} });
+  const player = object3D('player');
+  const alexia = object3D('alexia');
+  const ship = object3D('ship');
+  const bindings = registerGameWorldEntities(manager, {
+    ship,
+    characterModel: { group: player },
+    alexiaCharacter: { group: alexia }
+  });
+
+  assert.equal(bindings.getEntityId(player), 'character:player');
+  assert.equal(bindings.getEntityId(alexia), 'character:alexia');
+  assert.notEqual(bindings.getObject('character:player'), bindings.getObject('character:alexia'));
+  assert.equal(manager.relations.getFrom('character:alexia', 'aboard')[0].targetId, 'ship:exploration');
+});

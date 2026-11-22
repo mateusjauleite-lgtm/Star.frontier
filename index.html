@@ -285,7 +285,7 @@
       <section id="navigation-hud-panel" class="navigation-hud-panel" data-hud-editable="navigation-panel" data-hud-scope="pilot" data-hud-profile="navigation" aria-label="HUD de navegação">
         <header><b>NAVEGAÇÃO</b><span>ORIENTAÇÃO TÁTICA</span></header>
         <div class="navigation-readouts"><span>COORDENADAS <b id="navigation-coordinates">— / — / —</b></span><span>DISTÂNCIA <b id="navigation-distance">—</b></span><span>DIREÇÃO <b id="navigation-bearing">—</b></span></div>
-        <div id="navigation-map-reserved" class="navigation-map-reserved"><span>ÁREA DO MINIMAPA</span><small>MAPA E MARCADORES SERÃO CONECTADOS AO MÓDULO DE NAVEGAÇÃO</small></div>
+        <div id="navigation-map-reserved" class="navigation-map-reserved" data-navigation-sensor-map aria-label="Minimapa de contatos minerais"><span>AGUARDANDO SENSORES</span><small>ATIVE OS SENSORES DO DEFLETOR</small></div>
         <button id="navigation-panel-open-btn" type="button" class="navigation-panel-open-btn">ABRIR PAINEL DE NAVEGAÇÃO</button>
       </section>
       <section id="navigation-full-panel" class="navigation-full-panel hidden" data-hud-profile="navigation" aria-label="Painel completo de navegação">
@@ -298,10 +298,7 @@
           <span>DISTÂNCIA <b id="navigation-full-distance">SEM ALVO</b></span>
           <span>DIREÇÃO <b id="navigation-full-bearing">—</b></span>
         </div>
-        <div class="navigation-map-reserved navigation-full-map">
-          <span>MAPA DE NAVEGAÇÃO</span>
-          <small>CAMADA DE SENSORES E MARCADORES SERÁ CONECTADA EM OUTRA FRENTE</small>
-        </div>
+        <div class="navigation-map-reserved navigation-full-map" data-navigation-sensor-map aria-label="Mapa de contatos minerais"><span>AGUARDANDO SENSORES</span><small>ATIVE OS SENSORES DO DEFLETOR</small></div>
       </section>
       <section id="warp-map-reserved" class="warp-map-reserved" data-hud-editable="warp-map" data-hud-scope="pilot" data-hud-profile="warp" aria-label="Área de navegação durante dobra">
         <header><b>NAVEGAÇÃO DE DOBRA</b><span>REFERÊNCIA ESPACIAL</span></header>

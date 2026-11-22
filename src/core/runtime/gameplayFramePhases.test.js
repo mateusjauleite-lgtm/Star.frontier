@@ -46,6 +46,7 @@ function fixture() {
     forwardVector: {},
     state: { speed: 12, fuel: 80, cargo: 3, hull: 100, shield: 90, credits: 1250, coreDilithiumConsumedTotal: 4.5 },
     getActivePilotHudProfile: () => 'navigation',
+    updateNavigationSensorMap: () => calls.push(['navigation-sensor-map']),
     orbitSystem: { update: dt => calls.push(['orbits', dt]) },
     asteroidSystem: { update: dt => calls.push(['asteroids', dt]) },
     lightingSystem: { update: (dt, position) => calls.push(['lighting', dt, position]) },
@@ -71,7 +72,7 @@ test('extracted gameplay phases preserve the existing frame order and delta time
     'character-movement', 'character-weapon', 'elevator-animation',
     'elevator-interaction', 'pilot-interaction', 'external-elevator-interaction',
     'flight', 'character-camera', 'ship-management-interaction', 'refinery-console-interaction', 'landing-guidance', 'orbits', 'asteroids',
-    'lighting', 'render'
+    'lighting', 'render', 'navigation-sensor-map'
   ]);
   assert.ok(f.calls.filter(call => call.length > 1 && typeof call[1] === 'number')
     .every(call => call[1] === 0.016));

@@ -58,6 +58,7 @@ export function createCharacterModel(options = {}) {
   const scale = Number.isFinite(options.scale) ? options.scale : 1;
   const skinColor = options.skinColor ?? 0xc88963;
   const hairColor = options.hairColor ?? 0x30231e;
+  const feminine = options.gender === 'female';
 
   const materials = {
     skin: material(skinColor, 0.88),
@@ -130,6 +131,14 @@ export function createCharacterModel(options = {}) {
   // Cabelo curto como parte estética do corpo; headwear continua sendo slot separado.
   sphere(parts.head, 0.139, materials.hair, [0, 0.085, 0.018], 'hair-cap', 20, 12);
   sphere(parts.head, 0.09, materials.hair, [0, 0.035, 0.095], 'rear-hair', 16, 10);
+  if (feminine) {
+    // Silhueta e cabelo próprios da Alexia; não altera o modelo masculino do jogador.
+    parts.torso.scale.x = 0.94;
+    parts.pelvis.scale.x = 1.08;
+    capsule(parts.head, 0.052, 0.30, materials.hair, [-0.105, -0.16, 0.018], 'left-long-hair');
+    capsule(parts.head, 0.052, 0.30, materials.hair, [0.105, -0.16, 0.018], 'right-long-hair');
+    sphere(parts.head, 0.075, materials.hair, [0, -0.23, 0.055], 'rear-long-hair', 16, 12);
+  }
 
   // Ombros, braços e mãos articulados. Mantidos os nomes consumidos pelo animator.
   for (const side of [-1, 1]) {

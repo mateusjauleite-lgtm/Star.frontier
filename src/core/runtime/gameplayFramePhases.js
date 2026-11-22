@@ -18,7 +18,7 @@ export function createGameplayFramePhases(getDependencies) {
     },
 
     updateCharacterMode(dt) {
-      const { characterCore, updateCharacterMovement, updateCharacterWeapon, updateExternalElevatorAnimation, updateElevatorInteraction, updatePilotInteraction, updateShipManagementInteraction, updateEngineeringConsoleInteraction, updateRefineryConsoleInteraction, updateDeflectorConsoleInteraction, updateExternalElevatorInteraction, updateCharacterCamera, updateFlight, updateCamera, state } = getDependencies();
+      const { characterCore, updateCharacterMovement, updateCharacterWeapon, updateExternalElevatorAnimation, updateElevatorInteraction, updateAlexiaInteraction, updatePilotInteraction, updateShipManagementInteraction, updateEngineeringConsoleInteraction, updateRefineryConsoleInteraction, updateDeflectorConsoleInteraction, updateExternalElevatorInteraction, updateCharacterCamera, updateFlight, updateCamera, state } = getDependencies();
   if (characterCore.snapshot().mode === 'on-foot') {
     updateCharacterMovement(dt);
     updateCharacterWeapon(dt);
@@ -41,6 +41,7 @@ export function createGameplayFramePhases(getDependencies) {
   // Mantém presença, holograma e ação da Refinaria sincronizados com a posição do personagem.
   updateRefineryConsoleInteraction?.(dt);
   updateDeflectorConsoleInteraction?.(dt);
+  updateAlexiaInteraction?.(dt);
     },
 
     updateLanding(dt) {
@@ -199,7 +200,7 @@ export function createGameplayFramePhases(getDependencies) {
     },
 
     updateHud() {
-      const { $, state, ship, getActivePilotHudProfile } = getDependencies();
+      const { $, state, ship, getActivePilotHudProfile, updateNavigationSensorMap } = getDependencies();
       const activeProfile = getActivePilotHudProfile?.();
       if (activeProfile) {
         $('hud')?.setAttribute('data-active-hud-profile', activeProfile);
@@ -220,6 +221,7 @@ export function createGameplayFramePhases(getDependencies) {
         const fullCoordinates = $('navigation-full-coordinates');
         if (fullCoordinates) fullCoordinates.textContent = coordinates.textContent;
       }
+      updateNavigationSensorMap?.();
       const target = ship?.userData?.navigationTarget;
       const distance = Number.isFinite(target?.distance) ? target.distance.toFixed(1) + ' u' : 'SEM ALVO';
       const bearing = Number.isFinite(target?.bearing) ? target.bearing.toFixed(1) + '°' : '—';

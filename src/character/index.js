@@ -15,7 +15,7 @@ export function createCharacterSystem(options = {}) {
   const animator = createCharacterAnimator(model);
   const physics = createCharacterPhysics(options.physics);
   const weapon = createCharacterWeaponController(model);
-  const audio = createCharacterAudio(options.audio);
+  const audio = options.audio === false ? null : createCharacterAudio({ ...options.audio, core });
 
   let initialized = false;
   let lastGrounded = true;
@@ -25,7 +25,7 @@ export function createCharacterSystem(options = {}) {
     if (initialized) return getSnapshot();
     initialized = true;
     physics.reset(options.initialHeight ?? 0);
-    audio.attach();
+    audio?.attach?.();
     core.initialize();
     return getSnapshot();
   }
@@ -118,7 +118,7 @@ export function createCharacterSystem(options = {}) {
     if (!initialized) initialize();
     if (core.snapshot().mode !== 'on-foot') return false;
     weapon.fire();
-    audio.playAction('weaponFire');
+    audio?.playAction?.('weaponFire');
     return true;
   }
 
@@ -132,7 +132,7 @@ export function createCharacterSystem(options = {}) {
   }
 
   function dispose() {
-    audio.dispose();
+    audio?.dispose?.();
     weapon.reset();
     animator.reset();
     initialized = false;

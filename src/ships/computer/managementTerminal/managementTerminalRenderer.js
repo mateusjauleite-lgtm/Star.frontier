@@ -26,10 +26,10 @@ function formatValue(value) {
 }
 
 function collectTelemetry(value, prefix = '', rows = []) {
-  if (rows.length >= 8) return rows;
+  if (rows.length >= 24) return rows;
   if (value && typeof value === 'object' && !Array.isArray(value)) {
     for (const [key, item] of Object.entries(value)) {
-      if (rows.length >= 8) break;
+      if (rows.length >= 24) break;
       const label = prefix ? `${prefix} / ${humanizeKey(key)}` : humanizeKey(key);
       if (item && typeof item === 'object' && !Array.isArray(item) && Object.keys(item).length) collectTelemetry(item, label, rows);
       else rows.push([label, formatValue(item)]);
@@ -47,8 +47,9 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
   let selectHandler = null;
   let commandHandler = null;
   let aiActionHandler = null;
+  let aiMessageHandler = null;
 
-  function mount({ onOpen = () => {}, onClose = () => {}, onModuleSelect = () => {}, onCommand = () => ({ ok: false }), onAIAction = () => ({ ok: false }) } = {}) {
+  function mount({ onOpen = () => {}, onClose = () => {}, onModuleSelect = () => {}, onCommand = () => ({ ok: false }), onAIAction = () => ({ ok: false }), onAIMessage = () => ({ ok: false }) } = {}) {
     if (layer) return false;
     const wrapper = document.createElement('div');
     wrapper.className = 'ship-management-hud-layer';
@@ -60,14 +61,39 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
     selectHandler = onModuleSelect;
     commandHandler = onCommand;
     aiActionHandler = onAIAction;
+    aiMessageHandler = onAIMessage;
+    layer.addEventListener('submit', event => {
+      const form = event.target.closest('[data-ai-chat-form]');
+      if (!form) return;
+      event.preventDefault();
+      const input = form.querySelector('[data-ai-chat-input]');
+      const message = String(input?.value || '').trim();
+      if (!message) return;
+      const history = layer.querySelector('[data-ai-chat-history]');
+      const previousMessageCount = history?.childElementCount ?? 0;
+      const result = aiMessageHandler?.(message);
+      if (input) input.value = '';
+      // O Ship Computer pode publicar a nova conversa sincronamente. Só
+      // acrescenta localmente se nenhum refresh já atualizou o histórico.
+      if ((history?.childElementCount ?? 0) === previousMessageCount) {
+        appendAIMessage('user', message);
+        if (result?.response) appendAIMessage('assistant', result.response);
+      }
+      showAIResult(result);
+      if (history) history.scrollTop = history.scrollHeight;
+    });
     layer.addEventListener('click', event => {
       if (event.target.closest('[data-management-open]')) { openHandler?.(); return; }
       if (event.target.closest('[data-management-close]')) { closeHandler?.(); return; }
       const aiAction = event.target.closest('[data-ai-action]');
       if (aiAction) {
-        const feedback = layer.querySelector('[data-ai-feedback]');
         const result = aiActionHandler?.(aiAction.dataset.aiAction);
-        if (feedback) feedback.textContent = result?.ok ? 'SOLICITAÇÃO PROCESSADA · ' + (result.report ? result.report.systemsChecked + ' SISTEMAS VERIFICADOS' : 'COMANDO ENCAMINHADO') : 'AÇÃO NÃO DISPONÍVEL · ' + (result?.reason || 'ERRO');
+        // A ação pode atualizar o Ship Computer e redesenhar a área de detalhes.
+        // Consulta o feedback depois do callback para não escrever num nó removido.
+        const feedback = layer.querySelector('[data-ai-feedback]');
+        if (feedback) feedback.textContent = result?.ok
+          ? 'SOLICITAÇÃO PROCESSADA · ' + (result.report ? result.report.systemsChecked + ' SISTEMAS VERIFICADOS' : 'COMANDO ENCAMINHADO')
+          : 'AÇÃO NÃO DISPONÍVEL · ' + (result?.reason || 'ERRO');
         return;
       }
       if (event.target.closest('[data-shield-toggle]')) {
@@ -111,6 +137,30 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
     return true;
   }
 
+  function appendAIMessage(role, content) {
+    if (!layer || !content) return;
+    const history = layer.querySelector('[data-ai-chat-history]');
+    if (!history) return;
+    const bubble = document.createElement('div');
+    bubble.className = 'management-ai-message ' + (role === 'user' ? 'user' : 'assistant');
+    const label = document.createElement('small');
+    label.textContent = role === 'user' ? 'OPERADOR' : 'ALEXIA';
+    const body = document.createElement('p');
+    body.textContent = String(content);
+    bubble.append(label, body);
+    history.append(bubble);
+  }
+
+  function showAIResult(result) {
+    if (!layer) return;
+    const feedback = layer.querySelector('[data-ai-feedback]');
+    if (!feedback) return;
+    if (!result) { feedback.textContent = 'Não foi possível encaminhar a mensagem.'; return; }
+    feedback.textContent = result.ok
+      ? 'RESPOSTA RECEBIDA · ' + String(result.intent || 'CHAT').toUpperCase()
+      : 'SOLICITAÇÃO NÃO PROCESSADA · ' + (result.reason || 'ERRO');
+  }
+
   function updateSelection() {
     if (!layer) return;
     layer.querySelectorAll('[data-management-module]').forEach(button => {
@@ -125,6 +175,43 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
   function renderTelemetry(moduleData, selectedModuleId) {
     const output = layer.querySelector('[data-management-detail-output]');
     if (!output) return;
+
+    // Atualizações do Ship Computer não devem substituir o formulário de chat.
+    // O histórico é atualizado dentro do painel existente, preservando o input
+    // e o foco que mantém o teclado virtual disponível no Android.
+    const existingAIPanel = selectedModuleId === 'onboard-ai'
+      ? output.querySelector('.management-ai-panel')
+      : null;
+    if (existingAIPanel && moduleData?.available && moduleData.data) {
+      const history = existingAIPanel.querySelector('[data-ai-chat-history]');
+      if (history) {
+        history.replaceChildren();
+        const messages = Array.isArray(moduleData.conversation) ? moduleData.conversation.slice(-40) : [];
+        if (!messages.length) {
+          const welcome = document.createElement('div');
+          welcome.className = 'management-ai-message assistant';
+          welcome.textContent = 'Ponte de comando conectada. Sou Alexia. Posso consultar a telemetria, verificar sistemas e pesquisar meu banco de conhecimento.';
+          history.append(welcome);
+        } else {
+          for (const message of messages) {
+            const bubble = document.createElement('div');
+            bubble.className = 'management-ai-message ' + (message.role === 'user' ? 'user' : 'assistant');
+            bubble.dataset.messageId = message.id || '';
+            const role = document.createElement('small');
+            role.textContent = message.role === 'user' ? 'OPERADOR' : 'ALEXIA';
+            const body = document.createElement('p');
+            body.textContent = message.content || '';
+            bubble.append(role, body);
+            history.append(bubble);
+          }
+        }
+        history.scrollTop = history.scrollHeight;
+      }
+      const status = existingAIPanel.querySelector('.management-ai-status');
+      if (status) status.textContent = moduleData.data?.voice?.state === 'listening' ? 'ESCUTANDO' : 'ONLINE';
+      return;
+    }
+
     output.replaceChildren();
     if (!moduleData?.available || !moduleData.data) {
       const empty = document.createElement('div');
@@ -142,13 +229,44 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
       return;
     }
     if (selectedModuleId === 'onboard-ai') {
-      const actions = document.createElement('section'); actions.className = 'management-telemetry-card';
-      const title = document.createElement('b'); title.textContent = 'CONTROLE DA ALEXIA';
-      const description = document.createElement('small'); description.textContent = 'A IA opera somente por permissões concedidas pelo Ship Computer.';
+      const panel = document.createElement('section');
+      panel.className = 'management-telemetry-card management-ai-panel';
+      const header = document.createElement('div'); header.className = 'management-ai-heading';
+      const identity = document.createElement('div');
+      const title = document.createElement('b'); title.textContent = 'ALEXIA · ASSISTENTE DE BORDO';
+      const description = document.createElement('small'); description.textContent = 'Canal único de conversa · texto e voz compartilham o mesmo histórico.';
+      identity.append(title, description);
+      const status = document.createElement('span'); status.className = 'management-ai-status'; status.textContent = moduleData.data?.voice?.state === 'listening' ? 'ESCUTANDO' : 'ONLINE';
+      header.append(identity, status);
       const controls = document.createElement('div'); controls.className = 'management-ai-controls';
-      for (const [action, label] of [['voice','CHAMAR POR VOZ'],['patrol','INICIAR RONDA'],['diagnose','DIAGNÓSTICO GERAL'],['stop-voice','ENCERRAR ESCUTA']]) { const button = document.createElement('button'); button.type = 'button'; button.dataset.aiAction = action; button.textContent = label; controls.append(button); }
-      const feedback = document.createElement('small'); feedback.dataset.aiFeedback = 'true'; feedback.textContent = 'Aguardando comando do operador.';
-      actions.append(title, description, controls, feedback); output.append(actions);
+      for (const [action, label] of [['voice','FALAR COM A ALEXIA'],['patrol','INICIAR RONDA'],['diagnose','DIAGNÓSTICO GERAL'],['stop-voice','ENCERRAR ESCUTA']]) {
+        const button = document.createElement('button'); button.type = 'button'; button.dataset.aiAction = action; button.textContent = label; controls.append(button);
+      }
+      const history = document.createElement('div'); history.className = 'management-ai-chat-history'; history.dataset.aiChatHistory = 'true'; history.setAttribute('aria-live', 'polite');
+      const messages = Array.isArray(moduleData.conversation) ? moduleData.conversation.slice(-40) : [];
+      if (!messages.length) {
+        const welcome = document.createElement('div'); welcome.className = 'management-ai-message assistant';
+        welcome.textContent = 'Ponte de comando conectada. Sou Alexia. Posso consultar a telemetria, verificar sistemas e pesquisar meu banco de conhecimento.';
+        history.append(welcome);
+      } else {
+        for (const message of messages) {
+          const bubble = document.createElement('div');
+          bubble.className = 'management-ai-message ' + (message.role === 'user' ? 'user' : 'assistant');
+          bubble.dataset.messageId = message.id || '';
+          const role = document.createElement('small'); role.textContent = message.role === 'user' ? 'OPERADOR' : 'ALEXIA';
+          const body = document.createElement('p'); body.textContent = message.content || '';
+          bubble.append(role, body); history.append(bubble);
+        }
+      }
+      const form = document.createElement('form'); form.className = 'management-ai-chat-form'; form.dataset.aiChatForm = 'true';
+      const input = document.createElement('input'); input.type = 'text'; input.maxLength = 2000; input.autocomplete = 'off'; input.inputMode = 'text'; input.enterKeyHint = 'send';
+      input.placeholder = 'Escreva uma mensagem para Alexia…'; input.setAttribute('aria-label', 'Mensagem para Alexia'); input.dataset.aiChatInput = 'true';
+      const send = document.createElement('button'); send.type = 'submit'; send.textContent = 'ENVIAR';
+      form.append(input, send);
+      const feedback = document.createElement('small'); feedback.className = 'management-ai-feedback'; feedback.dataset.aiFeedback = 'true'; feedback.textContent = 'Canal seguro do Ship Computer.';
+      panel.append(header, controls, history, form, feedback);
+      output.append(panel);
+      history.scrollTop = history.scrollHeight;
     }
     for (const [label, value] of rows) {
       const card = document.createElement('article');
@@ -289,6 +407,8 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
     closeHandler = null;
     selectHandler = null;
     commandHandler = null;
+    aiActionHandler = null;
+    aiMessageHandler = null;
   }
-  return Object.freeze({ mount, render, selectModule, unmount });
+  return Object.freeze({ mount, render, selectModule, showAIResult, unmount });
 }
