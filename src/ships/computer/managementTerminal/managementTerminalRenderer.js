@@ -72,6 +72,7 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
       const result = aiMessageHandler?.(message);
       if (input) input.value = '';
       showAIResult(result);
+      layer.querySelector('[data-ai-chat-input]')?.focus();
     });
     layer.addEventListener('click', event => {
       if (event.target.closest('[data-management-open]')) { openHandler?.(); return; }
