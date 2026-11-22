@@ -27,6 +27,8 @@ import { createShipManagementTerminalRenderer } from './ships/computer/managemen
 import { createShipManagementHologram } from './ships/computer/managementTerminal/shipManagementHologram.js';
 import { createEngineeringTerminalController, ENGINEERING_CONSOLE_LOCAL_POSITION, ENGINEERING_CONSOLE_DISPLAY_RADIUS, ENGINEERING_CONSOLE_INTERACTION_RADIUS } from './ships/computer/engineeringTerminalController.js';
 import { createEngineeringTerminalRenderer } from './ships/computer/engineeringTerminal/engineeringTerminalRenderer.js';
+import { createRefineryTerminalController, REFINERY_TERMINAL_LOCAL_POSITION, REFINERY_TERMINAL_DISPLAY_RADIUS, REFINERY_TERMINAL_INTERACTION_RADIUS } from './ships/computer/refineryTerminalController.js';
+import { createRefineryTerminalRenderer } from './ships/computer/refineryTerminal/refineryTerminalRenderer.js';
 import { registerShipComputerSystems } from './ships/computer/shipComputerSystems.js';
 import { advanceShipFlightDynamics } from './ships/flight/flightDynamics.js';
 import { createShipFlightController } from './ships/flight/shipFlightController.js';
@@ -37,7 +39,7 @@ import { registerTextInteractionGuard } from './core/ui/textInteractionGuard.js'
 
 const artificialGravityField = createArtificialGravityField();
 const shipShieldSystem = createShipShieldSystem(state);
-const dilithiumRefinerySystem = createDilithiumRefinerySystem(state);
+const dilithiumRefinerySystem = createDilithiumRefinerySystem(state, { getPlant: () => starshipInterior?.dilithiumPlant });
 
 registerTextInteractionGuard();
 
@@ -52,10 +54,11 @@ const shipComputer = createShipComputer();
 shipComputer.registerTerminal({
   id: 'ship-management-terminal',
   name: 'Terminal holográfico de gerenciamento',
-  systems: ['navigation', 'sensors', 'engineering', 'power', 'shields', 'refinery']
+  systems: ['navigation', 'sensors', 'engineering', 'power', 'shields']
 });
 shipComputer.registerTerminal({ id: 'pilot-console', name: 'Console de pilotagem da Ponte', systems: ['navigation', 'propulsion', 'shields'] });
-shipComputer.registerTerminal({ id: 'engineering-console', name: 'Console de Engenharia · Deck 3', systems: ['engineering', 'propulsion', 'power', 'shields', 'refinery'] });
+shipComputer.registerTerminal({ id: 'engineering-console', name: 'Console de Engenharia · Deck 3', systems: ['engineering', 'propulsion', 'power', 'shields'] });
+shipComputer.registerTerminal({ id: 'refinery-console', name: 'Console da Refinaria · Deck 3', systems: ['refinery'] });
 const shipManagementTerminal = createShipManagementTerminalController({
   computer: shipComputer,
   renderer: createShipManagementTerminalRenderer({ root: $('game-screen') }),
@@ -67,6 +70,10 @@ const shipManagementTerminal = createShipManagementTerminalController({
 let engineeringConsoleActive = false;
 let engineeringTerminal = null;
 let engineeringTelemetryAccumulator = 0;
+let refineryTerminal = null;
+let refineryConsoleActive = false;
+let refineryInteractionAvailable = false;
+let refineryTelemetryAccumulator = 0;
 let managementTelemetryAccumulator = 0;
 const engineeringRenderer = createEngineeringTerminalRenderer({
   root: $('game-screen'),
@@ -94,6 +101,8 @@ const engineeringRenderer = createEngineeringTerminalRenderer({
   }
 });
 engineeringRenderer.mount();
+const refineryRenderer = createRefineryTerminalRenderer({ root: $('game-screen') });
+refineryTerminal = createRefineryTerminalController({ computer: shipComputer, renderer: refineryRenderer, onInteractionChange: active => { refineryConsoleActive = active; } });
 engineeringTerminal = createEngineeringTerminalController({
   computer: shipComputer,
   onInteractionChange: active => {
@@ -111,6 +120,7 @@ let characterCameraInitialized = false;
 let characterModel = null;
 let shipManagementHologram = null;
 let engineeringHologram = null;
+let refineryHologram = null;
 let characterAnimator = null;
 let characterWeaponController = null;
 let characterPhysics = null;
@@ -144,6 +154,7 @@ const engineeringConsolePosition = new THREE.Vector3(
   ENGINEERING_CONSOLE_LOCAL_POSITION.y,
   ENGINEERING_CONSOLE_LOCAL_POSITION.z
 );
+const refineryConsolePosition = new THREE.Vector3(REFINERY_TERMINAL_LOCAL_POSITION.x, REFINERY_TERMINAL_LOCAL_POSITION.y, REFINERY_TERMINAL_LOCAL_POSITION.z);
 const pilotPlayerWorldPosition = new THREE.Vector3();
 const characterCameraWorldPosition = new THREE.Vector3();
 const characterCameraWorldQuaternion = new THREE.Quaternion();
@@ -724,6 +735,8 @@ async function startGame() {
       registerGameRuntimeSystems(runtimeBridge, {
         shipManagementTerminal,
         engineeringTerminal,
+        refineryTerminal,
+        refinery: dilithiumRefinerySystem,
         mining: miningRuntimeSystem,
         pauseMenu: { document, state, resetInputs: resetTransientState },
         character: {
@@ -786,7 +799,7 @@ async function startGame() {
             earthSystem, camera, applyEarthSurfaceRotation, ship, updatePhaserWeapon,
             characterCore, updateCharacterMovement, updateCharacterWeapon,
             updateExternalElevatorAnimation, updateElevatorInteraction,
-            updatePilotInteraction, updateShipManagementInteraction, updateEngineeringConsoleInteraction, updateExternalElevatorInteraction,
+            updatePilotInteraction, updateShipManagementInteraction, updateEngineeringConsoleInteraction, updateRefineryConsoleInteraction, updateExternalElevatorInteraction,
             updateCharacterCamera, updateFlight, updateCamera, updateShipSystems,
             setLandingBaseSystem: value => { landingBaseSystem = value; },
             updateShipLandingGuidance, THREE, shipVisual, shipEarthContactPoints,
@@ -1036,6 +1049,8 @@ async function init3D() {
     },
     scale: 1.35
   });
+  refineryHologram?.dispose?.();
+  refineryHologram = createShipManagementHologram({ parent: shipVisual, position: { x: REFINERY_TERMINAL_LOCAL_POSITION.x, y: REFINERY_TERMINAL_LOCAL_POSITION.y + 1.19, z: REFINERY_TERMINAL_LOCAL_POSITION.z }, scale: 1.2 });
 
   characterCameraInitialized = false;
   characterInWorldFrame = false;
@@ -1368,7 +1383,6 @@ function updateCharacterWorldPhysics(deltaSeconds) {
 
 function updateShipSystems(dt) {
   const shields = shipShieldSystem.update(dt);
-  dilithiumRefinerySystem.update(dt);
   if (shieldVisual) {
     shieldVisual.visible = shields.enabled && shields.shield > 0;
     shieldVisual.material.opacity = 0.025 + shields.integrity * 0.075;
@@ -1873,7 +1887,20 @@ function toggleEngineeringConsole() {
   }
 }
 
+function updateRefineryConsoleInteraction(dt = 0) {
+ refineryHologram?.update(dt);const pa=refineryInteractionAvailable,pc=refineryConsoleActive;
+ const valid=Boolean(characterModel&&shipVisual&&characterCore.snapshot().mode==='on-foot'&&!characterInWorldFrame&&!nearbyElevator&&activeDeckIndex===2);
+ if(!valid){refineryInteractionAvailable=false;refineryHologram?.setVisible(false);refineryTerminal?.setPresence(false,false);if((pa||pc)&&!nearbyElevator){const b=$('character-action-btn');if(b){b.disabled=true;b.textContent='AÇÃO';b.classList.remove('available');}characterCore.setInteractionTarget(null);updateCharacterHUD();updatePilotInteraction();}return;}
+ const d=characterModel.group.position.distanceToSquared(refineryConsolePosition),visible=d<=REFINERY_TERMINAL_DISPLAY_RADIUS**2,available=d<=REFINERY_TERMINAL_INTERACTION_RADIUS**2;
+ refineryInteractionAvailable=available;refineryHologram?.setVisible(visible);refineryTerminal?.setPresence(visible,available);
+ if(refineryConsoleActive){refineryTelemetryAccumulator+=Math.max(0,Number(dt)||0);if(refineryTelemetryAccumulator>=.18){refineryTelemetryAccumulator=0;refineryTerminal?.refresh();}}else refineryTelemetryAccumulator=0;
+ if(available||refineryConsoleActive){const b=$('character-action-btn');if(b){b.disabled=false;b.textContent=refineryConsoleActive?'◎ FECHAR REFINARIA':'◎ REFINARIA';b.classList.add('available');}characterCore.setInteractionTarget(refineryConsoleActive?'TERMINAL DA REFINARIA CONECTADO':'TERMINAL DA REFINARIA');if(pa!==available||pc!==refineryConsoleActive)updateCharacterHUD();}
+ else if(pa||pc){const b=$('character-action-btn');if(b){b.disabled=true;b.textContent='AÇÃO';b.classList.remove('available');}characterCore.setInteractionTarget(null);updateCharacterHUD();updatePilotInteraction();}
+}
+function toggleRefineryConsole(){if(refineryConsoleActive){refineryTerminal?.close();return;}if(!refineryInteractionAvailable||!refineryTerminal?.open('ENGENHEIRO DE RECURSOS'))toast('Aproxime-se do terminal da Refinaria no Deck 3.');}
+
 function updatePilotInteraction() {
+  if (refineryInteractionAvailable || refineryConsoleActive) return;
   if (!characterModel || !shipVisual || characterCore.snapshot().mode !== 'on-foot') return;
   if (engineeringInteractionAvailable || engineeringConsoleActive) return;
 
@@ -2144,6 +2171,7 @@ function updateCharacterWeapon(dt) {
 
 $('character-action-btn')?.addEventListener('click', () => {
   if (externalElevatorActionAvailable) activateExternalElevator();
+  else if (refineryInteractionAvailable || refineryConsoleActive) toggleRefineryConsole();
   else if (engineeringInteractionAvailable || engineeringConsoleActive) toggleEngineeringConsole();
   else enterPilotMode();
 });

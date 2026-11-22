@@ -98,6 +98,8 @@ jobs:
 
       - name: Compile Ship C++ orbital kernel to WebAssembly
         run: npm run build:ship:wasm --if-present
+      - name: Compile Dilithium Refinery C++ kernel to WebAssembly
+        run: bash scripts/build-refinery-wasm.sh
 
       - name: Compile shared C++ gravity kernel to WebAssembly
         run: npm run build:gravity:wasm --if-present
