@@ -112,6 +112,8 @@ export function createTerrainRuntime({ options, layers }) {
   let earthKernel = createEarthKernelAdapter();
   let heightScale = 1;
   let disposed = false;
+  let regionalDemProvider = null;
+  let regionalSurfaceRuntime = null;
   const highResolutionPatches = new Set();
   let activeHighResolutionPatch = null;
   let lastPatchCenter = null;
@@ -571,12 +573,12 @@ export function createTerrainRuntime({ options, layers }) {
       // Regional cube-sphere tiles replace the former single local high-res
       // patch as the scalable near-player surface. The global ETOPO grid remains
       // the fallback and the authoritative base for the collision sampler.
-      const regionalDemProvider = createTerrariumElevationProvider({
+      regionalDemProvider = createTerrariumElevationProvider({
         urlTemplate: options.regionalDemUrlTemplate ??
           'https://elevation-tiles-prod.s3.amazonaws.com/terrarium/{z}/{x}/{y}.png',
         maxCachedTiles: options.regionalDemCacheTiles ?? 96
       });
-      const regionalSurfaceRuntime = createEarthRegionalSurfaceRuntime({
+      regionalSurfaceRuntime = createEarthRegionalSurfaceRuntime({
         surface,
         radius,
         elevationSampler,
