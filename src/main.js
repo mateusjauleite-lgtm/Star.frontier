@@ -18,6 +18,7 @@ import { createCharacterCore } from './character/characterCore.js';
 import { createCharacterHUD } from './character/characterHUD.js';
 import { createCharacterAudio } from './character/characterAudio.js';
 import { createShipAudio } from './ships/shipAudio.js';
+import { audioManager } from './systems/audioManager.js';
 import { createCharacterEquipmentSystem } from './inventory/characterEquipment.js';
 const DILITHIUM_ORE_ITEM_ID = 'ore.dilithium.raw';
 import { isPilotConsoleInRange, attachCharacterToPilotConsole, returnCharacterToDeck } from './ships/bridge/commandBridge.js';
@@ -785,6 +786,7 @@ async function startGame() {
       const runtimeKernel = await loadRuntimeKernel({ maximumDeltaSeconds: 0.04 });
       runtimeBridge = createRuntimeBridge(runtimeKernel);
       registerGameRuntimeSystems(runtimeBridge, {
+        audioManager,
         shipManagementTerminal,
         onDeflectorCreated: deflectorRuntime => { window.__starFrontierDeflectorRuntime = deflectorRuntime; },
         readDeflectorInputs: () => {
