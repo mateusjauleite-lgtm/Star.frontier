@@ -53,7 +53,7 @@ export async function createGameWorld({
     70,
     viewport.width / viewport.height,
     0.1,
-    20000
+    40000
   );
 
   renderer = new THREE.WebGLRenderer({
