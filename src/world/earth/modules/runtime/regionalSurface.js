@@ -173,7 +173,8 @@ export function createEarthQuadtreeTileGeometry(node, radius, {
       positions[vertex++] = direction.y * finalRadius;
       positions[vertex++] = direction.z * finalRadius;
       uvs[index * 2] = (geographic.longitudeDeg + 180) / 360;
-      uvs[index * 2 + 1] = (90 - geographic.latitudeDeg) / 180;
+      // Match SphereGeometry's north-at-v=1 convention and TextureLoader flipY.
+      uvs[index * 2 + 1] = (geographic.latitudeDeg + 90) / 180;
     }
   }
   for (let row = 0; row < segments; row++) {
