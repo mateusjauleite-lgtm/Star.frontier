@@ -114,3 +114,20 @@ test('aplicativo da Alexia encaminha texto ao núcleo único e recupera históri
   assert.equal(h.computer.onboardAI.getConversationHistory().length, 2);
   h.controller.shutdown();
 });
+
+
+test('envio no chat preserva o renderer montado para não remover o campo focado no Android', () => {
+  const h = createHarness();
+  h.controller.initialize();
+  h.controller.setPresence(true, true);
+  h.controller.open('PILOTO');
+  h.controller.selectModule('onboard-ai');
+  const renderCountBeforeMessage = h.calls.filter(([name]) => name === 'render').length;
+
+  const response = h.mounted.options.onAIMessage('qual a situação da nave?');
+
+  assert.equal(response.ok, true);
+  assert.equal(h.computer.onboardAI.getConversationHistory().length, 2);
+  assert.equal(h.calls.filter(([name]) => name === 'render').length, renderCountBeforeMessage);
+  h.controller.shutdown();
+});
