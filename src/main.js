@@ -2279,7 +2279,9 @@ function renderInventory() {
       const quantity = item.quantity > 1 ? ` ×${item.quantity}` : '';
       const equipable = ['head', 'torso', 'hands', 'legs', 'feet', 'back', 'weapon'].includes(item.slot);
       const pending = pendingInventoryEquipId === item.instanceId;
-      const action = item.definitionId === DILITHIUM_ORE_ITEM_ID\n        ? (refineryConsoleActive ? 'TRANSFERIR À REFINARIA' : 'ABRA O CONSOLE DA REFINARIA')\n        : (equipable ? (pending ? 'EQUIPAR AGORA' : 'TOQUE PARA SELECIONAR') : 'TOQUE PARA RESTAURAR');
+      const action = item.definitionId === DILITHIUM_ORE_ITEM_ID
+        ? (refineryConsoleActive ? 'TRANSFERIR À REFINARIA' : 'ABRA O CONSOLE DA REFINARIA')
+        : (equipable ? (pending ? 'EQUIPAR AGORA' : 'TOQUE PARA SELECIONAR') : 'TOQUE PARA RESTAURAR');
       return `<button type="button" class="inventory-overflow-item${pending ? ' item-pending-equip' : ''}" data-overflow-instance-id="${escapeHtml(item.instanceId)}">
         <b>${name}${quantity}</b><small>${action}</small>
       </button>`;
