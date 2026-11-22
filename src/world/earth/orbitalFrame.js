@@ -20,16 +20,21 @@ function inverseQuaternion(quaternion) {
 
 /**
  * Bridges Earth-centred Three.js world coordinates to SI orbital coordinates.
- * The render scale comes from Earth's planetary profile; ship mesh dimensions
- * remain a separate visual/model calibration and are not rescaled here.
+ * Runtime telemetry supplies metersPerVisualUnit from the authoritative
+ * physical-scale adapter. visualUnitsPerKm remains accepted for older callers.
  */
 export function createEarthOrbitalFrame({
   originWorld = [0, 0, 0],
   orientationWorld = [0, 0, 0, 1],
+  metersPerVisualUnit,
   visualUnitsPerKm
 } = {}) {
+  const resolvedMetersPerVisualUnit = Number.isFinite(metersPerVisualUnit) && metersPerVisualUnit > 0
+    ? metersPerVisualUnit
+    : (Number.isFinite(visualUnitsPerKm) && visualUnitsPerKm > 0
+      ? 1000 / visualUnitsPerKm : null);
   if (!isVector3(originWorld) || !isQuaternion(orientationWorld) ||
-      !Number.isFinite(visualUnitsPerKm) || visualUnitsPerKm <= 0) {
+      !Number.isFinite(resolvedMetersPerVisualUnit) || resolvedMetersPerVisualUnit <= 0) {
     throw new TypeError('Invalid Earth orbital frame calibration.');
   }
 
@@ -44,12 +49,13 @@ export function createEarthOrbitalFrame({
   return Object.freeze({
     originWorld: [...originWorld],
     orientationWorld: [...orientation],
-    visualUnitsPerKm,
-    metersPerVisualUnit,
+    visualUnitsPerKm: resolvedVisualUnitsPerKm,
+    metersPerVisualUnit: resolvedMetersPerVisualUnit,
     worldPositionToMeters(positionWorld) {
       if (!isVector3(positionWorld)) return null;
       const relative = positionWorld.map((value, axis) => value - originWorld[axis]);
-      return clean(rotateVector(relative, inverseOrientation).map(value => value * resolvedMetersPerVisualUnit));
+      return clean(rotateVector(relative, inverseOrientation)
+        .map(value => value * resolvedMetersPerVisualUnit));
     },
     metersToWorldPosition(positionMeters) {
       if (!isVector3(positionMeters)) return null;
@@ -61,7 +67,8 @@ export function createEarthOrbitalFrame({
     },
     worldVectorToMeters(vectorWorld) {
       if (!isVector3(vectorWorld)) return null;
-      return clean(rotateVector(vectorWorld, inverseOrientation).map(value => value * metersPerVisualUnit));
+      return clean(rotateVector(vectorWorld, inverseOrientation)
+        .map(value => value * resolvedMetersPerVisualUnit));
     },
     metersVectorToWorld(vectorMeters) {
       if (!isVector3(vectorMeters)) return null;
