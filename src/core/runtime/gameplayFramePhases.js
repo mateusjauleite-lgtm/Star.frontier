@@ -172,7 +172,8 @@ export function createGameplayFramePhases(getDependencies) {
     },
 
     updateWorld(dt) {
-      const { orbitSystem, asteroidSystem, lightingSystem, camera, shipVisual, THREE, state } = getDependencies();
+      const { orbitSystem, asteroidSystem, lightingSystem, camera, shipVisual, THREE, state, updateShipSystems } = getDependencies();
+      updateShipSystems?.(dt);
       orbitSystem?.update(dt);
       asteroidSystem?.update(dt);
       const shipQuaternion = shipVisual?.getWorldQuaternion && THREE?.Quaternion

@@ -45,3 +45,29 @@ test('character forwards an environment gravity field to the shared kernel', () 
   assert.deepEqual(received.position, [100, 20, 0]);
   assert.equal(received.bodies.length, 1);
 });
+
+
+test('personagem recebe compensação longitudinal no eixo local da nave enquanto está no ar', () => {
+  const physics = createCharacterPhysics({ gravity: 18 });
+  const position = { x: 0, y: 10, z: 0 };
+  physics.leaveGround();
+  physics.update(0.05, {
+    position,
+    floorY: -100,
+    gravityField: { position: [0, 10, 0], uniformAcceleration: [0, -18, 8], bodies: [] }
+  });
+  assert.ok(position.z > 0);
+  assert.ok(physics.velocity[2] > 0);
+});
+
+test('personagem apoiado no convés não deriva com a compensação de dobra', () => {
+  const physics = createCharacterPhysics();
+  const position = { x: 2, y: 0.21, z: -3 };
+  const result = physics.update(0.05, {
+    position,
+    floorY: 0.21,
+    gravityField: { uniformAcceleration: [0, -18, 12] }
+  });
+  assert.equal(result.grounded, true);
+  assert.deepEqual(position, { x: 2, y: 0.21, z: -3 });
+});

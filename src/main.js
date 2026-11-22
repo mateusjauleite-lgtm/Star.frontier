@@ -30,7 +30,14 @@ import { createEngineeringTerminalRenderer } from './ships/computer/engineeringT
 import { registerShipComputerSystems } from './ships/computer/shipComputerSystems.js';
 import { advanceShipFlightDynamics } from './ships/flight/flightDynamics.js';
 import { createShipFlightController } from './ships/flight/shipFlightController.js';
+import { createArtificialGravityField } from './ships/systems/artificialGravityField.js';
+import { createShipShieldSystem } from './ships/systems/shieldSystem.js';
+import { createDilithiumRefinerySystem } from './ships/systems/dilithiumRefinerySystem.js';
 import { registerTextInteractionGuard } from './core/ui/textInteractionGuard.js';
+
+const artificialGravityField = createArtificialGravityField();
+const shipShieldSystem = createShipShieldSystem(state);
+const dilithiumRefinerySystem = createDilithiumRefinerySystem(state);
 
 registerTextInteractionGuard();
 
@@ -45,10 +52,10 @@ const shipComputer = createShipComputer();
 shipComputer.registerTerminal({
   id: 'ship-management-terminal',
   name: 'Terminal holográfico de gerenciamento',
-  systems: ['navigation', 'sensors', 'power']
+  systems: ['navigation', 'sensors', 'engineering', 'power', 'shields', 'refinery']
 });
-shipComputer.registerTerminal({ id: 'pilot-console', name: 'Console de pilotagem da Ponte', systems: ['navigation', 'propulsion'] });
-shipComputer.registerTerminal({ id: 'engineering-console', name: 'Console de Engenharia · Deck 3', systems: ['engineering', 'propulsion', 'power'] });
+shipComputer.registerTerminal({ id: 'pilot-console', name: 'Console de pilotagem da Ponte', systems: ['navigation', 'propulsion', 'shields'] });
+shipComputer.registerTerminal({ id: 'engineering-console', name: 'Console de Engenharia · Deck 3', systems: ['engineering', 'propulsion', 'power', 'shields', 'refinery'] });
 const shipManagementTerminal = createShipManagementTerminalController({
   computer: shipComputer,
   renderer: createShipManagementTerminalRenderer({ root: $('game-screen') }),
@@ -60,6 +67,7 @@ const shipManagementTerminal = createShipManagementTerminalController({
 let engineeringConsoleActive = false;
 let engineeringTerminal = null;
 let engineeringTelemetryAccumulator = 0;
+let managementTelemetryAccumulator = 0;
 const engineeringRenderer = createEngineeringTerminalRenderer({
   root: $('game-screen'),
   onOpen: () => toggleEngineeringConsole(),
@@ -75,6 +83,14 @@ const engineeringRenderer = createEngineeringTerminalRenderer({
   onWarpToggle: active => {
     const response = engineeringTerminal?.dispatch('engineering', 'setWarpActive', { active });
     if (!response?.ok || !response.result?.accepted) toast('Dobra indisponível: verifique o dilítio refinado.');
+  },
+  onRefineryToggle: enabled => {
+    const response = engineeringTerminal?.dispatch('refinery', 'setRefineryEnabled', { enabled });
+    if (!response?.ok || !response.result?.accepted) toast('Comando bloqueado: console central de energia tem prioridade.');
+  },
+  onTransferToggle: enabled => {
+    const response = engineeringTerminal?.dispatch('refinery', 'setTransferEnabled', { enabled });
+    if (!response?.ok || !response.result?.accepted) toast('Transferência não autorizada pelo núcleo.');
   }
 });
 engineeringRenderer.mount();
@@ -98,6 +114,7 @@ let engineeringHologram = null;
 let characterAnimator = null;
 let characterWeaponController = null;
 let characterPhysics = null;
+let shieldVisual = null;
 let characterYaw = 0;
 let characterPitch = 0;
 const characterForward = new THREE.Vector3();
@@ -634,7 +651,9 @@ function registerComputerSubsystems() {
     getShip: () => ship,
     getShipYaw: () => shipYaw?.rotation.y ?? 0,
     getPitchAngle: () => shipFlightController.pitchAngle,
-    getAsteroids: () => asteroids
+    getAsteroids: () => asteroids,
+    shieldSystem: shipShieldSystem,
+    refinerySystem: dilithiumRefinerySystem
   });
   shipComputerSystemsRegistered = true;
 }
@@ -768,7 +787,7 @@ async function startGame() {
             characterCore, updateCharacterMovement, updateCharacterWeapon,
             updateExternalElevatorAnimation, updateElevatorInteraction,
             updatePilotInteraction, updateShipManagementInteraction, updateEngineeringConsoleInteraction, updateExternalElevatorInteraction,
-            updateCharacterCamera, updateFlight, updateCamera,
+            updateCharacterCamera, updateFlight, updateCamera, updateShipSystems,
             setLandingBaseSystem: value => { landingBaseSystem = value; },
             updateShipLandingGuidance, THREE, shipVisual, shipEarthContactPoints,
             shipLandingGearContactPoints, forwardVector, state,
@@ -976,6 +995,7 @@ async function init3D() {
     shipLandingAutopilot,
     shipLandingGear,
     shipLandingGearContactPoints,
+    shieldVisual,
     shipYaw,
     shipPitch,
     shipVisual,
@@ -1346,8 +1366,18 @@ function updateCharacterWorldPhysics(deltaSeconds) {
   }
 }
 
+function updateShipSystems(dt) {
+  const shields = shipShieldSystem.update(dt);
+  dilithiumRefinerySystem.update(dt);
+  if (shieldVisual) {
+    shieldVisual.visible = shields.enabled && shields.shield > 0;
+    shieldVisual.material.opacity = 0.025 + shields.integrity * 0.075;
+  }
+}
+
 function updateCharacterMovement(dt) {
   if (!characterModel || characterCore.snapshot().mode !== 'on-foot') return;
+  artificialGravityField.update(dt, state);
   if (externalElevator?.moving && externalElevatorRiding) {
     characterAnimator?.play('idle');
     characterAnimator?.update(dt);
@@ -1460,9 +1490,14 @@ function updateCharacterMovement(dt) {
   if (magnitude > 0.08) {
     // Movimento horizontal no referencial local da nave; a física vertical
     // é independente da translação/rotação do casco.
-    const yaw = characterModel.group.rotation.y;
-    characterForward.set(0, 0, -1).applyAxisAngle(THREE.Object3D.DEFAULT_UP, yaw);
-    characterRight.set(1, 0, 0).applyAxisAngle(THREE.Object3D.DEFAULT_UP, yaw);
+    // Converte a orientação mundial do personagem para o referencial da nave.
+    // Assim, o joystick continua usando frente/direita do convés mesmo quando
+    // a nave muda de orientação durante entrada, cruzeiro ou saída de dobra.
+    const shipWorldQuaternion = shipVisual.getWorldQuaternion(new THREE.Quaternion());
+    const playerWorldQuaternion = characterModel.group.getWorldQuaternion(new THREE.Quaternion());
+    const deckRelativeQuaternion = shipWorldQuaternion.invert().multiply(playerWorldQuaternion);
+    characterForward.set(0, 0, -1).applyQuaternion(deckRelativeQuaternion).setY(0).normalize();
+    characterRight.set(1, 0, 0).applyQuaternion(deckRelativeQuaternion).setY(0).normalize();
     characterMove.copy(characterForward).multiplyScalar(-input.y)
       .addScaledVector(characterRight, input.x);
 
@@ -1510,7 +1545,8 @@ function updateCharacterMovement(dt) {
 
   const physicsState = characterPhysics?.update(dt, {
     position: deck,
-    floorY
+    floorY,
+    gravityField: artificialGravityField.getField([deck.x, deck.y, deck.z])
   });
 
   if (magnitude > 0.08 && movedHorizontally && physicsState?.grounded) {
@@ -1762,6 +1798,15 @@ function updateShipManagementInteraction(dt = 0) {
   shipManagementInteractionAvailable = available;
   shipManagementHologram?.setVisible(visible);
   shipManagementTerminal.setPresence(visible, available);
+  if (shipManagementTerminal.getSnapshot().open) {
+    managementTelemetryAccumulator += Math.max(0, Number(dt) || 0);
+    if (managementTelemetryAccumulator >= 0.18) {
+      managementTelemetryAccumulator = 0;
+      shipManagementTerminal.refresh();
+    }
+  } else {
+    managementTelemetryAccumulator = 0;
+  }
 }
 
 function updateEngineeringConsoleInteraction(dt = 0) {

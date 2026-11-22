@@ -30,7 +30,13 @@ export function createMiningRuntimeSystem({
     }
     const dilithiumDeposit = target.userData.resources?.['resource:ore-dilithium'];
     if (Number(dilithiumDeposit?.amount) > 0) {
-      const amount = Math.min(dilithiumDeposit.amount, state.miningDrill === 'Broca reforçada' ? 12 : 6);
+      const rawCapacity = 200;
+      const rawSpace = Math.max(0, rawCapacity - (Number(state.rawDilithiumOre) || 0));
+      const amount = Math.min(dilithiumDeposit.amount, state.miningDrill === 'Broca reforçada' ? 12 : 6, rawSpace);
+      if (amount <= 0) {
+        toast('Armazenamento de minério bruto da refinaria cheio.');
+        return false;
+      }
       dilithiumDeposit.amount -= amount;
       state.rawDilithiumOre = Math.max(0, Number(state.rawDilithiumOre) || 0) + amount;
       if (dilithiumDeposit.amount <= 0) {

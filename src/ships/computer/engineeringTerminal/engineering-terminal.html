@@ -8,9 +8,8 @@
     <div class="management-os-body">
       <aside class="management-sidebar engineering-sidebar">
         <div class="management-sidebar-heading">APLICATIVOS</div>
-        <div class="management-app-link is-selected"><span class="management-app-icon">ϟ</span><span>Propulsão de dobra<small>CONTROLE ATIVO</small></span></div>
-        <div class="management-app-link"><span class="management-app-icon">◈</span><span>Núcleo de dobra<small>TELEMETRIA</small></span></div>
-        <div class="management-app-link"><span class="management-app-icon">▤</span><span>Diagnósticos<small>PROTEÇÃO</small></span></div>
+        <button type="button" class="management-app-link is-selected" data-engineering-app-select="propulsion" aria-pressed="true"><span class="management-app-icon">ϟ</span><span>Propulsão de dobra<small>CONTROLE DE VOO</small></span></button>
+        <button type="button" class="management-app-link" data-engineering-app-select="refinery" aria-pressed="false"><span class="management-app-icon">▥</span><span>Refinaria<small>PROCESSAMENTO E ESTOQUE</small></span></button>
         <div class="management-sidebar-bottom">
           <div class="management-ship-card"><span class="management-ship-avatar">A7</span><span><b>AURORA-7</b><small>DECK 03 · ENGENHARIA</small></span></div>
           <div class="management-link-state"><span class="management-live-dot"></span><span>SHIP COMPUTER LINK</span></div>
@@ -18,50 +17,106 @@
       </aside>
       <main class="management-desktop engineering-desktop">
         <div class="management-desktop-heading">
-          <div><span class="management-os-eyebrow">CENTRAL DE ENGENHARIA / DECK 03</span><h2>Propulsão e núcleo de dobra</h2><p>Controle de estágio, velocidade e reserva refinada da nave.</p></div>
+          <div><span class="management-os-eyebrow">CENTRAL DE ENGENHARIA / DECK 03</span><h2 data-engineering-page-title>Propulsão e núcleo de dobra</h2><p data-engineering-page-description>Controle de estágio, velocidade e reserva refinada da nave.</p></div>
           <div class="management-session-chip"><span class="management-live-dot"></span> TELEMETRIA AO VIVO</div>
         </div>
         <div class="engineering-readouts">
           <article class="management-info-card"><small>ESTADO DO NÚCLEO</small><b data-engineering-core>ONLINE</b><span>Ship Computer</span></article>
           <article class="management-info-card"><small>ESTÁGIO ATUAL</small><b data-engineering-stage>INATIVO</b><span>Faixa de dobra selecionada</span></article>
           <article class="management-info-card"><small>VELOCIDADE</small><b data-engineering-speed>0</b><span>Escala de voo</span></article>
-          <article class="management-info-card"><small>DILÍTIO REFINADO</small><b data-engineering-dilithium>100.00 u</b><span>Reserva disponível</span></article>
+          <article class="management-info-card"><small>DILÍTIO NO NÚCLEO</small><b data-engineering-dilithium>100.00 u</b><span>Reserva operacional</span></article>
         </div>
-        <div class="management-workspace engineering-workspace">
-          <section class="management-window">
-            <header class="management-window-title"><span class="management-window-app-icon">ϟ</span><b>SELEÇÃO DE ESTÁGIO</b><span class="management-window-controls">— □</span></header>
-            <div class="engineering-panel-content">
-              <p class="engineering-help">Cada estágio define uma velocidade de cruzeiro. A mudança é progressiva e não interrompe o deslocamento.</p>
-              <div class="engineering-stage-grid">
-                <button type="button" data-engineering-stage="1"><b>1</b><span>DOBRA I</span><small>115</small></button>
-                <button type="button" data-engineering-stage="2"><b>2</b><span>DOBRA II</span><small>155</small></button>
-                <button type="button" data-engineering-stage="3"><b>3</b><span>DOBRA III</span><small>205</small></button>
-                <button type="button" data-engineering-stage="4"><b>4</b><span>DOBRA IV</span><small>270</small></button>
-                <button type="button" data-engineering-stage="5"><b>5</b><span>DOBRA V</span><small>350</small></button>
+        <section data-engineering-app-panel="propulsion">
+          <div class="management-workspace engineering-workspace">
+            <section class="management-window">
+              <header class="management-window-title"><span class="management-window-app-icon">ϟ</span><b>SELEÇÃO DE ESTÁGIO</b><span class="management-window-controls">— □</span></header>
+              <div class="engineering-panel-content">
+                <p class="engineering-help">Cada estágio define uma velocidade de cruzeiro. A mudança é progressiva e não interrompe o deslocamento.</p>
+                <div class="engineering-stage-grid">
+                  <button type="button" data-engineering-stage="1"><b>1</b><span>DOBRA I</span><small>115</small></button>
+                  <button type="button" data-engineering-stage="2"><b>2</b><span>DOBRA II</span><small>155</small></button>
+                  <button type="button" data-engineering-stage="3"><b>3</b><span>DOBRA III</span><small>205</small></button>
+                  <button type="button" data-engineering-stage="4"><b>4</b><span>DOBRA IV</span><small>270</small></button>
+                  <button type="button" data-engineering-stage="5"><b>5</b><span>DOBRA V</span><small>350</small></button>
+                </div>
+                <button type="button" class="engineering-warp-toggle" data-engineering-warp-toggle>ATIVAR / DESATIVAR DOBRA</button>
               </div>
-              <button type="button" class="engineering-warp-toggle" data-engineering-warp-toggle>ATIVAR / DESATIVAR DOBRA</button>
+            </section>
+            <section class="management-window">
+              <header class="management-window-title"><span class="management-window-app-icon">◈</span><b>TRANSIÇÃO E SEGURANÇA</b><span class="management-window-controls">— □</span></header>
+              <div class="engineering-panel-content">
+                <div class="engineering-state-row"><span>PROPULSÃO</span><b data-engineering-propulsion>CONVENCIONAL</b></div>
+                <div class="engineering-state-row"><span>TRANSIÇÃO</span><b data-engineering-transition>ESTÁVEL</b></div>
+                <div class="engineering-state-row"><span>MODO DE SAÍDA</span><b data-engineering-exit-label>SUAVE</b></div>
+                <p class="engineering-help">Escolha como a nave abandona o campo de dobra. Ambas as opções preservam o movimento.</p>
+                <div class="engineering-exit-options">
+                  <button type="button" data-engineering-exit-mode="smooth">SAÍDA SUAVE</button>
+                  <button type="button" data-engineering-exit-mode="direct">SAÍDA DIRETA</button>
+                </div>
+                <div class="engineering-alert" data-engineering-alert>SEM ALERTAS · SISTEMAS ESTÁVEIS</div>
+              </div>
+            </section>
+          </div>
+        </section>
+        <section data-engineering-app-panel="refinery" hidden>
+          <nav class="engineering-refinery-tabs" aria-label="Aplicativos da refinaria">
+            <button type="button" data-engineering-view="storage" class="is-selected">ARMAZENAMENTO</button>
+            <button type="button" data-engineering-view="transfer">TRANSFERÊNCIA</button>
+            <button type="button" data-engineering-view="details">DETALHES</button>
+            <button type="button" data-engineering-view="commands">COMANDO DA NAVE</button>
+          </nav>
+          <section class="management-window engineering-refinery-view" data-engineering-view-panel="storage">
+            <header class="management-window-title"><span class="management-window-app-icon">▥</span><b>COMPARTIMENTOS DA REFINARIA</b></header>
+            <div class="engineering-panel-content">
+              <p class="engineering-help">Compartimentos independentes para minério bruto e dilítio refinado aguardando transferência.</p>
+              <div class="engineering-storage-grid">
+                <article class="engineering-storage-slot"><small>SLOT 01 · MINÉRIO BRUTO</small><b data-refinery-raw>0.00 u</b><span data-refinery-raw-capacity>CAPACIDADE 200.00 u</span><div class="engineering-capacity-track"><i data-refinery-raw-fill></i></div><em>Entrada da mineração</em></article>
+                <article class="engineering-storage-slot"><small>SLOT 02 · DILÍTIO REFINADO</small><b data-refinery-buffer>0.00 u</b><span data-refinery-buffer-capacity>CAPACIDADE 120.00 u</span><div class="engineering-capacity-track"><i data-refinery-buffer-fill></i></div><em>Pronto para transferência ao núcleo</em></article>
+              </div>
             </div>
           </section>
-          <section class="management-window">
-            <header class="management-window-title"><span class="management-window-app-icon">◈</span><b>TRANSIÇÃO E SEGURANÇA</b><span class="management-window-controls">— □</span></header>
+          <section class="management-window engineering-refinery-view" data-engineering-view-panel="transfer" hidden>
+            <header class="management-window-title"><span class="management-window-app-icon">⇄</span><b>LINHA DE TRANSFERÊNCIA DO NÚCLEO</b></header>
             <div class="engineering-panel-content">
-              <div class="engineering-state-row"><span>PROPULSÃO</span><b data-engineering-propulsion>CONVENCIONAL</b></div>
-              <div class="engineering-state-row"><span>TRANSIÇÃO</span><b data-engineering-transition>ESTÁVEL</b></div>
-              <div class="engineering-state-row"><span>MODO DE SAÍDA</span><b data-engineering-exit-label>SUAVE</b></div>
-              <p class="engineering-help">Escolha como a nave abandona o campo de dobra. Ambas as opções preservam o movimento.</p>
-              <div class="engineering-exit-options">
-                <button type="button" data-engineering-exit-mode="smooth">SAÍDA SUAVE</button>
-                <button type="button" data-engineering-exit-mode="direct">SAÍDA DIRETA</button>
-              </div>
-              <div class="engineering-alert" data-engineering-alert>SEM ALERTAS · SISTEMAS ESTÁVEIS</div>
+              <div class="engineering-state-row"><span>TRANSFERÊNCIA</span><b data-refinery-transfer-state>DESLIGADA</b></div>
+              <div class="engineering-state-row"><span>FLUXO ATUAL</span><b data-refinery-transfer-rate>0.00 u/s</b></div>
+              <div class="engineering-state-row"><span>TOTAL TRANSFERIDO</span><b data-refinery-transferred-total>0.00 u</b></div>
+              <div class="engineering-capacity-track"><i data-refinery-transfer-fill></i></div>
+              <div class="engineering-core-link" data-refinery-core-link><span>REFINARIA</span><i></i><span>NÚCLEO</span></div>
+              <p class="engineering-help">O fluxo é atualizado em tempo real. A transferência para quando o núcleo atinge sua capacidade ou quando é desligada.</p>
+              <button type="button" class="engineering-warp-toggle" data-refinery-transfer-toggle>ATIVAR TRANSFERÊNCIA</button>
             </div>
           </section>
-        </div>
+          <section class="management-window engineering-refinery-view" data-engineering-view-panel="details" hidden>
+            <header class="management-window-title"><span class="management-window-app-icon">◈</span><b>TELEMETRIA DO NÚCLEO</b></header>
+            <div class="engineering-panel-content">
+              <div class="engineering-storage-grid">
+                <article class="engineering-storage-slot"><small>RESERVA ATUAL DO NÚCLEO</small><b data-refinery-core>0.00 u</b><span data-refinery-core-capacity>CAPACIDADE 250.00 u</span><div class="engineering-capacity-track"><i data-refinery-core-fill></i></div></article>
+                <article class="engineering-storage-slot"><small>ESPAÇO DISPONÍVEL</small><b data-refinery-core-space>0.00 u</b><span>Limite operacional do núcleo</span></article>
+                <article class="engineering-storage-slot"><small>CONSUMO ACUMULADO</small><b data-refinery-consumed-total>0.00 u</b><span>Consumo identificado pelo sistema</span></article>
+                <article class="engineering-storage-slot"><small>CONSUMO ATUAL</small><b data-refinery-consumption-rate>0.00 u/s</b><span>Variação da reserva por segundo</span></article>
+                <article class="engineering-storage-slot"><small>PRODUÇÃO REFINADA TOTAL</small><b data-refinery-refined-total>0.00 u</b><span>Desde o início do registro atual</span></article>
+              </div>
+              <div class="engineering-alert" data-refinery-support>SUPORTE DE ENERGIA DISPONÍVEL</div>
+            </div>
+          </section>
+          <section class="management-window engineering-refinery-view" data-engineering-view-panel="commands" hidden>
+            <header class="management-window-title"><span class="management-window-app-icon">⌘</span><b>COMANDO DA NAVE · REFINARIA</b></header>
+            <div class="engineering-panel-content">
+              <p class="engineering-help">Os comandos locais operam a refinaria e a linha de transferência. O console central de energia mantém autoridade superior.</p>
+              <div class="engineering-state-row"><span>REFINARIA</span><b data-refinery-state>ONLINE</b></div>
+              <button type="button" class="engineering-warp-toggle" data-refinery-main-toggle>DESLIGAR REFINARIA</button>
+              <div class="engineering-state-row"><span>TRANSFERÊNCIA PARA O NÚCLEO</span><b data-refinery-command-transfer-state>DESLIGADA</b></div>
+              <button type="button" class="engineering-warp-toggle" data-refinery-command-transfer-toggle>ATIVAR TRANSFERÊNCIA</button>
+              <div class="engineering-alert" data-refinery-authority>CONTROLE LOCAL · AUTORIDADE DO CONSOLE CENTRAL</div>
+            </div>
+          </section>
+        </section>
       </main>
     </div>
     <footer class="management-taskbar">
       <div class="management-taskbar-start"><span class="management-os-mark">A7</span><b>ENGENHARIA</b></div>
-      <div class="management-taskbar-active"><span>ϟ</span> Warp Propulsion Control</div>
+      <div class="management-taskbar-active"><span>ϟ</span> Ship Engineering Systems</div>
       <div class="management-taskbar-status"><span class="management-live-dot"></span> SHIP COMPUTER <i>•</i> LINK SEGURO</div>
       <div class="management-taskbar-clock">AURORA OS <small>ENGINEERING</small></div>
     </footer>

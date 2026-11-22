@@ -35,6 +35,23 @@ export function createExplorationShip() {
     color: 0x56d9ff, transparent: true, opacity: 0.82
   });
 
+  const shieldMaterial = new THREE.MeshBasicMaterial({
+    color: 0x39cfff,
+    transparent: true,
+    opacity: 0.055,
+    side: THREE.BackSide,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending
+  });
+  const shieldVisual = new THREE.Mesh(
+    new THREE.SphereGeometry(1, 48, 32), shieldMaterial
+  );
+  shieldVisual.name = 'Deflector-Shield-Envelope';
+  shieldVisual.scale.set(31.5, 18.5, 57.5);
+  shieldVisual.visible = true;
+  shieldVisual.renderOrder = 3;
+  visual.add(shieldVisual);
+
   const addMesh = (geometry, material, position, scale = [1, 1, 1], name = '') => {
     const mesh = new THREE.Mesh(geometry, material);
     mesh.position.set(...position);
@@ -453,5 +470,5 @@ export function createExplorationShip() {
     createLandingGear(THREE);
   visual.add(landingGear);
 
-  return { group, yaw, pitch, visual, engineFlames, engineLights, landingGear, landingGearContactPoints };
+  return { group, yaw, pitch, visual, engineFlames, engineLights, landingGear, landingGearContactPoints, shieldVisual };
 }

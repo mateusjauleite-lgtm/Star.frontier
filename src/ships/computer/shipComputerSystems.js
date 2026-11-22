@@ -5,7 +5,7 @@ const PROPULSION_INPUTS = new Set(['throttle', 'braking', 'warpDriveButton']);
 const CONTROL_AUTHORITIES = new Set(['bridge', 'engineering', 'automatic']);
 const WARP_EXIT_MODES = new Set(['smooth', 'direct']);
 
-export function registerShipComputerSystems(computer, { state, getShip, getShipYaw, getPitchAngle, getAsteroids }) {
+export function registerShipComputerSystems(computer, { state, getShip, getShipYaw, getPitchAngle, getAsteroids, shieldSystem = null, refinerySystem = null }) {
   if (!computer || !state || typeof getShip !== 'function' || typeof getShipYaw !== 'function' || typeof getPitchAngle !== 'function' || typeof getAsteroids !== 'function') {
     throw new TypeError('Dependências dos sistemas do computador incompletas.');
   }
@@ -86,7 +86,7 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
   computer.registerSystem('power', {
     name: 'Energia e recursos',
     commands: {
-      status: () => {
+      status: (payload, context) => {
         const propulsion = readPropulsion();
         if (!propulsion.available) return { available: false };
         return {
@@ -94,15 +94,50 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
           conventionalFuel: state.fuel,
           refinedDilithium: state.refinedDilithium,
           shields: state.shield,
+          shieldEnabled: state.shieldEnabled !== false,
           hull: state.hull,
           propulsionAuthority: propulsion.authority,
           warpDriveActive: propulsion.warpDriveActive,
           warpStage: propulsion.warpStage,
-          warpTransition: propulsion.warpTransition
+          warpTransition: propulsion.warpTransition,
+          refinery: { ...(refinerySystem?.snapshot?.() ?? {}), controlAllowed: canControlRefinery(context) }
         };
       }
     },
     getStatus: () => readShip() ? 'monitoring' : 'standby'
+  });
+  computer.registerSystem('shields', {
+    name: 'Escudos defletores',
+    commands: {
+      status: () => shieldSystem?.snapshot?.() ?? {
+        enabled: state.shieldEnabled !== false, shield: state.shield, hull: state.hull
+      },
+      setEnabled: (payload, context) => {
+        if (context?.terminalId !== 'engineering-console') {
+          return { accepted: false, reason: 'engineering-terminal-required' };
+        }
+        const status = shieldSystem?.setEnabled?.(Boolean(payload?.enabled));
+        return { accepted: Boolean(status), status };
+      }
+    },
+    getStatus: () => readShip() ? 'online' : 'standby'
+  });
+  const canControlRefinery = context => context?.terminalId === 'ship-management-terminal' ||
+    (context?.terminalId === 'engineering-console' && !computer.isTerminalConnected('ship-management-terminal'));
+  computer.registerSystem('refinery', {
+    name: 'Refinaria e transferência do núcleo',
+    commands: {
+      status: (payload, context) => ({ ...(refinerySystem?.snapshot?.() ?? { available: false }), controlAllowed: canControlRefinery(context) }),
+      setRefineryEnabled: (payload, context) => {
+        if (!canControlRefinery(context)) return { accepted: false, reason: 'higher-power-console-authority' };
+        return { accepted: true, status: refinerySystem?.setRefineryEnabled?.(Boolean(payload?.enabled)) };
+      },
+      setTransferEnabled: (payload, context) => {
+        if (!canControlRefinery(context)) return { accepted: false, reason: 'higher-power-console-authority' };
+        return { accepted: true, status: refinerySystem?.setTransferEnabled?.(Boolean(payload?.enabled)) };
+      }
+    },
+    getStatus: () => readShip() ? (refinerySystem?.snapshot?.().refineryEnabled ? 'online' : 'offline') : 'standby'
   });
   computer.registerSystem('propulsion', {
     name: 'Propulsão',
@@ -129,10 +164,11 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
   computer.registerSystem('engineering', {
     name: 'Engenharia e propulsão de dobra',
     commands: {
-      status: () => ({
+      status: (payload, context) => ({
         ...readPropulsion(),
         warpCore: 'connected-to-ship-computer',
-        warpField: 'five-stage-cruise'
+        warpField: 'five-stage-cruise',
+        refinery: { ...(refinerySystem?.snapshot?.() ?? {}), controlAllowed: canControlRefinery(context) }
       }),
       setAuthority: (payload, context) => {
         if (!requireEngineering(context)) return { accepted: false, reason: 'engineering-terminal-required' };

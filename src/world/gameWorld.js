@@ -84,6 +84,7 @@ export async function createGameWorld({
   const shipVisual = explorationShip.visual;
   const shipLandingGear = explorationShip.landingGear;
   const shipLandingGearContactPoints = explorationShip.landingGearContactPoints;
+  const shieldVisual = explorationShip.shieldVisual;
   shipFlightKernel = await loadShipFlightKernel();
   gravityKernel = await loadGravityKernel();
   const shipLandingAutopilot = createShipLandingAutopilot(shipFlightKernel);
@@ -160,6 +161,7 @@ export async function createGameWorld({
     shipLandingAutopilot,
     shipLandingGear,
     shipLandingGearContactPoints,
+    shieldVisual,
     shipYaw,
     shipPitch,
     shipVisual,

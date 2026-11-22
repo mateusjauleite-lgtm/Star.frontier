@@ -96,7 +96,15 @@ export function createShipManagementTerminalController({
     renderer.mount({
       onOpen: () => open(),
       onClose: close,
-      onModuleSelect: selectModule
+      onModuleSelect: selectModule,
+      onPowerCommand: (command, payload) => {
+        const response = dispatch('refinery', command, payload);
+        if (response.ok && response.result?.accepted) {
+          refreshSelectedModule();
+          render(computer.getSnapshot());
+        }
+        return response;
+      }
     });
     unsubscribe = computer.subscribe(render);
     initialized = true;
@@ -138,6 +146,13 @@ export function createShipManagementTerminalController({
     return true;
   }
 
+  function refresh() {
+    if (!initialized || !opened) return false;
+    refreshSelectedModule();
+    render(computer.getSnapshot());
+    return true;
+  }
+
   function dispatch(systemId, command, payload) {
     if (!initialized || !opened || !computer.isTerminalConnected(terminalId)) {
       return { ok: false, reason: 'terminal-inactive' };
@@ -164,6 +179,7 @@ export function createShipManagementTerminalController({
     close,
     dispatch,
     selectModule,
+    refresh,
     shutdown,
     getSnapshot: () => ({
       initialized,
