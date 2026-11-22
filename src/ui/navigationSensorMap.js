@@ -13,7 +13,8 @@ function resourceName(resourceId) {
   const id = String(resourceId || '').toLowerCase();
   if (id.includes('dilithium')) return 'DILÍTIO';
   if (id.includes('ore')) return 'MINÉRIO';
-  return id.split(/[.:/_-]+/).filter(Boolean).at(-1)?.toUpperCase() || 'RECURSO';
+  const parts = id.split(/[.:/_-]+/).filter(Boolean);
+  return (parts[parts.length - 1] || 'RECURSO').toUpperCase();
 }
 
 export function projectSensorContacts({
