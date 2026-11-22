@@ -99,6 +99,7 @@ function svgElement(documentRef, name, attributes = {}) {
 function buildRadar(documentRef, projection) {
   const svg = svgElement(documentRef, 'svg', {
     viewBox: '0 0 320 320',
+    class: 'sensor-radar-svg',
     role: 'img',
     'aria-label': 'Mapa tático dos contatos minerais detectados pelo defletor'
   });
