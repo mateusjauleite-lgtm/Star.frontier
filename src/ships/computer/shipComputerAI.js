@@ -304,7 +304,7 @@ export function createShipComputerAI({
         : { ok: false, intent: 'crew-move-rejected', result, response: 'Não consegui iniciar esse deslocamento.' };
     }
 
-    if (/\b(execute|ative|desative|ligue|desligue|repare|ajuste|modifique|transfira|inicie)\b/.test(command))
+    if (/\b(execute|ative|desative|ligue|desligue|repare|ajuste|modifique|transfira|inicie)\b/.test(command)) {
       return {
         ok: false,
         reason: 'explicit-authorization-required',
