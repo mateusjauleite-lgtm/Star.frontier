@@ -108,7 +108,7 @@ export function createEarthCore(options = {}) {
     getStatus() {
       return {
         core: 'ready',
-        version: '1.6.0',
+        version: '1.7.0',
         renderer: 'nasa-blue-marble-visual-runtime',
         surfaceVisual: layers.surfaceVisual ?? null,
         atmosphereVisual: layers.atmosphereVisual ?? null,
