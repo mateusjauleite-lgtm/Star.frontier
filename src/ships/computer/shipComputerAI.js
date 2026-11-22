@@ -82,7 +82,15 @@ export function createShipComputerAI({
     };
   }
 
-  function setName(name) {\n    const next = String(name || '').trim().slice(0, 32);\n    if (!next) return { accepted: false, reason: 'invalid-name' };\n    aiName = next;\n    append('observations', { type: 'identity-name-change', name: aiName });\n    return { accepted: true, name: aiName };\n  }\n\n  function learn(entry) {
+  function setName(name) {
+    const next = String(name || '').trim().slice(0, 32);
+    if (!next) return { accepted: false, reason: 'invalid-name' };
+    aiName = next;
+    append('observations', { type: 'identity-name-change', name: aiName });
+    return { accepted: true, name: aiName };
+  }
+
+  function learn(entry) {
     if (!entry || typeof entry !== 'object' || !entry.topic || !entry.content) {
       return { accepted: false, reason: 'invalid-knowledge-entry' };
     }
