@@ -1,10 +1,26 @@
-// Núcleo da IA de bordo AURORA. Não cria sistemas: observa e opera somente
-// comandos já registrados e autorizados pelo Ship Computer.
-const DATABASE_VERSION = 1;
+// Núcleo único da Alexia, supervisionado pelo Ship Computer.
+// Conversa, voz, conhecimento e telemetria usam o mesmo processador.
+const DATABASE_VERSION = 2;
 const REPAIR_COMMAND_PREFIXES = ['repair', 'restore', 'reconcile'];
+const HISTORY_LIMIT = 300;
+const KNOWLEDGE_LIMIT = 500;
 
 function clone(value) {
   return value == null ? value : JSON.parse(JSON.stringify(value));
+}
+
+function normalizeText(value) {
+  return String(value ?? '')
+    .normalize('NFD')
+    .replace(/[\\u0300-\\u036f]/g, '')
+    .toLocaleLowerCase('pt-BR')
+    .replace(/[^\\p{L}\\p{N}\\s_-]/gu, ' ')
+    .replace(/\\s+/g, ' ')
+    .trim();
+}
+
+function tokenize(value) {
+  return [...new Set(normalizeText(value).split(' ').filter(token => token.length > 2))];
 }
 
 export function createShipComputerAI({
@@ -29,18 +45,21 @@ export function createShipComputerAI({
     shipId: String(shipId || 'unknown-ship'),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    identity: { name: String(initialName || 'Alexia').trim().slice(0, 32) || 'Alexia' },
     knowledge: [],
     observations: [],
     diagnostics: [],
-    actions: []
+    actions: [],
+    messages: []
   };
   const listeners = new Set();
-  let aiName = String(initialName || 'Alexia').trim().slice(0, 32) || 'Alexia';
+  let aiName = database.identity.name;
   let voiceRecognition = null;
   let voiceState = (globalThis.SpeechRecognition || globalThis.webkitSpeechRecognition) ? 'ready' : 'unsupported';
 
   function persist() {
     database.updatedAt = new Date().toISOString();
+    database.identity = { name: aiName };
     databaseAdapter?.save?.(clone(database));
     onChange(snapshot());
     for (const listener of listeners) listener(snapshot());
@@ -48,24 +67,43 @@ export function createShipComputerAI({
 
   function loadDatabase() {
     const saved = databaseAdapter?.load?.();
-    if (!saved || saved.version !== DATABASE_VERSION || saved.shipId !== database.shipId) return false;
-    for (const key of ['knowledge', 'observations', 'diagnostics', 'actions']) {
+    if (!saved || Number(saved.version) > DATABASE_VERSION || saved.shipId !== database.shipId) return false;
+    for (const key of ['knowledge', 'observations', 'diagnostics', 'actions', 'messages']) {
       if (Array.isArray(saved[key])) database[key] = clone(saved[key]);
     }
     database.createdAt = saved.createdAt || database.createdAt;
     database.updatedAt = saved.updatedAt || database.updatedAt;
+    aiName = String(saved.identity?.name || initialName || 'Alexia').trim().slice(0, 32) || 'Alexia';
+    database.version = DATABASE_VERSION;
     return true;
   }
 
   function append(collection, entry, limit = 500) {
-    database[collection].push({ id: `${collection}-${Date.now()}-${database[collection].length + 1}`, at: new Date().toISOString(), ...clone(entry) });
+    database[collection].push({
+      id: `${collection}-${Date.now()}-${database[collection].length + 1}`,
+      at: new Date().toISOString(),
+      ...clone(entry)
+    });
     if (database[collection].length > limit) database[collection].splice(0, database[collection].length - limit);
+    persist();
+  }
+
+  function appendConversation(userText, assistantText, source, intent) {
+    const at = new Date().toISOString();
+    const sequence = database.messages.length;
+    database.messages.push(
+      { id: `message-${Date.now()}-${sequence + 1}`, role: 'user', content: String(userText).slice(0, 2000), source, at },
+      { id: `message-${Date.now()}-${sequence + 2}`, role: 'assistant', content: String(assistantText).slice(0, 4000), source: 'alexia', intent, at: new Date().toISOString() }
+    );
+    if (database.messages.length > HISTORY_LIMIT) {
+      database.messages.splice(0, database.messages.length - HISTORY_LIMIT);
+    }
     persist();
   }
 
   function snapshot() {
     return {
-      id: 'aurora-onboard-ai',
+      id: 'alexia-onboard-ai',
       name: aiName,
       status: isOnline() ? 'online' : 'offline',
       shipId: database.shipId,
@@ -75,6 +113,7 @@ export function createShipComputerAI({
         observations: database.observations.length,
         diagnostics: database.diagnostics.length,
         actions: database.actions.length,
+        messages: database.messages.length,
         updatedAt: database.updatedAt
       },
       voice: { state: voiceState, supported: voiceState !== 'unsupported' },
@@ -94,16 +133,30 @@ export function createShipComputerAI({
     if (!entry || typeof entry !== 'object' || !entry.topic || !entry.content) {
       return { accepted: false, reason: 'invalid-knowledge-entry' };
     }
-    const item = { topic: String(entry.topic).slice(0, 80), content: String(entry.content).slice(0, 2000), source: String(entry.source || 'ship-computer').slice(0, 120) };
+    const item = {
+      topic: String(entry.topic).slice(0, 80),
+      content: String(entry.content).slice(0, 2000),
+      source: String(entry.source || 'ship-computer').slice(0, 120)
+    };
     database.knowledge.push(item);
+    if (database.knowledge.length > KNOWLEDGE_LIMIT) database.knowledge.shift();
     persist();
     return { accepted: true, entry: clone(item) };
   }
 
   function searchKnowledge(query) {
-    const term = String(query || '').trim().toLocaleLowerCase('pt-BR');
-    if (!term) return [];
-    return database.knowledge.filter(item => `${item.topic} ${item.content}`.toLocaleLowerCase('pt-BR').includes(term)).map(clone);
+    const terms = tokenize(query);
+    if (!terms.length) return [];
+    return database.knowledge
+      .map(item => {
+        const haystack = normalizeText(`${item.topic} ${item.content}`);
+        const score = terms.reduce((sum, term) => sum + (haystack.includes(term) ? 1 : 0), 0);
+        return { item, score };
+      })
+      .filter(result => result.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 8)
+      .map(result => clone(result.item));
   }
 
   function runPatrol() {
@@ -122,12 +175,17 @@ export function createShipComputerAI({
 
   function diagnose(systemId = null) {
     if (!isOnline()) return { ok: false, reason: 'ship-computer-offline' };
-    const ids = systemId ? [systemId] : getSystemIds();
-    const results = ids.filter(id => getSystemIds().includes(id)).map(id => {
+    const registered = getSystemIds();
+    const ids = systemId ? [systemId] : registered;
+    const results = ids.filter(id => registered.includes(id)).map(id => {
       try { return { systemId: id, ...clone(inspectSystem(id)) }; }
       catch (error) { return { systemId: id, status: 'error', error: String(error?.message || error) }; }
     });
-    const report = { systemsChecked: results.length, results, findings: results.filter(item => ['error', 'offline', 'fault', 'corrupt', 'degraded'].includes(String(item.status || '').toLowerCase())) };
+    const report = {
+      systemsChecked: results.length,
+      results,
+      findings: results.filter(item => ['error', 'offline', 'fault', 'corrupt', 'degraded'].includes(String(item.status || '').toLowerCase()))
+    };
     append('diagnostics', report);
     return { ok: true, report };
   }
@@ -136,29 +194,129 @@ export function createShipComputerAI({
     if (!isOnline()) return { ok: false, reason: 'ship-computer-offline' };
     if (!terminalId || !systemId || !command) return { ok: false, reason: 'invalid-command' };
     const isRepair = REPAIR_COMMAND_PREFIXES.some(prefix => command.toLowerCase().startsWith(prefix));
-    const response = dispatchAuthorized({ terminalId, systemId, command, payload, authority: 'onboard-ai', operation: isRepair ? 'repair' : 'operation' });
-    append('actions', { terminalId, systemId, command, operation: isRepair ? 'repair' : 'operation', accepted: Boolean(response?.ok && response?.result?.accepted !== false), result: response?.result ?? null, reason: response?.reason ?? null });
+    const response = dispatchAuthorized({
+      terminalId, systemId, command, payload,
+      authority: 'onboard-ai',
+      operation: isRepair ? 'repair' : 'operation'
+    });
+    append('actions', {
+      terminalId, systemId, command,
+      operation: isRepair ? 'repair' : 'operation',
+      accepted: Boolean(response?.ok && response?.result?.accepted !== false),
+      result: response?.result ?? null,
+      reason: response?.reason ?? null
+    });
     return response;
   }
 
+  function formatSystemsTelemetry() {
+    const current = getSnapshot() || {};
+    const systems = Array.isArray(current.systems) ? current.systems : [];
+    if (!systems.length) return 'O Ship Computer não informou sistemas registrados neste momento.';
+    const rows = systems.map(system => {
+      const label = system.name || system.id || 'Sistema sem identificação';
+      const status = String(system.status || 'desconhecido').toLocaleUpperCase('pt-BR');
+      return `• ${label}: ${status}`;
+    });
+    return `Telemetria resumida de bordo — ${systems.length} sistemas registrados:\\n${rows.join('\\n')}`;
+  }
+
+  function buildResponse(message, { requireWakeWord = false } = {}) {
+    let command = normalizeText(message);
+    const wakeName = normalizeText(aiName);
+    const hasWakeName = wakeName && command.startsWith(wakeName);
+    if (requireWakeWord && !hasWakeName) {
+      return { ok: false, reason: 'wake-name-not-detected', intent: 'ignored', response: `Para comandos por voz, chame ${aiName} antes da solicitação.` };
+    }
+    if (hasWakeName) command = command.slice(wakeName.length).trim();
+
+    if (!command) {
+      return { ok: true, intent: 'greeting', response: `À disposição. Sou ${aiName}, integrada ao Ship Computer. Pode escrever uma consulta ou solicitar uma verificação.` };
+    }
+    if (/\\b(ajuda|o que voce faz|comandos|capacidades)\\b/.test(command)) {
+      return {
+        ok: true,
+        intent: 'help',
+        response: 'Posso consultar o estado dos sistemas, executar rondas de supervisão, gerar diagnósticos e pesquisar meu banco de conhecimento. Comandos que alteram sistemas dependem de autorização explícita do Ship Computer.'
+      };
+    }
+    if (/\\b(ronda|verifique|verificar|supervisao|supervisionar)\\b/.test(command)) {
+      const result = runPatrol();
+      if (!result.ok) return { ...result, intent: 'patrol', response: 'Não consegui iniciar a ronda: o Ship Computer está offline.' };
+      const faults = result.report.findings.length;
+      return {
+        ...result,
+        intent: 'patrol',
+        response: faults
+          ? `Ronda concluída. Verifiquei ${result.report.systemsChecked} sistemas e encontrei ${faults} condição(ões) que merecem atenção.`
+          : `Ronda concluída. ${result.report.systemsChecked} sistemas verificados; nenhum estado crítico foi identificado.`
+      };
+    }
+    if (/\\b(diagnostico|diagnosticar|falhas|anomalias)\\b/.test(command)) {
+      const result = diagnose();
+      if (!result.ok) return { ...result, intent: 'diagnostics', response: 'Não consegui executar o diagnóstico: o Ship Computer está offline.' };
+      const faults = result.report.findings.length;
+      return {
+        ...result,
+        intent: 'diagnostics',
+        response: faults
+          ? `Diagnóstico concluído. ${faults} sistema(s) apresentam estados que exigem análise. Consulte o relatório para os detalhes.`
+          : `Diagnóstico concluído. ${result.report.systemsChecked} sistemas analisados, sem falhas registradas.`
+      };
+    }
+    if (/\\b(status|situacao|telemetria|sistemas|estado da nave|como esta a nave)\\b/.test(command)) {
+      return { ok: true, intent: 'telemetry', response: formatSystemsTelemetry(), telemetry: clone(getSnapshot()) };
+    }
+    if (/\\b(execute|ative|desative|ligue|desligue|repare|ajuste|modifique|transfira|inicie)\\b/.test(command)) {
+      return {
+        ok: false,
+        reason: 'explicit-authorization-required',
+        intent: 'operation-blocked',
+        response: 'Entendi que você deseja alterar um sistema, mas esta solicitação ainda não está vinculada a um comando operacional autorizado. Não alterei nenhum estado da nave.'
+      };
+    }
+
+    const matches = searchKnowledge(command);
+    if (matches.length) {
+      return {
+        ok: true,
+        intent: 'knowledge',
+        response: matches.map(item => `• ${item.topic}: ${item.content}`).join('\\n'),
+        knowledge: matches
+      };
+    }
+    return {
+      ok: true,
+      intent: 'unknown',
+      response: 'Ainda não encontrei uma resposta segura para essa solicitação. Posso consultar a telemetria, fazer uma ronda, executar diagnósticos ou pesquisar meu banco de conhecimento.'
+    };
+  }
+
+  function processMessage(message, { source = 'text', requireWakeWord = false } = {}) {
+    const input = String(message ?? '').trim().slice(0, 2000);
+    if (!input) return { ok: false, reason: 'empty-message', response: 'A mensagem está vazia.' };
+    if (!isOnline()) return { ok: false, reason: 'ship-computer-offline', response: 'O Ship Computer está offline. A conversa não pode ser processada agora.' };
+    const result = buildResponse(input, { requireWakeWord });
+    if (result.reason === 'wake-name-not-detected') return result;
+    appendConversation(input, result.response, source, result.intent);
+    return { ...result, source, history: getConversationHistory() };
+  }
+
   function processUtterance(utterance) {
-    const text = String(utterance || '').trim().toLocaleLowerCase('pt-BR');
-    if (!text) return { ok: false, reason: 'empty-utterance' };
-    const calledName = aiName.toLocaleLowerCase('pt-BR');
-    if (!text.includes(calledName)) return { ok: false, reason: 'wake-name-not-detected' };
-    const commandText = text.replace(calledName, '').replace(/^[,\\s]+/, '').trim();
-    append('observations', { type: 'voice-command', assistant: aiName, utterance: text });
-    if (/\b(ronda|verifique|verificar)\b/.test(commandText)) return runPatrol();
-    if (/\b(diagn[oó]stico|diagnosticar|falhas)\b/.test(commandText)) return diagnose();
-    if (/\b(status|situa[cç][aã]o)\b/.test(commandText)) return { ok: true, snapshot: getSnapshot(), ai: snapshot() };
-    return { ok: false, reason: 'voice-intent-not-mapped', message: 'Comando reconhecido, mas ainda sem ação cadastrada. Nenhum sistema foi alterado.' };
+    return processMessage(utterance, { source: 'voice', requireWakeWord: true });
+  }
+
+  function getConversationHistory(limit = 80) {
+    const safeLimit = Math.max(1, Math.min(HISTORY_LIMIT, Number(limit) || 80));
+    return clone(database.messages.slice(-safeLimit));
   }
 
   function startVoiceRecognition({ onResult = () => {}, onError = () => {} } = {}) {
     const Recognition = globalThis.SpeechRecognition || globalThis.webkitSpeechRecognition;
     if (!Recognition) {
       voiceState = 'unsupported';
-      return { started: false, reason: 'speech-recognition-unavailable' };
+      persist();
+      return { ok: false, started: false, reason: 'speech-recognition-unavailable' };
     }
     if (voiceRecognition) voiceRecognition.abort?.();
     voiceRecognition = new Recognition();
@@ -183,27 +341,30 @@ export function createShipComputerAI({
       voiceRecognition.start();
       voiceState = 'listening';
       persist();
-      return { started: true, language: 'pt-BR' };
+      return { ok: true, started: true, language: 'pt-BR' };
     } catch (error) {
       voiceState = 'error';
-      return { started: false, reason: String(error?.message || error) };
+      persist();
+      return { ok: false, started: false, reason: String(error?.message || error) };
     }
   }
 
   function stopVoiceRecognition() {
+    const wasListening = Boolean(voiceRecognition);
     voiceRecognition?.stop?.();
     voiceRecognition = null;
-    voiceState = 'ready';
+    voiceState = (globalThis.SpeechRecognition || globalThis.webkitSpeechRecognition) ? 'ready' : 'unsupported';
     persist();
-    return true;
+    return { ok: true, stopped: wasListening };
   }
 
   loadDatabase();
   if (database.knowledge.length === 0) {
     database.knowledge.push(
-      { topic: 'authority', content: 'The Ship Computer owns permissions. The AI cannot grant itself access.' },
-      { topic: 'runtime', content: 'Runtime is the authoritative source of simulation state and executes system operations.' },
-      { topic: 'safety', content: 'The AI may inspect existing systems and execute only explicitly authorized registered commands. It cannot create systems or resources.' }
+      { topic: 'autoridade', content: 'O Ship Computer controla as permissões. A Alexia não pode conceder acesso a si mesma.' },
+      { topic: 'runtime', content: 'O Runtime é a fonte oficial do estado da simulação e executa os sistemas.' },
+      { topic: 'seguranca', content: 'A Alexia consulta sistemas existentes e só executa comandos registrados e autorizados. Ela não cria sistemas nem recursos.' },
+      { topic: 'energia', content: 'Os barramentos EPS pertencem ao núcleo energético. A matriz condiciona plasma para o núcleo; não alimenta diretamente os barramentos.' }
     );
   }
 
@@ -216,7 +377,9 @@ export function createShipComputerAI({
     runPatrol,
     diagnose,
     executeAuthorized,
+    processMessage,
     processUtterance,
+    getConversationHistory,
     startVoiceRecognition,
     stopVoiceRecognition,
     subscribe(listener) {
