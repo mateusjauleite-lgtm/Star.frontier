@@ -32,12 +32,16 @@ export function createDilithiumMatrixTerminalRenderer({ root } = {}) {
       if (command) {
         const [systemId, name] = command.dataset.matrixCommand.split(':');
         const enabled = command.dataset.matrixEnabled === 'true';
-        handlers.onCommand?.(systemId, name, { enabled: !enabled });
+        const response = handlers.onCommand?.(systemId, name, { enabled: !enabled });
+        const feedback = layer.querySelector('[data-matrix-command-feedback]');
+        if (feedback) feedback.textContent = response?.ok && response.result?.accepted ? 'COMANDO ACEITO PELO SHIP COMPUTER' : 'COMANDO BLOQUEADO · ' + String(response?.result?.reason || response?.reason || 'RESPOSTA INDISPONÍVEL').toUpperCase();
       }
     });
     layer.addEventListener('change', event => {
       if (event.target.matches('[data-matrix-regulation]')) {
-        handlers.onCommand?.('matrix', 'setRegulation', { regulation: number(event.target.value) / 100 });
+        const response = handlers.onCommand?.('matrix', 'setRegulation', { regulation: number(event.target.value) / 100 });
+        const feedback = layer.querySelector('[data-matrix-command-feedback]');
+        if (feedback) feedback.textContent = response?.ok && response.result?.accepted ? 'REGULAÇÃO CONFIRMADA PELO SHIP COMPUTER' : 'REGULAÇÃO BLOQUEADA · ' + String(response?.result?.reason || response?.reason || 'RESPOSTA INDISPONÍVEL').toUpperCase();
       }
     });
     root.append(node);
