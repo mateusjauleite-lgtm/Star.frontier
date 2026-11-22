@@ -12,10 +12,10 @@ function clone(value) {
 function normalizeText(value) {
   return String(value ?? '')
     .normalize('NFD')
-    .replace(/[\\u0300-\\u036f]/g, '')
+    .replace(/[\u0300-\u036f]/g, '')
     .toLocaleLowerCase('pt-BR')
-    .replace(/[^\\p{L}\\p{N}\\s_-]/gu, ' ')
-    .replace(/\\s+/g, ' ')
+    .replace(/[^\p{L}\p{N}\s_-]/gu, ' ')
+    .replace(/\s+/g, ' ')
     .trim();
 }
 
@@ -218,7 +218,7 @@ export function createShipComputerAI({
       const status = String(system.status || 'desconhecido').toLocaleUpperCase('pt-BR');
       return `• ${label}: ${status}`;
     });
-    return `Telemetria resumida de bordo — ${systems.length} sistemas registrados:\\n${rows.join('\\n')}`;
+    return `Telemetria resumida de bordo — ${systems.length} sistemas registrados:\n${rows.join('\n')}`;
   }
 
   function buildResponse(message, { requireWakeWord = false } = {}) {
@@ -233,14 +233,14 @@ export function createShipComputerAI({
     if (!command) {
       return { ok: true, intent: 'greeting', response: `À disposição. Sou ${aiName}, integrada ao Ship Computer. Pode escrever uma consulta ou solicitar uma verificação.` };
     }
-    if (/\\b(ajuda|o que voce faz|comandos|capacidades)\\b/.test(command)) {
+    if (/\b(ajuda|o que voce faz|comandos|capacidades)\b/.test(command)) {
       return {
         ok: true,
         intent: 'help',
         response: 'Posso consultar o estado dos sistemas, executar rondas de supervisão, gerar diagnósticos e pesquisar meu banco de conhecimento. Comandos que alteram sistemas dependem de autorização explícita do Ship Computer.'
       };
     }
-    if (/\\b(ronda|verifique|verificar|supervisao|supervisionar)\\b/.test(command)) {
+    if (/\b(ronda|verifique|verificar|supervisao|supervisionar)\b/.test(command)) {
       const result = runPatrol();
       if (!result.ok) return { ...result, intent: 'patrol', response: 'Não consegui iniciar a ronda: o Ship Computer está offline.' };
       const faults = result.report.findings.length;
@@ -252,7 +252,7 @@ export function createShipComputerAI({
           : `Ronda concluída. ${result.report.systemsChecked} sistemas verificados; nenhum estado crítico foi identificado.`
       };
     }
-    if (/\\b(diagnostico|diagnosticar|falhas|anomalias)\\b/.test(command)) {
+    if (/\b(diagnostico|diagnosticar|falhas|anomalias)\b/.test(command)) {
       const result = diagnose();
       if (!result.ok) return { ...result, intent: 'diagnostics', response: 'Não consegui executar o diagnóstico: o Ship Computer está offline.' };
       const faults = result.report.findings.length;
@@ -264,10 +264,10 @@ export function createShipComputerAI({
           : `Diagnóstico concluído. ${result.report.systemsChecked} sistemas analisados, sem falhas registradas.`
       };
     }
-    if (/\\b(status|situacao|telemetria|sistemas|estado da nave|como esta a nave)\\b/.test(command)) {
+    if (/\b(status|situacao|telemetria|sistemas|estado da nave|como esta a nave)\b/.test(command)) {
       return { ok: true, intent: 'telemetry', response: formatSystemsTelemetry(), telemetry: clone(getSnapshot()) };
     }
-    if (/\\b(execute|ative|desative|ligue|desligue|repare|ajuste|modifique|transfira|inicie)\\b/.test(command)) {
+    if (/\b(execute|ative|desative|ligue|desligue|repare|ajuste|modifique|transfira|inicie)\b/.test(command)) {
       return {
         ok: false,
         reason: 'explicit-authorization-required',
@@ -281,7 +281,7 @@ export function createShipComputerAI({
       return {
         ok: true,
         intent: 'knowledge',
-        response: matches.map(item => `• ${item.topic}: ${item.content}`).join('\\n'),
+        response: matches.map(item => `• ${item.topic}: ${item.content}`).join('\n'),
         knowledge: matches
       };
     }
