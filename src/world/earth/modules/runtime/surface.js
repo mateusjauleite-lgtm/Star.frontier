@@ -157,7 +157,7 @@ export const EARTH_LOD_SEGMENTS = Object.freeze([
   Object.freeze({ width: 90, height: 45 }),
   Object.freeze({ width: 180, height: 90 }),
   Object.freeze({ width: 360, height: 180 }),
-  Object.freeze({ width: 720, height: 360 })
+  Object.freeze({ width: 540, height: 270 })
 ]);
 
 export function selectEarthLodLevel(distance, radius, currentLevel = null) {
