@@ -148,7 +148,17 @@ function makeRockAlbedo() {
 
 // Match the packaged NOAA ETOPO 0.25-degree grid across the entire globe.
 // A single global mesh avoids waiting for the ship to approach before relief appears.
-export const EARTH_GLOBAL_SURFACE_SEGMENTS = Object.freeze({ width: 1440, height: 720 });
+export const EARTH_GLOBAL_SURFACE_SEGMENTS = Object.freeze({ width: 360, height: 180 });
+
+// Progressive geometry budgets: the globe starts with a lightweight mesh,
+// then increases detail only when the camera approaches. Local ETOPO patches
+// remain independent and continue to use the authoritative collision sampler.
+export const EARTH_LOD_SEGMENTS = Object.freeze([
+  Object.freeze({ width: 90, height: 45 }),
+  Object.freeze({ width: 180, height: 90 }),
+  Object.freeze({ width: 360, height: 180 }),
+  Object.freeze({ width: 720, height: 360 })
+]);
 
 export function selectEarthLodLevel(distance, radius, currentLevel = null) {
   if (!Number.isFinite(distance) || !Number.isFinite(radius) || radius <= 0) return 3;
@@ -169,21 +179,18 @@ export function selectEarthLodLevel(distance, radius, currentLevel = null) {
 }
 
 export function createSurfaceRuntime({ group, surfaceFrame = group, options, layers }) {
-  let mesh, texture, geometry, material, lodGeometries = [];
+  let mesh, texture, geometry, material;
+  let currentLevel = 0;
+  let lodCheckElapsed = 0;
   return {
     initialize() {
       texture = new THREE.CanvasTexture(makeRockAlbedo());
       texture.colorSpace = THREE.SRGBColorSpace;
       texture.anisotropy = 4;
-      // One ETOPO-aligned global mesh: the full planet carries terrain detail
-      // from the first frame, independent of the ship/camera distance.
-      // Collision queries use the same elevation sampler in terrain.js.
-      geometry = new THREE.SphereGeometry(
-        options.radius,
-        EARTH_GLOBAL_SURFACE_SEGMENTS.width,
-        EARTH_GLOBAL_SURFACE_SEGMENTS.height
-      );
-      lodGeometries = [geometry];
+      // Start with a small mesh so the renderer can show the scene immediately.
+      // Camera-driven LOD upgrades happen after the first gameplay frames.
+      const initial = EARTH_LOD_SEGMENTS[0];
+      geometry = new THREE.SphereGeometry(options.radius, initial.width, initial.height);
       material = new THREE.MeshStandardMaterial({
         map: texture,
         roughness: .96,
@@ -191,20 +198,47 @@ export function createSurfaceRuntime({ group, surfaceFrame = group, options, lay
       });
       mesh = new THREE.Mesh(geometry, material);
       mesh.name = 'Earth-Continuous-Rocky-Globe';
-      mesh.userData.earthLodGeometries = lodGeometries;
-      mesh.userData.earthLodLevel = 3;
+      mesh.userData.earthLodGeometries = [geometry];
+      mesh.userData.earthLodLevel = currentLevel;
       surfaceFrame.add(mesh);
       layers.surface = mesh;
     },
     update(delta, context) {
       if (!mesh) return;
       surfaceFrame.rotation.y += Math.min(Math.max(delta || 0, 0), .1) * .012;
-      // Global terrain resolution is fixed; camera distance never downgrades the globe.
+      lodCheckElapsed += Math.min(Math.max(delta || 0, 0), .1);
+      if (lodCheckElapsed < .35) return;
+      lodCheckElapsed = 0;
+      const camera = context?.camera;
+      if (!camera) return;
+      camera.updateMatrixWorld?.();
+      surfaceFrame.updateWorldMatrix(true, false);
+      const cameraPosition = camera.getWorldPosition(new THREE.Vector3());
+      const earthPosition = surfaceFrame.getWorldPosition(new THREE.Vector3());
+      const distance = cameraPosition.distanceTo(earthPosition);
+      const nextLevel = selectEarthLodLevel(
+        distance, options.radius, Number.isInteger(currentLevel) ? currentLevel : null
+      );
+      if (nextLevel === currentLevel) return;
+
+      const segments = EARTH_LOD_SEGMENTS[nextLevel];
+      const nextGeometry = new THREE.SphereGeometry(
+        options.radius, segments.width, segments.height
+      );
+      const previousGeometry = geometry;
+      geometry = nextGeometry;
+      currentLevel = nextLevel;
+      mesh.geometry = nextGeometry;
+      mesh.userData.earthLodGeometries = [nextGeometry];
+      mesh.userData.earthLodLevel = nextLevel;
+      previousGeometry?.dispose();
+      // Terrain owns elevation displacement; it rebuilds only the newly active
+      // mesh, while collision and the nearby high-resolution patch stay intact.
+      layers.terrain?.refreshGeometry?.();
     },
     dispose() {
       if (mesh) surfaceFrame.remove(mesh);
-      lodGeometries.forEach(item => item.dispose());
-      lodGeometries = [];
+      geometry?.dispose();
       material?.dispose();
       texture?.dispose();
     }
