@@ -10,7 +10,7 @@ export function createCharacterInteractionMenu({ root, camera, actor, onConfirm 
   menu.innerHTML = `
     <div class="crew-wheel-title">ALEXIA <small>INTERAÇÃO</small></div>
     <button class="crew-wheel-option crew-follow" type="button" data-action="follow">↗<span>FOLLOW</span></button>
-    <button class="crew-wheel-option crew-console" type="button" disabled aria-label="Ocupar console e trabalhar">⌘<span>CONSOLE</span><small>EM BREVE</small></button>
+    <button class="crew-wheel-option crew-console" type="button" disabled aria-label="Ocupar console e trabalhar">⌘<span>OCUPAR CONSOLE</span><small>EM BREVE</small></button>
     <button class="crew-wheel-close" type="button" aria-label="Fechar menu">×</button>
     <div class="crew-confirm hidden" role="dialog" aria-label="Confirmar ação">
       <b>CONFIRMAR AÇÃO?</b>
@@ -67,5 +67,5 @@ export function createCharacterInteractionMenu({ root, camera, actor, onConfirm 
   });
   menu.querySelector('.crew-wheel-close').addEventListener('click', close);
 
-  return Object.freeze({ open, close, updatePosition, isOpen: () => !menu.classList.contains('hidden') });
+  return Object.freeze({ open, close, updatePosition, dispose: () => menu.remove(), isOpen: () => !menu.classList.contains('hidden') });
 }
