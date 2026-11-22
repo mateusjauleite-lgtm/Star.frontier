@@ -47,8 +47,9 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
   let selectHandler = null;
   let commandHandler = null;
   let aiActionHandler = null;
+  let aiMessageHandler = null;
 
-  function mount({ onOpen = () => {}, onClose = () => {}, onModuleSelect = () => {}, onCommand = () => ({ ok: false }), onAIAction = () => ({ ok: false }) } = {}) {
+  function mount({ onOpen = () => {}, onClose = () => {}, onModuleSelect = () => {}, onCommand = () => ({ ok: false }), onAIAction = () => ({ ok: false }), onAIMessage = () => ({ ok: false }) } = {}) {
     if (layer) return false;
     const wrapper = document.createElement('div');
     wrapper.className = 'ship-management-hud-layer';
@@ -60,6 +61,18 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
     selectHandler = onModuleSelect;
     commandHandler = onCommand;
     aiActionHandler = onAIAction;
+    aiMessageHandler = onAIMessage;
+    layer.addEventListener('submit', event => {
+      const form = event.target.closest('[data-ai-chat-form]');
+      if (!form) return;
+      event.preventDefault();
+      const input = form.querySelector('[data-ai-chat-input]');
+      const message = String(input?.value || '').trim();
+      if (!message) return;
+      const result = aiMessageHandler?.(message);
+      if (input) input.value = '';
+      showAIResult(result);
+    });
     layer.addEventListener('click', event => {
       if (event.target.closest('[data-management-open]')) { openHandler?.(); return; }
       if (event.target.closest('[data-management-close]')) { closeHandler?.(); return; }
@@ -109,6 +122,16 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
     });
     root.append(layer);
     return true;
+  }
+
+  function showAIResult(result) {
+    if (!layer) return;
+    const feedback = layer.querySelector('[data-ai-feedback]');
+    if (!feedback) return;
+    if (!result) { feedback.textContent = 'Não foi possível encaminhar a mensagem.'; return; }
+    feedback.textContent = result.ok
+      ? 'RESPOSTA RECEBIDA · ' + String(result.intent || 'CHAT').toUpperCase()
+      : 'SOLICITAÇÃO NÃO PROCESSADA · ' + (result.reason || 'ERRO');
   }
 
   function updateSelection() {
