@@ -1964,6 +1964,71 @@ function updateRefineryConsoleInteraction(dt = 0) {
 }
 function toggleRefineryConsole(){if(refineryConsoleActive){refineryTerminal?.close();return;}if(!refineryInteractionAvailable||!refineryTerminal?.open('ENGENHEIRO DE RECURSOS'))toast('Aproxime-se do terminal da Refinaria no Deck 3.');}
 
+function refreshDeflectorTerminal() {
+  const response = deflectorTerminal?.dispatch('deflector', 'status');
+  if (response?.ok && response.result?.available) deflectorRenderer.update(response.result);
+  return response;
+}
+
+function updateDeflectorConsoleInteraction(dt = 0) {
+  const previousAvailable = deflectorInteractionAvailable;
+  const previousActive = deflectorConsoleActive;
+  const validContext = Boolean(characterModel && shipVisual &&
+    characterCore.snapshot().mode === 'on-foot' && !characterInWorldFrame &&
+    !nearbyElevator && activeDeckIndex === 2);
+
+  if (!validContext) {
+    deflectorInteractionAvailable = false;
+    deflectorRenderer.setPresence(false);
+    deflectorTerminal?.setPresence(false, false);
+    if ((previousAvailable || previousActive) && !nearbyElevator) {
+      const button = $('character-action-btn');
+      if (button) { button.disabled = true; button.textContent = 'AÇÃO'; button.classList.remove('available'); }
+      characterCore.setInteractionTarget(null);
+      updateCharacterHUD();
+    }
+    return;
+  }
+
+  const distanceSquared = characterModel.group.position.distanceToSquared(deflectorConsolePosition);
+  const visible = distanceSquared <= DEFLECTOR_TERMINAL_DISPLAY_RADIUS ** 2;
+  const available = distanceSquared <= DEFLECTOR_TERMINAL_INTERACTION_RADIUS ** 2;
+  deflectorInteractionAvailable = available;
+  deflectorRenderer.setPresence(visible);
+  deflectorTerminal?.setPresence(visible, available);
+
+  if (deflectorConsoleActive) {
+    deflectorTelemetryAccumulator += Math.max(0, Number(dt) || 0);
+    if (deflectorTelemetryAccumulator >= 0.18) {
+      deflectorTelemetryAccumulator = 0;
+      refreshDeflectorTerminal();
+    }
+  } else deflectorTelemetryAccumulator = 0;
+
+  if (available || deflectorConsoleActive) {
+    const button = $('character-action-btn');
+    if (button) {
+      button.disabled = false;
+      button.textContent = deflectorConsoleActive ? '◎ DESCONECTAR DEFLETOR' : '◎ CONSOLE DO DEFLETOR';
+      button.classList.add('available');
+    }
+    characterCore.setInteractionTarget(deflectorConsoleActive ? 'COMPUTADOR DO DEFLETOR CONECTADO' : 'COMPUTADOR DO DEFLETOR');
+    if (previousAvailable !== available || previousActive !== deflectorConsoleActive) updateCharacterHUD();
+  } else if (previousAvailable || previousActive) {
+    const button = $('character-action-btn');
+    if (button) { button.disabled = true; button.textContent = 'AÇÃO'; button.classList.remove('available'); }
+    characterCore.setInteractionTarget(null);
+    updateCharacterHUD();
+  }
+}
+
+function toggleDeflectorConsole() {
+  if (deflectorConsoleActive) { deflectorTerminal?.close(); return; }
+  if (!deflectorInteractionAvailable || !deflectorTerminal?.open('OPERADOR DO DEFLETOR')) {
+    toast('Aproxime-se do console dentro da câmara do defletor.');
+  }
+}
+
 function updatePilotInteraction() {
   if (refineryInteractionAvailable || refineryConsoleActive) return;
   if (!characterModel || !shipVisual || characterCore.snapshot().mode !== 'on-foot') return;
