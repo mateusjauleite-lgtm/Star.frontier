@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createShipComputer } from './shipComputer.js';
 
-test('AURORA mantém banco de dados próprio vinculado ao identificador da nave', () => {
+test('Alexia mantém banco de dados próprio vinculado ao identificador da nave', () => {
   let stored = null;
   const adapter = { load: () => stored, save: value => { stored = value; } };
   const computer = createShipComputer({ shipId: 'test-ship', aiDatabaseAdapter: adapter });
