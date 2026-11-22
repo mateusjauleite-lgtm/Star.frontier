@@ -19,6 +19,7 @@ import { createCharacterHUD } from './character/characterHUD.js';
 import { createCharacterAudio } from './character/characterAudio.js';
 import { createShipAudio } from './ships/shipAudio.js';
 import { createCharacterEquipmentSystem } from './inventory/characterEquipment.js';
+const DILITHIUM_ORE_ITEM_ID = 'ore.dilithium.raw';
 import { isPilotConsoleInRange, attachCharacterToPilotConsole, returnCharacterToDeck } from './ships/bridge/commandBridge.js';
 import { saveState as save, loadState as load } from './core/storage.js';
 import { createShipComputer } from './ships/computer/shipComputer.js';
@@ -835,6 +836,7 @@ async function startGame() {
     if (!runtimeInitialized) {
       throw new Error('O Runtime não conseguiu inicializar seus sistemas.');
     }
+    characterEquipment.initialize();
     if (characterInWorldFrame && characterModel?.group && shipVisual) {
       scene.remove(characterModel.group);
       shipVisual.add(characterModel.group);
@@ -2308,12 +2310,18 @@ $('inventory-clothing-view')?.addEventListener('click', event => {
   }
 });
 $('inventory-grid')?.addEventListener('click', event => {
-  const target = event.target.closest('[data-item-instance]');
-  if (!target) return;
-  const result = characterEquipment.equip(target.dataset.itemInstance);
-  pendingInventoryEquipId = null;
-  if (!result.ok) toast(result.reason);
-  else { save(); toast(result.item.name + ' equipado no personagem.'); }
+  const target = event.target.closest('[data-item-instance]'); if (!target) return;
+  const item = characterEquipment.snapshot().items.find(entry => entry.instanceId === target.dataset.itemInstance);
+  if (item?.definitionId === DILITHIUM_ORE_ITEM_ID) {
+    if (!refineryConsoleActive) { toast('Abra o console da Refinaria no Deck 3 para transferir o minério.'); return; }
+    if (!dilithiumRefinerySystem.canReceiveRawOre(item.quantity).accepted) { toast('Compartimento de minério bruto cheio.'); return; }
+    const removed = characterEquipment.removeInstance(item.instanceId); if (!removed.ok) { toast(removed.reason); return; }
+    const received = dilithiumRefinerySystem.receiveRawOre(removed.item.quantity);
+    if (!received.accepted) { characterEquipment.restoreInstance(removed.item); toast('Transferência cancelada: a Refinaria não aceitou o minério.'); return; }
+    save(); refineryTerminal?.refresh(); renderInventory(); toast('Minério de dilítio transferido para a Refinaria.'); return;
+  }
+  const result = characterEquipment.equip(target.dataset.itemInstance); pendingInventoryEquipId = null;
+  if (!result.ok) toast(result.reason); else { save(); toast(result.item.name + ' equipado no personagem.'); }
   renderInventory();
 });
 $('inventory-overflow-grid')?.addEventListener('click', event => {
@@ -2322,6 +2330,14 @@ $('inventory-overflow-grid')?.addEventListener('click', event => {
   const instanceId = target.dataset.overflowInstanceId;
   const item = characterEquipment.snapshot().overflowItems.find(entry => entry.instanceId === instanceId);
   if (!item) return;
+  if (item.definitionId === DILITHIUM_ORE_ITEM_ID) {
+    if (!refineryConsoleActive) { toast('Abra o console da Refinaria no Deck 3 para transferir o minério.'); return; }
+    if (!dilithiumRefinerySystem.canReceiveRawOre(item.quantity).accepted) { toast('Compartimento de minério bruto cheio.'); return; }
+    const removed = characterEquipment.removeInstance(instanceId); if (!removed.ok) { toast(removed.reason); return; }
+    const received = dilithiumRefinerySystem.receiveRawOre(removed.item.quantity);
+    if (!received.accepted) { characterEquipment.restoreInstance(removed.item); toast('Transferência cancelada.'); return; }
+    save(); refineryTerminal?.refresh(); renderInventory(); toast('Minério de dilítio transferido para a Refinaria.'); return;
+  }
   const equipable = ['head', 'torso', 'hands', 'legs', 'feet', 'back', 'weapon'].includes(item.slot);
   if (equipable) {
     if (pendingInventoryEquipId !== instanceId) {
@@ -2579,6 +2595,7 @@ const miningRuntimeSystem = createMiningRuntimeSystem({
   updateWallet,
   shipAudio,
   toast
+  addDilithiumOre: quantity => characterEquipment.add(DILITHIUM_ORE_ITEM_ID, quantity)
 });
 
 registerGameplayActions({
