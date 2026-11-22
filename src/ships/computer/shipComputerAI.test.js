@@ -93,15 +93,17 @@ test('comandos de voz em português acionam somente diagnóstico e ronda cadastr
   computer.registerSystem('navigation', { commands: {}, getStatus: () => 'online' });
   computer.boot();
 
-  const patrol = computer.onboardAI.processUtterance('AURORA, faça uma ronda dos sistemas');
+  const patrol = computer.onboardAI.processUtterance('Alexia, faça uma ronda dos sistemas');
   assert.equal(patrol.ok, true);
   assert.equal(patrol.report.systemsChecked, 1);
-  const diagnostic = computer.onboardAI.processUtterance('execute um diagnóstico geral');
+  const diagnostic = computer.onboardAI.processUtterance('Alexia, execute um diagnóstico geral');
   assert.equal(diagnostic.ok, true);
   assert.equal(diagnostic.report.systemsChecked, 1);
-  const unknown = computer.onboardAI.processUtterance('mude a arquitetura da nave');
+  const unknown = computer.onboardAI.processUtterance('Alexia, mude a arquitetura da nave');
   assert.equal(unknown.ok, false);
   assert.equal(unknown.reason, 'voice-intent-not-mapped');
+  assert.equal(computer.onboardAI.processUtterance('faça uma ronda').reason, 'wake-name-not-detected');
+  assert.equal(computer.onboardAI.setName('ALEXIA').accepted, true);
 });
 
 test('reconhecimento de voz informa indisponibilidade sem quebrar o computador', () => {
