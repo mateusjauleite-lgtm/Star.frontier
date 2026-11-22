@@ -91,11 +91,12 @@ export function createAlexiaCrewRuntimeSystem({
         const state = actor.core.snapshot();
         const movement = state.movement || { x: 0, y: 0 };
         const magnitude = Math.hypot(movement.x, movement.y);
+        const movementDelta = Math.min(dt, moveTimeRemaining);
         if (magnitude > 0) {
           const x = movement.x / Math.max(1, magnitude);
           const y = movement.y / Math.max(1, magnitude);
-          actor.group.position.x += x * moveSpeed * dt;
-          actor.group.position.z -= y * moveSpeed * dt;
+          actor.group.position.x += x * moveSpeed * movementDelta;
+          actor.group.position.z -= y * moveSpeed * movementDelta;
         }
         moveTimeRemaining = Math.max(0, moveTimeRemaining - dt);
         if (moveTimeRemaining === 0) stop();
