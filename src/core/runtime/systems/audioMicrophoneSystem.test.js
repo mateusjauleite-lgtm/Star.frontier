@@ -6,6 +6,7 @@ test('Runtime injeta o mesmo Audio Manager e inspeciona permissões sem abrir ca
   const calls = [];
   const manager = {
     initialize: async () => calls.push('initialize'),
+    refreshMicrophonePermission: async () => 'prompt',
     getSnapshot: () => ({ microphone: { active: false, permission: 'prompt' } }),
     stopMicrophone: () => calls.push('stop')
   };
