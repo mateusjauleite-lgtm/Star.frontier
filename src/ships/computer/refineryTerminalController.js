@@ -3,7 +3,7 @@ export function createRefineryTerminalController({computer,renderer,terminalId=R
  function dispatch(command,payload){if(!initialized||!opened||!computer.isTerminalConnected(terminalId))return {ok:false,reason:'refinery-terminal-inactive'};return computer.dispatch(terminalId,'refinery',command,payload);}
  function refresh(){if(!opened)return false;const r=dispatch('status');if(r.ok)renderer.update(r.result);return r.ok;}
  function initialize(){if(initialized)return false;renderer.mount({onOpen:()=>open(),onClose:close,onCommand:(c,p)=>{const r=dispatch(c,p);refresh();return r;}});initialized=true;renderer.setPresence(present);return true;}
- function setPresence(v,can=false){if(!initialized)return false;present=Boolean(v);available=present&&Boolean(can);renderer.setPresence(present);if((!present||!available)&&opened)close();return true;}
+ function setPresence(v,can=false){if(!initialized)return false;present=Boolean(v);available=present&&Boolean(can);renderer.setPresence(present&&available);if((!present||!available)&&opened)close();return true;}
  function open(operator='ENGENHEIRO DE RECURSOS'){if(!initialized||!present||!available)return false;if(opened)return true;if(!computer.connectTerminal(terminalId,operator))return false;opened=true;renderer.setOpen(true);refresh();onInteractionChange(true);return true;}
  function close(){if(!opened)return false;opened=false;renderer.setOpen(false);computer.disconnectTerminal(terminalId);onInteractionChange(false);return true;}
  function shutdown(){if(!initialized)return false;close();present=false;available=false;renderer.setPresence(false);renderer.unmount();initialized=false;return true;}

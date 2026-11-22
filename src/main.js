@@ -2164,7 +2164,6 @@ function updateCharacterWeapon(dt) {
 $('character-action-btn')?.addEventListener('click', () => {
   if (externalElevatorActionAvailable) activateExternalElevator();
   else if (refineryInteractionAvailable || refineryConsoleActive) toggleRefineryConsole();
-  else if (refineryInteractionAvailable || refineryConsoleActive) toggleRefineryConsole();
   else if (engineeringInteractionAvailable || engineeringConsoleActive) toggleEngineeringConsole();
   else enterPilotMode();
 });

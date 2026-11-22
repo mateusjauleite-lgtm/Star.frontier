@@ -198,6 +198,7 @@ export function createStarshipInterior(options = {}) {
 
   return {
     group,
+    dilithiumPlant,
     layout: STARSHIP_LAYOUT,
     collisionBoxes,
     dispose() {
