@@ -16,6 +16,7 @@ import { getLandingSite } from './ships/flight/landingSites.js';
 import { state, resetTransientState } from './core/state.js';
 import { createCharacterCore } from './character/characterCore.js';
 import { createCharacterHUD } from './character/characterHUD.js';
+import { createCharacterInteractionMenu } from './character/characterInteractionMenu.js';
 import { createCharacterAudio } from './character/characterAudio.js';
 import { createShipAudio } from './ships/shipAudio.js';
 import { createCharacterEquipmentSystem } from './inventory/characterEquipment.js';
@@ -194,6 +195,9 @@ let characterCameraMode = 'third-person';
 let characterCameraInitialized = false;
 let characterModel = null;
 let alexiaCharacter = null;
+let alexiaInteractionMenu = null;
+let nearbyAlexiaInteraction = false;
+let alexiaFollowing = false;
 let shipManagementHologram = null;
 let engineeringHologram = null;
 let refineryHologram = null;
@@ -1140,6 +1144,17 @@ async function init3D() {
     characterPhysics
   } = world);
 
+  alexiaInteractionMenu?.dispose?.();
+  alexiaInteractionMenu = alexiaCharacter ? createCharacterInteractionMenu({
+    root: document.body, camera, actor: alexiaCharacter.group,
+    onConfirm: action => {
+      if (action === 'follow') { alexiaFollowing = true; toast('Alexia vai acompanhar você.'); }
+    }
+  }) : null;
+  nearbyAlexiaInteraction = false;
+  alexiaFollowing = false;
+  alexiaCharacter?.initialize?.();
+
   shipManagementHologram?.dispose?.();
   shipManagementHologram = createShipManagementHologram({
     parent: shipVisual,
@@ -1714,6 +1729,57 @@ function updateCharacterMovement(dt) {
   }
   if (characterJumpButton) characterJumpButton.disabled = !characterPhysics?.grounded;
   if (characterSprintButton) characterSprintButton.disabled = characterCore.snapshot().stamina <= 0;
+}
+
+function updateAlexiaInteraction(dt = 0) {
+  const button = $('character-action-btn');
+  const valid = Boolean(alexiaCharacter?.group && characterModel && shipVisual &&
+    characterCore.snapshot().mode === 'on-foot' && !characterInWorldFrame && !nearbyElevator && activeDeckIndex === 0);
+  if (!valid) {
+    nearbyAlexiaInteraction = false;
+    alexiaInteractionMenu?.close?.();
+    if (button && button.dataset.interaction === 'alexia') {
+      button.disabled = true; button.classList.remove('available');
+      button.dataset.interaction = ''; button.textContent = '◎ AÇÃO';
+    }
+    return;
+  }
+  const distanceSquared = characterModel.group.position.distanceToSquared(alexiaCharacter.group.position);
+  const available = distanceSquared <= 3.6 * 3.6;
+  nearbyAlexiaInteraction = available;
+  if (alexiaFollowing) {
+    const from = alexiaCharacter.group.position, target = characterModel.group.position;
+    const dx = target.x - from.x, dz = target.z - from.z, distance = Math.hypot(dx, dz);
+    if (distance > 1.45) {
+      const step = Math.min(distance - 1.35, 2.25 * Math.max(0, dt));
+      const nextX = from.x + dx / distance * step;
+      const nextZ = from.z + dz / distance * step;
+      const previousX = from.x, previousZ = from.z;
+      from.x = nextX;
+      if (isCharacterPositionBlocked(from, 0) || !isCharacterInsideDeck(from, 0)) from.x = previousX;
+      from.z = nextZ;
+      if (isCharacterPositionBlocked(from, 0) || !isCharacterInsideDeck(from, 0)) from.z = previousZ;
+      alexiaCharacter.group.rotation.y = Math.atan2(-dx, -dz);
+      alexiaCharacter.core?.setMovement?.({ x: 0, y: 1 });
+    } else alexiaCharacter.core?.setMovement?.({ x: 0, y: 0 });
+  }
+  const floorY = starshipInterior.layout.decks[0].y + 0.21;
+  alexiaCharacter.update?.(Math.max(0, dt), { position: alexiaCharacter.group.position, floorY });
+  if (available) {
+    if (button) {
+      button.disabled = false; button.dataset.interaction = 'alexia';
+      button.textContent = '◎ ALEXIA'; button.classList.add('available');
+    }
+    characterCore.setInteractionTarget('TRIPULANTE ALEXIA');
+    alexiaInteractionMenu?.updatePosition?.();
+  } else {
+    if (alexiaInteractionMenu?.isOpen?.()) alexiaInteractionMenu.close();
+    if (button?.dataset.interaction === 'alexia') {
+      button.disabled = true; button.classList.remove('available');
+      button.dataset.interaction = ''; button.textContent = '◎ AÇÃO';
+    }
+    if (!pilotInteractionAvailable) characterCore.setInteractionTarget(null);
+  }
 }
 
 function updateElevatorButtons() {
@@ -2394,6 +2460,7 @@ function updateCharacterWeapon(dt) {
 }
 
 $('character-action-btn')?.addEventListener('click', () => {
+  if (nearbyAlexiaInteraction) { alexiaInteractionMenu?.open?.(); return; }
   if (externalElevatorActionAvailable) activateExternalElevator();
   else if (matrixInteractionAvailable || matrixConsoleActive) toggleDilithiumMatrixConsole();
   else if (refineryInteractionAvailable || refineryConsoleActive) toggleRefineryConsole();

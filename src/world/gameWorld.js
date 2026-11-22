@@ -133,7 +133,7 @@ export async function createGameWorld({
   // O segundo ator é o corpo físico da Alexia. Seu core é independente do jogador;
   // a IA permanece única e será injetada pelo Runtime via Ship Computer.
   const alexiaCharacter = createCharacterSystem({
-    model: { clothingColor: 0x2f7188, hairColor: 0x202b35 },
+    model: { gender: 'female', clothingColor: 0x2f7188, hairColor: 0x202b35 },
     physics: { gravityKernel },
     initialHeight: 8.91,
     audio: false
