@@ -20,7 +20,8 @@ export function terrariumTileCoordinate(longitudeDeg, latitudeDeg, zoom) {
   };
 }
 
-export function decodeTerrariumElevation(red, green, blue) {
+export function decodeTerrariumElevation(red, green, blue, alpha = 255) {
+  if (alpha === 0 || (red === 0 && green === 0 && blue === 0)) return Number.NaN;
   return red * 256 + green + blue / 256 - 32768;
 }
 
@@ -87,7 +88,9 @@ export function createTerrariumElevationProvider({
       const values = new Float32Array(tileWidth * tileHeight);
       for (let i = 0; i < values.length; i++) {
         const offset = i * 4;
-        values[i] = decodeTerrariumElevation(rgba[offset], rgba[offset + 1], rgba[offset + 2]);
+        values[i] = decodeTerrariumElevation(
+          rgba[offset], rgba[offset + 1], rgba[offset + 2], rgba[offset + 3]
+        );
       }
       const tile = { width: tileWidth, height: tileHeight, values, source: 'AWS Terrain Tiles / Terrarium' };
       cache.set(key, tile);
