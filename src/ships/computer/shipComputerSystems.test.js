@@ -133,6 +133,17 @@ test('aplicativo do núcleo informa reserva, estágio e taxa real de consumo', (
   assert.equal(computer.dispatch('pilot-console', 'power', 'status').reason, 'access-denied');
 });
 
+test('Ponte, pilotagem, Engenharia e Refinaria mantêm seus comandos ligados aos sistemas da nave', () => {
+  const { computer } = createHarness();
+  assert.equal(computer.dispatch('ship-management-terminal', 'power', 'status').ok, true);
+  assert.equal(computer.dispatch('pilot-console', 'propulsion', 'status').ok, true);
+  assert.equal(computer.dispatch('engineering-console', 'engineering', 'status').ok, true);
+  assert.equal(computer.dispatch('engineering-console', 'power', 'status').ok, true);
+  assert.equal(computer.dispatch('refinery-console', 'refinery', 'status').ok, true);
+  assert.equal(computer.dispatch('pilot-console', 'refinery', 'status').reason, 'access-denied');
+  assert.equal(computer.dispatch('refinery-console', 'propulsion', 'status').reason, 'access-denied');
+});
+
 test('controles do piloto passam pelo Ship Computer e ativam dobra no estágio 5', () => {
   const { computer, state } = createHarness();
   const response = computer.dispatch('pilot-console', 'propulsion', 'setPilotInput', {
