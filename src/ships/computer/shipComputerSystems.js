@@ -86,21 +86,28 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
   computer.registerSystem('power', {
     name: 'Energia e recursos',
     commands: {
-      status: (payload, context) => {
+      status: () => {
         const propulsion = readPropulsion();
         if (!propulsion.available) return { available: false };
         return {
           available: true,
           conventionalFuel: state.fuel,
           refinedDilithium: state.refinedDilithium,
+          refinery: refinerySystem?.snapshot?.() ?? { available: false },
           shields: state.shield,
           shieldEnabled: state.shieldEnabled !== false,
           hull: state.hull,
           propulsionAuthority: propulsion.authority,
           warpDriveActive: propulsion.warpDriveActive,
           warpStage: propulsion.warpStage,
-          warpTransition: propulsion.warpTransition,
+          warpTransition: propulsion.warpTransition
         };
+      },
+      transferRefinedDilithium: (payload, context) => {
+        if (context?.terminalId !== 'ship-management-terminal') return { accepted: false, reason: 'management-terminal-required' };
+        if (!readShip()) return { accepted: false, reason: 'ship-unavailable' };
+        if (typeof refinerySystem?.transferToCore !== 'function') return { accepted: false, reason: 'refinery-transfer-unavailable' };
+        return refinerySystem.transferToCore(payload?.amount);
       }
     },
     getStatus: () => readShip() ? 'monitoring' : 'standby'

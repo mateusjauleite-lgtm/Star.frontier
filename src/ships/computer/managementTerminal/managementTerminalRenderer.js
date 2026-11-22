@@ -43,8 +43,9 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
   let openHandler = null;
   let closeHandler = null;
   let selectHandler = null;
+  let commandHandler = null;
 
-  function mount({ onOpen = () => {}, onClose = () => {}, onModuleSelect = () => {} } = {}) {
+  function mount({ onOpen = () => {}, onClose = () => {}, onModuleSelect = () => {}, onCommand = () => ({ ok: false }) } = {}) {
     if (layer) return false;
     const wrapper = document.createElement('div');
     wrapper.className = 'ship-management-hud-layer';
@@ -54,9 +55,34 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
     openHandler = onOpen;
     closeHandler = onClose;
     selectHandler = onModuleSelect;
+    commandHandler = onCommand;
     layer.addEventListener('click', event => {
       if (event.target.closest('[data-management-open]')) { openHandler?.(); return; }
       if (event.target.closest('[data-management-close]')) { closeHandler?.(); return; }
+      if (event.target.closest('[data-power-transfer]')) {
+        const input = layer.querySelector('[data-power-transfer-amount]');
+        const response = commandHandler?.('power', 'transferRefinedDilithium', { amount: Number(input?.value) });
+        const result = response?.result;
+        const feedback = layer.querySelector('[data-power-transfer-feedback]');
+        if (feedback) {
+          if (response?.ok && result?.accepted) {
+            feedback.textContent = 'TRANSFERÊNCIA CONCLUÍDA · ' + Number(result.transferred).toFixed(2) + ' u';
+            if (input) input.value = '';
+          } else {
+            const reason = result?.reason || response?.reason || 'transfer-failed';
+            const messages = {
+              'invalid-amount': 'Informe uma quantidade válida.',
+              'insufficient-refined-stock': 'Estoque refinado insuficiente.',
+              'core-capacity-exceeded': 'Espaço insuficiente no reservatório de dobra.',
+              'management-terminal-required': 'Comando não autorizado neste terminal.',
+              'refinery-transfer-unavailable': 'Sistema da Refinaria indisponível.',
+              'ship-unavailable': 'Nave indisponível.'
+            };
+            feedback.textContent = messages[reason] || 'TRANSFERÊNCIA RECUSADA · ' + reason;
+          }
+        }
+        return;
+      }
       const button = event.target.closest('[data-management-module]');
       if (!button) return;
       selectedModule = button.dataset.managementModule;
@@ -173,6 +199,25 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
       detailState.dataset.state = moduleData?.available ? 'online' : 'standby';
     }
     renderTelemetry(moduleData);
+    const transferPanel = layer.querySelector('[data-power-transfer-panel]');
+    if (transferPanel) {
+      const powerSelected = (selectedModuleId || selectedModule) === 'engineering';
+      transferPanel.hidden = !powerSelected;
+      const refinery = moduleData?.data?.refinery;
+      const buffer = Math.max(0, Number(refinery?.refinedBuffer) || 0);
+      const free = Math.max(0, Number(refinery?.coreRemainingCapacity) || 0);
+      const transferable = Math.min(buffer, free);
+      const bufferNode = layer.querySelector('[data-power-transfer-buffer]');
+      const coreNode = layer.querySelector('[data-power-transfer-core]');
+      const capacityNode = layer.querySelector('[data-power-transfer-capacity]');
+      const input = layer.querySelector('[data-power-transfer-amount]');
+      const button = layer.querySelector('[data-power-transfer]');
+      if (bufferNode) bufferNode.textContent = buffer.toFixed(2) + ' u';
+      if (coreNode) coreNode.textContent = (Number(refinery?.coreDilithium) || 0).toFixed(2) + ' u';
+      if (capacityNode) capacityNode.textContent = free.toFixed(2) + ' u';
+      if (input) input.max = transferable.toFixed(2);
+      if (button) button.disabled = !moduleData?.available || !refinery?.available || transferable <= 0;
+    }
     updateSelection();
   }
 
@@ -182,6 +227,7 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
     openHandler = null;
     closeHandler = null;
     selectHandler = null;
+    commandHandler = null;
   }
   return Object.freeze({ mount, render, selectModule, unmount });
 }

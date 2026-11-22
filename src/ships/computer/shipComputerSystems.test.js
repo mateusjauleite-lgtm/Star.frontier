@@ -35,8 +35,8 @@ function createHarness() {
   let currentShip = ship;
   let pitchAngle = -0.2;
   const computer = createShipComputer();
-  const refineryState = { rawDilithiumOre: 12, refineryRefinedStorage: 3, refinedDilithium: 60 };
-  const refinerySystem = createDilithiumRefinerySystem(refineryState);
+  Object.assign(state, { rawDilithiumOre: 12, refineryRefinedStorage: 3, refineryEnabled: true, refineryTransferEnabled: false, refineryRefinedTotal: 0, refineryTransferredTotal: 0 });
+  const refinerySystem = createDilithiumRefinerySystem(state);
   computer.registerTerminal({ id: 'ship-management-terminal', name: 'Terminal de gerenciamento', systems: ['navigation', 'sensors', 'engineering', 'power'] });
   computer.registerTerminal({ id: 'pilot-console', name: 'Console de pilotagem', systems: ['navigation', 'propulsion'] });
   computer.registerTerminal({ id: 'refinery-console', name: 'Console da Refinaria', systems: ['refinery'] });
@@ -107,7 +107,8 @@ test('energia informa reserva real de dilítio e estado da dobra', () => {
   assert.equal(centralTelemetry.ok, true);
   assert.equal('refinery' in centralTelemetry.result, false);
   const powerTelemetry = computer.dispatch('ship-management-terminal', 'power', 'status');
-  assert.equal('refinery' in powerTelemetry.result, false);
+  assert.equal(powerTelemetry.result.refinery.available, true);
+  assert.equal(powerTelemetry.result.refinery.refinedBuffer, 3);
 });
 
 test('controles do piloto passam pelo Ship Computer e ativam dobra no estágio 5', () => {
@@ -208,3 +209,8 @@ test('somente o terminal próprio controla a Refinaria', () => {
 });
 
 test('Refinaria fica acessível apenas pelo terminal próprio',()=>{const {computer}=createHarness();assert.equal(computer.dispatch('refinery-console','refinery','status').result.rawOre,12);assert.equal(computer.dispatch('ship-management-terminal','refinery','status').reason,'access-denied');assert.equal(computer.dispatch('engineering-console','refinery','status').reason,'access-denied');assert.equal(computer.dispatch('refinery-console','refinery','setRefineryEnabled',{enabled:false}).result.accepted,true);});
+
+
+test('gerenciamento transfere dilítio refinado para o reservatório usado pela dobra',()=>{const {computer,state,refinerySystem}=createHarness();const r=computer.dispatch('ship-management-terminal','power','transferRefinedDilithium',{amount:2.5});assert.equal(r.ok,true);assert.equal(r.result.accepted,true);assert.equal(r.result.transferred,2.5);assert.equal(state.refineryRefinedStorage,.5);assert.equal(state.refinedDilithium,62.5);assert.equal(refinerySystem.snapshot().coreDilithium,62.5);});
+test('somente gerenciamento da ponte pode comandar transferência manual',()=>{const {computer,state}=createHarness();const r=computer.dispatch('engineering-console','power','transferRefinedDilithium',{amount:1});assert.equal(r.ok,true);assert.equal(r.result.accepted,false);assert.equal(r.result.reason,'management-terminal-required');assert.equal(state.refinedDilithium,60);assert.equal(state.refineryRefinedStorage,3);});
+test('transferência do gerenciamento não converte minério bruto em combustível',()=>{const {computer,state}=createHarness();computer.dispatch('ship-management-terminal','power','transferRefinedDilithium',{amount:1});assert.equal(state.rawDilithiumOre,12);assert.equal(state.refineryRefinedStorage,2);assert.equal(state.refinedDilithium,61);});

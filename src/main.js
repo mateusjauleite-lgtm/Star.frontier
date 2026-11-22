@@ -40,7 +40,7 @@ import { createPilotHudProfileStore, PILOT_HUD_PROFILES } from './ui/hudProfiles
 
 const artificialGravityField = createArtificialGravityField();
 const shipShieldSystem = createShipShieldSystem(state);
-const dilithiumRefinerySystem = createDilithiumRefinerySystem(state, { getPlant: () => starshipInterior?.dilithiumPlant });
+const dilithiumRefinerySystem = createDilithiumRefinerySystem(state, { getPlant: () => starshipInterior?.dilithiumPlant, persist: save });
 
 registerTextInteractionGuard();
 
