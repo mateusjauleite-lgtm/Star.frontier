@@ -218,6 +218,8 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
       const consumptionNode = layer.querySelector('[data-warp-core-consumption]');
       const stageNode = layer.querySelector('[data-warp-core-stage]');
       const consumedNode = layer.querySelector('[data-warp-core-consumed-total]');
+      const processingNode = layer.querySelector('[data-warp-core-processing]');
+      const refiningRateNode = layer.querySelector('[data-warp-core-refining-rate]');
       const autoTransferNode = layer.querySelector('[data-warp-core-auto-transfer]');
       const transferRateNode = layer.querySelector('[data-warp-core-transfer-rate]');
       const fuelRateNode = layer.querySelector('[data-warp-core-fuel-rate]');
@@ -231,6 +233,8 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
       if (consumptionNode) consumptionNode.textContent = (Number(core.consumptionRate) || 0).toFixed(3) + ' u/s';
       if (stageNode) stageNode.textContent = core.active ? `DOBRA ${Number(core.stage) || 0} · ATIVA` : 'DESATIVADA';
       if (consumedNode) consumedNode.textContent = (Number(core.consumedTotal) || 0).toFixed(2) + ' u';
+      if (processingNode) processingNode.textContent = refinery?.refineryEnabled ? 'ATIVO' : 'DESLIGADO';
+      if (refiningRateNode) refiningRateNode.textContent = (Number(refinery?.refiningRate) || 0).toFixed(3) + ' u/s';
       if (autoTransferNode) autoTransferNode.textContent = refinery?.transferEnabled ? 'ATIVA' : 'DESLIGADA';
       if (transferRateNode) transferRateNode.textContent = (Number(refinery?.transferRate) || 0).toFixed(3) + ' u/s';
       if (fuelRateNode) fuelRateNode.textContent = (Number(core.conventionalFuelConsumptionRate) || 0).toFixed(3) + ' u/s';
