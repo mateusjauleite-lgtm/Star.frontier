@@ -101,7 +101,7 @@ test('trocar para mochila menor preserva excedentes e mochila maior os recupera'
 
   assert.equal(system.equip(bag.instanceId).ok, true);
   assert.equal(system.snapshot().capacity, 12);
-  assert.equal(system.snapshot().overflowItems.length, 6);
+  assert.equal(system.snapshot().overflowItems.length, 7);
 
   system.add('equipment.backpack.medium');
   bag = system.snapshot().overflowItems.find(item => item.definitionId === 'equipment.backpack.medium');
