@@ -177,3 +177,26 @@ test('a Alexia não executa alterações de sistemas sem autorização operacion
   assert.equal(response.reason, 'explicit-authorization-required');
   assert.equal(response.intent, 'operation-blocked');
 });
+
+
+test('chat da Alexia encaminha comandos curtos ao corpo físico sem criar outro núcleo de IA', () => {
+  const computer = createShipComputer();
+  computer.boot();
+  const calls = [];
+  const controller = {
+    getSnapshot: () => ({ id: 'character:alexia', status: 'online' }),
+    move: request => { calls.push(['move', request]); return { accepted: true, direction: request.direction }; },
+    stop: () => { calls.push(['stop']); return { accepted: true, moving: false }; }
+  };
+
+  assert.equal(computer.onboardAI.bindCrewController(controller).connected, true);
+  const movement = computer.onboardAI.processMessage('Alexia, caminhe para frente');
+  assert.equal(movement.intent, 'crew-move');
+  assert.equal(movement.result.direction, 'forward');
+  assert.deepEqual(calls[0], ['move', { direction: 'forward', durationSeconds: 2 }]);
+
+  const stopped = computer.onboardAI.processMessage('Alexia, pare');
+  assert.equal(stopped.intent, 'crew-stop');
+  assert.deepEqual(calls[1], ['stop']);
+  assert.equal(computer.onboardAI.snapshot().crew.status, 'online');
+});
