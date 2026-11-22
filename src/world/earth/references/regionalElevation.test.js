@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {
   terrariumTileCoordinate,
   decodeTerrariumElevation,
-  sampleTerrariumTile
+  sampleTerrariumTile,
+  createTerrariumElevationProvider
 } from './regionalElevation.js';
 
 test('maps longitude and latitude to Web Mercator DEM tile coordinates', () => {
@@ -30,4 +31,32 @@ test('decodes Terrarium RGB elevations in meters', () => {
 test('bilinearly samples a decoded DEM tile', () => {
   const tile = { width: 2, height: 2, values: new Float32Array([0, 10, 20, 30]) };
   assert.equal(sampleTerrariumTile(tile, 0.5, 0.5), 15);
+});
+
+
+test('cached DEM sampling exposes the same bilinear value used by regional tiles', async () => {
+  const pixel = new Uint8ClampedArray(2 * 2 * 4);
+  for (let i = 0; i < 4; i++) {
+    pixel[i * 4] = 128;
+    pixel[i * 4 + 1] = 10;
+    pixel[i * 4 + 2] = 0;
+    pixel[i * 4 + 3] = 255;
+  }
+  const provider = createTerrariumElevationProvider({
+    fetchImpl: async () => ({ ok: true, blob: async () => ({}) }),
+    createImageBitmapImpl: async () => ({ width: 2, height: 2, close() {} }),
+    createCanvasImpl: () => ({
+      getContext: () => ({
+        drawImage() {},
+        getImageData: () => ({ data: pixel })
+      })
+    })
+  });
+  try {
+    assert.equal(provider.sampleCached(0, 0, { zoom: 2 }), null);
+    await provider.sampleBatch([{ longitudeDeg: 0, latitudeDeg: 0 }], { zoom: 2 });
+    assert.equal(provider.sampleCached(0, 0, { zoom: 2 }), 10);
+  } finally {
+    provider.dispose();
+  }
 });
