@@ -5,7 +5,8 @@ export const EARTH_BLUE_MARBLE_TEXTURE_PATH =
   'earth/blue-marble-topography-bathymetry.jpg';
 
 export function resolveEarthTextureUrl(baseUrl = './') {
-  return new URL(EARTH_BLUE_MARBLE_TEXTURE_PATH, new URL(baseUrl, 'https://starfrontier.invalid/')).toString();
+  const normalizedBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+  return `${normalizedBase}${EARTH_BLUE_MARBLE_TEXTURE_PATH}`;
 }
 
 /**
@@ -36,7 +37,7 @@ export function createBlueMarbleSurfaceRuntime({
         initial.height
       );
       material = new THREE.MeshStandardMaterial({
-        color: 0xffffff,
+        color: 0x123b68,
         roughness: 0.94,
         metalness: 0,
         dithering: true
@@ -59,13 +60,14 @@ export function createBlueMarbleSurfaceRuntime({
       const loader = new THREE.TextureLoader();
       loader.setCrossOrigin?.('anonymous');
       texture = loader.load(
-        new URL(EARTH_BLUE_MARBLE_TEXTURE_PATH, import.meta.env.BASE_URL).href,
+        resolveEarthTextureUrl(import.meta.env.BASE_URL),
         loadedTexture => {
           if (disposed) {
             loadedTexture.dispose();
             return;
           }
           loadedTexture.colorSpace = THREE.SRGBColorSpace;
+          material.color.set(0xffffff);
           loadedTexture.wrapS = THREE.RepeatWrapping;
           loadedTexture.wrapT = THREE.ClampToEdgeWrapping;
           loadedTexture.generateMipmaps = true;
