@@ -36,7 +36,7 @@ function createStream() {
   };
 }
 
-test('Audio Manager não solicita microfone ao ser inicializado', () => {
+test('Audio Manager não solicita microfone ao ser inicializado', async () => {
   const core = createCoreMock();
   let requests = 0;
   const manager = createAudioManager({
@@ -44,6 +44,7 @@ test('Audio Manager não solicita microfone ao ser inicializado', () => {
     mediaDevices: { getUserMedia: async () => { requests++; return createStream(); } },
     storage: null
   });
+  await manager.initialize();
   assert.equal(requests, 0);
   assert.equal(manager.getSnapshot().microphone.active, false);
   manager.dispose();
