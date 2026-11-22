@@ -109,6 +109,7 @@ export function createAudioManager(options = {}) {
     lastError = null;
     emit('microphone-requesting');
 
+    let pendingStream = null;
     try {
       // Deve ser chamado diretamente após toque/clique do usuário para abrir
       // o fluxo de autorização do navegador/WebView/Android.
@@ -121,6 +122,7 @@ export function createAudioManager(options = {}) {
         },
         video: false
       });
+      pendingStream = requestedStream;
       const tracks = requestedStream.getAudioTracks?.() || [];
       if (tracks.length === 0) {
         for (const track of requestedStream.getTracks?.() || []) track.stop();
@@ -128,6 +130,7 @@ export function createAudioManager(options = {}) {
       }
       const connection = core.connectInputStream(requestedStream, { id: 'star-frontier-microphone' });
       stream = requestedStream;
+      pendingStream = null;
       inputConnection = connection;
       permissionState = 'granted';
       for (const track of tracks) {
@@ -141,6 +144,9 @@ export function createAudioManager(options = {}) {
       emit('microphone-started');
       return { ok: true, active: true, tracks: tracks.length, snapshot: getSnapshot() };
     } catch (error) {
+      for (const track of pendingStream?.getTracks?.() || []) {
+        try { track.stop(); } catch {}
+      }
       const name = error?.name || '';
       if (name === 'NotAllowedError' || name === 'PermissionDeniedError' || name === 'SecurityError') {
         permissionState = 'denied';
