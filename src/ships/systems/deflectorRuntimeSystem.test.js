@@ -21,7 +21,7 @@ test('ramificações permanecem desligadas por padrão e não drenam reserva',()
 });
 test('proteção frontal solicita energia apenas quando navegação reporta risco',()=>{
  const state={deflectorCoreEnergy:2};
- const runtime=createDeflectorRuntimeSystem({state,persist:()=>{},readInputs:()=>({navigation:{available:true},contacts:[{distance:20}]})});
+ const runtime=createDeflectorRuntimeSystem({state,persist:()=>{},sensors:{enabled:true},readInputs:()=>({navigation:{available:true},contacts:[{distance:20}]})});
  runtime.setProtectionEnabled(true);runtime.update(.1);
  assert.equal(runtime.snapshot().protection.active,true);
 });
