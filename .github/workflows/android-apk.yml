@@ -17,10 +17,12 @@ on:
       - feature/engineering-warp-core-foundation
       - feature/warp-stages-engineering-controls
       - fix/character-hud-startup-layout
+      - fix/deflector-deck2-floor-clearance
       - fix/pilot-hud-flight-controls
       - feature/hud-profiles-editor-gameplay
       - feature/warp-dilithium-transfer-management
       - feature/warp-core-energy-matrix
+      - feature/aurora-ship-computer-ai-core
   pull_request:
     branches:
       - feature/core-runtime-foundation
