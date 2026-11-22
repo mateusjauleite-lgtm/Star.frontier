@@ -19,6 +19,7 @@
         <button type="button" class="management-app-link" data-management-module="tactical" data-system-id="sensors" aria-pressed="false"><span class="management-app-icon">◎</span><span>Sensores e tático<small data-module-state>PREPARADO</small></span></button>
         <button type="button" class="management-app-link" data-management-module="weapons" data-system-id="weapons" aria-pressed="false"><span class="management-app-icon">✣</span><span>Arsenal<small data-module-state>PREPARADO</small></span></button>
         <button type="button" class="management-app-link" data-management-module="engineering" data-system-id="power" aria-pressed="false"><span class="management-app-icon">ϟ</span><span>Energia do núcleo<small data-module-state>PREPARADO</small></span></button>
+        <button type="button" class="management-app-link" data-management-module="warp-core" data-system-id="power" aria-pressed="false"><span class="management-app-icon">✧</span><span>Núcleo de dobra<small data-module-state>PREPARADO</small></span></button>
         <button type="button" class="management-app-link" data-management-module="defense" data-system-id="defense" aria-pressed="false"><span class="management-app-icon">⬡</span><span>Defesa<small data-module-state>PREPARADO</small></span></button>
         <button type="button" class="management-app-link" data-management-module="diagnostics" data-system-id="diagnostics" aria-pressed="false"><span class="management-app-icon">▤</span><span>Diagnósticos<small data-module-state>PREPARADO</small></span></button>
 
@@ -39,7 +40,7 @@
             <header class="management-window-title"><span class="management-window-app-icon">▦</span><b>PAINEL DO SISTEMA</b><span class="management-window-controls">— □</span></header>
             <div class="management-overview-grid">
               <article class="management-info-card"><small>COMPUTADOR CENTRAL</small><b data-management-central-state>EM ESPERA</b><span>Estado de conexão</span></article>
-              <article class="management-info-card"><small>MÓDULOS REGISTRADOS</small><b data-management-module-count>06</b><span>Sistemas de gerenciamento</span></article>
+              <article class="management-info-card"><small>MÓDULOS REGISTRADOS</small><b data-management-module-count>07</b><span>Sistemas de gerenciamento</span></article>
               <article class="management-info-card"><small>ESTAÇÃO ATUAL</small><b>DECK 01</b><span>Ponte de comando</span></article>
             </div>
             <div class="management-system-summary"><div class="management-section-label">ESTADO DOS SISTEMAS</div><div data-management-system-list class="management-system-list"><span>Carregando telemetria da nave…</span></div></div>
@@ -52,18 +53,29 @@
               <p class="management-module-description" data-management-detail-description>Dados de navegação e telemetria da nave.</p>
               <div class="management-telemetry-grid" data-management-detail-output><div class="management-telemetry-empty">Selecione um aplicativo para consultar os dados do sistema.</div></div>
               <section class="management-power-transfer" data-power-transfer-panel hidden aria-label="Transferência de dilítio para o núcleo de dobra">
-                <header><b>ABASTECIMENTO DO NÚCLEO DE DOBRA</b><span>TRANSFERÊNCIA DE MATERIAL</span></header>
+                <header><b>NÚCLEO DE DOBRA · RESERVA COMPARTILHADA</b><span>GESTÃO DE DILÍTIO</span></header>
                 <div class="management-power-transfer-readouts">
-                  <div><small>DILÍTIO REFINADO DISPONÍVEL</small><strong data-power-transfer-buffer>0.00 u</strong></div>
+                  <div><small>BUFFER REFINADO NA REFINARIA</small><strong data-power-transfer-buffer>0.00 u</strong></div>
                   <div><small>RESERVA DO NÚCLEO</small><strong data-power-transfer-core>0.00 u</strong></div>
                   <div><small>ESPAÇO LIVRE</small><strong data-power-transfer-capacity>0.00 u</strong></div>
+                   <div><small>MINÉRIO NO INVENTÁRIO PESSOAL</small><strong data-warp-core-personal-raw>0.00 u</strong></div>
+                   <div><small>MINÉRIO BRUTO NA REFINARIA</small><strong data-warp-core-raw>0.00 u</strong></div>
+                   <div><small>CONSUMO ATUAL DA DOBRA</small><strong data-warp-core-consumption>0.000 u/s</strong></div>
+                   <div><small>ESTÁGIO / ESTADO</small><strong data-warp-core-stage>DESATIVADA</strong></div>
+                   <div><small>TOTAL CONSUMIDO PELA DOBRA</small><strong data-warp-core-consumed-total>0.00 u</strong></div>
+                   <div><small>PROCESSAMENTO DA REFINARIA</small><strong data-warp-core-processing>ATIVO</strong></div>
+                   <div><small>TAXA DE REFINO</small><strong data-warp-core-refining-rate>0.000 u/s</strong></div>
+                   <div><small>TRANSFERÊNCIA AUTOMÁTICA</small><strong data-warp-core-auto-transfer>DESLIGADA</strong></div>
+                   <div><small>TAXA DE TRANSFERÊNCIA</small><strong data-warp-core-transfer-rate>0.000 u/s</strong></div>
+                   <div><small>CONSUMO DE COMBUSTÍVEL COMUM</small><strong data-warp-core-fuel-rate>0.000 u/s</strong></div>
+                   <div><small>ACELERADOR CONVENCIONAL</small><strong data-warp-core-throttle>DESLIGADO</strong></div>
                 </div>
                 <div class="management-power-transfer-controls">
                   <label for="power-transfer-amount">QUANTIDADE PARA TRANSFERIR</label>
                   <input id="power-transfer-amount" data-power-transfer-amount type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="Ex.: 25.00">
-                  <button type="button" data-power-transfer disabled>TRANSFERIR PARA O NÚCLEO</button>
+                  <button type="button" data-power-transfer disabled>ABASTECER NÚCLEO DE DOBRA</button>
                 </div>
-                <p data-power-transfer-feedback role="status" aria-live="polite">Aguardando comando de transferência.</p>
+                <p data-power-transfer-feedback role="status" aria-live="polite">O núcleo consome dilítio somente enquanto a dobra está ativa.</p>
               </section>
               
             </div>

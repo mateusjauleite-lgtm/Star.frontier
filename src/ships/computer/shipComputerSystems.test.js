@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createShipComputer } from './shipComputer.js';
 import { registerShipComputerSystems } from './shipComputerSystems.js';
 import { createDilithiumRefinerySystem } from '../systems/dilithiumRefinerySystem.js';
+import { RESOURCE_IDS } from '../../core/resources/resourceCatalog.js';
 
 function createHarness() {
   const position = {
@@ -29,13 +30,15 @@ function createHarness() {
   };
   const asteroids = [
     { name: 'Contato distante', position: { x: 20, y: 4, z: -2 }, userData: { ore: 12 } },
-    { name: 'Contato próximo', position: { x: 13, y: 4, z: -2 }, userData: { ore: 4 } },
+    { name: 'Contato próximo', position: { x: 13, y: 4, z: -2 }, userData: { ore: 4, resources: { [RESOURCE_IDS.DILITHIUM_ORE]: { amount: 7, purity: 0.88 } } } },
     { name: 'Contato sem posição', userData: { ore: 9 } }
   ];
   let currentShip = ship;
   let pitchAngle = -0.2;
   const computer = createShipComputer();
   Object.assign(state, { rawDilithiumOre: 12, refineryRefinedStorage: 3, refineryEnabled: true, refineryTransferEnabled: false, refineryRefinedTotal: 0, refineryTransferredTotal: 0 });
+  state.warpDilithiumConsumedTotal = 4.5;
+  state.inventory = { items: [{ definitionId: 'ore.dilithium.raw', quantity: 8 }], overflowItems: [{ itemId: 'ore.dilithium.raw', quantity: 2 }] };
   const refinerySystem = createDilithiumRefinerySystem(state);
   computer.registerTerminal({ id: 'ship-management-terminal', name: 'Terminal de gerenciamento', systems: ['navigation', 'sensors', 'engineering', 'power'] });
   computer.registerTerminal({ id: 'pilot-console', name: 'Console de pilotagem', systems: ['navigation', 'propulsion'] });
@@ -91,6 +94,8 @@ test('sensores retornam contatos válidos ordenados pela distância', () => {
   assert.equal(response.result.totalContacts, 2);
   assert.equal(response.result.nearestContact.id, 'Contato próximo');
   assert.deepEqual(response.result.contacts.map(contact => contact.distance), [3, 10]);
+  assert.deepEqual(response.result.resourceIds, [RESOURCE_IDS.DILITHIUM_ORE]);
+  assert.deepEqual(response.result.nearestContact.resources, [{ resourceId: RESOURCE_IDS.DILITHIUM_ORE, amount: 7, purity: 0.88 }]);
 });
 
 test('energia informa reserva real de dilítio e estado da dobra', () => {
@@ -109,6 +114,35 @@ test('energia informa reserva real de dilítio e estado da dobra', () => {
   const powerTelemetry = computer.dispatch('ship-management-terminal', 'power', 'status');
   assert.equal(powerTelemetry.result.refinery.available, true);
   assert.equal(powerTelemetry.result.refinery.refinedBuffer, 3);
+});
+
+test('aplicativo do núcleo informa reserva, estágio e taxa real de consumo', () => {
+  const { computer, state } = createHarness();
+  state.warpDriveActive = true;
+  state.warpCurrentStage = 5;
+  const response = computer.dispatch('ship-management-terminal', 'power', 'status');
+  assert.equal(response.ok, true);
+  assert.equal(response.result.warpCore.reserve, state.refinedDilithium);
+  assert.equal(response.result.warpCore.stage, 5);
+  assert.equal(response.result.warpCore.active, true);
+  assert.equal(response.result.warpCore.consumptionRate, 0.045);
+  assert.equal(response.result.warpCore.consumedTotal, 4.5);
+  assert.equal(response.result.personalRawDilithiumOre, 10);
+  assert.equal(response.result.warpCore.conventionalFuelConsumptionRate, 0.28);
+  assert.equal(response.result.warpCore.conventionalThrottleActive, true);
+  assert.equal(computer.dispatch('engineering-console', 'power', 'status').ok, true);
+  assert.equal(computer.dispatch('pilot-console', 'power', 'status').reason, 'access-denied');
+});
+
+test('Ponte, pilotagem, Engenharia e Refinaria mantêm seus comandos ligados aos sistemas da nave', () => {
+  const { computer } = createHarness();
+  assert.equal(computer.dispatch('ship-management-terminal', 'power', 'status').ok, true);
+  assert.equal(computer.dispatch('pilot-console', 'propulsion', 'status').ok, true);
+  assert.equal(computer.dispatch('engineering-console', 'engineering', 'status').ok, true);
+  assert.equal(computer.dispatch('engineering-console', 'power', 'status').ok, true);
+  assert.equal(computer.dispatch('refinery-console', 'refinery', 'status').ok, true);
+  assert.equal(computer.dispatch('pilot-console', 'refinery', 'status').reason, 'access-denied');
+  assert.equal(computer.dispatch('refinery-console', 'propulsion', 'status').reason, 'access-denied');
 });
 
 test('controles do piloto passam pelo Ship Computer e ativam dobra no estágio 5', () => {

@@ -1,4 +1,5 @@
-import { WARP_STAGE_SPEEDS } from '../flight/flightDynamics.js';
+import { WARP_STAGE_SPEEDS, WARP_DILITHIUM_CONSUMPTION } from '../flight/flightDynamics.js';
+import { RESOURCE_IDS } from '../../core/resources/resourceCatalog.js';
 // Adaptadores entre o computador central e os sistemas reais da nave.
 // Ponte e Engenharia consultam e comandam a mesma fonte de estado.
 const PROPULSION_INPUTS = new Set(['throttle', 'braking', 'warpDriveButton']);
@@ -19,6 +20,14 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
     if (!ship) return { available: false };
     const { x, y, z } = ship.position;
     return { available: true, position: { x, y, z }, heading: getShipYaw(), pitch: getPitchAngle(), speed: state.speed };
+  };
+  const readPersonalRawOre = () => {
+    const inventory = state.inventory && typeof state.inventory === 'object' ? state.inventory : {};
+    const items = [...(Array.isArray(inventory.items) ? inventory.items : []), ...(Array.isArray(inventory.overflowItems) ? inventory.overflowItems : [])];
+    return items.reduce((total, item) => {
+      const id = item?.definitionId || item?.itemId;
+      return id === 'ore.dilithium.raw' ? total + Math.max(0, Number(item.quantity) || 0) : total;
+    }, 0);
   };
   const readPropulsion = () => {
     if (!readShip()) return { available: false };
@@ -73,12 +82,28 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
         const contacts = (Array.isArray(asteroids) ? asteroids : [])
           .filter(asteroid => asteroid?.position)
           .map((asteroid, index) => ({
-            id: asteroid.name || `asteroid-${index + 1}`,
+            id: asteroid.name || asteroid.userData?.entityId || `asteroid-${index + 1}`,
             distance: ship.position.distanceTo(asteroid.position),
-            ore: asteroid.userData?.ore ?? null
+            ore: asteroid.userData?.ore ?? null,
+            resources: Object.entries(asteroid.userData?.resources ?? {})
+              .filter(([, deposit]) => Number(deposit?.amount) > 0)
+              .map(([resourceId, deposit]) => ({
+                resourceId,
+                amount: Number(deposit.amount),
+                purity: Number.isFinite(Number(deposit.purity)) ? Number(deposit.purity) : null
+              })),
+            resourceIds: Object.keys(asteroid.userData?.resources ?? {})
+              .filter(resourceId => Number(asteroid.userData.resources[resourceId]?.amount) > 0)
           }))
           .sort((a, b) => a.distance - b.distance);
-        return { available: true, totalContacts: contacts.length, nearestContact: contacts[0] || null, contacts };
+        return {
+          available: true,
+          totalContacts: contacts.length,
+          resourceIds: [...new Set(contacts.flatMap(contact => contact.resourceIds))],
+          resourceCatalog: [RESOURCE_IDS.DILITHIUM_ORE],
+          nearestContact: contacts[0] || null,
+          contacts
+        };
       }
     },
     getStatus: () => readShip() ? 'online' : 'standby'
@@ -92,7 +117,19 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
         return {
           available: true,
           conventionalFuel: state.fuel,
+          personalRawDilithiumOre: readPersonalRawOre(),
           refinedDilithium: state.refinedDilithium,
+          warpCore: {
+            resourceId: RESOURCE_IDS.REFINED_DILITHIUM,
+            reserve: Math.max(0, Number(state.refinedDilithium) || 0),
+            capacity: Number(refinerySystem?.snapshot?.().coreCapacity) || 250,
+            active: Boolean(state.warpDriveActive),
+            stage: Number(state.warpCurrentStage) || 0,
+            consumptionRate: state.warpDriveActive ? (WARP_DILITHIUM_CONSUMPTION[Number(state.warpCurrentStage) || 0] || 0) : 0,
+            consumedTotal: Math.max(0, Number(state.warpDilithiumConsumedTotal) || 0),
+            conventionalThrottleActive: Boolean(state.throttle),
+            conventionalFuelConsumptionRate: state.throttle && Number(state.fuel) > 0 ? 0.28 : 0
+          },
           refinery: refinerySystem?.snapshot?.() ?? { available: false },
           shields: state.shield,
           shieldEnabled: state.shieldEnabled !== false,

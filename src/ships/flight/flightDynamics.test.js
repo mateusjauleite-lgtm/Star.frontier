@@ -7,6 +7,7 @@ function makeState(overrides = {}) {
     speed: 10,
     fuel: 100,
     refinedDilithium: 100,
+    warpDilithiumConsumedTotal: 0,
     throttle: false,
     braking: false,
     warpDriveButton: false,
@@ -26,6 +27,7 @@ test('aceleração convencional continua independente e consome combustível com
   assert.equal(state.speed, 10.72);
   assert.equal(state.fuel, 99.9888);
   assert.equal(state.refinedDilithium, 100);
+  assert.equal(state.warpDilithiumConsumedTotal, 0);
 });
 
 test('ativar dobra inicia no estágio 5 e acelera progressivamente sem consumir combustível comum', () => {
@@ -36,6 +38,7 @@ test('ativar dobra inicia no estágio 5 e acelera progressivamente sem consumir 
   assert.equal(state.speed, 11.3);
   assert.equal(state.fuel, 100);
   assert.ok(state.refinedDilithium < 100);
+  assert.ok(state.warpDilithiumConsumedTotal > 0);
   assert.equal(state.warpTransition, 'entering');
 });
 

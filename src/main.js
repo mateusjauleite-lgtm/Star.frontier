@@ -19,6 +19,7 @@ import { createCharacterHUD } from './character/characterHUD.js';
 import { createCharacterAudio } from './character/characterAudio.js';
 import { createShipAudio } from './ships/shipAudio.js';
 import { createCharacterEquipmentSystem } from './inventory/characterEquipment.js';
+const DILITHIUM_ORE_ITEM_ID = 'ore.dilithium.raw';
 import { isPilotConsoleInRange, attachCharacterToPilotConsole, returnCharacterToDeck } from './ships/bridge/commandBridge.js';
 import { saveState as save, loadState as load } from './core/storage.js';
 import { createShipComputer } from './ships/computer/shipComputer.js';
@@ -103,7 +104,24 @@ const engineeringRenderer = createEngineeringTerminalRenderer({
 });
 engineeringRenderer.mount();
 const refineryRenderer = createRefineryTerminalRenderer({ root: $('game-screen') });
-refineryTerminal = createRefineryTerminalController({ computer: shipComputer, renderer: refineryRenderer, onInteractionChange: active => { refineryConsoleActive = active; } });
+refineryTerminal = createRefineryTerminalController({
+  computer: shipComputer,
+  renderer: refineryRenderer,
+  onInteractionChange: active => {
+    refineryConsoleActive = active;
+    if (!active) document.querySelector('[data-refinery-receiving-slot]')?.classList.remove('is-receiving');
+  },
+  onReceive: () => {
+    if (!refineryConsoleActive) { toast('Conecte-se ao console da Refinaria para receber minério.'); return; }
+    const receivingSlot = document.querySelector('[data-refinery-receiving-slot]');
+    receivingSlot?.classList.add('is-receiving');
+    const receiveHint = receivingSlot?.querySelector('[data-refinery-receive-hint]');
+    if (receiveHint) receiveHint.textContent = 'AGUARDANDO MINÉRIO DO INVENTÁRIO DO PERSONAGEM';
+    renderInventory();
+    openInventory();
+    toast('Compartimento de recebimento ativo. Toque no minério para transferir.');
+  }
+});
 engineeringTerminal = createEngineeringTerminalController({
   computer: shipComputer,
   onInteractionChange: active => {
@@ -845,6 +863,7 @@ async function startGame() {
     if (!runtimeInitialized) {
       throw new Error('O Runtime não conseguiu inicializar seus sistemas.');
     }
+    characterEquipment.initialize();
     if (characterInWorldFrame && characterModel?.group && shipVisual) {
       scene.remove(characterModel.group);
       shipVisual.add(characterModel.group);
@@ -2178,6 +2197,7 @@ $('character-action-btn')?.addEventListener('click', () => {
   else enterPilotMode();
 });
 window.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && !$('inventory-modal')?.classList.contains('hidden')) { closeInventory(); return; }
   if (event.key === 'Escape' && refineryConsoleActive) { refineryTerminal?.close(); return; }
   if (event.key === 'Escape' && shipManagementTerminal.getSnapshot().open) {
     shipManagementTerminal.close();
@@ -2265,8 +2285,11 @@ function renderInventory() {
     const name = escapeHtml(item.name || item.itemId || item.definitionId);
     const category = escapeHtml(item.category || 'ITEM').toUpperCase();
     const quantity = item.quantity > 1 ? ` ×${item.quantity}` : '';
+    const action = item.definitionId === DILITHIUM_ORE_ITEM_ID
+      ? 'ENVIAR À REFINARIA'
+      : 'TOQUE PARA EQUIPAR';
     return `<button class="inventory-cell inventory-item-button" type="button" data-item-instance="${escapeHtml(item.instanceId)}">
-      <span>${name}${quantity}</span><small>${category} · TOQUE PARA EQUIPAR</small>
+      <span>${name}${quantity}</span><small>${category} · ${action}</small>
     </button>`;
   }).join('');
 
@@ -2277,7 +2300,9 @@ function renderInventory() {
       const quantity = item.quantity > 1 ? ` ×${item.quantity}` : '';
       const equipable = ['head', 'torso', 'hands', 'legs', 'feet', 'back', 'weapon'].includes(item.slot);
       const pending = pendingInventoryEquipId === item.instanceId;
-      const action = equipable ? (pending ? 'EQUIPAR AGORA' : 'TOQUE PARA SELECIONAR') : 'TOQUE PARA RESTAURAR';
+      const action = item.definitionId === DILITHIUM_ORE_ITEM_ID
+        ? 'ENVIAR À REFINARIA'
+        : (equipable ? (pending ? 'EQUIPAR AGORA' : 'TOQUE PARA SELECIONAR') : 'TOQUE PARA RESTAURAR');
       return `<button type="button" class="inventory-overflow-item${pending ? ' item-pending-equip' : ''}" data-overflow-instance-id="${escapeHtml(item.instanceId)}">
         <b>${name}${quantity}</b><small>${action}</small>
       </button>`;
@@ -2318,12 +2343,17 @@ $('inventory-clothing-view')?.addEventListener('click', event => {
   }
 });
 $('inventory-grid')?.addEventListener('click', event => {
-  const target = event.target.closest('[data-item-instance]');
-  if (!target) return;
-  const result = characterEquipment.equip(target.dataset.itemInstance);
-  pendingInventoryEquipId = null;
-  if (!result.ok) toast(result.reason);
-  else { save(); toast(result.item.name + ' equipado no personagem.'); }
+  const target = event.target.closest('[data-item-instance]'); if (!target) return;
+  const item = characterEquipment.snapshot().items.find(entry => entry.instanceId === target.dataset.itemInstance);
+  if (item?.definitionId === DILITHIUM_ORE_ITEM_ID) {
+    if (!dilithiumRefinerySystem.canReceiveRawOre(item.quantity).accepted) { toast('Compartimento de minério bruto cheio.'); return; }
+    const removed = characterEquipment.removeInstance(item.instanceId); if (!removed.ok) { toast(removed.reason); return; }
+    const received = dilithiumRefinerySystem.receiveRawOre(removed.item.quantity);
+    if (!received.accepted) { characterEquipment.restoreInstance(removed.item); toast('Transferência cancelada: a Refinaria não aceitou o minério.'); return; }
+    document.querySelector('[data-refinery-receiving-slot]')?.classList.remove('is-receiving'); const receiveHint = document.querySelector('[data-refinery-receive-hint]'); if (receiveHint) receiveHint.textContent = 'MINÉRIO RECEBIDO E ARMAZENADO'; save(); refineryTerminal?.refresh(); renderInventory(); toast('Minério de dilítio transferido para a Refinaria.'); return;
+  }
+  const result = characterEquipment.equip(target.dataset.itemInstance); pendingInventoryEquipId = null;
+  if (!result.ok) toast(result.reason); else { save(); toast(result.item.name + ' equipado no personagem.'); }
   renderInventory();
 });
 $('inventory-overflow-grid')?.addEventListener('click', event => {
@@ -2332,6 +2362,13 @@ $('inventory-overflow-grid')?.addEventListener('click', event => {
   const instanceId = target.dataset.overflowInstanceId;
   const item = characterEquipment.snapshot().overflowItems.find(entry => entry.instanceId === instanceId);
   if (!item) return;
+  if (item.definitionId === DILITHIUM_ORE_ITEM_ID) {
+    if (!dilithiumRefinerySystem.canReceiveRawOre(item.quantity).accepted) { toast('Compartimento de minério bruto cheio.'); return; }
+    const removed = characterEquipment.removeInstance(instanceId); if (!removed.ok) { toast(removed.reason); return; }
+    const received = dilithiumRefinerySystem.receiveRawOre(removed.item.quantity);
+    if (!received.accepted) { characterEquipment.restoreInstance(removed.item); toast('Transferência cancelada.'); return; }
+    document.querySelector('[data-refinery-receiving-slot]')?.classList.remove('is-receiving'); const receiveHint = document.querySelector('[data-refinery-receive-hint]'); if (receiveHint) receiveHint.textContent = 'MINÉRIO RECEBIDO E ARMAZENADO'; save(); refineryTerminal?.refresh(); renderInventory(); toast('Minério de dilítio transferido para a Refinaria.'); return;
+  }
   const equipable = ['head', 'torso', 'hands', 'legs', 'feet', 'back', 'weapon'].includes(item.slot);
   if (equipable) {
     if (pendingInventoryEquipId !== instanceId) {
@@ -2588,7 +2625,14 @@ const miningRuntimeSystem = createMiningRuntimeSystem({
   save,
   updateWallet,
   shipAudio,
-  toast
+  toast,
+  receiveDilithiumOre: quantity => {
+    const capacity = dilithiumRefinerySystem.canReceiveRawOre(quantity);
+    const amount = Math.min(Number(quantity) || 0, Number(capacity.available) || 0);
+    if (amount <= 0) return { added: 0 };
+    const received = dilithiumRefinerySystem.receiveRawOre(amount);
+    return { added: received.accepted ? received.received : 0 };
+  }
 });
 
 registerGameplayActions({

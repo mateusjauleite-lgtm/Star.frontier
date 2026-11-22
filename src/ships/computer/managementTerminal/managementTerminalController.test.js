@@ -13,10 +13,11 @@ function createHarness() {
   computer.registerSystem('navigation', {
     commands: { telemetry: () => ({ heading: 1.2 }) }
   });
+  computer.registerSystem('power', { commands: { status: () => ({ available: true, warpCore: { reserve: 44 } }) } });
   computer.registerTerminal({
     id: 'ship-management-terminal',
     name: 'Gerenciamento',
-    systems: ['navigation']
+    systems: ['navigation', 'power']
   });
   computer.boot();
   const calls = [];
@@ -86,4 +87,16 @@ test('estação de gerenciamento fica separada do raio de interação do posto d
   );
   assert.ok(distance > SHIP_MANAGEMENT_TERMINAL_INTERACTION_RADIUS + 5);
   assert.equal(SHIP_MANAGEMENT_TERMINAL_LOCAL_POSITION.y, 8.91);
+});
+
+
+test('aplicativo dedicado do núcleo de dobra consulta a telemetria real do Ship Computer', () => {
+  const h = createHarness();
+  h.controller.initialize();
+  h.controller.setPresence(true, true);
+  h.controller.open('TRIPULANTE');
+  assert.ok(h.controller.getSnapshot().modules.includes('warp-core'));
+  assert.equal(h.controller.selectModule('warp-core'), true);
+  assert.equal(h.controller.getSnapshot().selectedModuleId, 'warp-core');
+  h.controller.shutdown();
 });
