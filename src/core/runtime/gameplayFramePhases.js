@@ -18,7 +18,7 @@ export function createGameplayFramePhases(getDependencies) {
     },
 
     updateCharacterMode(dt) {
-      const { characterCore, updateCharacterMovement, updateCharacterWeapon, updateExternalElevatorAnimation, updateElevatorInteraction, updatePilotInteraction, updateShipManagementInteraction, updateEngineeringConsoleInteraction, updateExternalElevatorInteraction, updateCharacterCamera, updateFlight, updateCamera, state } = getDependencies();
+      const { characterCore, updateCharacterMovement, updateCharacterWeapon, updateExternalElevatorAnimation, updateElevatorInteraction, updatePilotInteraction, updateShipManagementInteraction, updateEngineeringConsoleInteraction, updateRefineryConsoleInteraction, updateExternalElevatorInteraction, updateCharacterCamera, updateFlight, updateCamera, state } = getDependencies();
   if (characterCore.snapshot().mode === 'on-foot') {
     updateCharacterMovement(dt);
     updateCharacterWeapon(dt);
@@ -38,6 +38,7 @@ export function createGameplayFramePhases(getDependencies) {
   }
   updateShipManagementInteraction(dt);
   updateEngineeringConsoleInteraction?.(dt);
+  updateRefineryConsoleInteraction?.(dt);
     },
 
     updateLanding(dt) {
