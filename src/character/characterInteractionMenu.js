@@ -41,7 +41,7 @@ export function createCharacterInteractionMenu({ root, camera, actor, onConfirm 
   function updatePosition() {
     if (menu.classList.contains('hidden')) return;
     actor.updateWorldMatrix(true, false);
-    const point = actor.getWorldPosition(window.__sfVector3 ?? new camera.position.constructor());
+    const point = actor.getWorldPosition(actor.position.clone());
     point.y += 1.05;
     point.project(camera);
     const rect = root.getBoundingClientRect();
