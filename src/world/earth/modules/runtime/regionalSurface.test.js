@@ -54,3 +54,22 @@ test('tile geometry uses the requested segment budget and finite positions', () 
   for (const value of geometry.attributes.position.array) assert.ok(Number.isFinite(value));
   geometry.dispose();
 });
+
+test('regional DEM blends to the shared global sampler at tile borders', () => {
+  const node = createEarthQuadtreeNode(4);
+  const dem = new Float32Array(9);
+  dem.fill(100);
+  const geometry = createEarthQuadtreeTileGeometry(node, 600, {
+    segments: 2,
+    elevationSampler: () => 0,
+    elevationMeters: dem,
+    elevationMetersToUnits: meters => meters * .01,
+    skirtUnits: 0
+  });
+  const positions = geometry.attributes.position;
+  const edgeRadius = Math.hypot(positions.getX(1), positions.getY(1), positions.getZ(1));
+  const centerRadius = Math.hypot(positions.getX(4), positions.getY(4), positions.getZ(4));
+  assert.ok(Math.abs(edgeRadius - 600) < 1e-4);
+  assert.ok(Math.abs(centerRadius - 601) < 1e-4);
+  geometry.dispose();
+});
