@@ -74,7 +74,7 @@ export function createDeflectorInteriorStructure() {
   // Passarela curta liga a área caminhável do Deck 3 à face de manutenção do anel.
   const access = new THREE.Group();
   access.name = 'Deck3-Deflector-Maintenance-Access';
-  access.position.set(0, -2.72, -41.35);
+  access.position.set(0, -2.9, -41.35);
   const platform = new THREE.Mesh(
     new THREE.BoxGeometry(2.6, 0.18, 5.3), dark
   );
