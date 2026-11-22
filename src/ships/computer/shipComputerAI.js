@@ -300,7 +300,7 @@ export function createShipComputerAI({
       const direction = ({ frente: 'forward', tras: 'backward', esquerda: 'left', direita: 'right' })[movementRequest[1]];
       const result = crewController.move({ direction, durationSeconds: 2 });
       return result.accepted
-        ? { ok: true, intent: 'crew-move', result, response: \`Iniciando deslocamento curto para \${movementRequest[1]}.\` }
+        ? { ok: true, intent: 'crew-move', result, response: `Iniciando deslocamento curto para ${movementRequest[1]}.` }
         : { ok: false, intent: 'crew-move-rejected', result, response: 'Não consegui iniciar esse deslocamento.' };
     }
 
