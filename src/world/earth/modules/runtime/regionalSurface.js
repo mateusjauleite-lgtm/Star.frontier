@@ -164,16 +164,10 @@ export function createEarthQuadtreeTileGeometry(node, radius, {
         ? elevationSampler(geographic.longitudeDeg, geographic.latitudeDeg)
         : 0;
       const safeFallback = Number.isFinite(fallbackUnits) ? fallbackUnits : 0;
-      const edgeDistance = Math.min(
-        column / segments, 1 - column / segments,
-        row / segments, 1 - row / segments
-      );
-      const edgeBlend = THREE.MathUtils.smoothstep(
-        edgeDistance, 0, Math.max(.001, demEdgeBlend)
-      );
-      const elevation = Number.isFinite(demUnits)
-        ? THREE.MathUtils.lerp(safeFallback, demUnits, edgeBlend)
-        : safeFallback;
+      // DEM vertices are authoritative whenever data is available. Collision
+      // samples the same cached Terrarium tile, so do not blend the visual mesh
+      // back to ETOPO at tile edges and create a hidden physical step.
+      const elevation = Number.isFinite(demUnits) ? demUnits : safeFallback;
       const finalRadius = radius + elevation + skirtUnits;
       positions[vertex++] = direction.x * finalRadius;
       positions[vertex++] = direction.y * finalRadius;
@@ -231,6 +225,9 @@ export function createEarthRegionalSurfaceRuntime({
   let demTiles = 0;
   let fallbackTiles = 0;
   let lastCameraAltitude = null;
+  let cameraInsideSurface = false;
+
+  const tileId = (node, useDem) => `${node.key}@${useDem ? 'dem' : 'base'}`;
 
   const removeTile = key => {
     const mesh = active.get(key);
@@ -241,7 +238,8 @@ export function createEarthRegionalSurfaceRuntime({
     active.delete(key);
   };
 
-  async function buildTile(node, token) {
+  async function buildTile(node, token, useDem) {
+    const id = tileId(node, useDem);
     const points = [];
     const divisions = 2 ** node.level;
     const u0 = node.x / divisions * 2 - 1;
@@ -259,14 +257,14 @@ export function createEarthRegionalSurfaceRuntime({
     }
 
     let demValues = null;
-    if (demActive && typeof sampleElevationMetersBatch === 'function') {
+    if (useDem && typeof sampleElevationMetersBatch === 'function') {
       try {
         demValues = await sampleElevationMetersBatch(points);
       } catch (error) {
         lastError = `DEM ${node.key}: ${error?.message ?? String(error)}`;
       }
     }
-    if (disposed || token !== buildToken || !lastSelection.includes(node.key)) return;
+    if (disposed || token !== buildToken || !lastSelection.includes(id)) return;
     const hasDem = demValues && Array.from(demValues).some(Number.isFinite);
     const geometry = createEarthQuadtreeTileGeometry(node, radius, {
       segments,
@@ -291,7 +289,7 @@ export function createEarthRegionalSurfaceRuntime({
     mesh.frustumCulled = false;
     mesh.userData.earthQuadtree = { ...node, elevationSource: hasDem ? 'regional-dem' : 'global-fallback' };
     tileRoot.add(mesh);
-    active.set(node.key, mesh);
+    active.set(id, mesh);
     completedTiles++;
     if (hasDem) demTiles++;
     else fallbackTiles++;
@@ -307,13 +305,17 @@ export function createEarthRegionalSurfaceRuntime({
       context.camera.updateMatrixWorld?.();
       const cameraWorld = context.camera.getWorldPosition(new THREE.Vector3());
       const cameraLocal = surface.worldToLocal(cameraWorld);
-      const altitude = Math.max(0, cameraLocal.length() - radius);
-      lastCameraAltitude = altitude;
-      demActive = altitude <= radius * .08;
+      const signedAltitude = cameraLocal.length() - radius;
+      const altitude = Math.max(0, signedAltitude);
+      lastCameraAltitude = signedAltitude;
+      cameraInsideSurface = signedAltitude < -0.5;
+      // Start loading regional elevation well before the final descent. The
+      // global ETOPO sampler remains the immediate fallback while DEM tiles load.
+      demActive = !cameraInsideSurface && signedAltitude <= radius * .5;
       const cameraForwardWorld = context.camera.getWorldDirection(new THREE.Vector3());
       const forwardLocal = surface.worldToLocal(cameraWorld.clone().add(cameraForwardWorld))
         .sub(cameraLocal).normalize();
-      let selected = altitude <= radius * 1.5
+      let selected = !cameraInsideSurface && altitude <= radius * 1.5
         ? selectEarthQuadtreeTiles(cameraLocal, radius, {
           maxLevel,
           maxTiles,
@@ -324,37 +326,51 @@ export function createEarthRegionalSurfaceRuntime({
         : [];
       // If the camera basis and Earth-local frame temporarily disagree, keep
       // horizon-visible terrain selected rather than showing no regional mesh.
-      if (altitude <= radius * 1.5 && selected.length === 0) {
+      if (!cameraInsideSurface && altitude <= radius * 1.5 && selected.length === 0) {
         selected = selectEarthQuadtreeTiles(cameraLocal, radius, {
           maxLevel: Math.min(maxLevel, 8),
           maxTiles
         });
       }
-      const keys = selected.map(node => node.key);
+      const keys = selected.map(node => tileId(node, demActive));
       const demModeChanged = demActive !== lastDemActive;
       const changed = keys.length !== lastSelection.length ||
         keys.some((key, index) => key !== lastSelection[index]) || demModeChanged;
       if (changed) {
+        // Keep the previous complete surface visible while its replacement is
+        // built. A mode change creates a second tile generation instead of
+        // deleting the ETOPO-backed generation before DEM data is ready.
         buildToken++;
         lastSelection = keys;
         lastDemActive = demActive;
-        if (demModeChanged) {
+        pending = selected.filter(node => !active.has(tileId(node, demActive)));
+        if (!keys.length) {
           for (const key of [...active.keys()]) removeTile(key);
-        }
-        pending = selected.filter(node => !active.has(node.key));
-        for (const key of active.keys()) {
-          if (!keys.includes(key)) removeTile(key);
         }
       }
       if (!building && pending.length) {
         const token = buildToken;
+        const useDem = demActive;
         const batch = pending.splice(0, Math.max(1, buildPerUpdate));
         building = true;
-        Promise.all(batch.map(node => buildTile(node, token).catch(error => {
+        Promise.all(batch.map(node => buildTile(node, token, useDem).catch(error => {
           failedTiles++;
           lastError = `Tile build: ${error?.message ?? String(error)}`;
           return null;
-        }))).finally(() => { building = false; });
+        }))).finally(() => {
+          building = false;
+          // Atomic handoff: retire old tiles only after every selected tile
+          // in the new generation has been installed.
+          if (lastSelection.every(key => active.has(key))) {
+            for (const key of [...active.keys()]) {
+              if (!lastSelection.includes(key)) removeTile(key);
+            }
+          }
+        });
+      } else if (lastSelection.every(key => active.has(key))) {
+        for (const key of [...active.keys()]) {
+          if (!lastSelection.includes(key)) removeTile(key);
+        }
       }
     },
     getStatus() {
@@ -369,6 +385,8 @@ export function createEarthRegionalSurfaceRuntime({
         demTiles,
         fallbackTiles,
         cameraAltitudeUnits: lastCameraAltitude,
+        cameraInsideSurface,
+        retiringTiles: [...active.keys()].filter(key => !lastSelection.includes(key)).length,
         maxLevel,
         maxTiles,
         tileSegments: segments,
