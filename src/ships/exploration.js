@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { createLandingGear } from './landingGear.js';
+import { isInsideDeck3DeflectorAperture } from './engineering/deflectorAperture.js';
 
 // Casco principal e duas nacelles da nave exploradora.
 // Os grupos de guinada e arfagem são separados para manter os eixos estáveis.
@@ -152,7 +153,11 @@ export function createExplorationShip() {
       elevatorDx * elevatorDx + elevatorDz * elevatorDz < 3.2 * 3.2 &&
       centerY < -0.68;
 
-    if (!isAftHangarOpening && !isExternalElevatorOpening) {
+    const isDeck3DeflectorAperture = isInsideDeck3DeflectorAperture(
+      centerX, centerY, centerZ
+    );
+
+    if (!isAftHangarOpening && !isExternalElevatorOpening && !isDeck3DeflectorAperture) {
       lowerHullIndices.push(a, b, c);
     }
   }
