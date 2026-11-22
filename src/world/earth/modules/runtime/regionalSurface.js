@@ -264,7 +264,7 @@ export function createEarthRegionalSurfaceRuntime({
         lastError = `DEM ${node.key}: ${error?.message ?? String(error)}`;
       }
     }
-    if (disposed || token !== buildToken || !lastSelection.includes(id)) return;
+    if (disposed || token !== buildToken) return;
     const hasDem = demValues && Array.from(demValues).some(Number.isFinite);
     const geometry = createEarthQuadtreeTileGeometry(node, radius, {
       segments,
@@ -320,7 +320,7 @@ export function createEarthRegionalSurfaceRuntime({
           maxLevel,
           maxTiles,
           cameraForwardLocal: forwardLocal,
-          cameraFovDeg: context.camera.fov ?? 75,
+          cameraFovDeg: Math.min(150, (context.camera.fov ?? 75) + 10),
           cameraAspect: context.camera.aspect ?? 1
         })
         : [];
@@ -340,7 +340,6 @@ export function createEarthRegionalSurfaceRuntime({
         // Keep the previous complete surface visible while its replacement is
         // built. A mode change creates a second tile generation instead of
         // deleting the ETOPO-backed generation before DEM data is ready.
-        buildToken++;
         lastSelection = keys;
         lastDemActive = demActive;
         pending = selected.filter(node => !active.has(tileId(node, demActive)));
