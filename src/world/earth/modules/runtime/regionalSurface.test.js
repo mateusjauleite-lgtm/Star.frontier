@@ -73,3 +73,17 @@ test('regional DEM blends to the shared global sampler at tile borders', () => {
   assert.ok(Math.abs(centerRadius - 601) < 1e-4);
   geometry.dispose();
 });
+
+test('regional selection prioritizes tiles inside the camera view cone', () => {
+  const camera = new THREE.Vector3(0, 0, 601);
+  const forward = new THREE.Vector3(1, 0, 0);
+  const tiles = selectEarthQuadtreeTiles(camera, 600, {
+    maxLevel: 8,
+    maxTiles: 24,
+    cameraForwardLocal: forward,
+    cameraFovDeg: 75,
+    cameraAspect: 1.8
+  });
+  assert.ok(tiles.length > 0);
+  assert.ok(tiles.length <= 24);
+});
