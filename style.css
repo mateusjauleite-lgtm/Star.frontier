@@ -2506,6 +2506,25 @@ body * {
 }
 .navigation-map-reserved span { color: #c5f3ff; font-size: 9px; font-weight: 800; letter-spacing: .08em; }
 .navigation-map-reserved small { max-width: 90%; color: #7899aa; font-size: 7px; line-height: 1.4; }
+.navigation-map-reserved.sensor-map-online {
+  justify-content: space-between; padding: 5px; gap: 2px; overflow: hidden;
+}
+.sensor-radar-svg { display:block; width:100%; height:100%; min-height:0; flex:1; overflow:visible; }
+.sensor-radar-range { fill:rgba(4,28,44,.48); stroke:rgba(67,217,255,.42); stroke-width:1.2; }
+.sensor-radar-ring { fill:none; stroke:rgba(67,217,255,.22); stroke-width:1; stroke-dasharray:3 5; }
+.sensor-radar-axis { fill:none; stroke:rgba(67,217,255,.2); stroke-width:1; }
+.sensor-radar-ship { fill:#f2fbff; stroke:#39dfff; stroke-width:1.5; }
+.sensor-radar-contact .sensor-radar-blip { fill:#9baeb9; stroke:#d9e7ed; stroke-width:1; }
+.sensor-radar-contact.has-deposit .sensor-radar-blip {
+  fill:#36e4ff; stroke:#c4f8ff; stroke-width:1.5;
+  filter:drop-shadow(0 0 4px rgba(54,228,255,.9));
+}
+.sensor-radar-label { fill:#a9f4ff; font-size:7px; font-weight:800; letter-spacing:.04em; paint-order:stroke; stroke:#03111e; stroke-width:2.5px; stroke-linejoin:round; }
+.sensor-radar-status { display:block; width:100%; color:#7fdced; font-size:7px; font-weight:800; letter-spacing:.05em; text-align:center; }
+.navigation-full-map.sensor-map-online { min-height:0; padding:10px; }
+.navigation-full-map .sensor-radar-svg { max-height:100%; }
+.navigation-full-map .sensor-radar-status { font-size:9px; }
+
 .navigation-panel-open-btn {
   min-height: 32px; border: 1px solid rgba(67,217,255,.42); border-radius: 7px;
   background: rgba(9,48,73,.8); color: var(--cyan); font-size: 8px; font-weight: 800;
