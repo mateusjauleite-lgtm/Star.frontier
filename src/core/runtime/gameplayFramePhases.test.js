@@ -159,6 +159,12 @@ test('combat target telemetry does not reuse a navigation waypoint', () => {
 });
 
 
+test('refinery console interaction is updated every gameplay frame with the real delta', () => {
+  const f = fixture();
+  f.phases.updateCharacterMode(0.032);
+  assert.ok(f.calls.some(([name, dt]) => name === 'refinery-console-interaction' && dt === 0.032));
+});
+
 test('Alexia proximity interaction is updated once per gameplay frame with the real delta', () => {
   const f = fixture();
   f.phases.updateCharacterMode(0.032);
