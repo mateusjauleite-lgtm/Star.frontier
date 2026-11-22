@@ -97,7 +97,7 @@ test('character phase switches to ship flight and camera outside on-foot mode', 
   const f = fixture();
   f.dependencies.characterCore.snapshot = () => ({ mode: 'ship-control' });
   f.phases.updateCharacterMode(0.02);
-  assert.deepEqual(f.calls.map(([name]) => name), ['flight', 'ship-camera', 'ship-management-interaction', 'refinery-console-interaction']);
+  assert.deepEqual(f.calls.map(([name]) => name), ['flight', 'ship-camera', 'ship-management-interaction', 'refinery-console-interaction', 'alexia-interaction']);
 });
 
 test('phase factory rejects a missing dependency getter', () => {
