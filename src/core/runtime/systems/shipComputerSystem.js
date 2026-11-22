@@ -34,7 +34,7 @@ export function createShipComputerRuntimeSystem({
     },
     update(deltaSeconds) {
       if (!onboardAI || typeof onboardAI.runPatrol !== 'function') return;
-      const delta = Math.max(0, Math.min(Number(deltaSeconds) || 0, 1));
+      const delta = Math.max(0, Number(deltaSeconds) || 0);
       patrolElapsed += delta;
       if (patrolElapsed < safePatrolInterval) return;
       patrolElapsed %= safePatrolInterval;
