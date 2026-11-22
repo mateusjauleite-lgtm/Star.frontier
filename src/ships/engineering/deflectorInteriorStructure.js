@@ -127,8 +127,7 @@ export function createDeflectorInteriorStructure() {
   // do Deck 3. Não ocupa nem cria uma placa no piso geral do convés.
   const consoleStation = new THREE.Group();
   consoleStation.name = 'Deflector-Interior-Computer-Console';
-  consoleStation.position.set(3.35, -2.9, -42.55);
-  consoleStation.rotation.y = Math.PI;
+  consoleStation.position.set(4.3, -2.9, -43.0);
   group.add(consoleStation);
 
   const consoleBase = new THREE.Mesh(new THREE.BoxGeometry(2.75, 0.2, 1.8), dark);
