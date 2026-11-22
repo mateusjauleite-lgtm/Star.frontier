@@ -17,7 +17,6 @@ export function createBlueMarbleLightingRuntime({ group, options, layers }) {
       sunlight.name = 'Earth-Blue-Marble-Sunlight';
       if (layers.surface) sunlight.target = layers.surface;
       group.add(sunlight);
-      if (sunlight.target !== sunlight) group.add(sunlight.target);
 
       nightFill = new THREE.AmbientLight(0x142b48, 0.12);
       nightFill.name = 'Earth-Blue-Marble-NightFill';
