@@ -1,0 +1,49 @@
+<section class="dilithium-matrix-shell" aria-label="Terminal holográfico da matriz de dilítio">
+  <section class="management-os matrix-os" data-matrix-window hidden aria-label="AURORA OS Matriz de Energia">
+    <header class="management-os-topbar">
+      <div class="management-os-brand"><span class="management-os-mark">A7</span><b>AURORA OS</b><small>POWER MATRIX</small></div>
+      <div class="management-os-top-center"><span class="management-live-dot"></span> REDE INTERNA DA NAVE <i>/</i> MATRIZ E DISTRIBUIÇÃO EPS</div>
+      <div class="management-os-top-actions"><span data-matrix-status data-state="standby">EM ESPERA</span><button type="button" data-matrix-close>FECHAR ×</button></div>
+    </header>
+    <div class="management-os-body">
+      <aside class="management-sidebar matrix-sidebar">
+        <div class="management-sidebar-heading">APLICATIVOS DA MATRIZ</div>
+        <button class="management-app-link is-selected" data-matrix-view="overview"><span class="management-app-icon">◈</span><span>Visão geral<small>ESTADO DO SISTEMA</small></span></button>
+        <button class="management-app-link" data-matrix-view="production"><span class="management-app-icon">ϟ</span><span>Produção e plasma<small>CONVERSÃO ENERGÉTICA</small></span></button>
+        <button class="management-app-link" data-matrix-view="buses"><span class="management-app-icon">⌁</span><span>Barramentos EPS<small>CRÍTICO · OPERAÇÕES · WARP</small></span></button>
+        <button class="management-app-link" data-matrix-view="consumption"><span class="management-app-icon">▥</span><span>Consumo e distribuição<small>GERAÇÃO E ENTREGA</small></span></button>
+        <button class="management-app-link" data-matrix-view="branches"><span class="management-app-icon">⌘</span><span>Ramificações<small>DEFLETOR · 5 MÓDULOS</small></span></button>
+        <button class="management-app-link" data-matrix-view="diagnostics"><span class="management-app-icon">⌖</span><span>Diagnóstico<small>SEGURANÇA E INTERTRAVAS</small></span></button>
+        <div class="management-sidebar-bottom">
+          <div class="management-ship-card"><span class="management-ship-avatar">A7</span><span><b>AURORA-7</b><small>DECK 03 · ENGENHARIA</small></span></div>
+          <div class="management-link-state"><span class="management-live-dot"></span><span>SHIP COMPUTER LINK</span></div>
+        </div>
+      </aside>
+      <main class="management-desktop matrix-desktop">
+        <div class="management-desktop-heading"><div><span class="management-os-eyebrow">ENGENHARIA / MATRIZ DE DILÍTIO</span><h2 data-matrix-page-title>Matriz de dilítio</h2><p data-matrix-page-description>Estado operacional e reserva de plasma estabilizado.</p></div><div class="management-session-chip"><span class="management-live-dot"></span> TELEMETRIA AO VIVO</div></div>
+        <div class="matrix-readouts">
+          <article class="management-info-card"><small>ESTADO</small><b data-matrix-state>EM ESPERA</b><span data-matrix-phase>—</span></article>
+          <article class="management-info-card"><small>PLASMA ESTABILIZADO</small><b data-matrix-plasma>0.00 u</b><span>Reserva atual</span></article>
+          <article class="management-info-card"><small>DILÍTIO REFINADO</small><b data-matrix-feedstock>0.00 u</b><span>Alimentação disponível</span></article>
+          <article class="management-info-card"><small>SAÍDA EPS</small><b data-matrix-output>0.00 u/s</b><span>Produção atual</span></article>
+        </div>
+        <section data-matrix-panel="overview" class="matrix-panel">
+          <div class="matrix-two-column">
+            <article class="management-window"><header class="management-window-title"><span class="management-window-app-icon">◈</span><b>ESTADO DA MATRIZ</b></header><div class="matrix-content"><div class="matrix-state-line"><span>CONTENÇÃO</span><b data-matrix-containment>—</b></div><div class="matrix-state-line"><span>REGULAÇÃO</span><b data-matrix-regulation-label>100%</b></div><div class="matrix-progress"><i data-matrix-plasma-fill></i></div><div class="matrix-small">RESERVA DE PLASMA / CAPACIDADE</div><label class="matrix-control-label">REGULAÇÃO DE SAÍDA <input type="range" min="10" max="100" step="5" value="100" data-matrix-regulation></label><button class="matrix-command" data-matrix-command="matrix:setEnabled" data-matrix-enabled="true">DESLIGAR MATRIZ</button><div class="matrix-command-feedback" data-matrix-command-feedback>COMANDOS SOB AUTORIDADE DO SHIP COMPUTER</div></div></article>
+            <article class="management-window"><header class="management-window-title"><span class="management-window-app-icon">⌘</span><b>REDE DE DISTRIBUIÇÃO</b></header><div class="matrix-content"><div class="matrix-state-line"><span>DEFLETOR</span><b data-matrix-deflector-energy>0.00 u</b></div><div class="matrix-progress"><i data-matrix-deflector-fill></i></div><div class="matrix-state-line"><span>CAPACIDADE DO DEFLETOR</span><b data-matrix-deflector-capacity>0.00 u</b></div><p class="matrix-small">O barramento WARP/DEFLETOR alimenta os cinco módulos sem criar uma rede paralela.</p></div></article>
+          </div>
+        </section>
+        <section data-matrix-panel="production" class="matrix-panel" hidden><div class="matrix-two-column"><article class="management-window"><header class="management-window-title"><b>CONVERSÃO DE DILÍTIO</b></header><div class="matrix-content"><div class="matrix-state-line"><span>CONVERTIDO TOTAL</span><b data-matrix-conversion>0.00 u</b></div><div class="matrix-state-line"><span>PLASMA PRODUZIDO</span><b data-matrix-produced>0.00 u</b></div><div class="matrix-state-line"><span>PLASMA CONSUMIDO</span><b data-matrix-consumed>0.00 u</b></div><div class="matrix-state-line"><span>CONSUMO ATUAL</span><b data-matrix-plasma-rate>0.000 u/s</b></div></div></article><article class="management-window"><header class="management-window-title"><b>RESERVA E CAPACIDADE</b></header><div class="matrix-content"><div class="matrix-progress"><i data-matrix-plasma-fill></i></div><div class="matrix-small">NÍVEL DE PLASMA ESTABILIZADO</div><p class="matrix-small">A matriz recebe dilítio refinado da reserva compartilhada e converte em plasma para o núcleo.</p></div></article></div></section>
+        <section data-matrix-panel="buses" class="matrix-panel" hidden><div class="matrix-bus-grid">
+          <article class="management-window"><header class="management-window-title"><b>EPS CRÍTICO · 45%</b></header><div class="matrix-content"><b data-matrix-bus-critical>0.00 u</b><div class="matrix-progress"><i data-matrix-bus-critical-fill></i></div><small data-matrix-bus-critical-capacity>CAPACIDADE 0.00 u</small></div></article>
+          <article class="management-window"><header class="management-window-title"><b>EPS OPERAÇÕES · 25%</b></header><div class="matrix-content"><b data-matrix-bus-operations>0.00 u</b><div class="matrix-progress"><i data-matrix-bus-operations-fill></i></div><small data-matrix-bus-operations-capacity>CAPACIDADE 0.00 u</small></div></article>
+          <article class="management-window"><header class="management-window-title"><b>EPS WARP/DEFLETOR · 30%</b></header><div class="matrix-content"><b data-matrix-bus-warp>0.00 u</b><div class="matrix-progress"><i data-matrix-bus-warp-fill></i></div><small data-matrix-bus-warp-capacity>CAPACIDADE 0.00 u</small></div></article>
+        </div></section>
+        <section data-matrix-panel="consumption" class="matrix-panel" hidden><article class="management-window"><header class="management-window-title"><b>BALANÇO ENERGÉTICO</b></header><div class="matrix-content"><div class="matrix-state-line"><span>ENERGIA GERADA TOTAL</span><b data-matrix-generated>0.00 u</b></div><div class="matrix-state-line"><span>ENERGIA ENTREGUE AOS SISTEMAS</span><b data-matrix-delivered>0.00 u</b></div><div class="matrix-state-line"><span>DEFLETOR · ENERGIA TRANSFERIDA</span><b data-matrix-deflector-transferred>0.00 u</b></div><div class="matrix-state-line"><span>DEFLETOR · ENERGIA CONSUMIDA</span><b data-matrix-deflector-consumed>0.00 u</b></div><div class="matrix-state-line"><span>TRANSFERÊNCIA / CONSUMO ATUAL</span><b data-matrix-deflector-rates>0.00 / 0.00 u/s</b></div><p class="matrix-small">Os valores vêm dos contadores do núcleo, barramentos e núcleo do defletor. O consumo por ramificação é detalhado no aplicativo Ramificações.</p></div></article></section>
+        <section data-matrix-panel="branches" class="matrix-panel" hidden><article class="management-window"><header class="management-window-title"><b>CONSUMO POR RAMIFICAÇÃO</b></header><div class="matrix-content" data-matrix-branches><p class="matrix-small">Aguardando telemetria do defletor.</p></div></article></section>
+        <section data-matrix-panel="diagnostics" class="matrix-panel" hidden><article class="management-window"><header class="management-window-title"><b>SEGURANÇA OPERACIONAL</b></header><div class="matrix-content"><div class="matrix-state-line"><span>CONTENÇÃO</span><b data-matrix-containment>—</b></div><div class="matrix-state-line"><span>FASE</span><b data-matrix-phase>—</b></div><div class="matrix-alert" data-matrix-diagnostic>VERIFICANDO SISTEMAS</div><p class="matrix-small">O desligamento da matriz é bloqueado durante operação de dobra. A contenção não pode ser liberada por este terminal.</p></div></article></section>
+      </main>
+    </div>
+    <footer class="management-taskbar"><div class="management-taskbar-start"><span class="management-os-mark">A7</span><b>MATRIZ DE ENERGIA</b></div><div class="management-taskbar-active"><span>◈</span> Dilithium Matrix Systems</div><div class="management-taskbar-status"><span class="management-live-dot"></span> SHIP COMPUTER <i>•</i> LINK SEGURO</div><div class="management-taskbar-clock">AURORA OS <small>POWER MATRIX</small></div></footer>
+  </section>
+</section>
