@@ -216,6 +216,7 @@ export function createEarthRegionalSurfaceRuntime({
   buildPerUpdate = 1
 } = {}) {
   const active = new Map();
+  const tileRoot = surface?.parent ?? surface;
   let pending = [];
   let buildToken = 0;
   let building = false;
@@ -224,11 +225,17 @@ export function createEarthRegionalSurfaceRuntime({
   let lastSelection = [];
   let demActive = false;
   let lastDemActive = null;
+  let lastError = null;
+  let completedTiles = 0;
+  let failedTiles = 0;
+  let demTiles = 0;
+  let fallbackTiles = 0;
+  let lastCameraAltitude = null;
 
   const removeTile = key => {
     const mesh = active.get(key);
     if (!mesh) return;
-    surface.remove(mesh);
+    tileRoot?.remove(mesh);
     mesh.geometry?.dispose();
     mesh.material?.dispose();
     active.delete(key);
@@ -253,7 +260,11 @@ export function createEarthRegionalSurfaceRuntime({
 
     let demValues = null;
     if (demActive && typeof sampleElevationMetersBatch === 'function') {
-      try { demValues = await sampleElevationMetersBatch(points); } catch {}
+      try {
+        demValues = await sampleElevationMetersBatch(points);
+      } catch (error) {
+        lastError = `DEM ${node.key}: ${error?.message ?? String(error)}`;
+      }
     }
     if (disposed || token !== buildToken || !lastSelection.includes(node.key)) return;
     const hasDem = demValues && Array.from(demValues).some(Number.isFinite);
@@ -265,14 +276,25 @@ export function createEarthRegionalSurfaceRuntime({
     });
     if (!geometry) return;
     const material = surface.material.clone();
+    material.side = THREE.DoubleSide;
+    material.depthTest = true;
+    material.depthWrite = true;
     material.polygonOffset = true;
-    material.polygonOffsetFactor = -1;
-    material.polygonOffsetUnits = -1;
+    material.polygonOffsetFactor = -2;
+    material.polygonOffsetUnits = -2;
     const mesh = new THREE.Mesh(geometry, material);
     mesh.name = `Earth-Regional-Tile-${node.key.replaceAll('/', '-')}`;
+    mesh.position.copy(surface.position);
+    mesh.quaternion.copy(surface.quaternion);
+    mesh.scale.copy(surface.scale);
+    mesh.renderOrder = 2;
+    mesh.frustumCulled = false;
     mesh.userData.earthQuadtree = { ...node, elevationSource: hasDem ? 'regional-dem' : 'global-fallback' };
-    surface.add(mesh);
+    tileRoot.add(mesh);
     active.set(node.key, mesh);
+    completedTiles++;
+    if (hasDem) demTiles++;
+    else fallbackTiles++;
   }
 
   return {
@@ -286,11 +308,12 @@ export function createEarthRegionalSurfaceRuntime({
       const cameraWorld = context.camera.getWorldPosition(new THREE.Vector3());
       const cameraLocal = surface.worldToLocal(cameraWorld);
       const altitude = Math.max(0, cameraLocal.length() - radius);
+      lastCameraAltitude = altitude;
       demActive = altitude <= radius * .08;
       const cameraForwardWorld = context.camera.getWorldDirection(new THREE.Vector3());
       const forwardLocal = surface.worldToLocal(cameraWorld.clone().add(cameraForwardWorld))
         .sub(cameraLocal).normalize();
-      const selected = altitude <= radius * 1.5
+      let selected = altitude <= radius * 1.5
         ? selectEarthQuadtreeTiles(cameraLocal, radius, {
           maxLevel,
           maxTiles,
@@ -299,6 +322,14 @@ export function createEarthRegionalSurfaceRuntime({
           cameraAspect: context.camera.aspect ?? 1
         })
         : [];
+      // If the camera basis and Earth-local frame temporarily disagree, keep
+      // horizon-visible terrain selected rather than showing no regional mesh.
+      if (altitude <= radius * 1.5 && selected.length === 0) {
+        selected = selectEarthQuadtreeTiles(cameraLocal, radius, {
+          maxLevel: Math.min(maxLevel, 8),
+          maxTiles
+        });
+      }
       const keys = selected.map(node => node.key);
       const demModeChanged = demActive !== lastDemActive;
       const changed = keys.length !== lastSelection.length ||
@@ -319,8 +350,11 @@ export function createEarthRegionalSurfaceRuntime({
         const token = buildToken;
         const batch = pending.splice(0, Math.max(1, buildPerUpdate));
         building = true;
-        Promise.all(batch.map(node => buildTile(node, token).catch(() => null)))
-          .finally(() => { building = false; });
+        Promise.all(batch.map(node => buildTile(node, token).catch(error => {
+          failedTiles++;
+          lastError = `Tile build: ${error?.message ?? String(error)}`;
+          return null;
+        }))).finally(() => { building = false; });
       }
     },
     getStatus() {
@@ -328,11 +362,19 @@ export function createEarthRegionalSurfaceRuntime({
         mode: 'cube-sphere-quadtree',
         activeTiles: active.size,
         queuedTiles: pending.length,
+        building,
+        selectedTiles: lastSelection.length,
+        completedTiles,
+        failedTiles,
+        demTiles,
+        fallbackTiles,
+        cameraAltitudeUnits: lastCameraAltitude,
         maxLevel,
         maxTiles,
         tileSegments: segments,
         demEnabled: typeof sampleElevationMetersBatch === 'function',
         demActive,
+        lastError,
         selectedKeys: [...lastSelection]
       };
     },
