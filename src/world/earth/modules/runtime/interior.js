@@ -22,7 +22,7 @@ export function createInteriorRuntime({ group, options, layers }) {
 
       const radius = options.radius;
       for (const boundary of INTERIOR_BOUNDARIES) {
-        const physicalRatio = boundary.radiusKm / 6371;
+        const physicalRatio = boundary.radiusKm / options.physicalScale.physicalRadiusKm;
         const visualRadius = radius * physicalRatio +
           (boundary.id === 'crust' ? Math.max(0.8, radius * 0.003) : 0);
         const geometry = new THREE.SphereGeometry(visualRadius, 96, 64);
