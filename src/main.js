@@ -2257,8 +2257,11 @@ function renderInventory() {
     const name = escapeHtml(item.name || item.itemId || item.definitionId);
     const category = escapeHtml(item.category || 'ITEM').toUpperCase();
     const quantity = item.quantity > 1 ? ` ×${item.quantity}` : '';
+    const action = item.definitionId === DILITHIUM_ORE_ITEM_ID
+      ? (refineryConsoleActive ? 'TOQUE PARA TRANSFERIR À REFINARIA' : 'ABRA O CONSOLE DA REFINARIA')
+      : 'TOQUE PARA EQUIPAR';
     return `<button class="inventory-cell inventory-item-button" type="button" data-item-instance="${escapeHtml(item.instanceId)}">
-      <span>${name}${quantity}</span><small>${category} · TOQUE PARA EQUIPAR</small>
+      <span>${name}${quantity}</span><small>${category} · ${action}</small>
     </button>`;
   }).join('');
 
@@ -2269,7 +2272,9 @@ function renderInventory() {
       const quantity = item.quantity > 1 ? ` ×${item.quantity}` : '';
       const equipable = ['head', 'torso', 'hands', 'legs', 'feet', 'back', 'weapon'].includes(item.slot);
       const pending = pendingInventoryEquipId === item.instanceId;
-      const action = equipable ? (pending ? 'EQUIPAR AGORA' : 'TOQUE PARA SELECIONAR') : 'TOQUE PARA RESTAURAR';
+      const action = item.definitionId === DILITHIUM_ORE_ITEM_ID
+        ? (refineryConsoleActive ? 'TRANSFERIR À REFINARIA' : 'ABRA O CONSOLE DA REFINARIA')
+        : (equipable ? (pending ? 'EQUIPAR AGORA' : 'TOQUE PARA SELECIONAR') : 'TOQUE PARA RESTAURAR');
       return `<button type="button" class="inventory-overflow-item${pending ? ' item-pending-equip' : ''}" data-overflow-instance-id="${escapeHtml(item.instanceId)}">
         <b>${name}${quantity}</b><small>${action}</small>
       </button>`;
