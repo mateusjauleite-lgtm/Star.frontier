@@ -1,5 +1,5 @@
 const DEFAULT_TERRARIUM_URL =
-  'https://elevation-tiles-prod.s3.amazonaws.com/terrarium/{z}/{x}/{y}.png';
+  'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
 
 export function terrariumTileCoordinate(longitudeDeg, latitudeDeg, zoom) {
   if (![longitudeDeg, latitudeDeg, zoom].every(Number.isFinite) ||
@@ -129,7 +129,8 @@ export function createTerrariumElevationProvider({
     },
     getStatus() {
       return {
-        source: 'AWS Terrain Tiles / Terrarium',
+        source: 'AWS Terrain Tiles / Terrarium (Tilezen-derived elevation mosaic)',
+        attribution: 'Tilezen / AWS Terrain Tiles; underlying elevation datasets and native resolution vary by region.',
         zoomDefault: 12,
         cachedTiles: cache.size,
         pendingTiles: pending.size,
