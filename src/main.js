@@ -82,7 +82,6 @@ let engineeringTerminal = null;
 let engineeringTelemetryAccumulator = 0;
 let refineryTerminal = null;
 let refineryConsoleActive = false;
-let refineryInventoryTransferMode = false;
 let refineryInteractionAvailable = false;
 let refineryTelemetryAccumulator = 0;
 let managementTelemetryAccumulator = 0;
@@ -110,14 +109,10 @@ refineryTerminal = createRefineryTerminalController({
   renderer: refineryRenderer,
   onInteractionChange: active => {
     refineryConsoleActive = active;
-    if (!active) {
-      refineryInventoryTransferMode = false;
-      document.querySelector('[data-refinery-receiving-slot]')?.classList.remove('is-receiving');
-    }
+    if (!active) document.querySelector('[data-refinery-receiving-slot]')?.classList.remove('is-receiving');
   },
   onReceive: () => {
     if (!refineryConsoleActive) { toast('Conecte-se ao console da Refinaria para receber minério.'); return; }
-    refineryInventoryTransferMode = true;
     const receivingSlot = document.querySelector('[data-refinery-receiving-slot]');
     receivingSlot?.classList.add('is-receiving');
     const receiveHint = receivingSlot?.querySelector('[data-refinery-receive-hint]');
@@ -2212,7 +2207,6 @@ $('elevator-up-btn')?.addEventListener('click', () => moveElevator(-1));
 $('elevator-down-btn')?.addEventListener('click', () => moveElevator(1));
 
 function closeInventory() {
-  refineryInventoryTransferMode = false;
   const modal = $('inventory-modal');
   modal?.classList.add('hidden');
   modal?.setAttribute('aria-hidden', 'true');
@@ -2292,7 +2286,7 @@ function renderInventory() {
     const category = escapeHtml(item.category || 'ITEM').toUpperCase();
     const quantity = item.quantity > 1 ? ` ×${item.quantity}` : '';
     const action = item.definitionId === DILITHIUM_ORE_ITEM_ID
-      ? (refineryConsoleActive ? 'ENVIAR À REFINARIA' : 'MINÉRIO · NÃO EQUIPÁVEL')
+      ? 'ENVIAR À REFINARIA'
       : 'TOQUE PARA EQUIPAR';
     return `<button class="inventory-cell inventory-item-button" type="button" data-item-instance="${escapeHtml(item.instanceId)}">
       <span>${name}${quantity}</span><small>${category} · ${action}</small>
@@ -2307,7 +2301,7 @@ function renderInventory() {
       const equipable = ['head', 'torso', 'hands', 'legs', 'feet', 'back', 'weapon'].includes(item.slot);
       const pending = pendingInventoryEquipId === item.instanceId;
       const action = item.definitionId === DILITHIUM_ORE_ITEM_ID
-        ? (refineryConsoleActive ? 'ENVIAR À REFINARIA' : 'USE O COMPARTIMENTO DE RECEBIMENTO')
+        ? 'ENVIAR À REFINARIA'
         : (equipable ? (pending ? 'EQUIPAR AGORA' : 'TOQUE PARA SELECIONAR') : 'TOQUE PARA RESTAURAR');
       return `<button type="button" class="inventory-overflow-item${pending ? ' item-pending-equip' : ''}" data-overflow-instance-id="${escapeHtml(item.instanceId)}">
         <b>${name}${quantity}</b><small>${action}</small>
@@ -2352,12 +2346,11 @@ $('inventory-grid')?.addEventListener('click', event => {
   const target = event.target.closest('[data-item-instance]'); if (!target) return;
   const item = characterEquipment.snapshot().items.find(entry => entry.instanceId === target.dataset.itemInstance);
   if (item?.definitionId === DILITHIUM_ORE_ITEM_ID) {
-    if (!refineryConsoleActive) { toast('Abra o console da Refinaria e o compartimento de recebimento para transferir.'); return; }
     if (!dilithiumRefinerySystem.canReceiveRawOre(item.quantity).accepted) { toast('Compartimento de minério bruto cheio.'); return; }
     const removed = characterEquipment.removeInstance(item.instanceId); if (!removed.ok) { toast(removed.reason); return; }
     const received = dilithiumRefinerySystem.receiveRawOre(removed.item.quantity);
     if (!received.accepted) { characterEquipment.restoreInstance(removed.item); toast('Transferência cancelada: a Refinaria não aceitou o minério.'); return; }
-    refineryInventoryTransferMode = false; document.querySelector('[data-refinery-receiving-slot]')?.classList.remove('is-receiving'); const receiveHint = document.querySelector('[data-refinery-receive-hint]'); if (receiveHint) receiveHint.textContent = 'MINÉRIO RECEBIDO E ARMAZENADO'; save(); refineryTerminal?.refresh(); renderInventory(); toast('Minério de dilítio transferido para a Refinaria.'); return;
+    document.querySelector('[data-refinery-receiving-slot]')?.classList.remove('is-receiving'); const receiveHint = document.querySelector('[data-refinery-receive-hint]'); if (receiveHint) receiveHint.textContent = 'MINÉRIO RECEBIDO E ARMAZENADO'; save(); refineryTerminal?.refresh(); renderInventory(); toast('Minério de dilítio transferido para a Refinaria.'); return;
   }
   const result = characterEquipment.equip(target.dataset.itemInstance); pendingInventoryEquipId = null;
   if (!result.ok) toast(result.reason); else { save(); toast(result.item.name + ' equipado no personagem.'); }
@@ -2370,12 +2363,11 @@ $('inventory-overflow-grid')?.addEventListener('click', event => {
   const item = characterEquipment.snapshot().overflowItems.find(entry => entry.instanceId === instanceId);
   if (!item) return;
   if (item.definitionId === DILITHIUM_ORE_ITEM_ID) {
-    if (!refineryConsoleActive) { toast('Abra o console da Refinaria e o compartimento de recebimento para transferir.'); return; }
     if (!dilithiumRefinerySystem.canReceiveRawOre(item.quantity).accepted) { toast('Compartimento de minério bruto cheio.'); return; }
     const removed = characterEquipment.removeInstance(instanceId); if (!removed.ok) { toast(removed.reason); return; }
     const received = dilithiumRefinerySystem.receiveRawOre(removed.item.quantity);
     if (!received.accepted) { characterEquipment.restoreInstance(removed.item); toast('Transferência cancelada.'); return; }
-    refineryInventoryTransferMode = false; document.querySelector('[data-refinery-receiving-slot]')?.classList.remove('is-receiving'); const receiveHint = document.querySelector('[data-refinery-receive-hint]'); if (receiveHint) receiveHint.textContent = 'MINÉRIO RECEBIDO E ARMAZENADO'; save(); refineryTerminal?.refresh(); renderInventory(); toast('Minério de dilítio transferido para a Refinaria.'); return;
+    document.querySelector('[data-refinery-receiving-slot]')?.classList.remove('is-receiving'); const receiveHint = document.querySelector('[data-refinery-receive-hint]'); if (receiveHint) receiveHint.textContent = 'MINÉRIO RECEBIDO E ARMAZENADO'; save(); refineryTerminal?.refresh(); renderInventory(); toast('Minério de dilítio transferido para a Refinaria.'); return;
   }
   const equipable = ['head', 'torso', 'hands', 'legs', 'feet', 'back', 'weapon'].includes(item.slot);
   if (equipable) {
