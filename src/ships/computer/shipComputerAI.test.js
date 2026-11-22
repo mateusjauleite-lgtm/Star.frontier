@@ -13,7 +13,7 @@ test('Alexia mantém banco de dados próprio vinculado ao identificador da nave'
   assert.equal(learned.accepted, true);
   assert.equal(computer.onboardAI.searchKnowledge('barramento').length, 1);
   assert.equal(stored.shipId, 'test-ship');
-  assert.equal(computer.getSnapshot().onboardAI.name, 'AURORA');
+  assert.equal(computer.getSnapshot().onboardAI.name, 'Alexia');
   assert.equal(computer.getSnapshot().onboardAI.database.knowledgeEntries, 4);
 });
 
