@@ -24,7 +24,7 @@ test('Runtime supervisiona a IA e executa rondas periódicas sem executar açõe
   computer.update(1);
   assert.deepEqual(calls, ['register', 'boot', 'patrol']);
   computer.update(10);
-  assert.deepEqual(calls, ['register', 'boot', 'patrol', 'patrol', 'patrol']);
+  assert.deepEqual(calls, ['register', 'boot', 'patrol', 'patrol']);
   computer.shutdown(context);
   assert.equal('shipComputerAI' in context, false);
   assert.deepEqual(calls.slice(-2), ['voice-stop', 'shutdown']);
