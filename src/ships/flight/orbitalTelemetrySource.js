@@ -12,8 +12,8 @@ export function createShipOrbitalTelemetrySource({ THREE, earthSystem, ship, shi
   return Object.freeze({
     sample() {
       const profile = earthSystem.getPlanetaryProfile?.();
-      const visualUnitsPerKm = profile?.render?.visualUnitsPerKm;
-      if (!Number.isFinite(visualUnitsPerKm) || visualUnitsPerKm <= 0) return null;
+      const metersPerVisualUnit = profile?.conversion?.metersPerVisualUnit;
+      if (!Number.isFinite(metersPerVisualUnit) || metersPerVisualUnit <= 0) return null;
 
       earthSystem.group.updateWorldMatrix(true, false);
       ship.updateWorldMatrix(true, false);
