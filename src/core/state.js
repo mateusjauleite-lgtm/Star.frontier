@@ -24,6 +24,7 @@ export const state = {
   deflectorCoreTelemetry: null,
   fuel: 100,
   refinedDilithium: 100,
+  warpDilithiumConsumedTotal: 0,
   cargo: 0,
   hull: 100,
   shield: 100,
