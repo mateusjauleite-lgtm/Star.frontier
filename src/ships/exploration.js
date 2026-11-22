@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { createLandingGear } from './landingGear.js';
+import { isInsideDeck3DeflectorAperture } from './engineering/deflectorAperture.js';
+import { createDeflectorAssembly } from './engineering/deflectorAssembly.js';
 
 // Casco principal e duas nacelles da nave exploradora.
 // Os grupos de guinada e arfagem são separados para manter os eixos estáveis.
@@ -152,7 +154,11 @@ export function createExplorationShip() {
       elevatorDx * elevatorDx + elevatorDz * elevatorDz < 3.2 * 3.2 &&
       centerY < -0.68;
 
-    if (!isAftHangarOpening && !isExternalElevatorOpening) {
+    const isDeck3DeflectorAperture = isInsideDeck3DeflectorAperture(
+      centerX, centerY, centerZ
+    );
+
+    if (!isAftHangarOpening && !isExternalElevatorOpening && !isDeck3DeflectorAperture) {
       lowerHullIndices.push(a, b, c);
     }
   }
@@ -166,6 +172,10 @@ export function createExplorationShip() {
     lowerHullGeometry,
     undersideMaterial, [0, 0, 0], [27.2, 15.2, 50], 'Lower-Saucer-Hull'
   );
+
+  const primaryDeflector = createDeflectorAssembly();
+  primaryDeflector.name = 'Frontier-Deck3-Primary-Deflector';
+  visual.add(primaryDeflector);
 
   // Console físico do computador central na ponte.
   // Substitui o antigo domo azul; a câmera continua sendo calculada no main.js.

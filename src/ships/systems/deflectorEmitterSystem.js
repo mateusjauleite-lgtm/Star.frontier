@@ -10,9 +10,10 @@ export function createDeflectorEmitterSystem(core, options = {}) {
   const energyPerSecond = positive(options.energyPerSecond, DEFAULT_DRAW_PER_SECOND);
   core.registerBranch(branchId, {
     name: 'Emissor frontal',
-    maxDrawPerSecond: energyPerSecond
+    maxDrawPerSecond: energyPerSecond,
+    enabled: options.enabled === true
   });
-  let enabled = options.enabled !== false;
+  let enabled = options.enabled === true;
   let active = false;
   let fieldStrength = 0;
 

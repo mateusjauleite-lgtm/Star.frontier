@@ -6,7 +6,7 @@ import { createDeflectorEmitterSystem } from './deflectorEmitterSystem.js';
 test('emissor frontal ativa com energia e consome a reserva local', () => {
   const state = { refinedDilithium: 0, deflectorCoreEnergy: 5 };
   const core = createDeflectorCoreSystem(state);
-  const emitter = createDeflectorEmitterSystem(core, { energyPerSecond: 1 });
+  const emitter = createDeflectorEmitterSystem(core, { energyPerSecond: 1, enabled: true });
   const status = emitter.update(0.1);
   assert.equal(status.active, true);
   assert.equal(status.fieldStrength, 1);
