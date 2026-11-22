@@ -44,6 +44,7 @@ import { createDilithiumMatrixTerminalRenderer } from './ships/computer/dilithiu
 import { DILITHIUM_MATRIX_INTERACTION_LOCAL_POSITION } from './ships/engineering/dilithiumMatrix.js';
 import { registerTextInteractionGuard } from './core/ui/textInteractionGuard.js';
 import { createPilotHudProfileStore, PILOT_HUD_PROFILES } from './ui/hudProfiles.js';
+import { createNavigationSensorMap } from './ui/navigationSensorMap.js';
 
 const artificialGravityField = createArtificialGravityField();
 const shipShieldSystem = createShipShieldSystem(state);
@@ -53,6 +54,7 @@ const warpCorePowerSystem = createWarpCorePowerSystem({ state, persist: save });
 registerTextInteractionGuard();
 
 const $ = id => document.getElementById(id);
+const navigationSensorMap = createNavigationSensorMap({ roots: document.querySelectorAll('[data-navigation-sensor-map]') });
 
 // Os layouts do HUD são dados JSON simples; mantenha compatibilidade com WebViews sem structuredClone.
 function cloneHudData(value) {
@@ -819,8 +821,16 @@ async function startGame() {
           if (!currentShip?.position) return {};
           const contacts = (Array.isArray(asteroids) ? asteroids : []).filter(item => item?.position).map((item, index) => ({
             id: item.name || item.userData?.entityId || ('asteroid-' + (index + 1)),
+            position: { x: item.position.x, y: item.position.y, z: item.position.z },
             distance: currentShip.position.distanceTo(item.position),
-            ore: item.userData?.ore ?? null
+            ore: item.userData?.ore ?? null,
+            resources: Object.entries(item.userData?.resources ?? {})
+              .filter(([, deposit]) => Number(deposit?.amount) > 0)
+              .map(([resourceId, deposit]) => ({
+                resourceId,
+                amount: Number(deposit.amount) || 0,
+                purity: Number.isFinite(Number(deposit.purity)) ? Number(deposit.purity) : null
+              }))
           })).sort((a, b) => a.distance - b.distance);
           return { navigation: { available: true, position: { x: currentShip.position.x, y: currentShip.position.y, z: currentShip.position.z }, heading: shipYaw?.rotation.y ?? 0, speed: Number(state.speed) || 0 }, contacts };
         },
@@ -900,6 +910,11 @@ async function startGame() {
             updateShipLandingGuidance, THREE, shipVisual, shipEarthContactPoints,
             shipLandingGearContactPoints, forwardVector, state,
             getActivePilotHudProfile: () => activePilotHudProfile,
+            updateNavigationSensorMap: () => navigationSensorMap.update(
+              state.deflectorCoreTelemetry?.sensors,
+              ship?.position,
+              shipYaw?.rotation.y ?? 0
+            ),
             orbitSystem, asteroidSystem, lightingSystem, renderer, scene, $
           }))
         }

@@ -199,7 +199,7 @@ export function createGameplayFramePhases(getDependencies) {
     },
 
     updateHud() {
-      const { $, state, ship, getActivePilotHudProfile } = getDependencies();
+      const { $, state, ship, getActivePilotHudProfile, updateNavigationSensorMap } = getDependencies();
       const activeProfile = getActivePilotHudProfile?.();
       if (activeProfile) {
         $('hud')?.setAttribute('data-active-hud-profile', activeProfile);
@@ -220,6 +220,7 @@ export function createGameplayFramePhases(getDependencies) {
         const fullCoordinates = $('navigation-full-coordinates');
         if (fullCoordinates) fullCoordinates.textContent = coordinates.textContent;
       }
+      updateNavigationSensorMap?.();
       const target = ship?.userData?.navigationTarget;
       const distance = Number.isFinite(target?.distance) ? target.distance.toFixed(1) + ' u' : 'SEM ALVO';
       const bearing = Number.isFinite(target?.bearing) ? target.bearing.toFixed(1) + '°' : '—';
