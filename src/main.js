@@ -835,6 +835,7 @@ async function startGame() {
           onStage: stage => { startupStage = stage; }
         },
         shipComputer: {
+          onboardAI: shipComputer.onboardAI,
           registerSystems: deflectorRuntime => {
             try {
               registerComputerSubsystems(deflectorRuntime);
