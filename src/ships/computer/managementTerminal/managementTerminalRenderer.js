@@ -8,7 +8,8 @@ const MODULE_LABELS = Object.freeze({
   engineering: 'Energia do núcleo',
   'warp-core': 'Núcleo de dobra',
   defense: 'Defesa',
-  diagnostics: 'Diagnósticos'
+  diagnostics: 'Diagnósticos',
+  'onboard-ai': 'ALEXIA · IA de bordo'
 });
 
 function humanizeKey(value) {
