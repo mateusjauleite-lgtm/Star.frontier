@@ -22,6 +22,7 @@ on:
       - feature/hud-profiles-editor-gameplay
       - feature/warp-dilithium-transfer-management
       - feature/warp-core-energy-matrix
+      - feature/dilithium-matrix-console
       - feature/aurora-ship-computer-ai-core
   pull_request:
     branches:
