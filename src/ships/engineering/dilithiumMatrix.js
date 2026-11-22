@@ -3,6 +3,7 @@ import * as THREE from 'three';
 // Instalação física independente; a lógica energética continua no warpCorePowerSystem.
 export const DILITHIUM_MATRIX_LOCAL_POSITION = Object.freeze({ x: 2.3, y: -2.67, z: 5.3 });
 export const DILITHIUM_MATRIX_TERMINAL_LOCAL_POSITION = Object.freeze({ x: 5.05, y: -2.67, z: 5.15 });
+export const DILITHIUM_MATRIX_INTERACTION_LOCAL_POSITION = Object.freeze({ x: 5.05, y: -2.67, z: 6.05 });
 
 export function createDilithiumMatrix() {
   const root = new THREE.Group();
