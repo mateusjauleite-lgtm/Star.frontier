@@ -141,6 +141,22 @@ export function createStarshipInterior(options = {}) {
       );
       shape.holes.push(deflectorOpening);
     }
+    if (name === 'D3-Floor') {
+      // O defletor atravessa o plano do Deck 3: reservar o volume da concha
+      // parabólica e do aro estrutural para que o piso não corte o emissor.
+      const deflectorServiceOpening = new THREE.Path();
+      deflectorServiceOpening.absellipse(
+        DECK_3_DEFLECTOR_APERTURE.centerX,
+        DECK_3_DEFLECTOR_APERTURE.centerZ - centerZ,
+        9.35,
+        6.25,
+        0,
+        Math.PI * 2,
+        true,
+        0
+      );
+      shape.holes.push(deflectorServiceOpening);
+    }
     if (name === 'D4-Floor') {
       // Abertura exclusiva do elevador externo; o piso original permanece
       // contínuo no restante do Deck 4.
