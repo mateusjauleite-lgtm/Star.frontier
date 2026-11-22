@@ -1,0 +1,8 @@
+import { MATTER_CATEGORIES as C } from '../../constants.js';
+
+export const metalsAlloys = [
+  { id: 'alloy.stainless-steel-304', name: 'Aço inoxidável 304', formula: 'Fe-Cr-Ni', category: C.ALLOY, state: 'solid', description: 'Liga de ferro com cromo e níquel, resistente à corrosão.', composition: [{ elementId: 'element.iron', fraction: 0.70 }, { elementId: 'element.chromium', fraction: 0.19 }, { elementId: 'element.nickel', fraction: 0.11 }], properties: { densityKgM3: 8000, tensileStrengthMpa: 515, corrosionResistance: 'high' }, tags: ['aço', 'inox', 'estrutural'] },
+  { id: 'alloy.bronze', name: 'Bronze (referência CuSn)', formula: 'Cu-Sn', category: C.ALLOY, state: 'solid', description: 'Família de ligas à base de cobre e estanho; composição varia conforme a aplicação.', composition: [{ elementId: 'element.copper', fraction: 0.88 }], properties: { densityKgM3: 8800, corrosionResistance: 'high' }, tags: ['cobre', 'liga'] },
+  { id: 'alloy.brass', name: 'Latão (referência CuZn)', formula: 'Cu-Zn', category: C.ALLOY, state: 'solid', description: 'Família de ligas de cobre e zinco; composição varia conforme a aplicação.', composition: [{ elementId: 'element.copper', fraction: 0.70 }], properties: { densityKgM3: 8500, corrosionResistance: 'medium' }, tags: ['cobre', 'liga'] },
+  { id: 'alloy.ti6al4v', name: 'Titânio Ti-6Al-4V', formula: 'Ti-6Al-4V', category: C.ALLOY, state: 'solid', description: 'Liga alfa-beta de titânio com alumínio e vanádio, comum em aplicações de alta resistência específica.', composition: [{ elementId: 'element.titanium', fraction: 0.90 }, { elementId: 'element.aluminium', fraction: 0.06 }], properties: { densityKgM3: 4430, tensileStrengthMpa: 950, corrosionResistance: 'high' }, tags: ['titânio', 'aeroespacial'] },
+];
