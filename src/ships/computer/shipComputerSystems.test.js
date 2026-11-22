@@ -5,7 +5,7 @@ import { registerShipComputerSystems } from './shipComputerSystems.js';
 import { createDilithiumRefinerySystem } from '../systems/dilithiumRefinerySystem.js';
 import { RESOURCE_IDS } from '../../core/resources/resourceCatalog.js';
 
-function createHarness() {
+function createHarness({ deflectorRuntime = null } = {}) {
   const position = {
     x: 10, y: 4, z: -2,
     distanceTo(other) { return Math.hypot(this.x - other.x, this.y - other.y, this.z - other.z); }
@@ -50,7 +50,8 @@ function createHarness() {
     getShipYaw: () => 1.25,
     getPitchAngle: () => pitchAngle,
     getAsteroids: () => asteroids,
-    refinerySystem
+    refinerySystem,
+    deflectorRuntime
   });
   computer.boot();
   computer.connectTerminal('ship-management-terminal', 'TESTE');
@@ -279,3 +280,42 @@ test('Refinaria fica acessível apenas pelo terminal próprio',()=>{const {compu
 test('gerenciamento transfere dilítio refinado para o reservatório usado pela dobra',()=>{const {computer,state,refinerySystem}=createHarness();const r=computer.dispatch('ship-management-terminal','power','transferRefinedDilithium',{amount:2.5});assert.equal(r.ok,true);assert.equal(r.result.accepted,true);assert.equal(r.result.transferred,2.5);assert.equal(state.refineryRefinedStorage,.5);assert.equal(state.refinedDilithium,62.5);assert.equal(refinerySystem.snapshot().coreDilithium,62.5);});
 test('somente gerenciamento da ponte pode comandar transferência manual',()=>{const {computer,state}=createHarness();const r=computer.dispatch('engineering-console','power','transferRefinedDilithium',{amount:1});assert.equal(r.ok,true);assert.equal(r.result.accepted,false);assert.equal(r.result.reason,'management-terminal-required');assert.equal(state.refinedDilithium,60);assert.equal(state.refineryRefinedStorage,3);});
 test('transferência do gerenciamento não converte minério bruto em combustível',()=>{const {computer,state}=createHarness();computer.dispatch('ship-management-terminal','power','transferRefinedDilithium',{amount:1});assert.equal(state.rawDilithiumOre,12);assert.equal(state.refineryRefinedStorage,2);assert.equal(state.refinedDilithium,61);});
+
+
+test('gerenciador de energia recebe consumo total e detalhamento das ramificações do defletor', () => {
+  const deflectorRuntime = {
+    snapshot: () => ({
+      enabled: true,
+      chargingEnabled: true,
+      energy: 72.5,
+      capacity: 100,
+      transferRate: 1.4,
+      consumptionRate: 0.82,
+      consumedTotal: 18.75,
+      transferredTotal: 44,
+      powerBusConnected: true,
+      branches: [
+        { id: 'deflector-emitter', name: 'Emissor frontal', enabled: true, available: true, consumptionRate: 0.5, consumedTotal: 10 },
+        { id: 'deflector-sensors', name: 'Sensores', enabled: true, available: true, consumptionRate: 0.32, consumedTotal: 8.75 }
+      ]
+    })
+  };
+  const { computer } = createHarness({ deflectorRuntime });
+  const response = computer.dispatch('ship-management-terminal', 'power', 'status');
+  assert.equal(response.ok, true);
+  assert.equal(response.result.deflectorPower.available, true);
+  assert.equal(response.result.deflectorPower.storedEnergy, 72.5);
+  assert.equal(response.result.deflectorPower.consumptionRate, 0.82);
+  assert.equal(response.result.deflectorPower.consumedTotal, 18.75);
+  assert.equal(response.result.deflectorPower.powerBusConnected, true);
+  assert.deepEqual(response.result.deflectorPower.branches.map(branch => [branch.id, branch.consumptionRate]), [
+    ['deflector-emitter', 0.5],
+    ['deflector-sensors', 0.32]
+  ]);
+});
+
+test('gerenciador de energia informa defletor indisponível sem Runtime conectado', () => {
+  const { computer } = createHarness();
+  const response = computer.dispatch('ship-management-terminal', 'power', 'status');
+  assert.deepEqual(response.result.deflectorPower, { available: false });
+});

@@ -46,7 +46,7 @@
 .management-active-heading>[data-management-detail-state]{padding:5px 8px;border:1px solid rgba(95,174,196,.22);color:#d8b87c;font-size:7px;letter-spacing:.1em;white-space:nowrap}
 .management-active-heading>[data-management-detail-state][data-state=online]{color:#73e0b5;border-color:rgba(83,210,164,.25)}
 .management-module-description{margin:0;color:#8daebc;font-size:10px;line-height:1.55}
-.management-telemetry-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;align-content:start}
+.management-telemetry-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;align-content:start;max-height:min(54vh,560px);overflow-y:auto;overscroll-behavior:contain;padding-right:3px}
 .management-telemetry-card{min-width:0;padding:10px;border:1px solid rgba(92,163,187,.2);background:rgba(5,20,32,.64)}
 .management-telemetry-card small{display:block;margin-bottom:6px;color:#709aab;font-size:7px;letter-spacing:.11em;text-transform:uppercase}
 .management-telemetry-card b{display:block;color:#c7edf5;font-size:12px;font-weight:500;overflow-wrap:anywhere}
