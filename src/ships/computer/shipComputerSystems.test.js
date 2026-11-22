@@ -39,6 +39,7 @@ function createHarness() {
   const refinerySystem = createDilithiumRefinerySystem(refineryState);
   computer.registerTerminal({ id: 'ship-management-terminal', name: 'Terminal de gerenciamento', systems: ['navigation', 'sensors', 'engineering', 'power', 'refinery'] });
   computer.registerTerminal({ id: 'pilot-console', name: 'Console de pilotagem', systems: ['navigation', 'propulsion'] });
+  computer.registerTerminal({ id: 'refinery-console', name: 'Console da Refinaria', systems: ['refinery'] });
   computer.registerTerminal({ id: 'engineering-console', name: 'Console de Engenharia', systems: ['engineering', 'propulsion', 'power', 'refinery'] });
   registerShipComputerSystems(computer, {
     state,
@@ -52,6 +53,7 @@ function createHarness() {
   computer.connectTerminal('ship-management-terminal', 'TESTE');
   computer.connectTerminal('pilot-console', 'PILOTO');
   computer.connectTerminal('engineering-console', 'ENGENHEIRO');
+  computer.connectTerminal('refinery-console', 'ENGENHEIRO DE RECURSOS');
   return {
     computer,
     state,
@@ -103,7 +105,9 @@ test('energia informa reserva real de dilítio e estado da dobra', () => {
   assert.equal(response.result.warpStage, 5);
   const centralTelemetry = computer.dispatch('ship-management-terminal', 'engineering', 'status');
   assert.equal(centralTelemetry.ok, true);
-  assert.equal(centralTelemetry.result.refinery.rawOre, 12);
+  assert.equal('refinery' in centralTelemetry.result, false);
+  const powerTelemetry = computer.dispatch('ship-management-terminal', 'power', 'status');
+  assert.equal('refinery' in powerTelemetry.result, false);
   assert.equal(centralTelemetry.result.refinery.controlAllowed, true);
 });
 
@@ -207,3 +211,5 @@ test('console central tem autoridade sobre refinaria e transferência', () => {
   assert.equal(local.result.reason, 'higher-power-console-authority');
   assert.equal(refinerySystem.snapshot().refineryEnabled, true);
 });
+
+test('Refinaria fica acessível apenas pelo terminal próprio',()=>{const {computer}=createHarness();assert.equal(computer.dispatch('refinery-console','refinery','status').result.rawOre,12);assert.equal(computer.dispatch('ship-management-terminal','refinery','status').reason,'access-denied');assert.equal(computer.dispatch('engineering-console','refinery','status').reason,'access-denied');assert.equal(computer.dispatch('refinery-console','refinery','setRefineryEnabled',{enabled:false}).result.accepted,true);});
