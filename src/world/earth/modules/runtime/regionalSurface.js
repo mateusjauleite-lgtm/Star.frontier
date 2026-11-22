@@ -229,6 +229,35 @@ export function createEarthRegionalSurfaceRuntime({
 
   const tileId = (node, useDem) => `${node.key}@${useDem ? 'dem' : 'base'}`;
 
+  // Tiles may be created before the asynchronous NASA texture finishes loading.
+  // Keep their cloned materials synchronized with the authoritative globe material.
+  const syncMaterial = (target, source) => {
+    if (!target || !source) return;
+    let changed = false;
+    for (const key of [
+      'map', 'aoMap', 'lightMap', 'bumpMap', 'normalMap', 'displacementMap',
+      'roughnessMap', 'metalnessMap', 'alphaMap', 'emissiveMap'
+    ]) {
+      if (target[key] !== source[key]) {
+        target[key] = source[key];
+        changed = true;
+      }
+    }
+    if (target.color && source.color) target.color.copy(source.color);
+    if (target.emissive && source.emissive) target.emissive.copy(source.emissive);
+    target.roughness = source.roughness;
+    target.metalness = source.metalness;
+    target.emissiveIntensity = source.emissiveIntensity;
+    if (changed) target.needsUpdate = true;
+  };
+
+  const syncActiveTileMaterials = () => {
+    if (!surface?.material) return;
+    for (const mesh of active.values()) {
+      syncMaterial(mesh.material, surface.material);
+    }
+  };
+
   const removeTile = key => {
     const mesh = active.get(key);
     if (!mesh) return;
@@ -274,6 +303,7 @@ export function createEarthRegionalSurfaceRuntime({
     });
     if (!geometry) return;
     const material = surface.material.clone();
+    syncMaterial(material, surface.material);
     material.side = THREE.DoubleSide;
     material.depthTest = true;
     material.depthWrite = true;
@@ -301,6 +331,7 @@ export function createEarthRegionalSurfaceRuntime({
       elapsed += Math.min(Math.max(delta || 0, 0), .1);
       if (elapsed < .35) return;
       elapsed = 0;
+      syncActiveTileMaterials();
       surface.updateWorldMatrix(true, false);
       context.camera.updateMatrixWorld?.();
       const cameraWorld = context.camera.getWorldPosition(new THREE.Vector3());
