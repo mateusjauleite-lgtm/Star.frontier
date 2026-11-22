@@ -62,7 +62,12 @@ const characterCore = createCharacterCore();
 const characterAudio = createCharacterAudio({ core: characterCore });
 characterAudio.attach();
 const shipAudio = createShipAudio();
-const shipComputer = createShipComputer({\n  aiDatabaseAdapter: {\n    load: () => state.shipComputerAIDatabase || null,\n    save: database => { state.shipComputerAIDatabase = database; save(); }\n  }\n});
+const shipComputer = createShipComputer({
+  aiDatabaseAdapter: {
+    load: () => state.shipComputerAIDatabase || null,
+    save: database => { state.shipComputerAIDatabase = database; save(); }
+  }
+});
 shipComputer.registerTerminal({
   id: 'ship-management-terminal',
   name: 'Terminal holográfico de gerenciamento',
