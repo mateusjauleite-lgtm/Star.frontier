@@ -859,7 +859,7 @@ async function startGame() {
     // O HUD usa medidas do DOM. Só aplicar posições salvas depois que a tela
     // do jogo estiver visível e o WebView concluir o layout em dois frames.
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-    applyCharacterHudLayout(readCharacterHudLayout());
+    applyHudLayout('character', readHudLayout('character'));
 
     if (!runtimeBridge.start()) {
       throw new Error('O Runtime não conseguiu iniciar o ciclo de execução.');
