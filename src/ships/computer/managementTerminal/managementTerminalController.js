@@ -67,6 +67,11 @@ export function createShipManagementTerminalController({
       moduleData = { available: false, label: module.label, phase: module.phase, message: module.scope };
       return moduleData;
     }
+    if (module.id === 'onboard-ai') {
+      const ai = computer.onboardAI;
+      moduleData = ai ? { available: true, label: module.label, phase: module.phase, data: ai.snapshot(), permissions: computer.listAIPermissions() } : { available: false, label: module.label, phase: module.phase, message: 'IA de bordo indisponível.' };
+      return moduleData;
+    }
     if (!module.systemId || !MODULE_COMMANDS[module.id]) {
       moduleData = { available: false, label: module.label, phase: 'prepared', message: module.scope };
       return moduleData;
