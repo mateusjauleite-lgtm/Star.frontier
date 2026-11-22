@@ -206,6 +206,7 @@ export function createShipComputer({
     getSnapshot,
     getSystemIds: () => [...systems.keys()],
     inspectSystem,
+    getTelemetry: inspectTelemetry,
     dispatchAuthorized: dispatchAuthorizedAI,
     isOnline: () => online,
     databaseAdapter: aiDatabaseAdapter,
@@ -230,6 +231,7 @@ export function createShipComputer({
     grantAIPermission,
     revokeAIPermission,
     listAIPermissions,
+    inspectTelemetry,
     onboardAI,
     getSnapshot,
     subscribe
