@@ -108,7 +108,13 @@ const refineryRenderer = createRefineryTerminalRenderer({ root: $('game-screen')
 refineryTerminal = createRefineryTerminalController({
   computer: shipComputer,
   renderer: refineryRenderer,
-  onInteractionChange: active => { refineryConsoleActive = active; },
+  onInteractionChange: active => {
+    refineryConsoleActive = active;
+    if (!active) {
+      refineryInventoryTransferMode = false;
+      document.querySelector('[data-refinery-receiving-slot]')?.classList.remove('is-receiving');
+    }
+  },
   onReceive: () => {
     if (!refineryConsoleActive) { toast('Conecte-se ao console da Refinaria para receber minério.'); return; }
     refineryInventoryTransferMode = true;
