@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - feature/deflector-core-runtime
+      - feature/dilithium-inventory-refinery-transfer
       - architecture/modules-skeleton
       - integration/threejs-recovery
       - feature/earth-procedural-lod
