@@ -1,5 +1,6 @@
 import { WARP_STAGE_SPEEDS, WARP_DILITHIUM_CONSUMPTION } from '../flight/flightDynamics.js';
 import { RESOURCE_IDS } from '../../core/resources/resourceCatalog.js';
+import { DILITHIUM_MATRIX_TERMINAL_ID } from './dilithiumMatrixTerminalController.js';
 // Adaptadores entre o computador central e os sistemas reais da nave.
 // Ponte e Engenharia consultam e comandam a mesma fonte de estado.
 const PROPULSION_INPUTS = new Set(['throttle', 'braking', 'warpDriveButton']);
@@ -169,7 +170,7 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
         warpTransition: state.warpTransition || 'idle'
       }),
       setEnabled: (payload, context) => {
-        if (context?.terminalId !== 'dilithium-matrix-console') return { accepted: false, reason: 'matrix-terminal-required' };
+        if (context?.terminalId !== DILITHIUM_MATRIX_TERMINAL_ID) return { accepted: false, reason: 'matrix-terminal-required' };
         const enabled = Boolean(payload?.enabled);
         const unsafeWarp = Boolean(state.warpDriveActive) || ['entering', 'cruise', 'reducing', 'exiting'].includes(state.warpTransition);
         if (!enabled && unsafeWarp) return { accepted: false, reason: 'warp-interlock-active' };
@@ -190,7 +191,7 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
   computer.registerSystem('deflector', {
     name: 'Ramificações do defletor',
     commands: {
-      status: (payload, context) => context?.terminalId === 'dilithium-matrix-console'
+      status: (payload, context) => context?.terminalId === DILITHIUM_MATRIX_TERMINAL_ID
         ? (state.deflectorCoreTelemetry || { available: false, branches: [] })
         : { available: false }
     },
