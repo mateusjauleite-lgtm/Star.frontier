@@ -1131,7 +1131,7 @@ async function init3D() {
 
   alexiaInteractionMenu?.close?.();
   alexiaInteractionMenu = alexiaCharacter ? createCharacterInteractionMenu({
-    root: $('game-root'), camera, actor: alexiaCharacter.group,
+    root: document.body, camera, actor: alexiaCharacter.group,
     onConfirm: action => {
       if (action === 'follow') { alexiaFollowing = true; toast('Alexia vai acompanhar você.'); }
     }
