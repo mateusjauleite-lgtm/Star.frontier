@@ -66,19 +66,8 @@ export function createEngineeringWarpCore() {
   add(group, new THREE.TubeGeometry(energySpiral, 160, 0.075, 8, false),
     cyanLight, 'Engineering-Core-Energy-Spiral');
 
-  // Matriz de dilítio: estabiliza e modula a reação antes do condicionamento do plasma.
-  const matrixShell = add(group,
-    new THREE.CylinderGeometry(1.24, 1.24, 0.82, 48, 1, true),
-    coreShell, 'Engineering-Dilithium-Matrix-Chamber', [0, -1.42, 0]);
-  matrixShell.material = coreShell;
-  const matrixCrystal = add(group, new THREE.OctahedronGeometry(0.48, 1),
-    cyanLight, 'Engineering-Dilithium-Matrix-Crystal', [0, -1.42, 0]);
-  matrixCrystal.rotation.y = Math.PI / 4;
-  for (const [index, y] of [-1.88, -1.42, -0.96].entries()) {
-    const matrixRing = add(group, new THREE.TorusGeometry(1.34, 0.055, 8, 56),
-      cyanLight, `Engineering-Dilithium-Matrix-Regulator-${index + 1}`, [0, y, 0]);
-    matrixRing.rotation.x = Math.PI / 2;
-  }
+  // A matriz física foi separada para a instalação própria no Deck 3.
+  // O núcleo mantém apenas o condicionamento de plasma e a distribuição EPS.
 
   // Condicionador de plasma e manifold EPS: três saídas isoladas, sem atravessar
   // o núcleo visual nem criar volumes de colisão nos corredores do Deck 3.
