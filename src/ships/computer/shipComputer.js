@@ -45,9 +45,9 @@ export function createShipComputer({
     };
   }
 
-  function registerSystem(id, { name = id, commands = {}, getStatus = null } = {}) {
+  function registerSystem(id, { name = id, commands = {}, getStatus = null, getTelemetry = null } = {}) {
     if (!id || systems.has(id)) throw new Error('Sistema inválido ou já registrado.');
-    systems.set(id, { id, name, commands: { ...commands }, getStatus });
+    systems.set(id, { id, name, commands: { ...commands }, getStatus, getTelemetry });
     publish();
     return true;
   }
@@ -170,6 +170,25 @@ export function createShipComputer({
       return { ok: true, result };
     } catch (error) {
       return { ok: false, reason: 'command-failed', error };
+    }
+  }
+
+  function inspectTelemetry(id) {
+    const system = systems.get(id);
+    if (!system) return { systemId: id, status: 'unknown', reason: 'system-not-registered' };
+    try {
+      if (typeof system.getTelemetry === 'function') {
+        return { systemId: id, name: system.name, ...clone(system.getTelemetry() || {}) };
+      }
+      const readOnlyCommand = system.commands?.telemetry || system.commands?.status;
+      if (typeof readOnlyCommand === 'function') {
+        return { systemId: id, name: system.name, telemetry: clone(readOnlyCommand(undefined, {
+          shipId, terminalId: 'ship-computer-readonly', operator: 'ALEXIA', authority: 'telemetry-read'
+        })) };
+      }
+      return { systemId: id, name: system.name, ...inspectSystem(id) };
+    } catch (error) {
+      return { systemId: id, name: system.name, status: 'error', error: String(error?.message || error) };
     }
   }
 
