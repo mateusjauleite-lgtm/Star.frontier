@@ -3,6 +3,7 @@ import { state, resetTransientState } from './state.js';
 
 const STORAGE_KEY = 'sf-demo-state';
 const BACKUP_KEY = 'sf-demo-state-backup';
+const DEFLECTOR_CORE_CAPACITY = 100;
 
 function parseStoredObject(raw) {
   if (!raw) return null;
@@ -10,11 +11,39 @@ function parseStoredObject(raw) {
   return data && typeof data === 'object' && !Array.isArray(data) ? data : null;
 }
 
+function normalizeDeflectorState(data) {
+  const storedEnergy = Number.isFinite(data.deflectorCoreEnergy)
+    ? data.deflectorCoreEnergy
+    : 0;
+  state.deflectorCoreEnergy = Math.max(0, Math.min(DEFLECTOR_CORE_CAPACITY, Number(storedEnergy) || 0));
+  state.deflectorCoreEnabled = data.deflectorCoreEnabled !== false;
+  state.deflectorCoreChargingEnabled = data.deflectorCoreChargingEnabled !== false;
+  state.deflectorCoreTransferredTotal = nonNegative(data.deflectorCoreTransferredTotal ?? 0);
+  state.deflectorCoreConsumedTotal = nonNegative(data.deflectorCoreConsumedTotal ?? 0);
+
+  const totals = data.deflectorBranchConsumptionTotals;
+  state.deflectorBranchConsumptionTotals = {};
+  if (totals && typeof totals === 'object' && !Array.isArray(totals)) {
+    for (const [id, amount] of Object.entries(totals)) {
+      const value = Number(amount);
+      if (id && Number.isFinite(value) && value >= 0) state.deflectorBranchConsumptionTotals[id] = value;
+    }
+  }
+  state.deflectorCoreTelemetry = null;
+}
+
+function nonNegative(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.max(0, number) : 0;
+}
+
 export function saveState() {
   try {
     const storage = globalThis.localStorage;
     if (!storage) return false;
-    const serialized = JSON.stringify(state);
+    const serialized = JSON.stringify(state, (key, value) =>
+      key === 'deflectorCoreTelemetry' ? undefined : value
+    );
     const previous = storage.getItem(STORAGE_KEY);
     if (previous) {
       try {
@@ -54,6 +83,8 @@ export function loadState() {
     if (!data) return false;
 
     Object.assign(state, data);
+    delete state.coreDilithiumConsumedTotal;
+    normalizeDeflectorState(data);
     // Reservas antigas de Nitro/dobra eram percentuais; não são convertidas
     // em massa de dilítio. Saves antigos recebem apenas o saldo inicial configurado.
     state.refinedDilithium = Number.isFinite(data.refinedDilithium)
@@ -83,7 +114,9 @@ export function loadState() {
 
     if (restoredFromBackup) {
       try {
-        storage.setItem(STORAGE_KEY, JSON.stringify(state));
+        storage.setItem(STORAGE_KEY, JSON.stringify(state, (key, value) =>
+          key === 'deflectorCoreTelemetry' ? undefined : value
+        ));
       } catch (error) {
         console.warn('Dados recuperados, mas não foi possível restaurar o arquivo principal:', error);
       }

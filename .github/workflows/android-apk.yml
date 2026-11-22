@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - feature/deflector-core-runtime
       - architecture/modules-skeleton
       - integration/threejs-recovery
       - feature/earth-procedural-lod
@@ -16,9 +17,12 @@ on:
       - feature/warp-stages-engineering-controls
       - fix/character-hud-startup-layout
       - fix/pilot-hud-flight-controls
+      - feature/hud-profiles-editor-gameplay
   pull_request:
     branches:
       - feature/core-runtime-foundation
+      - feature/refinery-core-energy-final-validation
+      - feature/refinery-hologram-console-interaction
       - main
       - architecture/modules-skeleton
       - integration/threejs-recovery
@@ -96,6 +100,8 @@ jobs:
 
       - name: Compile Ship C++ orbital kernel to WebAssembly
         run: npm run build:ship:wasm --if-present
+      - name: Compile Dilithium Refinery C++ kernel to WebAssembly
+        run: bash scripts/build-refinery-wasm.sh
 
       - name: Compile shared C++ gravity kernel to WebAssembly
         run: npm run build:gravity:wasm --if-present

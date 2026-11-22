@@ -4,13 +4,15 @@ import { createGameplayFramePhases } from './gameplayFramePhases.js';
 
 function fixture() {
   const calls = [];
-  const elements = new Map(['speed', 'fuel', 'cargo', 'hull', 'shield', 'hud-credits']
+  const elements = new Map(['speed', 'fuel', 'cargo', 'hull', 'shield', 'hud-credits', 'hud', 'flight-controls', 'navigation-coordinates', 'navigation-distance', 'navigation-bearing', 'navigation-full-coordinates', 'navigation-full-distance', 'navigation-full-bearing', 'combat-target-name', 'combat-hull', 'combat-shield', 'warp-core-consumption', 'warp-stability-readout']
     .map(id => {
       const element = { _textContent: '' };
       Object.defineProperty(element, 'textContent', {
         get() { return this._textContent; },
         set(value) { this._textContent = String(value); }
       });
+      element.attributes = {};
+      element.setAttribute = (name, value) => { element.attributes[name] = String(value); };
       return [id, element];
     }));
   let landingBase = null;
@@ -30,6 +32,7 @@ function fixture() {
     updateElevatorInteraction: () => calls.push(['elevator-interaction']),
     updatePilotInteraction: () => calls.push(['pilot-interaction']),
     updateShipManagementInteraction: dt => calls.push(['ship-management-interaction', dt]),
+    updateRefineryConsoleInteraction: dt => calls.push(['refinery-console-interaction', dt]),
     updateExternalElevatorInteraction: () => calls.push(['external-elevator-interaction']),
     updateCharacterCamera: () => calls.push(['character-camera']),
     updateFlight: dt => calls.push(['flight', dt]),
@@ -41,7 +44,8 @@ function fixture() {
     shipEarthContactPoints: [],
     shipLandingGearContactPoints: [],
     forwardVector: {},
-    state: { speed: 12, fuel: 80, cargo: 3, hull: 100, shield: 90, credits: 1250 },
+    state: { speed: 12, fuel: 80, cargo: 3, hull: 100, shield: 90, credits: 1250, coreDilithiumConsumedTotal: 4.5 },
+    getActivePilotHudProfile: () => 'navigation',
     orbitSystem: { update: dt => calls.push(['orbits', dt]) },
     asteroidSystem: { update: dt => calls.push(['asteroids', dt]) },
     lightingSystem: { update: (dt, position) => calls.push(['lighting', dt, position]) },
@@ -66,7 +70,7 @@ test('extracted gameplay phases preserve the existing frame order and delta time
     'earth', 'earth-rotation', 'phaser',
     'character-movement', 'character-weapon', 'elevator-animation',
     'elevator-interaction', 'pilot-interaction', 'external-elevator-interaction',
-    'flight', 'character-camera', 'ship-management-interaction', 'landing-guidance', 'orbits', 'asteroids',
+    'flight', 'character-camera', 'ship-management-interaction', 'refinery-console-interaction', 'landing-guidance', 'orbits', 'asteroids',
     'lighting', 'render'
   ]);
   assert.ok(f.calls.filter(call => call.length > 1 && typeof call[1] === 'number')
@@ -91,7 +95,7 @@ test('character phase switches to ship flight and camera outside on-foot mode', 
   const f = fixture();
   f.dependencies.characterCore.snapshot = () => ({ mode: 'ship-control' });
   f.phases.updateCharacterMode(0.02);
-  assert.deepEqual(f.calls.map(([name]) => name), ['flight', 'ship-camera', 'ship-management-interaction']);
+  assert.deepEqual(f.calls.map(([name]) => name), ['flight', 'ship-camera', 'ship-management-interaction', 'refinery-console-interaction']);
 });
 
 test('phase factory rejects a missing dependency getter', () => {
@@ -112,4 +116,49 @@ test('phase callbacks resolve current dependencies on every phase invocation', (
   phases.render();
   phases.updateHud();
   assert.equal(reads, 6);
+});
+
+
+test('Runtime HUD phase routes profile state and available navigation/combat/warp telemetry', () => {
+  const f = fixture();
+  f.dependencies.ship = {
+    position: { x: 12.5, y: -3, z: 40 },
+    userData: {
+      navigationTarget: { name: 'Waypoint A', distance: 125.4, bearing: 270 },
+      combatTarget: { name: 'Hostile vessel' },
+      warpStability: 0.92
+    }
+  };
+  f.phases.updateHud();
+
+  assert.equal(f.elements.get('hud').attributes['data-active-hud-profile'], 'navigation');
+  assert.equal(f.elements.get('flight-controls').attributes['data-active-hud-profile'], 'navigation');
+  assert.equal(f.elements.get('navigation-coordinates').textContent, '12.5 / -3.0 / 40.0');
+  assert.equal(f.elements.get('navigation-distance').textContent, '125.4 u');
+  assert.equal(f.elements.get('navigation-bearing').textContent, '270.0°');
+  assert.equal(f.elements.get('navigation-full-coordinates').textContent, '12.5 / -3.0 / 40.0');
+  assert.equal(f.elements.get('navigation-full-distance').textContent, '125.4 u');
+  assert.equal(f.elements.get('navigation-full-bearing').textContent, '270.0°');
+  assert.equal(f.elements.get('combat-target-name').textContent, 'Hostile vessel');
+  assert.equal(f.elements.get('combat-hull').textContent, '100%');
+  assert.equal(f.elements.get('combat-shield').textContent, '90%');
+  assert.equal(f.elements.get('warp-core-consumption').textContent, '4.50 u');
+  assert.equal(f.elements.get('warp-stability-readout').textContent, '92%');
+});
+
+test('combat target telemetry does not reuse a navigation waypoint', () => {
+  const f = fixture();
+  f.dependencies.ship = {
+    position: { x: 0, y: 0, z: 0 },
+    userData: { navigationTarget: { name: 'Waypoint A', distance: 10, bearing: 90 } }
+  };
+  f.phases.updateHud();
+  assert.equal(f.elements.get('combat-target-name').textContent, 'SEM ALVO');
+});
+
+
+test('refinery console interaction is updated every gameplay frame with the real delta', () => {
+  const f = fixture();
+  f.phases.updateCharacterMode(0.032);
+  assert.ok(f.calls.some(([name, dt]) => name === 'refinery-console-interaction' && dt === 0.032));
 });

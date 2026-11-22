@@ -24,9 +24,11 @@ import { saveState as save, loadState as load } from './core/storage.js';
 import { createShipComputer } from './ships/computer/shipComputer.js';
 import { createShipManagementTerminalController, SHIP_MANAGEMENT_TERMINAL_LOCAL_POSITION, SHIP_MANAGEMENT_TERMINAL_DISPLAY_RADIUS, SHIP_MANAGEMENT_TERMINAL_INTERACTION_RADIUS } from './ships/computer/managementTerminal/managementTerminalController.js';
 import { createShipManagementTerminalRenderer } from './ships/computer/managementTerminal/managementTerminalRenderer.js';
-import { createShipManagementHologram } from './ships/computer/managementTerminal/shipManagementHologram.js';
+import { createShipManagementHologram, createRefineryHologram } from './ships/computer/managementTerminal/shipManagementHologram.js';
 import { createEngineeringTerminalController, ENGINEERING_CONSOLE_LOCAL_POSITION, ENGINEERING_CONSOLE_DISPLAY_RADIUS, ENGINEERING_CONSOLE_INTERACTION_RADIUS } from './ships/computer/engineeringTerminalController.js';
 import { createEngineeringTerminalRenderer } from './ships/computer/engineeringTerminal/engineeringTerminalRenderer.js';
+import { createRefineryTerminalController, REFINERY_TERMINAL_LOCAL_POSITION, REFINERY_TERMINAL_DISPLAY_RADIUS, REFINERY_TERMINAL_INTERACTION_RADIUS } from './ships/computer/refineryTerminalController.js';
+import { createRefineryTerminalRenderer } from './ships/computer/refineryTerminal/refineryTerminalRenderer.js';
 import { registerShipComputerSystems } from './ships/computer/shipComputerSystems.js';
 import { advanceShipFlightDynamics } from './ships/flight/flightDynamics.js';
 import { createShipFlightController } from './ships/flight/shipFlightController.js';
@@ -34,14 +36,23 @@ import { createArtificialGravityField } from './ships/systems/artificialGravityF
 import { createShipShieldSystem } from './ships/systems/shieldSystem.js';
 import { createDilithiumRefinerySystem } from './ships/systems/dilithiumRefinerySystem.js';
 import { registerTextInteractionGuard } from './core/ui/textInteractionGuard.js';
+import { createPilotHudProfileStore, PILOT_HUD_PROFILES } from './ui/hudProfiles.js';
 
 const artificialGravityField = createArtificialGravityField();
 const shipShieldSystem = createShipShieldSystem(state);
-const dilithiumRefinerySystem = createDilithiumRefinerySystem(state);
+const dilithiumRefinerySystem = createDilithiumRefinerySystem(state, { getPlant: () => starshipInterior?.dilithiumPlant });
 
 registerTextInteractionGuard();
 
 const $ = id => document.getElementById(id);
+
+// Os layouts do HUD são dados JSON simples; mantenha compatibilidade com WebViews sem structuredClone.
+function cloneHudData(value) {
+  if (value === undefined) return undefined;
+  if (value === null || typeof value !== 'object') return value;
+  if (typeof structuredClone === 'function') return structuredClone(value);
+  return JSON.parse(JSON.stringify(value));
+}
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 
 const characterCore = createCharacterCore();
@@ -52,10 +63,11 @@ const shipComputer = createShipComputer();
 shipComputer.registerTerminal({
   id: 'ship-management-terminal',
   name: 'Terminal holográfico de gerenciamento',
-  systems: ['navigation', 'sensors', 'engineering', 'power', 'shields', 'refinery']
+  systems: ['navigation', 'sensors', 'engineering', 'power', 'shields']
 });
 shipComputer.registerTerminal({ id: 'pilot-console', name: 'Console de pilotagem da Ponte', systems: ['navigation', 'propulsion', 'shields'] });
-shipComputer.registerTerminal({ id: 'engineering-console', name: 'Console de Engenharia · Deck 3', systems: ['engineering', 'propulsion', 'power', 'shields', 'refinery'] });
+shipComputer.registerTerminal({ id: 'engineering-console', name: 'Console de Engenharia · Deck 3', systems: ['engineering', 'propulsion', 'power', 'shields'] });
+shipComputer.registerTerminal({ id: 'refinery-console', name: 'Console da Refinaria · Deck 3', systems: ['refinery'] });
 const shipManagementTerminal = createShipManagementTerminalController({
   computer: shipComputer,
   renderer: createShipManagementTerminalRenderer({ root: $('game-screen') }),
@@ -67,6 +79,10 @@ const shipManagementTerminal = createShipManagementTerminalController({
 let engineeringConsoleActive = false;
 let engineeringTerminal = null;
 let engineeringTelemetryAccumulator = 0;
+let refineryTerminal = null;
+let refineryConsoleActive = false;
+let refineryInteractionAvailable = false;
+let refineryTelemetryAccumulator = 0;
 let managementTelemetryAccumulator = 0;
 const engineeringRenderer = createEngineeringTerminalRenderer({
   root: $('game-screen'),
@@ -84,16 +100,10 @@ const engineeringRenderer = createEngineeringTerminalRenderer({
     const response = engineeringTerminal?.dispatch('engineering', 'setWarpActive', { active });
     if (!response?.ok || !response.result?.accepted) toast('Dobra indisponível: verifique o dilítio refinado.');
   },
-  onRefineryToggle: enabled => {
-    const response = engineeringTerminal?.dispatch('refinery', 'setRefineryEnabled', { enabled });
-    if (!response?.ok || !response.result?.accepted) toast('Comando bloqueado: console central de energia tem prioridade.');
-  },
-  onTransferToggle: enabled => {
-    const response = engineeringTerminal?.dispatch('refinery', 'setTransferEnabled', { enabled });
-    if (!response?.ok || !response.result?.accepted) toast('Transferência não autorizada pelo núcleo.');
-  }
 });
 engineeringRenderer.mount();
+const refineryRenderer = createRefineryTerminalRenderer({ root: $('game-screen') });
+refineryTerminal = createRefineryTerminalController({ computer: shipComputer, renderer: refineryRenderer, onInteractionChange: active => { refineryConsoleActive = active; } });
 engineeringTerminal = createEngineeringTerminalController({
   computer: shipComputer,
   onInteractionChange: active => {
@@ -111,6 +121,7 @@ let characterCameraInitialized = false;
 let characterModel = null;
 let shipManagementHologram = null;
 let engineeringHologram = null;
+let refineryHologram = null;
 let characterAnimator = null;
 let characterWeaponController = null;
 let characterPhysics = null;
@@ -144,6 +155,7 @@ const engineeringConsolePosition = new THREE.Vector3(
   ENGINEERING_CONSOLE_LOCAL_POSITION.y,
   ENGINEERING_CONSOLE_LOCAL_POSITION.z
 );
+const refineryConsolePosition = new THREE.Vector3(REFINERY_TERMINAL_LOCAL_POSITION.x, REFINERY_TERMINAL_LOCAL_POSITION.y, REFINERY_TERMINAL_LOCAL_POSITION.z);
 const pilotPlayerWorldPosition = new THREE.Vector3();
 const characterCameraWorldPosition = new THREE.Vector3();
 const characterCameraWorldQuaternion = new THREE.Quaternion();
@@ -724,6 +736,8 @@ async function startGame() {
       registerGameRuntimeSystems(runtimeBridge, {
         shipManagementTerminal,
         engineeringTerminal,
+        refineryTerminal,
+        refinery: dilithiumRefinerySystem,
         mining: miningRuntimeSystem,
         pauseMenu: { document, state, resetInputs: resetTransientState },
         character: {
@@ -786,11 +800,12 @@ async function startGame() {
             earthSystem, camera, applyEarthSurfaceRotation, ship, updatePhaserWeapon,
             characterCore, updateCharacterMovement, updateCharacterWeapon,
             updateExternalElevatorAnimation, updateElevatorInteraction,
-            updatePilotInteraction, updateShipManagementInteraction, updateEngineeringConsoleInteraction, updateExternalElevatorInteraction,
+            updatePilotInteraction, updateShipManagementInteraction, updateEngineeringConsoleInteraction, updateRefineryConsoleInteraction, updateExternalElevatorInteraction,
             updateCharacterCamera, updateFlight, updateCamera, updateShipSystems,
             setLandingBaseSystem: value => { landingBaseSystem = value; },
             updateShipLandingGuidance, THREE, shipVisual, shipEarthContactPoints,
             shipLandingGearContactPoints, forwardVector, state,
+            getActivePilotHudProfile: () => activePilotHudProfile,
             orbitSystem, asteroidSystem, lightingSystem, renderer, scene, $
           }))
         }
@@ -854,7 +869,7 @@ async function startGame() {
     // O HUD usa medidas do DOM. Só aplicar posições salvas depois que a tela
     // do jogo estiver visível e o WebView concluir o layout em dois frames.
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-    applyCharacterHudLayout(readCharacterHudLayout());
+    applyHudLayout('character', readHudLayout('character'));
 
     if (!runtimeBridge.start()) {
       throw new Error('O Runtime não conseguiu iniciar o ciclo de execução.');
@@ -1036,6 +1051,8 @@ async function init3D() {
     },
     scale: 1.35
   });
+  refineryHologram?.dispose?.();
+  refineryHologram = createRefineryHologram({ parent: shipVisual, position: { x: REFINERY_TERMINAL_LOCAL_POSITION.x, y: REFINERY_TERMINAL_LOCAL_POSITION.y + 1.05, z: REFINERY_TERMINAL_LOCAL_POSITION.z }, scale: 1.15, getTelemetry: () => dilithiumRefinerySystem.snapshot() });
 
   characterCameraInitialized = false;
   characterInWorldFrame = false;
@@ -1368,7 +1385,6 @@ function updateCharacterWorldPhysics(deltaSeconds) {
 
 function updateShipSystems(dt) {
   const shields = shipShieldSystem.update(dt);
-  dilithiumRefinerySystem.update(dt);
   if (shieldVisual) {
     shieldVisual.visible = shields.enabled && shields.shield > 0;
     shieldVisual.material.opacity = 0.025 + shields.integrity * 0.075;
@@ -1873,7 +1889,20 @@ function toggleEngineeringConsole() {
   }
 }
 
+function updateRefineryConsoleInteraction(dt = 0) {
+ refineryHologram?.update(dt);const pa=refineryInteractionAvailable,pc=refineryConsoleActive;
+ const valid=Boolean(characterModel&&shipVisual&&characterCore.snapshot().mode==='on-foot'&&!characterInWorldFrame&&!nearbyElevator&&activeDeckIndex===2);
+ if(!valid){refineryInteractionAvailable=false;refineryHologram?.setVisible(false);refineryTerminal?.setPresence(false,false);if((pa||pc)&&!nearbyElevator){const b=$('character-action-btn');if(b){b.disabled=true;b.textContent='AÇÃO';b.classList.remove('available');}characterCore.setInteractionTarget(null);updateCharacterHUD();updatePilotInteraction();}return;}
+ const d=characterModel.group.position.distanceToSquared(refineryConsolePosition),visible=d<=REFINERY_TERMINAL_DISPLAY_RADIUS**2,available=d<=REFINERY_TERMINAL_INTERACTION_RADIUS**2;
+ refineryInteractionAvailable=available;refineryHologram?.setVisible(visible);refineryTerminal?.setPresence(visible,available);
+ if(refineryConsoleActive){refineryTelemetryAccumulator+=Math.max(0,Number(dt)||0);if(refineryTelemetryAccumulator>=.18){refineryTelemetryAccumulator=0;refineryTerminal?.refresh();}}else refineryTelemetryAccumulator=0;
+ if(available||refineryConsoleActive){const b=$('character-action-btn');if(b){b.disabled=false;b.textContent=refineryConsoleActive?'◎ FECHAR REFINARIA':'◎ REFINARIA';b.classList.add('available');}characterCore.setInteractionTarget(refineryConsoleActive?'TERMINAL DA REFINARIA CONECTADO':'TERMINAL DA REFINARIA');if(pa!==available||pc!==refineryConsoleActive)updateCharacterHUD();}
+ else if(pa||pc){const b=$('character-action-btn');if(b){b.disabled=true;b.textContent='AÇÃO';b.classList.remove('available');}characterCore.setInteractionTarget(null);updateCharacterHUD();updatePilotInteraction();}
+}
+function toggleRefineryConsole(){if(refineryConsoleActive){refineryTerminal?.close();return;}if(!refineryInteractionAvailable||!refineryTerminal?.open('ENGENHEIRO DE RECURSOS'))toast('Aproxime-se do terminal da Refinaria no Deck 3.');}
+
 function updatePilotInteraction() {
+  if (refineryInteractionAvailable || refineryConsoleActive) return;
   if (!characterModel || !shipVisual || characterCore.snapshot().mode !== 'on-foot') return;
   if (engineeringInteractionAvailable || engineeringConsoleActive) return;
 
@@ -2144,10 +2173,12 @@ function updateCharacterWeapon(dt) {
 
 $('character-action-btn')?.addEventListener('click', () => {
   if (externalElevatorActionAvailable) activateExternalElevator();
+  else if (refineryInteractionAvailable || refineryConsoleActive) toggleRefineryConsole();
   else if (engineeringInteractionAvailable || engineeringConsoleActive) toggleEngineeringConsole();
   else enterPilotMode();
 });
 window.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && refineryConsoleActive) { refineryTerminal?.close(); return; }
   if (event.key === 'Escape' && shipManagementTerminal.getSnapshot().open) {
     shipManagementTerminal.close();
   }
@@ -2580,33 +2611,52 @@ registerGameplayActions({
   setNpcReady: value => { npcReady = value; }
 });
 
-/* Editor de HUD unificado: posições independentes para personagem e piloto. */
+/* Editor de HUD com quatro perfis independentes para a gameplay do piloto. */
 const characterHudEditor = $('character-hud-editor');
 const characterHudEditable = [...document.querySelectorAll('#character-hud [data-hud-editable]')];
 characterHudEditable.forEach(element => { element.dataset.hudScope = 'character'; });
-const pilotHudEditable = [...document.querySelectorAll('[data-hud-scope="pilot"][data-hud-editable]')];
+const pilotHudEditable = [...document.querySelectorAll('[data-hud-scope="pilot"][data-hud-editable]')]
+  .filter(element => Boolean(element.dataset.hudProfile));
 const allHudEditable = [...characterHudEditable, ...pilotHudEditable];
+const pilotHudProfiles = createPilotHudProfileStore(state.settings);
+let activePilotHudProfile = 'flight';
+let hudEditorPilotProfile = 'flight';
 let characterHudEditing = false;
 let hudEditorTarget = 'character';
 let hudEditorBeforeEdit = null;
 let hudEditorWorkingLayouts = null;
 let hudEditorWorkingButtonSize = null;
-let hudEditorButtonSizeChanged = false;
+let hudEditorWorkingButtonSizes = null;
+let hudEditorChangedButtonSizes = new Set();
 let characterHudDrag = null;
 
 function hudLayoutKey(scope) {
-  return scope === 'pilot' ? 'pilotHudLayout' : 'characterHudLayout';
+  return scope === 'pilot' ? 'pilotHudProfiles' : 'characterHudLayout';
 }
 
-function readHudLayout(scope) {
+function getPilotHudElements(profile = hudEditorPilotProfile) {
+  return pilotHudEditable.filter(element =>
+    element.dataset.hudProfile === 'all' || element.dataset.hudProfile.split(/\s+/).includes(profile)
+  );
+}
+
+function readHudLayout(scope, profile = hudEditorPilotProfile) {
+  if (scope === 'character' && hudEditorWorkingLayouts?.character !== undefined) {
+    return cloneHudData(hudEditorWorkingLayouts.character);
+  }
+  if (scope === 'pilot') {
+    return hudEditorWorkingLayouts?.pilot?.[profile] !== undefined
+      ? cloneHudData(hudEditorWorkingLayouts.pilot[profile])
+      : pilotHudProfiles.getLayout(profile);
+  }
   const key = hudLayoutKey(scope);
   return state.settings?.[key] && typeof state.settings[key] === 'object'
-    ? structuredClone(state.settings[key])
+    ? cloneHudData(state.settings[key])
     : {};
 }
 
-function applyHudLayout(scope, layout = readHudLayout(scope)) {
-  const elements = scope === 'pilot' ? pilotHudEditable : characterHudEditable;
+function applyHudLayout(scope, layout = readHudLayout(scope), profile = hudEditorPilotProfile) {
+  const elements = scope === 'pilot' ? getPilotHudElements(profile) : characterHudEditable;
   elements.forEach(element => {
     const saved = layout[element.dataset.hudEditable];
     if (!saved || !Number.isFinite(saved.x) || !Number.isFinite(saved.y)) {
@@ -2629,8 +2679,8 @@ function applyHudLayout(scope, layout = readHudLayout(scope)) {
   });
 }
 
-function captureHudLayout(scope) {
-  const elements = scope === 'pilot' ? pilotHudEditable : characterHudEditable;
+function captureHudLayout(scope, profile = hudEditorPilotProfile) {
+  const elements = scope === 'pilot' ? getPilotHudElements(profile) : characterHudEditable;
   const layout = {};
   elements.forEach(element => {
     const rect = element.getBoundingClientRect();
@@ -2642,21 +2692,28 @@ function captureHudLayout(scope) {
   return layout;
 }
 
-function readPilotHudButtonSize() {
-  const saved = state.settings?.pilotHudButtonSize || {};
+function readPilotHudButtonSize(profile = hudEditorPilotProfile) {
+  const profileSizes = state.settings?.pilotHudProfileButtonSizes;
+  const saved = (profileSizes
+    ? profileSizes[profile]
+    : (['flight', 'combat'].includes(profile) ? state.settings?.pilotHudButtonSize : null)) || {};
   return {
     width: Number.isFinite(saved.width) ? Math.max(82, Math.min(180, saved.width)) : 112,
     height: Number.isFinite(saved.height) ? Math.max(40, Math.min(88, saved.height)) : 52
   };
 }
 
-function applyPilotHudButtonSize(size = readPilotHudButtonSize(), applyToButtons = true) {
-  if (applyToButtons) document.querySelectorAll('[data-pilot-size-button]').forEach(button => {
-    button.style.width = `${size.width}px`;
-    button.style.minWidth = `${size.width}px`;
-    button.style.height = `${size.height}px`;
-    button.style.minHeight = `${size.height}px`;
-  });
+function applyPilotHudButtonSize(size = readPilotHudButtonSize(), applyToButtons = true, profile = hudEditorPilotProfile) {
+  if (applyToButtons) pilotHudEditable
+    .filter(element => element.dataset.hudProfile.split(/\s+/).includes(profile))
+    .flatMap(element => [...element.querySelectorAll('[data-pilot-size-button]')])
+    .forEach(button => {
+      button.style.width = `${size.width}px`;
+      button.style.minWidth = `${size.width}px`;
+      button.style.height = `${size.height}px`;
+      button.style.minHeight = `${size.height}px`;
+    });
+  if (profile !== hudEditorPilotProfile) return;
   const width = $('pilot-hud-button-width');
   const height = $('pilot-hud-button-height');
   const widthValue = $('pilot-hud-button-width-value');
@@ -2667,40 +2724,118 @@ function applyPilotHudButtonSize(size = readPilotHudButtonSize(), applyToButtons
   if (heightValue) heightValue.textContent = `${size.height} px`;
 }
 
-function clearPilotHudButtonSize() {
-  document.querySelectorAll('[data-pilot-size-button]').forEach(button => {
-    ['width', 'min-width', 'height', 'min-height'].forEach(prop => button.style.removeProperty(prop));
+function clearPilotHudButtonSize(profile = hudEditorPilotProfile) {
+  pilotHudEditable
+    .filter(element => element.dataset.hudProfile.split(/\s+/).includes(profile))
+    .flatMap(element => [...element.querySelectorAll('[data-pilot-size-button]')])
+    .forEach(button => {
+      ['width', 'min-width', 'height', 'min-height'].forEach(prop => button.style.removeProperty(prop));
+    });
+  if (profile === hudEditorPilotProfile) {
+    applyPilotHudButtonSize({ width: 112, height: 52 }, false, profile);
+  }
+}
+
+function applyHudProfileVisibility(profile) {
+  document.querySelectorAll('[data-hud-profile]').forEach(element => {
+    const assigned = element.dataset.hudProfile;
+    const visible = assigned === 'all' || (profile !== null && assigned.split(/\s+/).includes(profile));
+    element.classList.toggle('hud-profile-hidden', !visible);
   });
-  applyPilotHudButtonSize({ width: 112, height: 52 }, false);
+}
+
+function updateHudProfileButtons(selector, attribute, selectedProfile) {
+  document.querySelectorAll(`${selector} [${attribute}]`).forEach(button => {
+    const selected = button.getAttribute(attribute) === selectedProfile;
+    button.classList.toggle('active', selected);
+    button.setAttribute('aria-pressed', String(selected));
+  });
+}
+
+function setActivePilotHudProfile(profile) {
+  if (!PILOT_HUD_PROFILES.some(item => item.id === profile)) return false;
+  activePilotHudProfile = profile;
+  if (profile !== 'navigation') $('navigation-full-panel')?.classList.add('hidden');
+  applyHudProfileVisibility(profile);
+  updateHudProfileButtons('#pilot-hud-profile-selector', 'data-hud-gameplay-profile', profile);
+  applyHudLayout('pilot', pilotHudProfiles.getLayout(profile), profile);
+  return true;
+}
+
+function updateHudEditorButtonSizeVisibility() {
+  const hasResizableButtons = getPilotHudElements(hudEditorPilotProfile)
+    .some(element => element.querySelector('[data-pilot-size-button]'));
+  $('pilot-hud-size-controls')?.classList.toggle(
+    'hidden',
+    hudEditorTarget !== 'pilot' || !hasResizableButtons
+  );
+}
+
+function setHudEditorPilotProfile(profile) {
+  if (!PILOT_HUD_PROFILES.some(item => item.id === profile)) return;
+  if (characterHudEditing && hudEditorTarget === 'pilot' && hudEditorWorkingLayouts) {
+    hudEditorWorkingLayouts.pilot[hudEditorPilotProfile] = captureHudLayout('pilot', hudEditorPilotProfile);
+  }
+  if (hudEditorWorkingButtonSizes) hudEditorWorkingButtonSizes[hudEditorPilotProfile] = { ...hudEditorWorkingButtonSize };
+  hudEditorPilotProfile = profile;
+  if (profile !== 'navigation') $('navigation-full-panel')?.classList.add('hidden');
+  hudEditorWorkingButtonSize = hudEditorWorkingButtonSizes?.[profile]
+    ? { ...hudEditorWorkingButtonSizes[profile] }
+    : readPilotHudButtonSize(profile);
+  updateHudProfileButtons('#pilot-hud-profile-tabs', 'data-hud-editor-profile', profile);
+  if (characterHudEditing && hudEditorTarget === 'pilot') {
+    const label = PILOT_HUD_PROFILES.find(item => item.id === profile)?.label || 'Voo';
+    $('hud-editor-hint').textContent = `Editando o perfil ${label}. Posições e dimensões são salvas separadamente.`;
+  }
+  updateHudEditorButtonSizeVisibility();
+  applyPilotHudButtonSize(hudEditorWorkingButtonSize, true, profile);
+  if (characterHudEditing && hudEditorTarget === 'pilot') {
+    applyHudProfileVisibility(profile);
+    pilotHudEditable.forEach(element => element.classList.toggle(
+      'hud-editable-active',
+      element.dataset.hudProfile === 'all' || element.dataset.hudProfile.split(/\s+/).includes(profile)
+    ));
+    applyHudLayout('pilot', readHudLayout('pilot', profile), profile);
+  }
 }
 
 function setHudEditorTarget(scope) {
   if (!['character', 'pilot'].includes(scope)) return;
-  if (characterHudEditing && scope !== hudEditorTarget && hudEditorWorkingLayouts) {
-    hudEditorWorkingLayouts[hudEditorTarget] = captureHudLayout(hudEditorTarget);
+  if (characterHudEditing && hudEditorWorkingLayouts) {
+    if (hudEditorTarget === 'character' && scope !== 'character') {
+      hudEditorWorkingLayouts.character = captureHudLayout('character');
+    } else if (hudEditorTarget === 'pilot' && scope !== 'pilot') {
+      hudEditorWorkingLayouts.pilot[hudEditorPilotProfile] = captureHudLayout('pilot', hudEditorPilotProfile);
+    }
   }
   hudEditorTarget = scope;
   const characterSelected = scope === 'character';
+  if (characterSelected) $('navigation-full-panel')?.classList.add('hidden');
   $('hud-editor-character-tab')?.classList.toggle('active', characterSelected);
   $('hud-editor-pilot-tab')?.classList.toggle('active', !characterSelected);
-  $('pilot-hud-size-controls')?.classList.toggle('hidden', characterSelected);
+  $('pilot-hud-profile-tabs')?.classList.toggle('hidden', characterSelected);
+  updateHudProfileButtons('#pilot-hud-profile-tabs', 'data-hud-editor-profile', hudEditorPilotProfile);
+  updateHudEditorButtonSizeVisibility();
   $('hud-editor-hint').textContent = characterSelected
     ? 'Arraste os elementos do HUD do personagem para ajustar suas posições.'
-    : 'Arraste os elementos do HUD do piloto. Ajuste também os botões de comando e aceleração.';
-  ['character-hud', 'hud', 'flight-controls', 'leave-pilot-btn'].forEach(id => {
-    $(id)?.classList.remove('hud-editor-preview');
-  });
-  const selectedElements = characterSelected ? characterHudEditable : pilotHudEditable;
+    : `Editando o perfil ${PILOT_HUD_PROFILES.find(item => item.id === hudEditorPilotProfile)?.label || 'Voo'}. Cada perfil mantém posições e dimensões próprias.`;
+  const selectedElements = characterSelected ? characterHudEditable : getPilotHudElements();
   const unselectedElements = characterSelected ? pilotHudEditable : characterHudEditable;
   unselectedElements.forEach(element => element.classList.remove('hud-editable-active'));
   selectedElements.forEach(element => element.classList.add('hud-editable-active'));
+  ['character-hud', 'hud', 'flight-controls', 'leave-pilot-btn'].forEach(id => $(id)?.classList.remove('hud-editor-preview'));
+  $('character-hud')?.classList.toggle('hud-profile-hidden', !characterSelected);
+  ['hud', 'flight-controls', 'leave-pilot-btn'].forEach(id =>
+    $(id)?.classList.toggle('hud-profile-hidden', characterSelected)
+  );
+  applyHudProfileVisibility(characterSelected ? null : hudEditorPilotProfile);
   if (characterSelected) {
     $('character-hud')?.classList.add('hud-editor-preview');
   } else {
     ['hud', 'flight-controls', 'leave-pilot-btn'].forEach(id => $(id)?.classList.add('hud-editor-preview'));
-    applyPilotHudButtonSize(hudEditorWorkingButtonSize || readPilotHudButtonSize(), Boolean(hudEditorBeforeEdit?.hasCustomPilotButtonSize || hudEditorButtonSizeChanged));
+    applyPilotHudButtonSize(hudEditorWorkingButtonSize || readPilotHudButtonSize(), true, hudEditorPilotProfile);
   }
-  applyHudLayout(scope, hudEditorWorkingLayouts?.[scope] || readHudLayout(scope));
+  applyHudLayout(scope, readHudLayout(scope), hudEditorPilotProfile);
 }
 
 function scheduleHudLayouts() {
@@ -2710,8 +2845,8 @@ function scheduleHudLayouts() {
     if (characterHudEditable.every(element => element.getBoundingClientRect().width > 0)) {
       applyHudLayout('character', readHudLayout('character'));
     }
-    if (pilotHudEditable.every(element => element.getBoundingClientRect().width > 0)) {
-      applyHudLayout('pilot', readHudLayout('pilot'));
+    if (getPilotHudElements(activePilotHudProfile).some(element => element.getBoundingClientRect().width > 0)) {
+      applyHudLayout('pilot', pilotHudProfiles.getLayout(activePilotHudProfile), activePilotHudProfile);
     }
   }));
 }
@@ -2720,67 +2855,109 @@ function finishCharacterHudEditing({ saveChanges = false, reset = false } = {}) 
   if (!characterHudEditing) return;
   state.settings ||= {};
   if (reset) {
-    hudEditorWorkingLayouts[hudEditorTarget] = {};
-    applyHudLayout(hudEditorTarget, {});
-    state.settings[hudLayoutKey(hudEditorTarget)] = {};
     if (hudEditorTarget === 'pilot') {
-      delete state.settings.pilotHudButtonSize;
+      hudEditorWorkingLayouts.pilot[hudEditorPilotProfile] = {};
+      applyHudLayout('pilot', {}, hudEditorPilotProfile);
       hudEditorWorkingButtonSize = { width: 112, height: 52 };
-      hudEditorButtonSizeChanged = false;
-      clearPilotHudButtonSize();
+      if (hudEditorWorkingButtonSizes) hudEditorWorkingButtonSizes[hudEditorPilotProfile] = { ...hudEditorWorkingButtonSize };
+      hudEditorChangedButtonSizes.add(hudEditorPilotProfile);
+      clearPilotHudButtonSize(hudEditorPilotProfile);
+    } else {
+      hudEditorWorkingLayouts.character = {};
+      applyHudLayout('character', {});
     }
-    save();
+    $('hud-editor-hint').textContent = 'Perfil restaurado ao padrão. Toque em SALVAR para confirmar.';
   } else if (saveChanges) {
-    hudEditorWorkingLayouts[hudEditorTarget] = captureHudLayout(hudEditorTarget);
+    if (hudEditorTarget === 'pilot') {
+      hudEditorWorkingLayouts.pilot[hudEditorPilotProfile] = captureHudLayout('pilot', hudEditorPilotProfile);
+    } else {
+      hudEditorWorkingLayouts.character = captureHudLayout('character');
+    }
     state.settings.characterHudLayout = hudEditorWorkingLayouts.character;
-    state.settings.pilotHudLayout = hudEditorWorkingLayouts.pilot;
-    const size = {
-      width: Number($('pilot-hud-button-width')?.value) || 112,
-      height: Number($('pilot-hud-button-height')?.value) || 52
-    };
-    if (hudEditorButtonSizeChanged || hudEditorBeforeEdit.hasCustomPilotButtonSize) {
-      state.settings.pilotHudButtonSize = size;
-      applyPilotHudButtonSize(size);
+    for (const profile of PILOT_HUD_PROFILES) {
+      pilotHudProfiles.setLayout(profile.id, hudEditorWorkingLayouts.pilot[profile.id] || {});
+    }
+    if (hudEditorTarget === 'pilot') {
+      hudEditorWorkingButtonSize = {
+        width: Number($('pilot-hud-button-width')?.value) || 112,
+        height: Number($('pilot-hud-button-height')?.value) || 52
+      };
+      hudEditorWorkingButtonSizes[hudEditorPilotProfile] = { ...hudEditorWorkingButtonSize };
+    }
+    state.settings.pilotHudProfileButtonSizes ||= {};
+    for (const profile of PILOT_HUD_PROFILES) {
+      const size = hudEditorWorkingButtonSizes[profile.id] || { width: 112, height: 52 };
+      if (hudEditorChangedButtonSizes.has(profile.id) || hudEditorBeforeEdit.hasCustomPilotButtonSizes[profile.id]) {
+        state.settings.pilotHudProfileButtonSizes[profile.id] = { ...size };
+      } else {
+        delete state.settings.pilotHudProfileButtonSizes[profile.id];
+      }
+      applyPilotHudButtonSize(size, true, profile.id);
+    }
+    if (state.settings.pilotHudProfileButtonSizes.flight) {
+      state.settings.pilotHudButtonSize = { ...state.settings.pilotHudProfileButtonSizes.flight };
     } else {
       delete state.settings.pilotHudButtonSize;
-      clearPilotHudButtonSize();
     }
-    hudEditorWorkingButtonSize = { ...size };
+    if (!Object.keys(state.settings.pilotHudProfileButtonSizes).length) delete state.settings.pilotHudProfileButtonSizes;
     save();
+    hudEditorWorkingButtonSize = { ...hudEditorWorkingButtonSizes[hudEditorPilotProfile] };
   } else {
     applyHudLayout('character', hudEditorBeforeEdit.character);
-    applyHudLayout('pilot', hudEditorBeforeEdit.pilot);
-    if (hudEditorBeforeEdit.hasCustomPilotButtonSize) applyPilotHudButtonSize(hudEditorBeforeEdit.pilotButtonSize);
-    else clearPilotHudButtonSize();
+    for (const profile of PILOT_HUD_PROFILES) {
+      applyHudLayout('pilot', hudEditorBeforeEdit.pilotProfiles[profile.id] || {}, profile.id);
+    }
+    for (const profile of PILOT_HUD_PROFILES) {
+      if (hudEditorBeforeEdit.hasCustomPilotButtonSizes[profile.id]) {
+        applyPilotHudButtonSize(hudEditorBeforeEdit.pilotButtonSizes[profile.id], true, profile.id);
+      } else {
+        clearPilotHudButtonSize(profile.id);
+      }
+    }
     hudEditorWorkingButtonSize = null;
   }
+
+  if (reset) return;
   characterHudEditing = false;
   characterHudDrag = null;
   allHudEditable.forEach(element => element.classList.remove('hud-editable-active'));
   ['character-hud', 'hud', 'flight-controls', 'leave-pilot-btn'].forEach(id => $(id)?.classList.remove('hud-editor-preview'));
+  ['character-hud', 'hud', 'flight-controls', 'leave-pilot-btn'].forEach(id =>
+    $(id)?.classList.remove('hud-profile-hidden')
+  );
   characterHudEditor?.classList.add('hidden');
   characterHudEditor?.setAttribute('aria-hidden', 'true');
   hudEditorWorkingLayouts = null;
-  if (reset || saveChanges) hudEditorWorkingButtonSize = null;
-  hudEditorButtonSizeChanged = false;
+  applyHudProfileVisibility(activePilotHudProfile);
+  applyHudLayout('pilot', pilotHudProfiles.getLayout(activePilotHudProfile), activePilotHudProfile);
+  hudEditorWorkingButtonSizes = null;
+  hudEditorChangedButtonSizes = new Set();
 }
 
 function startCharacterHudEditing() {
   if (characterHudEditing) return;
+  $('navigation-full-panel')?.classList.add('hidden');
   characterHudEditing = true;
   hudEditorTarget = characterCore.snapshot().mode === 'ship-control' ? 'pilot' : 'character';
+  hudEditorPilotProfile = activePilotHudProfile;
   hudEditorBeforeEdit = {
     character: readHudLayout('character'),
-    pilot: readHudLayout('pilot'),
-    pilotButtonSize: readPilotHudButtonSize(),
-    hasCustomPilotButtonSize: Boolean(state.settings?.pilotHudButtonSize)
+    pilotProfiles: pilotHudProfiles.snapshot(),
+    pilotButtonSizes: Object.fromEntries(PILOT_HUD_PROFILES.map(profile => [profile.id, readPilotHudButtonSize(profile.id)])),
+    hasCustomPilotButtonSizes: Object.fromEntries(PILOT_HUD_PROFILES.map(profile => [
+      profile.id,
+      Boolean(state.settings?.pilotHudProfileButtonSizes
+        ? state.settings.pilotHudProfileButtonSizes[profile.id]
+        : (['flight', 'combat'].includes(profile.id) && state.settings?.pilotHudButtonSize))
+    ]))
   };
   hudEditorWorkingLayouts = {
-    character: structuredClone(hudEditorBeforeEdit.character),
-    pilot: structuredClone(hudEditorBeforeEdit.pilot)
+    character: cloneHudData(hudEditorBeforeEdit.character),
+    pilot: cloneHudData(hudEditorBeforeEdit.pilotProfiles)
   };
-  hudEditorWorkingButtonSize = { ...hudEditorBeforeEdit.pilotButtonSize };
-  hudEditorButtonSizeChanged = false;
+  hudEditorWorkingButtonSizes = cloneHudData(hudEditorBeforeEdit.pilotButtonSizes);
+  hudEditorWorkingButtonSize = { ...hudEditorWorkingButtonSizes[hudEditorPilotProfile] };
+  hudEditorChangedButtonSizes = new Set();
   $('game-menu-modal')?.classList.add('hidden');
   characterHudEditor?.classList.remove('hidden');
   characterHudEditor?.setAttribute('aria-hidden', 'false');
@@ -2791,7 +2968,9 @@ function startCharacterHudEditing() {
 
 allHudEditable.forEach(element => {
   element.addEventListener('pointerdown', event => {
-    if (!characterHudEditing || element.dataset.hudScope !== hudEditorTarget) return;
+    if (!characterHudEditing || element.dataset.hudScope !== hudEditorTarget ||
+        (hudEditorTarget === 'pilot' && element.dataset.hudProfile !== 'all' &&
+          !element.dataset.hudProfile.split(/\s+/).includes(hudEditorPilotProfile))) return;
     event.preventDefault();
     event.stopPropagation();
     const rect = element.getBoundingClientRect();
@@ -2823,28 +3002,54 @@ allHudEditable.forEach(element => {
 $('edit-character-hud-btn')?.addEventListener('click', startCharacterHudEditing);
 $('hud-editor-character-tab')?.addEventListener('click', () => setHudEditorTarget('character'));
 $('hud-editor-pilot-tab')?.addEventListener('click', () => setHudEditorTarget('pilot'));
+document.querySelectorAll('[data-hud-editor-profile]').forEach(button => {
+  button.addEventListener('click', () => setHudEditorPilotProfile(button.dataset.hudEditorProfile));
+});
+document.querySelectorAll('[data-hud-gameplay-profile]').forEach(button => {
+  button.addEventListener('click', () => {
+    if (characterHudEditing) return;
+    setActivePilotHudProfile(button.dataset.hudGameplayProfile);
+  });
+});
 $('pilot-hud-button-width')?.addEventListener('input', event => {
-  hudEditorButtonSizeChanged = true;
   hudEditorWorkingButtonSize = {
     width: Number(event.target.value),
     height: Number($('pilot-hud-button-height')?.value) || 52
   };
-  applyPilotHudButtonSize(hudEditorWorkingButtonSize);
+  hudEditorWorkingButtonSizes[hudEditorPilotProfile] = { ...hudEditorWorkingButtonSize };
+  hudEditorChangedButtonSizes.add(hudEditorPilotProfile);
+  applyPilotHudButtonSize(hudEditorWorkingButtonSize, true, hudEditorPilotProfile);
 });
 $('pilot-hud-button-height')?.addEventListener('input', event => {
-  hudEditorButtonSizeChanged = true;
   hudEditorWorkingButtonSize = {
     width: Number($('pilot-hud-button-width')?.value) || 112,
     height: Number(event.target.value)
   };
-  applyPilotHudButtonSize(hudEditorWorkingButtonSize);
+  hudEditorWorkingButtonSizes[hudEditorPilotProfile] = { ...hudEditorWorkingButtonSize };
+  hudEditorChangedButtonSizes.add(hudEditorPilotProfile);
+  applyPilotHudButtonSize(hudEditorWorkingButtonSize, true, hudEditorPilotProfile);
 });
 $('character-hud-save-btn')?.addEventListener('click', () => finishCharacterHudEditing({ saveChanges: true }));
 $('character-hud-cancel-btn')?.addEventListener('click', () => finishCharacterHudEditing());
 $('character-hud-reset-btn')?.addEventListener('click', () => finishCharacterHudEditing({ reset: true }));
+$('navigation-panel-open-btn')?.addEventListener('click', () => {
+  $('navigation-full-panel')?.classList.remove('hidden');
+});
+$('navigation-panel-close-btn')?.addEventListener('click', () => {
+  $('navigation-full-panel')?.classList.add('hidden');
+});
+applyHudProfileVisibility(activePilotHudProfile);
 applyHudLayout('character', readHudLayout('character'));
-if (state.settings?.pilotHudButtonSize) applyPilotHudButtonSize();
-else clearPilotHudButtonSize();
+applyHudLayout('pilot', pilotHudProfiles.getLayout(activePilotHudProfile), activePilotHudProfile);
+for (const profile of PILOT_HUD_PROFILES) {
+  if (state.settings?.pilotHudProfileButtonSizes
+      ? state.settings.pilotHudProfileButtonSizes[profile.id]
+      : (['flight', 'combat'].includes(profile.id) && state.settings?.pilotHudButtonSize)) {
+    applyPilotHudButtonSize(readPilotHudButtonSize(profile.id), true, profile.id);
+  } else {
+    clearPilotHudButtonSize(profile.id);
+  }
+}
 
 /* MENU DE PAUSA */
 

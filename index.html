@@ -260,8 +260,14 @@
 
     <!-- HUD -->
     <div id="hud" class="ship-interface hidden">
+      <nav id="pilot-hud-profile-selector" class="pilot-hud-profile-selector" aria-label="Perfil de HUD da gameplay" data-hud-profile="all">
+        <button type="button" data-hud-gameplay-profile="flight" aria-pressed="true">VOO</button>
+        <button type="button" data-hud-gameplay-profile="navigation" aria-pressed="false">NAVEGAÇÃO</button>
+        <button type="button" data-hud-gameplay-profile="combat" aria-pressed="false">COMBATE</button>
+        <button type="button" data-hud-gameplay-profile="warp" aria-pressed="false">DOBRA</button>
+      </nav>
 
-      <section class="hud-card pilot-instruments" data-hud-editable="instruments" data-hud-scope="pilot" aria-label="Instrumentos da nave">
+      <section class="hud-card pilot-instruments" data-hud-editable="instruments" data-hud-scope="pilot" data-hud-profile="flight" aria-label="Instrumentos da nave">
         <header class="instrument-header"><b id="hud-user">PILOTO</b><span>FLIGHT SYSTEMS</span></header>
         <div class="instrument-grid">
           <div class="instrument" data-instrument="speed"><div class="instrument-readout"><span>VELOCIDADE</span><b><span id="speed">0</span></b></div><div class="instrument-track"><i id="speed-bar"></i></div></div>
@@ -272,11 +278,35 @@
         <div class="instrument-cargo">CARGA <b id="cargo">0</b></div>
       </section>
 
-      <div class="hud-card right" data-hud-editable="credits" data-hud-scope="pilot">
+      <div class="hud-card right" data-hud-editable="credits" data-hud-scope="pilot" data-hud-profile="flight">
         <span>Créditos: <b id="hud-credits">0</b></span>
       </div>
-      <button id="game-menu-btn" data-hud-editable="pause" data-hud-scope="pilot" class="hud-menu pause-hud-button" type="button" aria-label="Pausar jogo">Ⅱ</button>
-
+      <button id="game-menu-btn" data-hud-editable="pause" data-hud-scope="pilot" data-hud-profile="all" class="hud-menu pause-hud-button" type="button" aria-label="Pausar jogo">Ⅱ</button>
+      <section id="navigation-hud-panel" class="navigation-hud-panel" data-hud-editable="navigation-panel" data-hud-scope="pilot" data-hud-profile="navigation" aria-label="HUD de navegação">
+        <header><b>NAVEGAÇÃO</b><span>ORIENTAÇÃO TÁTICA</span></header>
+        <div class="navigation-readouts"><span>COORDENADAS <b id="navigation-coordinates">— / — / —</b></span><span>DISTÂNCIA <b id="navigation-distance">—</b></span><span>DIREÇÃO <b id="navigation-bearing">—</b></span></div>
+        <div id="navigation-map-reserved" class="navigation-map-reserved"><span>ÁREA DO MINIMAPA</span><small>MAPA E MARCADORES SERÃO CONECTADOS AO MÓDULO DE NAVEGAÇÃO</small></div>
+        <button id="navigation-panel-open-btn" type="button" class="navigation-panel-open-btn">ABRIR PAINEL DE NAVEGAÇÃO</button>
+      </section>
+      <section id="navigation-full-panel" class="navigation-full-panel hidden" data-hud-profile="navigation" aria-label="Painel completo de navegação">
+        <header>
+          <div><b>PAINEL DE NAVEGAÇÃO</b><span>ORIENTAÇÃO, COORDENADAS E MARCADORES</span></div>
+          <button id="navigation-panel-close-btn" type="button">FECHAR</button>
+        </header>
+        <div class="navigation-full-readouts">
+          <span>COORDENADAS <b id="navigation-full-coordinates">— / — / —</b></span>
+          <span>DISTÂNCIA <b id="navigation-full-distance">SEM ALVO</b></span>
+          <span>DIREÇÃO <b id="navigation-full-bearing">—</b></span>
+        </div>
+        <div class="navigation-map-reserved navigation-full-map">
+          <span>MAPA DE NAVEGAÇÃO</span>
+          <small>CAMADA DE SENSORES E MARCADORES SERÁ CONECTADA EM OUTRA FRENTE</small>
+        </div>
+      </section>
+      <section id="warp-map-reserved" class="warp-map-reserved" data-hud-editable="warp-map" data-hud-scope="pilot" data-hud-profile="warp" aria-label="Área de navegação durante dobra">
+        <header><b>NAVEGAÇÃO DE DOBRA</b><span>REFERÊNCIA ESPACIAL</span></header>
+        <div class="navigation-map-reserved"><span>ÁREA DO MAPA</span><small>MESMA REGIÃO RESERVADA DO PERFIL DE NAVEGAÇÃO</small></div>
+      </section>
     </div>
 
 
@@ -286,10 +316,10 @@
     <div id="toast" class="toast hidden"></div>
 
     <!-- CONTROLES DE VOO -->
-    <div id="flight-controls" class="ship-interface hidden">
+    <div id="flight-controls" class="ship-interface hidden" data-hud-profile="all">
 
-      <div id="aim-touch-area" aria-label="Arraste para olhar ao redor"></div>
-      <div class="aim-stick-wrap" data-hud-editable="aim" data-hud-scope="pilot">
+      <div id="aim-touch-area" data-hud-profile="flight combat" aria-label="Arraste para olhar ao redor"></div>
+      <div class="aim-stick-wrap" data-hud-editable="aim" data-hud-scope="pilot" data-hud-profile="flight combat">
         <div class="control-label">MIRA</div>
         <div id="aim-stick" class="stick aim-stick" aria-label="Joystick independente de mira">
           <div class="knob"></div>
@@ -297,7 +327,7 @@
       </div>
 
       <!-- LADO ESQUERDO -->
-      <div class="control-side left-side" data-hud-editable="movement" data-hud-scope="pilot">
+      <div class="control-side left-side" data-hud-editable="movement" data-hud-scope="pilot" data-hud-profile="flight">
 
         <div class="control-label">MOVIMENTO DA NAVE</div>
 
@@ -310,13 +340,12 @@
       </div>
 
       <!-- LADO DIREITO -->
-      <div class="control-side right-side" data-hud-editable="commands" data-hud-scope="pilot">
+      <div class="control-side right-side" data-hud-editable="commands" data-hud-scope="pilot" data-hud-profile="flight">
 
         <div class="control-label">COMANDOS</div>
 
 
         <div class="button-pair command-buttons">
-          <button id="fire-btn" data-pilot-size-button class="control-button" type="button">◎ DISPARAR</button>
           <button id="interact-btn" data-pilot-size-button class="control-button" type="button">F INTERAGIR</button>
         </div>
 
@@ -331,7 +360,26 @@
             <button id="throttle-btn" data-pilot-size-button class="control-button" type="button">▲ ACELERAR</button>
             <button id="brake-btn" data-pilot-size-button class="control-button" type="button">▼ FREAR</button>
           </div>
-          <div class="warp-command-panel">
+        </div>
+
+        <button id="landing-btn" class="control-button landing-button" type="button">
+          ◉ POUSO · TREM RECOLHIDO
+        </button>
+
+      </div>
+
+      <section id="combat-weapon-controls" class="combat-weapon-controls" data-hud-editable="weapons" data-hud-scope="pilot" data-hud-profile="combat" aria-label="Armamentos">
+        <span class="control-label">ARMAMENTOS</span>
+        <button id="fire-btn" data-pilot-size-button class="control-button" type="button">◎ DISPARAR</button>
+        <div class="combat-target-readout"><span>ALVO SELECIONADO</span><b id="combat-target-name">SEM ALVO</b></div>
+        <div class="combat-status-readout">
+          <span>CASCO <b id="combat-hull">100%</b></span>
+          <span>ESCUDOS <b id="combat-shield">100%</b></span>
+        </div>
+      </section>
+
+      <section id="warp-profile-controls" class="warp-profile-controls" data-hud-editable="warp-propulsion" data-hud-scope="pilot" data-hud-profile="warp" aria-label="Propulsão de dobra">
+        <div class="warp-command-panel">
             <div id="warp-stage-controls" class="warp-stage-controls" hidden aria-label="Estágios de dobra">
               <button class="warp-stage-button" type="button" data-warp-stage="5" aria-label="Dobra 5">5</button>
               <button class="warp-stage-button" type="button" data-warp-stage="4" aria-label="Dobra 4">4</button>
@@ -344,21 +392,17 @@
               <div class="warp-telemetry-row">
                 <span>VELOCIDADE <b id="warp-speed-readout">0</b></span>
                 <span>DILÍTIO <b id="warp-dilithium-readout">100.00 u</b></span>
+                <span>CONSUMO ACUMULADO <b id="warp-core-consumption">0.00 u</b></span>
+                <span>ESTABILIDADE <b id="warp-stability-readout">—</b></span>
               </div>
               <button id="warp-drive-btn" class="control-button warp-drive-button" type="button" aria-pressed="false">⚡ ATIVAR DOBRA</button>
             </div>
           </div>
-        </div>
-
-        <button id="landing-btn" class="control-button landing-button" type="button">
-          ◉ POUSO · TREM RECOLHIDO
-        </button>
-
-      </div>
+      </section>
 
     </div>
 
-    <button id="leave-pilot-btn" data-hud-editable="leave" data-hud-scope="pilot" class="hud-menu hidden" type="button" aria-label="Sair do modo piloto">SAIR DO PILOTO</button>
+    <button id="leave-pilot-btn" data-hud-profile="all" data-hud-editable="leave" data-hud-scope="pilot" class="hud-menu hidden" type="button" aria-label="Sair do modo piloto">SAIR DO PILOTO</button>
 
     <!-- DESTINO DE POUSO PREDEFINIDO -->
     <div id="landing-modal" class="landing-modal hidden" aria-hidden="true">
@@ -411,6 +455,12 @@
           <button id="hud-editor-pilot-tab" type="button" data-hud-editor-target="pilot">HUD DO PILOTO</button>
         </div>
         <span id="hud-editor-hint">Arraste os elementos do HUD para ajustar suas posições.</span>
+        <div id="pilot-hud-profile-tabs" class="pilot-hud-profile-tabs hidden" role="group" aria-label="Perfil de piloto para editar">
+          <button type="button" data-hud-editor-profile="flight" aria-pressed="true">VOO</button>
+          <button type="button" data-hud-editor-profile="navigation" aria-pressed="false">NAVEGAÇÃO</button>
+          <button type="button" data-hud-editor-profile="combat" aria-pressed="false">COMBATE</button>
+          <button type="button" data-hud-editor-profile="warp" aria-pressed="false">DOBRA</button>
+        </div>
         <div id="pilot-hud-size-controls" class="pilot-hud-size-controls hidden">
           <label for="pilot-hud-button-width">LARGURA DOS BOTÕES <output id="pilot-hud-button-width-value">112 px</output></label>
           <input id="pilot-hud-button-width" type="range" min="82" max="180" step="2" value="112">

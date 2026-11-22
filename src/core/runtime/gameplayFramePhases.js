@@ -18,7 +18,7 @@ export function createGameplayFramePhases(getDependencies) {
     },
 
     updateCharacterMode(dt) {
-      const { characterCore, updateCharacterMovement, updateCharacterWeapon, updateExternalElevatorAnimation, updateElevatorInteraction, updatePilotInteraction, updateShipManagementInteraction, updateEngineeringConsoleInteraction, updateExternalElevatorInteraction, updateCharacterCamera, updateFlight, updateCamera, state } = getDependencies();
+      const { characterCore, updateCharacterMovement, updateCharacterWeapon, updateExternalElevatorAnimation, updateElevatorInteraction, updatePilotInteraction, updateShipManagementInteraction, updateEngineeringConsoleInteraction, updateRefineryConsoleInteraction, updateExternalElevatorInteraction, updateCharacterCamera, updateFlight, updateCamera, state } = getDependencies();
   if (characterCore.snapshot().mode === 'on-foot') {
     updateCharacterMovement(dt);
     updateCharacterWeapon(dt);
@@ -38,6 +38,8 @@ export function createGameplayFramePhases(getDependencies) {
   }
   updateShipManagementInteraction(dt);
   updateEngineeringConsoleInteraction?.(dt);
+  // Mantém presença, holograma e ação da Refinaria sincronizados com a posição do personagem.
+  updateRefineryConsoleInteraction?.(dt);
     },
 
     updateLanding(dt) {
@@ -196,16 +198,50 @@ export function createGameplayFramePhases(getDependencies) {
     },
 
     updateHud() {
-      const { $, state } = getDependencies();
-  if ($('speed')) $('speed').textContent = Math.round(state.speed);
-  if ($('fuel')) $('fuel').textContent = Math.round(state.fuel);
-  if ($('cargo')) $('cargo').textContent = state.cargo + ' / 100';
-  if ($('hull')) $('hull').textContent = state.hull;
-  if ($('shield')) $('shield').textContent = state.shield;
+      const { $, state, ship, getActivePilotHudProfile } = getDependencies();
+      const activeProfile = getActivePilotHudProfile?.();
+      if (activeProfile) {
+        $('hud')?.setAttribute('data-active-hud-profile', activeProfile);
+        $('flight-controls')?.setAttribute('data-active-hud-profile', activeProfile);
+      }
+      if ($('speed')) $('speed').textContent = Math.round(state.speed);
+      if ($('fuel')) $('fuel').textContent = Math.round(state.fuel);
+      if ($('cargo')) $('cargo').textContent = state.cargo + ' / 100';
+      if ($('hull')) $('hull').textContent = state.hull;
+      if ($('shield')) $('shield').textContent = state.shield;
+      if ($('hud-credits')) $('hud-credits').textContent = state.credits.toLocaleString('pt-BR');
 
-  if ($('hud-credits')) {
-    $('hud-credits').textContent = state.credits.toLocaleString('pt-BR');
-  }
-}
+      const position = ship?.position;
+      const coordinates = $('navigation-coordinates');
+      if (coordinates && position && [position.x, position.y, position.z].every(Number.isFinite)) {
+        coordinates.textContent = [position.x, position.y, position.z]
+          .map(value => value.toFixed(1)).join(' / ');
+        const fullCoordinates = $('navigation-full-coordinates');
+        if (fullCoordinates) fullCoordinates.textContent = coordinates.textContent;
+      }
+      const target = ship?.userData?.navigationTarget;
+      const distance = Number.isFinite(target?.distance) ? target.distance.toFixed(1) + ' u' : 'SEM ALVO';
+      const bearing = Number.isFinite(target?.bearing) ? target.bearing.toFixed(1) + '°' : '—';
+      if ($('navigation-distance')) $('navigation-distance').textContent = distance;
+      if ($('navigation-full-distance')) $('navigation-full-distance').textContent = distance;
+      if ($('navigation-bearing')) $('navigation-bearing').textContent = bearing;
+      if ($('navigation-full-bearing')) $('navigation-full-bearing').textContent = bearing;
+      const combatTarget = ship?.userData?.combatTarget;
+      if ($('combat-target-name')) {
+        $('combat-target-name').textContent = String(combatTarget?.name || 'SEM ALVO');
+      }
+      if ($('combat-hull')) $('combat-hull').textContent = Math.round(state.hull) + '%';
+      if ($('combat-shield')) $('combat-shield').textContent = Math.round(state.shield) + '%';
+      if ($('warp-core-consumption')) {
+        $('warp-core-consumption').textContent =
+          (Math.max(0, Number(state.coreDilithiumConsumedTotal) || 0)).toFixed(2) + ' u';
+      }
+      if ($('warp-stability-readout')) {
+        const stability = ship?.userData?.warpStability;
+        $('warp-stability-readout').textContent = Number.isFinite(stability)
+          ? Math.round(Math.max(0, Math.min(1, stability)) * 100) + '%'
+          : '—';
+      }
+    }
   };
 }
