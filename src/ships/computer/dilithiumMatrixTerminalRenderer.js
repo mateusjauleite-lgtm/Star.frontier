@@ -1,5 +1,5 @@
 import template from './dilithium-matrix-terminal.html?raw';
-import '../managementTerminal/management-terminal.css';
+import './managementTerminal/management-terminal.css';
 import './dilithium-matrix-terminal.css';
 
 const VIEWS = {
