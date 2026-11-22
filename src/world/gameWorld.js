@@ -10,6 +10,7 @@ import { createStarshipInterior } from '../ships/interior.js';
 import { createExternalElevator } from '../ships/externalElevator.js';
 import { createExplorationShip } from '../ships/exploration.js';
 import { createCharacterModel } from '../character/characterModel.js';
+import { createCharacterSystem } from '../character/index.js';
 import { createCharacterAnimator } from '../character/characterAnimator.js';
 import { createCharacterWeaponController } from '../character/characterWeaponController.js';
 import { createCharacterPhysics } from '../character/characterPhysics.js';
@@ -129,17 +130,18 @@ export async function createGameWorld({
   characterCore.setGrounded(true);
   characterAnimator.play('idle');
 
-  // Marcador visual experimental preexistente; não é registrado como entidade,
-  // não recebe IA e permanece fora do controle do personagem.
-  const npc = new THREE.Mesh(
-    new THREE.SphereGeometry(1.3, 16, 12),
-    new THREE.MeshStandardMaterial({
-      color: 0xffc05b,
-      emissive: 0x553000
-    })
-  );
-  npc.position.set(24, 3, -77);
-  scene.add(npc);
+  // O segundo ator é o corpo físico da Alexia. Seu core é independente do jogador;
+  // a IA permanece única e será injetada pelo Runtime via Ship Computer.
+  const alexiaCharacter = createCharacterSystem({
+    model: { clothingColor: 0x2f7188, hairColor: 0x202b35 },
+    physics: { gravityKernel },
+    initialHeight: 8.91,
+    audio: false
+  });
+  alexiaCharacter.group.name = 'alexia-character-root';
+  alexiaCharacter.group.position.set(2.35, 8.91, -18);
+  alexiaCharacter.group.rotation.y = characterYaw + Math.PI / 2;
+  shipVisual.add(alexiaCharacter.group);
 
   const orbitSystem = createOrbitSystem({ center: [0, 0, -850], radius: 960 });
   scene.add(orbitSystem.group);
@@ -175,6 +177,7 @@ export async function createGameWorld({
     nearbyElevator,
     activeDeckIndex,
     characterModel,
+    alexiaCharacter,
     characterAnimator,
     characterWeaponController,
     characterPhysics
