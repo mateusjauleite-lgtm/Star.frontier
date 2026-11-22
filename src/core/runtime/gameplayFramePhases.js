@@ -24,7 +24,6 @@ export function createGameplayFramePhases(getDependencies) {
     updateCharacterWeapon(dt);
     updateExternalElevatorAnimation(dt);
     updateElevatorInteraction();
-    updateAlexiaInteraction?.(dt);
     updatePilotInteraction();
     updateExternalElevatorInteraction();
     // A nave continua em movimento enquanto a tripulação está a pé,
@@ -42,6 +41,7 @@ export function createGameplayFramePhases(getDependencies) {
   // Mantém presença, holograma e ação da Refinaria sincronizados com a posição do personagem.
   updateRefineryConsoleInteraction?.(dt);
   updateDeflectorConsoleInteraction?.(dt);
+  if (characterCore.snapshot().mode === 'on-foot') updateAlexiaInteraction?.(dt);
     },
 
     updateLanding(dt) {
