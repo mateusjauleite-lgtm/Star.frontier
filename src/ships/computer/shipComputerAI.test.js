@@ -114,3 +114,65 @@ test('reconhecimento de voz informa indisponibilidade sem quebrar o computador',
   if (!result.started) assert.equal(result.reason, 'speech-recognition-unavailable');
   computer.onboardAI.stopVoiceRecognition();
 });
+
+test('chat da Alexia consulta telemetria e persiste mensagens no mesmo banco da nave', () => {
+  let stored = null;
+  const computer = createShipComputer({
+    shipId: 'chat-ship',
+    aiDatabaseAdapter: { load: () => stored, save: value => { stored = value; } }
+  });
+  computer.registerSystem('power', {
+    name: 'Energia principal',
+    commands: { status: () => ({ reserve: 42 }) },
+    getStatus: () => 'online'
+  });
+  computer.registerSystem('sensors', {
+    name: 'Sensores',
+    commands: {},
+    getStatus: () => 'standby'
+  });
+  computer.boot();
+
+  const answer = computer.onboardAI.processMessage('Qual a situação da nave?');
+  assert.equal(answer.ok, true);
+  assert.equal(answer.intent, 'telemetry');
+  assert.match(answer.response, /Energia principal: ONLINE/);
+  assert.match(answer.response, /Sensores: STANDBY/);
+  assert.equal(stored.messages.length, 2);
+  assert.equal(stored.version, 2);
+
+  const restored = createShipComputer({
+    shipId: 'chat-ship',
+    aiDatabaseAdapter: { load: () => stored, save: value => { stored = value; } }
+  });
+  restored.boot();
+  assert.equal(restored.onboardAI.getConversationHistory().length, 2);
+  assert.equal(restored.onboardAI.getConversationHistory()[1].content, answer.response);
+});
+
+test('mensagens escritas e comandos de voz usam o mesmo processador de conversa', () => {
+  const computer = createShipComputer();
+  computer.registerSystem('navigation', { commands: {}, getStatus: () => 'online' });
+  computer.boot();
+
+  const typed = computer.onboardAI.processMessage('Alexia, faça uma ronda dos sistemas');
+  const voice = computer.onboardAI.processUtterance('Alexia, faça uma ronda dos sistemas');
+  assert.equal(typed.intent, 'patrol');
+  assert.equal(voice.intent, typed.intent);
+  assert.equal(voice.source, 'voice');
+  assert.equal(computer.onboardAI.getConversationHistory().length, 4);
+  assert.equal(computer.onboardAI.processUtterance('faça uma ronda').reason, 'wake-name-not-detected');
+});
+
+test('a Alexia não executa alterações de sistemas sem autorização operacional', () => {
+  const computer = createShipComputer();
+  computer.registerSystem('shields', {
+    commands: { setEnabled: () => ({ accepted: true }) },
+    getStatus: () => 'online'
+  });
+  computer.boot();
+  const response = computer.onboardAI.processMessage('Desative os escudos');
+  assert.equal(response.ok, false);
+  assert.equal(response.reason, 'explicit-authorization-required');
+  assert.equal(response.intent, 'operation-blocked');
+});
