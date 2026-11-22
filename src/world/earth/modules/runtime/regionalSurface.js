@@ -194,6 +194,8 @@ export function createEarthRegionalSurfaceRuntime({
   let elapsed = 0;
   let disposed = false;
   let lastSelection = [];
+  let demActive = false;
+  let lastDemActive = null;
 
   const removeTile = key => {
     const mesh = active.get(key);
@@ -222,14 +224,15 @@ export function createEarthRegionalSurfaceRuntime({
     }
 
     let demValues = null;
-    if (typeof sampleElevationMetersBatch === 'function') {
+    if (demActive && typeof sampleElevationMetersBatch === 'function') {
       try { demValues = await sampleElevationMetersBatch(points); } catch {}
     }
     if (disposed || token !== buildToken || !lastSelection.includes(node.key)) return;
+    const hasDem = demValues && Array.from(demValues).some(Number.isFinite);
     const geometry = createEarthQuadtreeTileGeometry(node, radius, {
       segments,
       elevationSampler,
-      elevationMeters: demValues,
+      elevationMeters: hasDem ? demValues : null,
       elevationMetersToUnits
     });
     if (!geometry) return;
@@ -239,7 +242,7 @@ export function createEarthRegionalSurfaceRuntime({
     material.polygonOffsetUnits = -1;
     const mesh = new THREE.Mesh(geometry, material);
     mesh.name = `Earth-Regional-Tile-${node.key.replaceAll('/', '-')}`;
-    mesh.userData.earthQuadtree = { ...node, elevationSource: demValues ? 'regional-dem' : 'global-fallback' };
+    mesh.userData.earthQuadtree = { ...node, elevationSource: hasDem ? 'regional-dem' : 'global-fallback' };
     surface.add(mesh);
     active.set(node.key, mesh);
   }
@@ -254,13 +257,20 @@ export function createEarthRegionalSurfaceRuntime({
       context.camera.updateMatrixWorld?.();
       const cameraWorld = context.camera.getWorldPosition(new THREE.Vector3());
       const cameraLocal = surface.worldToLocal(cameraWorld);
+      const altitude = Math.max(0, cameraLocal.length() - radius);
+      demActive = altitude <= radius * .35;
       const selected = selectEarthQuadtreeTiles(cameraLocal, radius, { maxLevel, maxTiles });
       const keys = selected.map(node => node.key);
+      const demModeChanged = demActive !== lastDemActive;
       const changed = keys.length !== lastSelection.length ||
-        keys.some((key, index) => key !== lastSelection[index]);
+        keys.some((key, index) => key !== lastSelection[index]) || demModeChanged;
       if (changed) {
         buildToken++;
         lastSelection = keys;
+        lastDemActive = demActive;
+        if (demModeChanged) {
+          for (const key of [...active.keys()]) removeTile(key);
+        }
         pending = selected.filter(node => !active.has(node.key));
         for (const key of active.keys()) {
           if (!keys.includes(key)) removeTile(key);
@@ -283,6 +293,7 @@ export function createEarthRegionalSurfaceRuntime({
         maxTiles,
         tileSegments: segments,
         demEnabled: typeof sampleElevationMetersBatch === 'function',
+        demActive,
         selectedKeys: [...lastSelection]
       };
     },
