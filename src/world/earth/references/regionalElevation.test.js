@@ -23,6 +23,8 @@ test('decodes Terrarium RGB elevations in meters', () => {
   assert.equal(decodeTerrariumElevation(128, 0, 0), 0);
   assert.equal(decodeTerrariumElevation(127, 255, 0), -1);
   assert.equal(decodeTerrariumElevation(128, 0, 128), 0.5);
+  assert.ok(Number.isNaN(decodeTerrariumElevation(0, 0, 0, 0)));
+  assert.ok(Number.isNaN(decodeTerrariumElevation(0, 0, 0, 255)));
 });
 
 test('bilinearly samples a decoded DEM tile', () => {
