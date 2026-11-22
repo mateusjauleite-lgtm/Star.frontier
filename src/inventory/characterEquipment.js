@@ -294,6 +294,11 @@ export function createCharacterEquipmentSystem(gameState, {
       if (!exists) inventory.addWithOverflow(itemId, 1);
     }
 
+    if (inventory.count('ore.dilithium.raw') === 0) {
+      const legacyRaw = Math.floor(Math.max(0, Number(gameState.rawDilithiumOre) || 0));
+      const stored = inventory.addWithOverflow('ore.dilithium.raw', legacyRaw > 0 ? legacyRaw : 12);
+      if (legacyRaw > 0) gameState.rawDilithiumOre = Math.max(0, legacyRaw - stored.added);
+    }
     initialized = true;
     syncVisuals();
     publish();
@@ -363,6 +368,16 @@ export function createCharacterEquipmentSystem(gameState, {
     if (result.ok) publish();
     return result;
   }
+  function removeInstance(instanceId) {
+    if (!inventory) return { ok: false, reason: 'Inventário não inicializado.' };
+    const removed = inventory.removeInstance(instanceId);
+    if (!removed) return { ok: false, reason: 'Item não encontrado no inventário.' };
+    publish(); return { ok: true, item: publicItem(removed) };
+  }
+  function restoreInstance(item) {
+    if (!inventory || !item) return { ok: false, reason: 'Item inválido para restauração.' };
+    const restored = inventory.addInstance(item); if (restored.ok) publish(); return restored;
+  }
 
   return Object.freeze({
     initialize,
@@ -372,6 +387,8 @@ export function createCharacterEquipmentSystem(gameState, {
     toggleSlot,
     add,
     moveOverflowToInventory,
+    removeInstance,
+    restoreInstance,
     equippedItem: slot => publicItem(equipment[slot] || null),
     getOverflowItems: () => (inventory?.overflowItems || []).map(publicItem)
   });
