@@ -1,5 +1,5 @@
 export const DEFLECTOR_TERMINAL_ID = 'deflector-console';
-export const DEFLECTOR_TERMINAL_LOCAL_POSITION = Object.freeze({ x: 3.35, y: -2.72, z: -42.55 });
+export const DEFLECTOR_TERMINAL_LOCAL_POSITION = Object.freeze({ x: 4.3, y: -2.72, z: -43.0 });
 export const DEFLECTOR_TERMINAL_DISPLAY_RADIUS = 7;
 export const DEFLECTOR_TERMINAL_INTERACTION_RADIUS = 3.5;
 
