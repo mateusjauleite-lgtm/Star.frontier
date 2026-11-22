@@ -10,14 +10,17 @@ export function createDeflectorSensorSystem(core, options = {}) {
   const energyPerSecond = positive(options.energyPerSecond, DEFAULT_DRAW_PER_SECOND);
   core.registerBranch(branchId, {
     name: 'Sensores de proximidade',
-    maxDrawPerSecond: energyPerSecond
+    maxDrawPerSecond: energyPerSecond,
+    enabled: options.enabled === true
   });
-  let enabled = options.enabled !== false;
+  let enabled = options.enabled === true;
   let operational = false;
   let signalQuality = 0;
+  let contacts = [];
 
-  function update(deltaSeconds) {
+  function update(deltaSeconds, input = {}) {
     const dt = Math.max(0, finite(deltaSeconds));
+    contacts = Array.isArray(input.contacts) ? input.contacts : [];
     operational = false;
     signalQuality = 0;
     if (!enabled || dt <= 0) return snapshot();
@@ -39,7 +42,7 @@ export function createDeflectorSensorSystem(core, options = {}) {
   }
 
   function snapshot() {
-    return Object.freeze({ id: branchId, enabled, operational, signalQuality, energyPerSecond });
+    return Object.freeze({ id: branchId, enabled, operational, signalQuality, energyPerSecond, contacts, totalContacts: contacts.length });
   }
 
   return Object.freeze({ update, setEnabled, snapshot });
