@@ -59,6 +59,7 @@ export function advanceShipFlightDynamics(state, deltaSeconds) {
     if (!state.braking) state.speed = approach(state.speed, targetSpeed, WARP_ACCELERATION * dt);
     if (conventionalWarpAssist) state.speed += 18 * dt;
     const consumption = WARP_DILITHIUM_CONSUMPTION[stage] * dt;
+    state.warpDilithiumConsumedTotal = Math.max(0, Number(state.warpDilithiumConsumedTotal) || 0) + consumption;
     state.refinedDilithium = Math.max(0, refinedDilithium - consumption);
 
     if (state.refinedDilithium <= 0) {
