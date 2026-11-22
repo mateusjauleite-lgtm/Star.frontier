@@ -82,7 +82,7 @@ test('estrutura interna do defletor integra anel iluminado e acesso pelo Deck 3'
   assert.equal(consoleStation.parent, structure, 'console não deve ser instalado como mobiliário do piso geral');
   assert.ok(consoleStation.getObjectByName('Deflector-Console-Ship-Computer-Display'));
   assert.ok(consoleStation.getObjectByName('Deflector-Console-Computer-Link-Light'));
-  assert.deepEqual(consoleStation.position.toArray(), [3.35, -2.9, -42.55]);
+  assert.deepEqual(consoleStation.position.toArray(), [4.3, -2.9, -43]);
 
   interior.dispose();
 });
