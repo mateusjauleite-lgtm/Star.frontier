@@ -61,6 +61,18 @@ export function createDilithiumMatrix() {
     add(root, new THREE.TorusGeometry(0.13, 0.025, 8, 20), cyan, 'Matrix-EPS-Port-Light-' + port.id, [port.x, 0.48, port.z]);
   }
 
+  // Terminal físico lateral: a tela abre o AURORA OS dedicado da matriz.
+  const terminal = new THREE.Group();
+  terminal.name = 'Dilithium-Matrix-Ship-Computer-Terminal';
+  terminal.position.set(2.75, 0, -0.15);
+  terminal.rotation.y = -0.12;
+  add(terminal, new THREE.BoxGeometry(1.35, 0.18, 0.78), dark, 'Matrix-Terminal-Base', [0, 0.12, 0]);
+  add(terminal, new THREE.BoxGeometry(1.08, 0.92, 0.2), alloy, 'Matrix-Terminal-Body', [0, 0.62, -0.18]);
+  const screen = add(terminal, new THREE.BoxGeometry(0.94, 0.62, 0.035), plasma, 'Matrix-Terminal-Display', [0, 0.68, -0.06]);
+  screen.rotation.x = -0.12;
+  add(terminal, new THREE.BoxGeometry(0.42, 0.035, 0.04), cyan, 'Matrix-Terminal-Status-Light', [0, 0.18, 0.22]);
+  root.add(terminal);
+
   const light = new THREE.PointLight(0x28cfff, 1.4, 8);
   light.name = 'Matrix-Containment-Light';
   light.position.set(0, 1.3, 0);
