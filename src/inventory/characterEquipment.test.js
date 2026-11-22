@@ -220,3 +220,11 @@ test('transferência remove e restauração preserva a mesma pilha de minério',
 });
 
 test('migra minério bruto legado para a mochila sem duplicar o estoque da refinaria',()=>{const state=createGameState();state.rawDilithiumOre=5;const system=createSystem(state);const snapshot=system.initialize();const ore=snapshot.items.find(item=>item.definitionId==='ore.dilithium.raw');assert.equal(ore.quantity,5);assert.equal(state.rawDilithiumOre,0);});
+
+test('inventário já migrado não recria carga de minério após o jogador transferir toda a pilha', () => {
+  const state = createGameState();
+  state.dilithiumInventoryVersion = 1;
+  const system = createSystem(state);
+  const snapshot = system.initialize();
+  assert.equal(snapshot.items.some(item => item.definitionId === 'ore.dilithium.raw'), false);
+});
