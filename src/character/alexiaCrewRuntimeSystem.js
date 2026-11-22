@@ -74,13 +74,17 @@ export function createAlexiaCrewRuntimeSystem({
     priority: 40,
     initialize(context = {}) {
       actor = getActor();
-      if (!actor || !actor.group || !actor.core ||
+      ai = context.shipComputerAI || null;
+      if (!actor) {
+        context.alexiaCrew = { id: 'character:alexia', status: 'offline', moving: false };
+        return;
+      }
+      if (!actor.group || !actor.core ||
           typeof actor.initialize !== 'function' || typeof actor.update !== 'function') {
-        throw new TypeError('O corpo físico independente da Alexia não está disponível.');
+        throw new TypeError('O corpo físico independente da Alexia está incompleto.');
       }
 
       actor.initialize();
-      ai = context.shipComputerAI || null;
       ai?.bindCrewController?.(crewController);
       context.alexiaCrew = crewController;
     },
