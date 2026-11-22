@@ -92,7 +92,7 @@ export function createDilithiumMatrixTerminalRenderer({ root } = {}) {
     const branchRoot = layer.querySelector('[data-matrix-branches]');
     if (branchRoot) branchRoot.innerHTML = branches.map(([id, label, item, coreBranch]) => {
       const entry = item || {}, usage = coreBranch || {};
-      return '<article class="matrix-branch-row"><span><b>' + label + '</b><small>' + (usage.enabled === false ? 'DESATIVADA' : entry.active ? 'ATIVA' : 'EM ESPERA') + '</small></span><strong>' + number(usage.consumptionRate).toFixed(3) + ' u/s</strong><small>TOTAL ' + units(usage.consumedTotal) + '</small></article>';
+      return '<article class="matrix-branch-row"><span><b>' + label + '</b><small>' + (usage.enabled === false ? 'DESATIVADA' : (entry.active || entry.available || entry.operational) ? 'ATIVA' : 'EM ESPERA') + '</small></span><strong>' + number(usage.consumptionRate).toFixed(3) + ' u/s</strong><small>TOTAL ' + units(usage.consumedTotal) + '</small></article>';
     }).join('');
     const enabled = Boolean(matrix.enabled);
     const toggle = layer.querySelector('[data-matrix-command="matrix:setEnabled"]');
