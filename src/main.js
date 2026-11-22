@@ -799,6 +799,7 @@ async function startGame() {
         },
         engineeringTerminal,
         refineryTerminal,
+        deflectorTerminal,
         refinery: dilithiumRefinerySystem,
         mining: miningRuntimeSystem,
         pauseMenu: { document, state, resetInputs: resetTransientState },
