@@ -34,17 +34,23 @@ export function registerGameRuntimeSystems(runtime, dependencies) {
     orbitalPhysics,
     gameplay,
     warpCore: suppliedWarpCore,
-    deflector: suppliedDeflector
+    deflector: suppliedDeflector,
+    readDeflectorInputs = () => ({}),
+    onDeflectorCreated = () => {}
   } = dependencies;
   const warpCore = suppliedWarpCore || createWarpCorePowerSystem({ state, persist: saveState });
   const deflector = suppliedDeflector || createDeflectorRuntimeSystem({
-    state, persist: saveState, powerBus: warpCore.powerBus
+    state, persist: saveState, powerBus: warpCore.powerBus, readInputs: readDeflectorInputs
   });
+  onDeflectorCreated(deflector);
 
   runtime.registerSystem('entity-manager', createEntityRuntimeSystem({ manager: entityManager }));
   runtime.registerSystem('character', createCharacterRuntimeSystem(character));
   runtime.registerSystem('world', createWorldRuntimeSystem(world));
-  runtime.registerSystem('ship-computer', createShipComputerRuntimeSystem(shipComputer));
+  const shipComputerRuntime = shipComputer && typeof shipComputer.registerSystems === 'function'
+    ? { ...shipComputer, registerSystems: () => shipComputer.registerSystems(deflector) }
+    : shipComputer;
+  runtime.registerSystem('ship-computer', createShipComputerRuntimeSystem(shipComputerRuntime));
   if (shipManagementTerminal) {
     runtime.registerSystem('ship-management-terminal', createShipManagementTerminalRuntimeSystem(shipManagementTerminal));
   }
