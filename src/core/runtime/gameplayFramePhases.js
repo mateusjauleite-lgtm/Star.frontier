@@ -41,7 +41,7 @@ export function createGameplayFramePhases(getDependencies) {
   // Mantém presença, holograma e ação da Refinaria sincronizados com a posição do personagem.
   updateRefineryConsoleInteraction?.(dt);
   updateDeflectorConsoleInteraction?.(dt);
-  if (characterCore.snapshot().mode === 'on-foot') updateAlexiaInteraction?.(dt);
+  updateAlexiaInteraction?.(dt);
     },
 
     updateLanding(dt) {
