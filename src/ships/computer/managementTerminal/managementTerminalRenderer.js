@@ -87,9 +87,13 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
       if (event.target.closest('[data-management-close]')) { closeHandler?.(); return; }
       const aiAction = event.target.closest('[data-ai-action]');
       if (aiAction) {
-        const feedback = layer.querySelector('[data-ai-feedback]');
         const result = aiActionHandler?.(aiAction.dataset.aiAction);
-        if (feedback) feedback.textContent = result?.ok ? 'SOLICITAÇÃO PROCESSADA · ' + (result.report ? result.report.systemsChecked + ' SISTEMAS VERIFICADOS' : 'COMANDO ENCAMINHADO') : 'AÇÃO NÃO DISPONÍVEL · ' + (result?.reason || 'ERRO');
+        // A ação pode atualizar o Ship Computer e redesenhar a área de detalhes.
+        // Consulta o feedback depois do callback para não escrever num nó removido.
+        const feedback = layer.querySelector('[data-ai-feedback]');
+        if (feedback) feedback.textContent = result?.ok
+          ? 'SOLICITAÇÃO PROCESSADA · ' + (result.report ? result.report.systemsChecked + ' SISTEMAS VERIFICADOS' : 'COMANDO ENCAMINHADO')
+          : 'AÇÃO NÃO DISPONÍVEL · ' + (result?.reason || 'ERRO');
         return;
       }
       if (event.target.closest('[data-shield-toggle]')) {
