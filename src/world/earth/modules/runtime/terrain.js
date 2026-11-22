@@ -149,11 +149,7 @@ export function createTerrainRuntime({ options, layers }) {
         (grid.east ?? 180) > (grid.west ?? -180) &&
         (grid.north ?? 90) > (grid.south ?? -90)
       );
-      const exaggeration = Math.max(1, options.terrainVerticalExaggeration ?? 8);
-      // Visual relief is stronger than physical elevation for clear planetary depth.
-      // Collision keeps using `exaggeration` through the authoritative sampler.
-      const visualReliefMultiplier = Math.max(1, options.visualReliefMultiplier ?? 2.5);
-      const visualExaggeration = exaggeration * visualReliefMultiplier;
+      const exaggeration = Math.max(1, options.terrainVerticalExaggeration ?? 16);
       const radius = options.radius;
       let elevationRevision = 0;
       const getLodGeometries = () => surface.userData?.earthLodGeometries ?? [surface.geometry];
@@ -210,12 +206,6 @@ export function createTerrainRuntime({ options, layers }) {
         return baseUnits + (land > .5 && detailUnits !== null ? detailUnits : 0);
       };
 
-      // Same source data, separate render scale: collision remains untouched.
-      const visualElevationSampler = (longitudeDeg, latitudeDeg) => {
-        const units = elevationSampler(longitudeDeg, latitudeDeg);
-        return Number.isFinite(units) ? units * visualReliefMultiplier : units;
-      };
-
       const applyElevationToMeshes = async () => {
         const revision = ++elevationRevision;
         const vertexDirection = new THREE.Vector3();
@@ -246,9 +236,9 @@ export function createTerrainRuntime({ options, layers }) {
             if (disposed || revision !== elevationRevision) return false;
             const elevationUnits = Number.isFinite(sampledMeters?.[i])
               ? earthKernel.elevationMetersToUnits(
-                sampledMeters[i], radius, 6371.0088, visualExaggeration
+                sampledMeters[i], radius, 6371.0088, exaggeration
               )
-              : visualElevationSampler(longitudes[i], latitudes[i]);
+              : elevationSampler(longitudes[i], latitudes[i]);
             if (Number.isFinite(elevationUnits)) {
               vertexDirection.fromBufferAttribute(positions, i).normalize();
               const finalRadius = radius + elevationUnits;
@@ -284,7 +274,7 @@ export function createTerrainRuntime({ options, layers }) {
             ? { state: 'disabled', reason: 'load-disabled' }
             : { state: 'loading', source: 'procedural-fallback-active' },
         verticalExaggeration: exaggeration,
-        visualVerticalExaggeration: visualExaggeration,
+        visualVerticalExaggeration: exaggeration,
         computeBackend: earthKernel.backend,
         unitsPerKm,
         waterGeometry: false,
@@ -510,12 +500,12 @@ export function createTerrainRuntime({ options, layers }) {
       regionalSurfaceRuntime = createEarthRegionalSurfaceRuntime({
         surface,
         radius,
-        elevationSampler: visualElevationSampler,
+        elevationSampler,
         sampleElevationMetersBatch: points => regionalDemProvider.sampleBatch(points, {
           zoom: regionalDemZoom
         }),
         elevationMetersToUnits: meters => earthKernel.elevationMetersToUnits(
-          meters, radius, 6371.0088, visualExaggeration
+          meters, radius, 6371.0088, exaggeration
         ),
         maxLevel: options.regionalSurfaceMaxLevel ?? 12,
         maxTiles: options.regionalSurfaceMaxTiles ?? 48,
