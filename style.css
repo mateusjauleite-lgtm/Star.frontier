@@ -2569,3 +2569,29 @@ body * {
   .navigation-full-readouts span { padding:6px; font-size:7px; }
   .navigation-full-readouts b { font-size:9px; }
 }
+
+
+/* Menu circular contextual da tripulante Alexia */
+.crew-wheel {
+  position:absolute; z-index:80; width:184px; height:184px; transform:translate(-50%,-50%);
+  border:1px solid rgba(73,220,255,.52); border-radius:50%;
+  background:radial-gradient(circle,rgba(7,27,45,.97) 0 42%,rgba(5,18,32,.94) 70%);
+  box-shadow:0 0 24px rgba(32,190,255,.2),inset 0 0 24px rgba(32,190,255,.08);
+  color:#dff8ff; pointer-events:auto; backdrop-filter:blur(8px);
+}
+.crew-wheel.hidden,.crew-confirm.hidden { display:none !important; }
+.crew-wheel-title { position:absolute; left:50%; top:22px; transform:translateX(-50%); display:flex; flex-direction:column; align-items:center; gap:3px; color:#73e8ff; font-size:11px; font-weight:900; letter-spacing:.12em; }
+.crew-wheel-title small { color:#789dad; font-size:7px; letter-spacing:.18em; }
+.crew-wheel-option { position:absolute; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; width:68px; height:68px; border:1px solid rgba(73,220,255,.45); border-radius:50%; background:rgba(9,49,70,.94); color:#bdefff; font-size:20px; }
+.crew-wheel-option span { font-size:8px; font-weight:900; letter-spacing:.08em; }
+.crew-wheel-option small { font-size:6px; color:#789dad; }
+.crew-follow { left:10px; bottom:18px; }
+.crew-console { right:10px; bottom:18px; }
+.crew-wheel-option:disabled { opacity:.48; filter:saturate(.5); }
+.crew-wheel-close { position:absolute; top:8px; right:12px; width:27px; height:27px; border:1px solid rgba(73,220,255,.3); border-radius:50%; background:rgba(10,35,53,.9); color:#bdefff; font-size:18px; }
+.crew-confirm { position:absolute; z-index:2; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:9px; padding:15px; border-radius:50%; background:rgba(3,15,28,.97); text-align:center; }
+.crew-confirm b { color:#73e8ff; font-size:10px; letter-spacing:.1em; }
+.crew-confirm-description { color:#b9d5e2; font-size:9px; }
+.crew-confirm div { display:flex; gap:6px; }
+.crew-confirm button { min-height:29px; padding:4px 8px; border:1px solid rgba(73,220,255,.45); border-radius:7px; background:rgba(9,49,70,.95); color:#dff8ff; font-size:8px; font-weight:800; }
+.crew-wheel.is-confirming .crew-wheel-option,.crew-wheel.is-confirming .crew-wheel-title,.crew-wheel.is-confirming .crew-wheel-close { visibility:hidden; }
