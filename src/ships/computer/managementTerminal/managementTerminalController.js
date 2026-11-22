@@ -69,7 +69,7 @@ export function createShipManagementTerminalController({
     }
     if (module.id === 'onboard-ai') {
       const ai = computer.onboardAI;
-      moduleData = ai ? { available: true, label: module.label, phase: module.phase, data: ai.snapshot(), permissions: computer.listAIPermissions() } : { available: false, label: module.label, phase: module.phase, message: 'IA de bordo indisponível.' };
+      moduleData = ai ? { available: true, label: module.label, phase: module.phase, data: ai.snapshot(), permissions: computer.listAIPermissions(), conversation: ai.getConversationHistory?.(80) || [] } : { available: false, label: module.label, phase: module.phase, message: 'IA de bordo indisponível.' };
       return moduleData;
     }
     if (!module.systemId || !MODULE_COMMANDS[module.id]) {
@@ -103,13 +103,21 @@ export function createShipManagementTerminalController({
       onOpen: () => open(),
       onClose: close,
       onModuleSelect: selectModule,
+      onAIMessage: message => {
+        const ai = computer.onboardAI;
+        if (!ai?.processMessage) return { ok: false, reason: 'ai-chat-unavailable', response: 'Chat da Alexia indisponível.' };
+        const result = ai.processMessage(message, { source: 'text' });
+        refreshSelectedModule();
+        render(computer.getSnapshot());
+        return result;
+      },
       onAIAction: action => {
         const ai = computer.onboardAI;
         if (!ai) return { ok: false, reason: 'ai-unavailable' };
         let result;
         if (action === 'patrol') result = ai.runPatrol();
         else if (action === 'diagnose') result = ai.diagnose();
-        else if (action === 'voice') result = ai.startVoiceRecognition();
+        else if (action === 'voice') result = ai.startVoiceRecognition({ onResult: ({ result: voiceResult }) => { refreshSelectedModule(); render(computer.getSnapshot()); renderer.showAIResult?.(voiceResult); } });
         else if (action === 'stop-voice') result = ai.stopVoiceRecognition();
         else return { ok: false, reason: 'unknown-ai-action' };
         refreshSelectedModule(); render(computer.getSnapshot()); return result;
