@@ -53,3 +53,29 @@ test('pisos dos Decks 2 e 3 mantêm livre o volume estrutural do defletor na pro
 
   interior.dispose();
 });
+
+
+test('estrutura interna do defletor integra anel iluminado e acesso pelo Deck 3', () => {
+  const interior = createStarshipInterior();
+  const structure = interior.group.getObjectByName('Deck3-Deflector-Interior-Structure');
+  assert.ok(structure, 'estrutura interna do defletor deve estar instalada');
+
+  const collar = structure.getObjectByName('Deflector-Interior-Collar-Assembly');
+  assert.ok(collar, 'colar estrutural deve acompanhar o anel frontal');
+  assert.ok(collar.getObjectByName('Deflector-Interior-Black-Collar-Front'));
+  assert.ok(collar.getObjectByName('Deflector-Interior-Black-Collar-Rear'));
+
+  const ringLights = [];
+  collar.traverse(object => {
+    if (object.name.startsWith('Deflector-Interior-Ring-Light-')) ringLights.push(object);
+  });
+  assert.equal(ringLights.length, 24, 'anel deve ter 24 luzes distribuídas ao redor');
+
+  const access = structure.getObjectByName('Deck3-Deflector-Maintenance-Access');
+  assert.ok(access, 'passarela de manutenção deve ligar o Deck 3 ao defletor');
+  assert.ok(access.getObjectByName('Deflector-Access-Catwalk'));
+  assert.ok(access.getObjectByName('Deflector-Access-Deck3-Entry-Header'));
+  assert.equal(structure.userData.depth, 1.5);
+
+  interior.dispose();
+});
