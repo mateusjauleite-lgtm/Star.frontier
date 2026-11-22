@@ -56,6 +56,7 @@ export function createShipComputerAI({
   const listeners = new Set();
   let aiName = database.identity.name;
   let voiceRecognition = null;
+  let crewController = null;
   let voiceState = (globalThis.SpeechRecognition || globalThis.webkitSpeechRecognition) ? 'ready' : 'unsupported';
 
   function persist() {
@@ -118,8 +119,22 @@ export function createShipComputerAI({
         updatedAt: database.updatedAt
       },
       voice: { state: voiceState, supported: voiceState !== 'unsupported' },
-      knownSystems: getSystemIds()
+      knownSystems: getSystemIds(),
+      crew: crewController ? crewController.getSnapshot() : { status: 'unbound' }
     };
+  }
+
+  function bindCrewController(controller) {
+    if (controller === null) {
+      crewController = null;
+      return { accepted: true, connected: false };
+    }
+    if (!controller || typeof controller.getSnapshot !== 'function' ||
+        typeof controller.move !== 'function' || typeof controller.stop !== 'function') {
+      return { accepted: false, reason: 'invalid-crew-controller' };
+    }
+    crewController = controller;
+    return { accepted: true, connected: true, crew: crewController.getSnapshot() };
   }
 
   function setName(name) {
@@ -273,7 +288,23 @@ export function createShipComputerAI({
     if (/\b(status|situacao|telemetria|sistemas|estado da nave|como esta a nave)\b/.test(command)) {
       return { ok: true, intent: 'telemetry', response: formatSystemsTelemetry(), telemetry: clone(getSnapshot()) };
     }
-    if (/\b(execute|ative|desative|ligue|desligue|repare|ajuste|modifique|transfira|inicie)\b/.test(command)) {
+    if (/\b(pare|parar|interrompa|fique parada|fique imovel)\b/.test(command)) {
+      if (!crewController) return { ok: false, intent: 'crew-unavailable', response: 'Meu corpo físico ainda não está conectado ao Runtime.' };
+      const result = crewController.stop();
+      return { ok: true, intent: 'crew-stop', result, response: 'Movimento interrompido. Estou parada.' };
+    }
+
+    const movementRequest = command.match(/\b(?:ande|caminhe|avance|mova-se|va|siga)\s+(?:para\s+)?(frente|tras|esquerda|direita)\b/);
+    if (movementRequest) {
+      if (!crewController) return { ok: false, intent: 'crew-unavailable', response: 'Meu corpo físico ainda não está conectado ao Runtime.' };
+      const direction = ({ frente: 'forward', tras: 'backward', esquerda: 'left', direita: 'right' })[movementRequest[1]];
+      const result = crewController.move({ direction, durationSeconds: 2 });
+      return result.accepted
+        ? { ok: true, intent: 'crew-move', result, response: \`Iniciando deslocamento curto para \${movementRequest[1]}.\` }
+        : { ok: false, intent: 'crew-move-rejected', result, response: 'Não consegui iniciar esse deslocamento.' };
+    }
+
+    if (/\b(execute|ative|desative|ligue|desligue|repare|ajuste|modifique|transfira|inicie)\b/.test(command))
       return {
         ok: false,
         reason: 'explicit-authorization-required',
@@ -376,6 +407,7 @@ export function createShipComputerAI({
 
   return Object.freeze({
     snapshot,
+    bindCrewController,
     setName,
     getDatabase: () => clone(database),
     learn,
