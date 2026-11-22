@@ -36,6 +36,7 @@ test('ativar dobra inicia no estágio 5 e acelera progressivamente sem consumir 
   assert.equal(state.speed, 11.3);
   assert.equal(state.fuel, 100);
   assert.ok(state.refinedDilithium < 100);
+  assert.ok(state.warpDilithiumConsumedTotal > 0);
   assert.equal(state.warpTransition, 'entering');
 });
 
