@@ -2573,7 +2573,7 @@ body * {
 
 /* Menu circular contextual da tripulante Alexia */
 .crew-wheel {
-  position:absolute; z-index:80; width:184px; height:184px; transform:translate(-50%,-50%);
+  position:fixed; z-index:80; width:184px; height:184px; transform:translate(-50%,-50%);
   border:1px solid rgba(73,220,255,.52); border-radius:50%;
   background:radial-gradient(circle,rgba(7,27,45,.97) 0 42%,rgba(5,18,32,.94) 70%);
   box-shadow:0 0 24px rgba(32,190,255,.2),inset 0 0 24px rgba(32,190,255,.08);
