@@ -13,7 +13,6 @@ export const state = {
   refineryTransferEnabled: false,
   refineryRefinedTotal: 0,
   refineryTransferredTotal: 0,
-  coreDilithiumConsumedTotal: 0,
   deflectorCoreEnergy: 0,
   deflectorCoreEnabled: true,
   deflectorCoreChargingEnabled: true,

@@ -320,3 +320,6 @@ test('RuntimeBridge runs gameplay phases before sampling orbital telemetry', asy
   assert.equal(bridge.frameCount, 1);
   await bridge.shutdown();
 });
+
+
+test('Runtime registra o terminal e o ciclo da Refinaria quando injetados',()=>{const runtime=fakeRuntime();const refinery={initialize:async()=>{},update(){},shutdown(){}};const refineryTerminal={initialize(){},shutdown(){}};registerGameRuntimeSystems(runtime,{...dependencies(),refinery,refineryTerminal});assert.ok(runtime.systems.some(x=>x.name==='refinery-terminal'&&x.priority===38));assert.ok(runtime.systems.some(x=>x.name==='dilithium-refinery'&&x.priority===46));});

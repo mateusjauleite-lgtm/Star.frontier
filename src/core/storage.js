@@ -83,6 +83,7 @@ export function loadState() {
     if (!data) return false;
 
     Object.assign(state, data);
+    delete state.coreDilithiumConsumedTotal;
     normalizeDeflectorState(data);
     // Reservas antigas de Nitro/dobra eram percentuais; não são convertidas
     // em massa de dilítio. Saves antigos recebem apenas o saldo inicial configurado.

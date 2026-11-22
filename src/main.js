@@ -91,14 +91,6 @@ const engineeringRenderer = createEngineeringTerminalRenderer({
     const response = engineeringTerminal?.dispatch('engineering', 'setWarpActive', { active });
     if (!response?.ok || !response.result?.accepted) toast('Dobra indisponível: verifique o dilítio refinado.');
   },
-  onRefineryToggle: enabled => {
-    const response = engineeringTerminal?.dispatch('refinery', 'setRefineryEnabled', { enabled });
-    if (!response?.ok || !response.result?.accepted) toast('Comando bloqueado: console central de energia tem prioridade.');
-  },
-  onTransferToggle: enabled => {
-    const response = engineeringTerminal?.dispatch('refinery', 'setTransferEnabled', { enabled });
-    if (!response?.ok || !response.result?.accepted) toast('Transferência não autorizada pelo núcleo.');
-  }
 });
 engineeringRenderer.mount();
 const refineryRenderer = createRefineryTerminalRenderer({ root: $('game-screen') });
@@ -2172,10 +2164,12 @@ function updateCharacterWeapon(dt) {
 $('character-action-btn')?.addEventListener('click', () => {
   if (externalElevatorActionAvailable) activateExternalElevator();
   else if (refineryInteractionAvailable || refineryConsoleActive) toggleRefineryConsole();
+  else if (refineryInteractionAvailable || refineryConsoleActive) toggleRefineryConsole();
   else if (engineeringInteractionAvailable || engineeringConsoleActive) toggleEngineeringConsole();
   else enterPilotMode();
 });
 window.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && refineryConsoleActive) { refineryTerminal?.close(); return; }
   if (event.key === 'Escape' && shipManagementTerminal.getSnapshot().open) {
     shipManagementTerminal.close();
   }
