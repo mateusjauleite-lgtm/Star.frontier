@@ -2357,7 +2357,7 @@ $('inventory-overflow-grid')?.addEventListener('click', event => {
   const item = characterEquipment.snapshot().overflowItems.find(entry => entry.instanceId === instanceId);
   if (!item) return;
   if (item.definitionId === DILITHIUM_ORE_ITEM_ID) {
-    if (!refineryConsoleActive) { toast('Abra o console da Refinaria no Deck 3 para transferir o minério.'); return; }
+    if (!refineryConsoleActive || !refineryInventoryTransferMode) { toast('Use o compartimento de recebimento da Refinaria para enviar este minério.'); return; }
     if (!dilithiumRefinerySystem.canReceiveRawOre(item.quantity).accepted) { toast('Compartimento de minério bruto cheio.'); return; }
     const removed = characterEquipment.removeInstance(instanceId); if (!removed.ok) { toast(removed.reason); return; }
     const received = dilithiumRefinerySystem.receiveRawOre(removed.item.quantity);
