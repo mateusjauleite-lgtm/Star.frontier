@@ -216,6 +216,7 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
       const rawNode = layer.querySelector('[data-warp-core-raw]');
       const consumptionNode = layer.querySelector('[data-warp-core-consumption]');
       const stageNode = layer.querySelector('[data-warp-core-stage]');
+      const consumedNode = layer.querySelector('[data-warp-core-consumed-total]');
       const input = layer.querySelector('[data-power-transfer-amount]');
       const button = layer.querySelector('[data-power-transfer]');
       if (bufferNode) bufferNode.textContent = buffer.toFixed(2) + ' u';
@@ -224,6 +225,7 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
       if (rawNode) rawNode.textContent = rawOre.toFixed(2) + ' u';
       if (consumptionNode) consumptionNode.textContent = (Number(core.consumptionRate) || 0).toFixed(3) + ' u/s';
       if (stageNode) stageNode.textContent = core.active ? `DOBRA ${Number(core.stage) || 0} · ATIVA` : 'DESATIVADA';
+      if (consumedNode) consumedNode.textContent = (Number(core.consumedTotal) || 0).toFixed(2) + ' u';
       if (input) input.max = transferable.toFixed(2);
       if (button) button.disabled = !moduleData?.available || !refinery?.available || transferable <= 0;
     }
