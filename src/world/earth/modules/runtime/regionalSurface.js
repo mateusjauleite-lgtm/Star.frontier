@@ -70,7 +70,10 @@ function targetEarthQuadtreeLevel(altitude, radius, maxLevel) {
 
 export function selectEarthQuadtreeTiles(cameraLocalPosition, radius, {
   maxLevel = 12,
-  maxTiles = 48
+  maxTiles = 48,
+  cameraForwardLocal = null,
+  cameraFovDeg = 75,
+  cameraAspect = 1
 } = {}) {
   if (!cameraLocalPosition?.isVector3 || !Number.isFinite(radius) || radius <= 0) return [];
   const distance = cameraLocalPosition.length();
@@ -79,10 +82,25 @@ export function selectEarthQuadtreeTiles(cameraLocalPosition, radius, {
   const altitude = Math.max(0, distance - radius);
   const horizonAngle = Math.acos(THREE.MathUtils.clamp(radius / distance, -1, 1));
   const targetLevel = targetEarthQuadtreeLevel(altitude, radius, maxLevel);
+  const forward = cameraForwardLocal?.isVector3
+    ? cameraForwardLocal.clone().normalize()
+    : null;
+  const halfFov = THREE.MathUtils.degToRad(
+    THREE.MathUtils.clamp(cameraFovDeg, 10, 150) * .5
+  );
+  const aspect = THREE.MathUtils.clamp(cameraAspect || 1, .5, 3);
+  const diagonalHalfFov = Math.atan(Math.tan(halfFov) * Math.sqrt(1 + aspect * aspect));
   const visible = node => {
     const center = earthQuadtreeNodeCenter(node);
-    const angle = Math.acos(THREE.MathUtils.clamp(direction.dot(center), -1, 1));
-    return angle <= horizonAngle + earthQuadtreeNodeAngularRadius(node);
+    const angularRadius = earthQuadtreeNodeAngularRadius(node);
+    const horizonDistance = Math.acos(THREE.MathUtils.clamp(direction.dot(center), -1, 1));
+    if (horizonDistance > horizonAngle + angularRadius) return false;
+    if (!forward) return true;
+    const tilePosition = center.multiplyScalar(radius);
+    const toTile = tilePosition.sub(cameraLocalPosition);
+    if (toTile.lengthSq() < 1e-8) return true;
+    const viewAngle = Math.acos(THREE.MathUtils.clamp(forward.dot(toTile.normalize()), -1, 1));
+    return viewAngle <= diagonalHalfFov + angularRadius;
   };
 
   let leaves = Array.from({ length: 6 }, (_, face) => createEarthQuadtreeNode(face))
@@ -269,8 +287,17 @@ export function createEarthRegionalSurfaceRuntime({
       const cameraLocal = surface.worldToLocal(cameraWorld);
       const altitude = Math.max(0, cameraLocal.length() - radius);
       demActive = altitude <= radius * .08;
+      const cameraForwardWorld = context.camera.getWorldDirection(new THREE.Vector3());
+      const forwardLocal = surface.worldToLocal(cameraWorld.clone().add(cameraForwardWorld))
+        .sub(cameraLocal).normalize();
       const selected = altitude <= radius * 1.5
-        ? selectEarthQuadtreeTiles(cameraLocal, radius, { maxLevel, maxTiles })
+        ? selectEarthQuadtreeTiles(cameraLocal, radius, {
+          maxLevel,
+          maxTiles,
+          cameraForwardLocal: forwardLocal,
+          cameraFovDeg: context.camera.fov ?? 75,
+          cameraAspect: context.camera.aspect ?? 1
+        })
         : [];
       const keys = selected.map(node => node.key);
       const demModeChanged = demActive !== lastDemActive;
