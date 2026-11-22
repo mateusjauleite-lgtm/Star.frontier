@@ -116,7 +116,8 @@ export function createEarthQuadtreeTileGeometry(node, radius, {
   elevationSampler = null,
   elevationMeters = null,
   elevationMetersToUnits = null,
-  skirtUnits = 0.04
+  skirtUnits = 0.002,
+  demEdgeBlend = 0.12
 } = {}) {
   if (!node || !Number.isFinite(radius) || radius <= 0 ||
       !Number.isInteger(segments) || segments < 2) return null;
@@ -144,8 +145,17 @@ export function createEarthQuadtreeTileGeometry(node, radius, {
       const fallbackUnits = typeof elevationSampler === 'function'
         ? elevationSampler(geographic.longitudeDeg, geographic.latitudeDeg)
         : 0;
-      const elevation = Number.isFinite(demUnits) ? demUnits
-        : Number.isFinite(fallbackUnits) ? fallbackUnits : 0;
+      const safeFallback = Number.isFinite(fallbackUnits) ? fallbackUnits : 0;
+      const edgeDistance = Math.min(
+        column / segments, 1 - column / segments,
+        row / segments, 1 - row / segments
+      );
+      const edgeBlend = THREE.MathUtils.smoothstep(
+        edgeDistance, 0, Math.max(.001, demEdgeBlend)
+      );
+      const elevation = Number.isFinite(demUnits)
+        ? THREE.MathUtils.lerp(safeFallback, demUnits, edgeBlend)
+        : safeFallback;
       const finalRadius = radius + elevation + skirtUnits;
       positions[vertex++] = direction.x * finalRadius;
       positions[vertex++] = direction.y * finalRadius;
@@ -282,7 +292,7 @@ export function createEarthRegionalSurfaceRuntime({
         const token = buildToken;
         const batch = pending.splice(0, Math.max(1, buildPerUpdate));
         building = true;
-        Promise.all(batch.map(node => buildTile(node, token)))
+        Promise.all(batch.map(node => buildTile(node, token).catch(() => null)))
           .finally(() => { building = false; });
       }
     },
