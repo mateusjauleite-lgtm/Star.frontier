@@ -191,6 +191,7 @@ const characterHUD = createCharacterHUD(document);
 let characterCameraMode = 'third-person';
 let characterCameraInitialized = false;
 let characterModel = null;
+let alexiaCharacter = null;
 let shipManagementHologram = null;
 let engineeringHologram = null;
 let refineryHologram = null;
@@ -810,6 +811,7 @@ async function startGame() {
       const runtimeKernel = await loadRuntimeKernel({ maximumDeltaSeconds: 0.04 });
       runtimeBridge = createRuntimeBridge(runtimeKernel);
       registerGameRuntimeSystems(runtimeBridge, {
+        getAlexiaCharacter: () => alexiaCharacter,
         shipManagementTerminal,
         onDeflectorCreated: deflectorRuntime => { window.__starFrontierDeflectorRuntime = deflectorRuntime; },
         readDeflectorInputs: () => {
@@ -848,6 +850,7 @@ async function startGame() {
               earthSystem,
               ship,
               characterModel,
+              alexiaCharacter,
               stationSystem,
               starshipInterior,
               externalElevator,
@@ -1116,6 +1119,7 @@ async function init3D() {
     nearbyElevator,
     activeDeckIndex,
     characterModel,
+    alexiaCharacter,
     characterAnimator,
     characterWeaponController,
     characterPhysics
