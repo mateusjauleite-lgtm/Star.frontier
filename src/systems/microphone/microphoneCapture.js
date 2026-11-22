@@ -71,6 +71,7 @@ export function createMicrophoneCapture(options = {}) {
       stream = pendingStream;
       input = connection;
       pendingStream = null;
+      const connectionStream = stream;
 
       for (const track of tracks) {
         track.addEventListener?.('ended', () => {
@@ -79,7 +80,6 @@ export function createMicrophoneCapture(options = {}) {
           emit('microphone-track-ended');
         }, { once: true });
       }
-      const connectionStream = stream;
       emit('microphone-started');
       return { ok: true, active: true, tracks: tracks.length };
     } catch (error) {
