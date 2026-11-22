@@ -38,6 +38,7 @@ export function createGameplayFramePhases(getDependencies) {
   }
   updateShipManagementInteraction(dt);
   updateEngineeringConsoleInteraction?.(dt);
+  // Mantém presença, holograma e ação da Refinaria sincronizados com a posição do personagem.
   updateRefineryConsoleInteraction?.(dt);
     },
 
