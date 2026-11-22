@@ -37,6 +37,7 @@ function createHarness() {
   let pitchAngle = -0.2;
   const computer = createShipComputer();
   Object.assign(state, { rawDilithiumOre: 12, refineryRefinedStorage: 3, refineryEnabled: true, refineryTransferEnabled: false, refineryRefinedTotal: 0, refineryTransferredTotal: 0 });
+  state.warpDilithiumConsumedTotal = 4.5;
   const refinerySystem = createDilithiumRefinerySystem(state);
   computer.registerTerminal({ id: 'ship-management-terminal', name: 'Terminal de gerenciamento', systems: ['navigation', 'sensors', 'engineering', 'power'] });
   computer.registerTerminal({ id: 'pilot-console', name: 'Console de pilotagem', systems: ['navigation', 'propulsion'] });
@@ -112,6 +113,22 @@ test('energia informa reserva real de dilítio e estado da dobra', () => {
   const powerTelemetry = computer.dispatch('ship-management-terminal', 'power', 'status');
   assert.equal(powerTelemetry.result.refinery.available, true);
   assert.equal(powerTelemetry.result.refinery.refinedBuffer, 3);
+});
+
+test('aplicativo do núcleo informa reserva, estágio e taxa real de consumo', () => {
+  const { computer, state } = createHarness();
+  state.warpDriveActive = true;
+  state.warpCurrentStage = 5;
+  const response = computer.dispatch('ship-management-terminal', 'power', 'status');
+  assert.equal(response.ok, true);
+  assert.equal(response.result.warpCore.reserve, state.refinedDilithium);
+  assert.equal(response.result.warpCore.stage, 5);
+  assert.equal(response.result.warpCore.active, true);
+  assert.equal(response.result.warpCore.consumptionRate, 0.045);
+  assert.equal(response.result.warpCore.consumedTotal, 4.5);
+  assert.equal(response.result.warpCore.conventionalFuelConsumptionRate, 0);
+  assert.equal(computer.dispatch('engineering-console', 'power', 'status').ok, true);
+  assert.equal(computer.dispatch('pilot-console', 'power', 'status').reason, 'access-denied');
 });
 
 test('controles do piloto passam pelo Ship Computer e ativam dobra no estágio 5', () => {
