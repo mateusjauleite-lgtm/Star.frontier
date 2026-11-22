@@ -80,6 +80,9 @@ export function createDilithiumMatrixTerminalRenderer({ root } = {}) {
     txt('[data-matrix-plasma-rate]', number(plasma.consumptionRate).toFixed(3) + ' u/s');
     txt('[data-matrix-generated]', units(p.generatedTotal));
     txt('[data-matrix-delivered]', units(p.deliveredTotal));
+    txt('[data-matrix-deflector-transferred]', units(deflector.transferredTotal));
+    txt('[data-matrix-deflector-consumed]', units(deflector.consumedTotal));
+    txt('[data-matrix-deflector-rates]', number(deflector.transferRate).toFixed(2) + ' / ' + number(deflector.consumptionRate).toFixed(2) + ' u/s');
     txt('[data-matrix-deflector-energy]', units(deflector.energy));
     txt('[data-matrix-deflector-capacity]', units(deflector.capacity));
     fill('[data-matrix-plasma-fill]', plasma.capacity ? plasma.amount / plasma.capacity : 0);
@@ -92,7 +95,12 @@ export function createDilithiumMatrixTerminalRenderer({ root } = {}) {
     const branchRoot = layer.querySelector('[data-matrix-branches]');
     if (branchRoot) branchRoot.innerHTML = branches.map(([id, label, item, coreBranch]) => {
       const entry = item || {}, usage = coreBranch || {};
-      return '<article class="matrix-branch-row"><span><b>' + label + '</b><small>' + (usage.enabled === false ? 'DESATIVADA' : (entry.active || entry.available || entry.operational) ? 'ATIVA' : 'EM ESPERA') + '</small></span><strong>' + number(usage.consumptionRate).toFixed(3) + ' u/s</strong><small>TOTAL ' + units(usage.consumedTotal) + '</small></article>';
+      const details = id === 'emitter' ? 'CAMPO ' + percent(entry.fieldStrength) + ' · TAXA NOMINAL ' + number(entry.energyPerSecond).toFixed(2) + ' u/s'
+        : id === 'sensors' ? 'SINAL ' + percent(entry.signalQuality) + ' · CONTATOS ' + number(entry.totalContacts)
+          : id === 'navigation' ? 'RISCO ' + String(entry.routeRisk || 'indefinido').toUpperCase() + ' · VELOCIDADE ' + number(entry.speed).toFixed(0)
+            : id === 'protection' ? 'FORÇA ' + percent(entry.strength) + ' · ' + String(entry.reason || 'standby').toUpperCase()
+              : 'MODO ' + String(entry.mode || 'passive').toUpperCase() + ' · PULSOS ' + units(entry.pulseTotal);
+      return '<article class="matrix-branch-row"><span><b>' + label + '</b><small>' + (usage.enabled === false ? 'DESATIVADA' : (entry.active || entry.available || entry.operational) ? 'ATIVA' : 'EM ESPERA') + '</small></span><strong>' + number(usage.consumptionRate).toFixed(3) + ' u/s</strong><small>TOTAL CONSUMIDO ' + units(usage.consumedTotal) + '</small><small class="matrix-branch-detail">' + details + '</small></article>';
     }).join('');
     const enabled = Boolean(matrix.enabled);
     const toggle = layer.querySelector('[data-matrix-command="matrix:setEnabled"]');
