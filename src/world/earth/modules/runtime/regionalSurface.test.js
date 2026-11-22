@@ -1,0 +1,56 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import * as THREE from 'three';
+import {
+  earthCubeFaceDirection,
+  earthDirectionToLatLon,
+  createEarthQuadtreeNode,
+  getEarthQuadtreeChildren,
+  selectEarthQuadtreeTiles,
+  createEarthQuadtreeTileGeometry
+} from './regionalSurface.js';
+
+test('cube-sphere faces produce normalized directions', () => {
+  for (let face = 0; face < 6; face++) {
+    const direction = earthCubeFaceDirection(face, 0, 0);
+    assert.ok(Math.abs(direction.length() - 1) < 1e-10);
+  }
+});
+
+test('cube-sphere direction converts to valid geographic coordinates', () => {
+  const geographic = earthDirectionToLatLon(earthCubeFaceDirection(4, 0, 0));
+  assert.equal(geographic.longitudeDeg, 90);
+  assert.equal(geographic.latitudeDeg, 0);
+});
+
+test('quadtree creates four deterministic children per node', () => {
+  const root = createEarthQuadtreeNode(2);
+  const children = getEarthQuadtreeChildren(root);
+  assert.equal(children.length, 4);
+  assert.deepEqual(children.map(node => node.key), [
+    '2/1/0/0', '2/1/1/0', '2/1/0/1', '2/1/1/1'
+  ]);
+});
+
+test('quadtree rejects invalid tile coordinates', () => {
+  assert.equal(createEarthQuadtreeNode(6), null);
+  assert.equal(createEarthQuadtreeNode(0, 2, 4, 0), null);
+});
+
+test('near-surface selection is bounded by the regional tile budget', () => {
+  const camera = new THREE.Vector3(0, 0, 601);
+  const tiles = selectEarthQuadtreeTiles(camera, 600, { maxLevel: 12, maxTiles: 32 });
+  assert.ok(tiles.length > 0);
+  assert.ok(tiles.length <= 32);
+  assert.ok(tiles.every(tile => tile.level <= 12));
+});
+
+test('tile geometry uses the requested segment budget and finite positions', () => {
+  const geometry = createEarthQuadtreeTileGeometry(createEarthQuadtreeNode(4), 600, {
+    segments: 8,
+    elevationSampler: () => 0.25
+  });
+  assert.equal(geometry.attributes.position.count, 81);
+  for (const value of geometry.attributes.position.array) assert.ok(Number.isFinite(value));
+  geometry.dispose();
+});
