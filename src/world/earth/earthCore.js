@@ -119,7 +119,7 @@ export function createEarthCore(options = {}) {
           id: planetaryProfile.id,
           physicalMeanRadiusKm: planetaryProfile.physical.meanRadiusKm,
           visualRadiusUnits: planetaryProfile.render.visualRadiusUnits,
-          visualUnitsPerKm: planetaryProfile.render.visualUnitsPerKm
+          visualUnitsPerKm: planetaryProfile.render.visualUnitsPerKm,\n          metersPerVisualUnit: planetaryProfile.render.metersPerVisualUnit,\n          renderUnitsPerMeter: planetaryProfile.physicalScale.renderUnitsPerMeter
         },
         terrain: layers.terrain ? {
           elevationSource: layers.terrain.elevationSource,
