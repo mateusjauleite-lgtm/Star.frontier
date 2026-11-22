@@ -2599,7 +2599,7 @@ const miningRuntimeSystem = createMiningRuntimeSystem({
   save,
   updateWallet,
   shipAudio,
-  toast
+  toast,
   addDilithiumOre: quantity => characterEquipment.add(DILITHIUM_ORE_ITEM_ID, quantity)
 });
 
