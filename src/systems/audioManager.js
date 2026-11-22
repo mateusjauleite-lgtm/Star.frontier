@@ -1,11 +1,12 @@
 /**
  * Gerenciador único de Áudio e Microfone do Star Frontier.
- *
- * Compõe o Audio Core existente com a captura de entrada. Não solicita
- * permissão durante a inicialização: o pedido só ocorre após ação explícita.
- * A captura é analisada, mas não é reproduzida nos alto-falantes por padrão.
+ * Orquestra o Audio Core e os módulos especializados de microfone.
+ * A inicialização consulta capacidades/permissões, mas nunca solicita captura.
  */
 import { audioCore } from './audio.js';
+import { getMicrophoneCapabilities } from './microphone/microphoneCapabilities.js';
+import { createMicrophonePermissionController, classifyMicrophoneError } from './microphone/microphonePermission.js';
+import { createMicrophoneCapture } from './microphone/microphoneCapture.js';
 
 const STORAGE_KEY = 'star-frontier.audio-settings.v1';
 
@@ -14,12 +15,14 @@ export function createAudioManager(options = {}) {
   const mediaDevices = options.mediaDevices ?? globalThis.navigator?.mediaDevices ?? null;
   const permissions = options.permissions ?? globalThis.navigator?.permissions ?? null;
   const storage = options.storage ?? safeLocalStorage();
+  const capabilities = getMicrophoneCapabilities({
+    mediaDevices, permissions, secureContext: options.secureContext
+  });
+  const permission = createMicrophonePermissionController({ mediaDevices, permissions });
   const listeners = new Set();
-  let stream = null;
-  let inputConnection = null;
-  let permissionState = 'unknown';
   let lastError = null;
   let disposed = false;
+  let initializationPromise = null;
   let settings = loadSettings(storage, options.initialSettings);
 
   function emit(reason) {
@@ -39,7 +42,18 @@ export function createAudioManager(options = {}) {
     }
   }
 
+  const capture = createMicrophoneCapture({
+    mediaDevices,
+    connectInputStream: (stream, captureOptions) => core.connectInputStream(stream, captureOptions),
+    onChange: (_snapshot, reason) => emit(reason)
+  });
+
+  const unsubscribePermission = permission.onChange((state, reason) => {
+    emit(reason || 'microphone-permission-change');
+  });
+
   function getSnapshot() {
+    const captureState = capture.getSnapshot();
     return {
       output: {
         ready: Boolean(core.isReady),
@@ -50,10 +64,14 @@ export function createAudioManager(options = {}) {
         busVolumes: { ...settings.busVolumes }
       },
       microphone: {
-        supported: Boolean(mediaDevices?.getUserMedia),
-        permission: permissionState,
-        active: Boolean(stream?.getAudioTracks?.().some(track => track.readyState === 'live' && track.enabled)),
-        inputLevel: inputConnection?.getLevel?.() ?? 0,
+        supported: capabilities.supported,
+        secureContext: capabilities.secureContext,
+        capabilityError: capabilities.reason,
+        recognitionSupported: capabilities.speechRecognition,
+        permission: permission.state,
+        active: captureState.active,
+        inputLevel: captureState.inputLevel,
+        trackCount: captureState.trackCount,
         error: lastError
       },
       disposed
@@ -67,117 +85,53 @@ export function createAudioManager(options = {}) {
   }
 
   async function refreshMicrophonePermission() {
-    if (!mediaDevices?.getUserMedia) {
-      permissionState = 'unsupported';
-      emit('microphone-unsupported');
-      return permissionState;
-    }
-    if (permissions?.query) {
-      try {
-        const result = await permissions.query({ name: 'microphone' });
-        permissionState = result.state || 'unknown';
-        result.onchange = () => {
-          permissionState = result.state || 'unknown';
-          emit('microphone-permission-change');
-        };
-      } catch {
-        // Alguns WebViews não implementam Permissions API para microfone.
-        permissionState = 'prompt';
-      }
-    } else {
-      permissionState = 'prompt';
-    }
-    emit('microphone-permission-refresh');
-    return permissionState;
+    if (disposed) return permission.state;
+    return permission.inspect();
+  }
+
+  function initialize() {
+    if (disposed) return Promise.resolve(getSnapshot());
+    if (initializationPromise) return initializationPromise;
+    initializationPromise = (async () => {
+      await refreshMicrophonePermission();
+      emit('audio-manager-initialized');
+      return getSnapshot();
+    })();
+    return initializationPromise;
   }
 
   async function requestMicrophoneAccess(constraints = {}) {
     if (disposed) return { ok: false, reason: 'manager-disposed' };
-    if (!mediaDevices?.getUserMedia) {
-      permissionState = 'unsupported';
-      lastError = 'microphone-api-unavailable';
+    if (!capabilities.supported) {
+      lastError = capabilities.reason || 'microphone-api-unavailable';
       emit('microphone-unsupported');
       return { ok: false, reason: lastError, snapshot: getSnapshot() };
     }
-    if (globalThis.isSecureContext === false) {
-      lastError = 'secure-context-required';
-      emit('microphone-error');
-      return { ok: false, reason: lastError, snapshot: getSnapshot() };
-    }
 
-    stopMicrophone();
     lastError = null;
     emit('microphone-requesting');
-
-    let pendingStream = null;
-    try {
-      // Deve ser chamado diretamente após toque/clique do usuário para abrir
-      // o fluxo de autorização do navegador/WebView/Android.
-      const requestedStream = await mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-          ...constraints
-        },
-        video: false
-      });
-      pendingStream = requestedStream;
-      const tracks = requestedStream.getAudioTracks?.() || [];
-      if (tracks.length === 0) {
-        for (const track of requestedStream.getTracks?.() || []) track.stop();
-        throw new Error('no-audio-track');
-      }
-      const connection = core.connectInputStream(requestedStream, { id: 'star-frontier-microphone' });
-      stream = requestedStream;
-      pendingStream = null;
-      inputConnection = connection;
-      permissionState = 'granted';
-      for (const track of tracks) {
-        track.addEventListener?.('ended', () => {
-          if (stream !== requestedStream) return;
-          stopMicrophone();
-          permissionState = 'unknown';
-          emit('microphone-track-ended');
-        }, { once: true });
-      }
+    const result = await capture.start(constraints);
+    if (result.ok) {
+      permission.setState('granted', 'microphone-permission-granted');
       emit('microphone-started');
-      return { ok: true, active: true, tracks: tracks.length, snapshot: getSnapshot() };
-    } catch (error) {
-      for (const track of pendingStream?.getTracks?.() || []) {
-        try { track.stop(); } catch {}
-      }
-      const name = error?.name || '';
-      if (name === 'NotAllowedError' || name === 'PermissionDeniedError' || name === 'SecurityError') {
-        permissionState = 'denied';
-        lastError = 'permission-denied';
-      } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
-        lastError = 'microphone-device-not-found';
-      } else if (name === 'NotReadableError' || name === 'TrackStartError') {
-        lastError = 'microphone-device-busy';
-      } else {
-        lastError = error?.message || 'microphone-request-failed';
-      }
-      emit('microphone-error');
-      return { ok: false, reason: lastError, snapshot: getSnapshot() };
+      return { ok: true, active: true, tracks: result.tracks, snapshot: getSnapshot() };
     }
+
+    const classified = classifyMicrophoneError(result.error);
+    lastError = result.reason === 'no-audio-track'
+      ? 'microphone-no-audio-track'
+      : classified.reason;
+    if (classified.permission) permission.setState(classified.permission, 'microphone-permission-denied');
+    emit('microphone-error');
+    return { ok: false, reason: lastError, snapshot: getSnapshot() };
   }
 
   function stopMicrophone() {
-    const hadStream = Boolean(stream);
-    inputConnection?.disconnect?.();
-    inputConnection = null;
-    if (stream) {
-      for (const track of stream.getTracks?.() || []) {
-        try { track.stop(); } catch {}
-      }
-    }
-    stream = null;
-    if (hadStream) emit('microphone-stopped');
-    return hadStream;
+    return capture.stop();
   }
 
   async function unlockOutput() {
+    if (disposed) return false;
     try {
       const unlocked = await core.unlock();
       emit('output-unlocked');
@@ -216,7 +170,9 @@ export function createAudioManager(options = {}) {
 
   function dispose() {
     if (disposed) return;
-    stopMicrophone();
+    capture.dispose();
+    unsubscribePermission();
+    permission.dispose();
     disposed = true;
     listeners.clear();
   }
@@ -228,6 +184,7 @@ export function createAudioManager(options = {}) {
   }
 
   return Object.freeze({
+    initialize,
     getSnapshot,
     onChange,
     refreshMicrophonePermission,
