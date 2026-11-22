@@ -60,14 +60,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download NASA Blue Marble visual texture
-        run: |
-          mkdir -p public/earth
-          curl --fail --location --retry 3 --retry-delay 2 \
-            "https://assets.science.nasa.gov/content/dam/science/esd/eo/images/bmng/bmng-topography-bathymetry/january/world.topo.bathy.200401.3x5400x2700.jpg" \
-            --output public/earth/blue-marble-topography-bathymetry.jpg
-          test -s public/earth/blue-marble-topography-bathymetry.jpg
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -77,6 +69,11 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+
+      - name: Prepare NASA Blue Marble visual texture
+        run: |
+          python -m pip install --disable-pip-version-check pillow
+          npm run prepare:earth:visual
 
       - name: Prepare Emscripten cache directory
         run: mkdir -p "${{ runner.temp }}/emsdk-cache"
