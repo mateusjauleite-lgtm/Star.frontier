@@ -122,6 +122,46 @@ export function createDeflectorInteriorStructure() {
   access.add(thresholdGlow);
 
   group.add(access);
+
+  // Estação operacional instalada dentro da câmara do defletor, após a entrada
+  // do Deck 3. Não ocupa nem cria uma placa no piso geral do convés.
+  const consoleStation = new THREE.Group();
+  consoleStation.name = 'Deflector-Interior-Computer-Console';
+  consoleStation.position.set(3.35, -2.9, -42.55);
+  consoleStation.rotation.y = Math.PI;
+  group.add(consoleStation);
+
+  const consoleBase = new THREE.Mesh(new THREE.BoxGeometry(2.75, 0.2, 1.8), dark);
+  consoleBase.name = 'Deflector-Console-Floor-Plinth';
+  consoleBase.position.y = 0.1;
+  consoleStation.add(consoleBase);
+  const consoleBody = new THREE.Mesh(new THREE.BoxGeometry(2.45, 0.78, 1.35), edge);
+  consoleBody.name = 'Deflector-Console-Armored-Body';
+  consoleBody.position.set(0, 0.58, -0.08);
+  consoleStation.add(consoleBody);
+  const consoleDisplay = new THREE.Mesh(
+    new THREE.BoxGeometry(2.12, 0.075, 0.82),
+    new THREE.MeshStandardMaterial({ color: 0x082d40, emissive: 0x087fa8, emissiveIntensity: 1.35, metalness: 0.25, roughness: 0.2 })
+  );
+  consoleDisplay.name = 'Deflector-Console-Ship-Computer-Display';
+  consoleDisplay.position.set(0, 1.02, 0.48);
+  consoleDisplay.rotation.x = -0.24;
+  consoleStation.add(consoleDisplay);
+  const consoleStatus = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.055, 0.07), light);
+  consoleStatus.name = 'Deflector-Console-Computer-Link-Light';
+  consoleStatus.position.set(-0.78, 1.04, 0.88);
+  consoleStation.add(consoleStatus);
+  for (const side of [-1, 1]) {
+    const control = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.08, 0.48), edge);
+    control.name = side < 0 ? 'Deflector-Console-Port-Control' : 'Deflector-Console-Starboard-Control';
+    control.position.set(side * 1.02, 0.96, 0.18);
+    consoleStation.add(control);
+    const indicator = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.035, 0.24), light);
+    indicator.name = side < 0 ? 'Deflector-Console-Port-Indicator' : 'Deflector-Console-Starboard-Indicator';
+    indicator.position.set(side * 1.02, 1.015, 0.2);
+    consoleStation.add(indicator);
+  }
+
   group.userData.depth = depth;
   group.userData.deck = 'D3';
   group.userData.lightCount = 24;
