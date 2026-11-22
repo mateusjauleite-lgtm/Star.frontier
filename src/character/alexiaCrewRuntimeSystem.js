@@ -94,9 +94,8 @@ export function createAlexiaCrewRuntimeSystem({
         if (magnitude > 0) {
           const x = movement.x / Math.max(1, magnitude);
           const y = movement.y / Math.max(1, magnitude);
-          const yaw = actor.group.rotation.y;
-          actor.group.position.x += (x * Math.cos(yaw) - y * Math.sin(yaw)) * moveSpeed * dt;
-          actor.group.position.z += (-x * Math.sin(yaw) - y * Math.cos(yaw)) * moveSpeed * dt;
+          actor.group.position.x += x * moveSpeed * dt;
+          actor.group.position.z -= y * moveSpeed * dt;
         }
         moveTimeRemaining = Math.max(0, moveTimeRemaining - dt);
         if (moveTimeRemaining === 0) stop();
