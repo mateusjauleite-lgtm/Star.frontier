@@ -28,6 +28,7 @@ export function createShipComputerAI({
   getSnapshot,
   getSystemIds,
   inspectSystem,
+  getTelemetry = inspectSystem,
   dispatchAuthorized,
   isOnline,
   initialName = 'Alexia',
@@ -210,15 +211,20 @@ export function createShipComputerAI({
   }
 
   function formatSystemsTelemetry() {
-    const current = getSnapshot() || {};
-    const systems = Array.isArray(current.systems) ? current.systems : [];
-    if (!systems.length) return 'O Ship Computer não informou sistemas registrados neste momento.';
-    const rows = systems.map(system => {
-      const label = system.name || system.id || 'Sistema sem identificação';
-      const status = String(system.status || 'desconhecido').toLocaleUpperCase('pt-BR');
-      return `• ${label}: ${status}`;
+    const ids = getSystemIds();
+    if (!ids.length) return 'O Ship Computer não informou sistemas registrados neste momento.';
+    const rows = ids.map(id => {
+      let report;
+      try { report = getTelemetry(id) || {}; }
+      catch (error) { report = { status: 'error', error: String(error?.message || error) }; }
+      const label = report.name || id;
+      const status = String(report.status || inspectSystem(id)?.status || 'registrado').toLocaleUpperCase('pt-BR');
+      const details = report.telemetry && typeof report.telemetry === 'object'
+        ? JSON.stringify(report.telemetry).slice(0, 360)
+        : '';
+      return details ? `• ${label}: ${status} — ${details}` : `• ${label}: ${status}`;
     });
-    return `Telemetria resumida de bordo — ${systems.length} sistemas registrados:\n${rows.join('\n')}`;
+    return `Telemetria de bordo — ${ids.length} sistemas registrados:\n${rows.join('\n')}`;
   }
 
   function buildResponse(message, { requireWakeWord = false } = {}) {
