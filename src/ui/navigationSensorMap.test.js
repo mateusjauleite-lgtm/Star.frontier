@@ -43,10 +43,20 @@ test('mapa projeta depósitos minerais no referencial de frente e estibordo da n
 });
 
 test('mapa acompanha a rotação da nave sem alterar a posição dos contatos', () => {
-  const result = projectSensorContacts({ telemetry, shipPosition: ship, heading: Math.PI / 2, range: 650 });
-  const forward = result.markers.find(marker => marker.id === 'dilithium-field');
-  assert.ok(forward.x < 160, 'o contato à frente deve permanecer no eixo frontal após rotação');
-  assert.ok(Math.abs(forward.y - 160) < 2);
+  const rotatedTelemetry = {
+    ...telemetry,
+    contacts: [{
+      id: 'forward-after-turn',
+      distance: 100,
+      position: { x: -100, y: 0, z: 0 },
+      ore: 5,
+      resources: []
+    }]
+  };
+  const result = projectSensorContacts({ telemetry: rotatedTelemetry, shipPosition: ship, heading: Math.PI / 2, range: 650 });
+  const forward = result.markers[0];
+  assert.ok(Math.abs(forward.x - 160) < 2);
+  assert.ok(forward.y < 160, 'o contato à frente deve permanecer acima da nave após rotação');
 });
 
 test('sensores desligados ou sem energia não publicam marcadores', () => {
