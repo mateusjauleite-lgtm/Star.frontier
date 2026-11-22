@@ -218,3 +218,5 @@ test('transferência remove e restauração preserva a mesma pilha de minério',
   const restored = system.snapshot().items.find(item => item.instanceId === ore.instanceId);
   assert.equal(restored.quantity, 12);
 });
+
+test('migra minério bruto legado para a mochila sem duplicar o estoque da refinaria',()=>{const state=createGameState();state.rawDilithiumOre=5;const system=createSystem(state);const snapshot=system.initialize();const ore=snapshot.items.find(item=>item.definitionId==='ore.dilithium.raw');assert.equal(ore.quantity,5);assert.equal(state.rawDilithiumOre,0);});
