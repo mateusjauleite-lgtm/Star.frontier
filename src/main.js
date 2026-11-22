@@ -2192,6 +2192,7 @@ $('character-action-btn')?.addEventListener('click', () => {
   else enterPilotMode();
 });
 window.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && !$('inventory-modal')?.classList.contains('hidden')) { closeInventory(); return; }
   if (event.key === 'Escape' && refineryConsoleActive) { refineryTerminal?.close(); return; }
   if (event.key === 'Escape' && shipManagementTerminal.getSnapshot().open) {
     shipManagementTerminal.close();
@@ -2296,7 +2297,7 @@ function renderInventory() {
       const equipable = ['head', 'torso', 'hands', 'legs', 'feet', 'back', 'weapon'].includes(item.slot);
       const pending = pendingInventoryEquipId === item.instanceId;
       const action = item.definitionId === DILITHIUM_ORE_ITEM_ID
-        ? (refineryConsoleActive ? 'TRANSFERIR À REFINARIA' : 'ABRA O CONSOLE DA REFINARIA')
+        ? (refineryInventoryTransferMode ? 'ENVIAR À REFINARIA' : 'USE O COMPARTIMENTO DE RECEBIMENTO')
         : (equipable ? (pending ? 'EQUIPAR AGORA' : 'TOQUE PARA SELECIONAR') : 'TOQUE PARA RESTAURAR');
       return `<button type="button" class="inventory-overflow-item${pending ? ' item-pending-equip' : ''}" data-overflow-instance-id="${escapeHtml(item.instanceId)}">
         <b>${name}${quantity}</b><small>${action}</small>
