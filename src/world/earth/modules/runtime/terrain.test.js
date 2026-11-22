@@ -175,7 +175,7 @@ test('keeps the global ETOPO source independent from the active render-mesh reso
     { width: 90, height: 45 },
     { width: 180, height: 90 },
     { width: 360, height: 180 },
-    { width: 720, height: 360 }
+    { width: 540, height: 270 }
   ]);
   const vertexCounts = EARTH_LOD_SEGMENTS.map(level =>
     (level.width + 1) * (level.height + 1)
