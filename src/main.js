@@ -38,12 +38,17 @@ import { createShipFlightController } from './ships/flight/shipFlightController.
 import { createArtificialGravityField } from './ships/systems/artificialGravityField.js';
 import { createShipShieldSystem } from './ships/systems/shieldSystem.js';
 import { createDilithiumRefinerySystem } from './ships/systems/dilithiumRefinerySystem.js';
+import { createWarpCorePowerSystem } from './ships/systems/warpCorePowerSystem.js';
+import { createDilithiumMatrixTerminalController, DILITHIUM_MATRIX_TERMINAL_ID, DILITHIUM_MATRIX_DISPLAY_RADIUS, DILITHIUM_MATRIX_INTERACTION_RADIUS } from './ships/computer/dilithiumMatrixTerminalController.js';
+import { createDilithiumMatrixTerminalRenderer } from './ships/computer/dilithiumMatrixTerminalRenderer.js';
+import { DILITHIUM_MATRIX_INTERACTION_LOCAL_POSITION } from './ships/engineering/dilithiumMatrix.js';
 import { registerTextInteractionGuard } from './core/ui/textInteractionGuard.js';
 import { createPilotHudProfileStore, PILOT_HUD_PROFILES } from './ui/hudProfiles.js';
 
 const artificialGravityField = createArtificialGravityField();
 const shipShieldSystem = createShipShieldSystem(state);
 const dilithiumRefinerySystem = createDilithiumRefinerySystem(state, { getPlant: () => starshipInterior?.dilithiumPlant, persist: save });
+const warpCorePowerSystem = createWarpCorePowerSystem({ state, persist: save });
 
 registerTextInteractionGuard();
 
@@ -77,6 +82,7 @@ shipComputer.registerTerminal({ id: 'pilot-console', name: 'Console de pilotagem
 shipComputer.registerTerminal({ id: 'engineering-console', name: 'Console de Engenharia · Deck 3', systems: ['engineering', 'propulsion', 'power', 'shields'] });
 shipComputer.registerTerminal({ id: 'refinery-console', name: 'Console da Refinaria · Deck 3', systems: ['refinery'] });
 shipComputer.registerTerminal({ id: 'deflector-console', name: 'Terminal interno do Defletor', systems: ['deflector', 'navigation', 'sensors', 'power'] });
+shipComputer.registerTerminal({ id: DILITHIUM_MATRIX_TERMINAL_ID, name: 'Terminal da Matriz de Dilítio · Deck 3', systems: ['matrix', 'deflector'] });
 const shipManagementTerminal = createShipManagementTerminalController({
   computer: shipComputer,
   renderer: createShipManagementTerminalRenderer({ root: $('game-screen') }),
@@ -93,6 +99,10 @@ let deflectorTerminal = null;
 let deflectorInteractionAvailable = false;
 let deflectorTelemetryAccumulator = 0;
 let refineryTerminal = null;
+let matrixTerminal = null;
+let matrixConsoleActive = false;
+let matrixInteractionAvailable = false;
+let matrixTelemetryAccumulator = 0;
 let refineryConsoleActive = false;
 let refineryInteractionAvailable = false;
 let refineryTelemetryAccumulator = 0;
@@ -148,6 +158,14 @@ refineryTerminal = createRefineryTerminalController({
     renderInventory();
     openInventory();
     toast('Compartimento de recebimento ativo. Toque no minério para transferir.');
+  }
+});
+matrixTerminal = createDilithiumMatrixTerminalController({
+  computer: shipComputer,
+  renderer: createDilithiumMatrixTerminalRenderer({ root: $('game-screen') }),
+  onInteractionChange: active => {
+    matrixConsoleActive = active;
+    if (active) characterControls?.reset?.();
   }
 });
 deflectorTerminal = createDeflectorTerminalController({
@@ -211,6 +229,7 @@ const engineeringConsolePosition = new THREE.Vector3(
 );
 const refineryConsolePosition = new THREE.Vector3(REFINERY_TERMINAL_LOCAL_POSITION.x, REFINERY_TERMINAL_LOCAL_POSITION.y, REFINERY_TERMINAL_LOCAL_POSITION.z);
 const deflectorConsolePosition = new THREE.Vector3(DEFLECTOR_TERMINAL_LOCAL_POSITION.x, DEFLECTOR_TERMINAL_LOCAL_POSITION.y, DEFLECTOR_TERMINAL_LOCAL_POSITION.z);
+const matrixTerminalPosition = new THREE.Vector3(DILITHIUM_MATRIX_INTERACTION_LOCAL_POSITION.x, DILITHIUM_MATRIX_INTERACTION_LOCAL_POSITION.y, DILITHIUM_MATRIX_INTERACTION_LOCAL_POSITION.z);
 const pilotPlayerWorldPosition = new THREE.Vector3();
 const characterCameraWorldPosition = new THREE.Vector3();
 const characterCameraWorldQuaternion = new THREE.Quaternion();
@@ -721,7 +740,8 @@ function registerComputerSubsystems(deflectorRuntime = null) {
     getAsteroids: () => asteroids,
     shieldSystem: shipShieldSystem,
     refinerySystem: dilithiumRefinerySystem,
-    deflectorRuntime
+    deflectorRuntime,
+    warpCoreSystem: warpCorePowerSystem
   });
   shipComputerSystemsRegistered = true;
 }
@@ -805,7 +825,9 @@ async function startGame() {
         engineeringTerminal,
         refineryTerminal,
         deflectorTerminal,
+        matrixTerminal,
         refinery: dilithiumRefinerySystem,
+        warpCore: warpCorePowerSystem,
         mining: miningRuntimeSystem,
         pauseMenu: { document, state, resetInputs: resetTransientState },
         character: {
@@ -1896,6 +1918,7 @@ function updateShipManagementInteraction(dt = 0) {
 }
 
 function updateEngineeringConsoleInteraction(dt = 0) {
+  updateDilithiumMatrixConsoleInteraction(dt);
   engineeringHologram?.update(dt);
   const previousAvailable = engineeringInteractionAvailable;
   const previousActive = engineeringConsoleActive;
@@ -1957,6 +1980,49 @@ function toggleEngineeringConsole() {
   if (!engineeringInteractionAvailable || !engineeringTerminal.open('ENGENHEIRO')) {
     toast('Aproxime-se do console de Engenharia no Deck 3.');
   }
+}
+
+function updateDilithiumMatrixConsoleInteraction(dt = 0) {
+  const previousAvailable = matrixInteractionAvailable;
+  const previousActive = matrixConsoleActive;
+  const valid = Boolean(characterModel && shipVisual && characterCore.snapshot().mode === 'on-foot' && !characterInWorldFrame && !nearbyElevator && activeDeckIndex === 2);
+  if (!valid) {
+    matrixInteractionAvailable = false;
+    matrixTerminal?.setPresence(false, false);
+    if ((previousAvailable || previousActive) && !nearbyElevator) {
+      const button = $('character-action-btn');
+      if (button) { button.disabled = true; button.textContent = 'AÇÃO'; button.classList.remove('available'); }
+      characterCore.setInteractionTarget(null);
+      updateCharacterHUD();
+    }
+    return;
+  }
+  const distanceSquared = characterModel.group.position.distanceToSquared(matrixTerminalPosition);
+  const visible = distanceSquared <= DILITHIUM_MATRIX_DISPLAY_RADIUS ** 2;
+  const available = distanceSquared <= DILITHIUM_MATRIX_INTERACTION_RADIUS ** 2;
+  matrixInteractionAvailable = available;
+  matrixTerminal?.setPresence(visible, available);
+  if (matrixConsoleActive) {
+    matrixTelemetryAccumulator += Math.max(0, Number(dt) || 0);
+    if (matrixTelemetryAccumulator >= 0.18) { matrixTelemetryAccumulator = 0; matrixTerminal?.refresh(); }
+  } else matrixTelemetryAccumulator = 0;
+  if (available || matrixConsoleActive) {
+    const button = $('character-action-btn');
+    if (button) { button.disabled = false; button.textContent = matrixConsoleActive ? '◎ FECHAR MATRIZ' : '◎ ACESSAR MATRIZ'; button.classList.add('available'); }
+    characterCore.setInteractionTarget(matrixConsoleActive ? 'TERMINAL DA MATRIZ CONECTADO' : 'TERMINAL DA MATRIZ DE DILÍTIO');
+    if (previousAvailable !== available || previousActive !== matrixConsoleActive) updateCharacterHUD();
+  } else if (previousAvailable || previousActive) {
+    const button = $('character-action-btn');
+    if (button) { button.disabled = true; button.textContent = 'AÇÃO'; button.classList.remove('available'); }
+    characterCore.setInteractionTarget(null);
+    updateCharacterHUD();
+    updatePilotInteraction();
+  }
+}
+
+function toggleDilithiumMatrixConsole() {
+  if (matrixConsoleActive) { matrixTerminal?.close(); return; }
+  if (!matrixInteractionAvailable || !matrixTerminal?.open('ENGENHEIRO DE ENERGIA')) toast('Aproxime-se do terminal da matriz no Deck 3.');
 }
 
 function updateRefineryConsoleInteraction(dt = 0) {
@@ -2037,6 +2103,7 @@ function toggleDeflectorConsole() {
 }
 
 function updatePilotInteraction() {
+  if (matrixInteractionAvailable || matrixConsoleActive) return;
   if (refineryInteractionAvailable || refineryConsoleActive) return;
   if (!characterModel || !shipVisual || characterCore.snapshot().mode !== 'on-foot') return;
   if (deflectorInteractionAvailable || deflectorConsoleActive) return;
@@ -2309,6 +2376,7 @@ function updateCharacterWeapon(dt) {
 
 $('character-action-btn')?.addEventListener('click', () => {
   if (externalElevatorActionAvailable) activateExternalElevator();
+  else if (matrixInteractionAvailable || matrixConsoleActive) toggleDilithiumMatrixConsole();
   else if (refineryInteractionAvailable || refineryConsoleActive) toggleRefineryConsole();
   else if (deflectorInteractionAvailable || deflectorConsoleActive) toggleDeflectorConsole();
   else if (engineeringInteractionAvailable || engineeringConsoleActive) toggleEngineeringConsole();
@@ -2316,6 +2384,7 @@ $('character-action-btn')?.addEventListener('click', () => {
 });
 window.addEventListener('keydown', event => {
   if (event.key === 'Escape' && !$('inventory-modal')?.classList.contains('hidden')) { closeInventory(); return; }
+  if (event.key === 'Escape' && matrixConsoleActive) { matrixTerminal?.close(); return; }
   if (event.key === 'Escape' && refineryConsoleActive) { refineryTerminal?.close(); return; }
   if (event.key === 'Escape' && deflectorConsoleActive) { deflectorTerminal?.close(); return; }
   if (event.key === 'Escape' && shipManagementTerminal.getSnapshot().open) {
