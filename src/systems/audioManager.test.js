@@ -36,7 +36,7 @@ function createStream() {
   };
 }
 
-test('Audio Manager não solicita microfone ao ser inicializado', () => {
+test('Audio Manager não solicita microfone ao ser inicializado', async () => {
   const core = createCoreMock();
   let requests = 0;
   const manager = createAudioManager({
@@ -44,8 +44,26 @@ test('Audio Manager não solicita microfone ao ser inicializado', () => {
     mediaDevices: { getUserMedia: async () => { requests++; return createStream(); } },
     storage: null
   });
+  await manager.initialize();
   assert.equal(requests, 0);
   assert.equal(manager.getSnapshot().microphone.active, false);
+  manager.dispose();
+});
+
+test('Audio Manager inicializa apenas uma vez mesmo com chamadas concorrentes', async () => {
+  const core = createCoreMock();
+  let permissionQueries = 0;
+  const manager = createAudioManager({
+    core,
+    mediaDevices: { getUserMedia: async () => { throw new Error('capture-must-not-start'); } },
+    permissions: { query: async () => { permissionQueries++; return { state: 'prompt', onchange: null }; } },
+    storage: null
+  });
+  const first = manager.initialize();
+  const second = manager.initialize();
+  assert.equal(first, second);
+  await Promise.all([first, second]);
+  assert.equal(permissionQueries, 1);
   manager.dispose();
 });
 
