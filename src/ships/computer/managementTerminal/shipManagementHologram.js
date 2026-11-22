@@ -304,15 +304,14 @@ export function createRefineryHologram({
     const data = getTelemetry?.() || {};
     const raw = ratio(data.rawOre, data.rawCapacity);
     const buffer = ratio(data.refinedBuffer, data.refinedCapacity);
-    const core = ratio(data.coreDilithium, data.coreCapacity);
     const processing = Boolean(data.refineryEnabled && Number(data.rawOre) > 0);
     stations[0].bar.scale.x = Math.max(0.02, raw);
     stations[1].bar.scale.x = processing ? 1 : 0.02;
-    stations[2].bar.scale.x = Math.max(0.02, Math.max(buffer, core));
+    stations[2].bar.scale.x = Math.max(0.02, buffer);
     stations[1].shell.material = processing ? activeGlow : soft;
     stations[1].core.material = processing ? activeGlow : cyan;
     stations[0].core.scale.setScalar(0.72 + raw * 0.5);
-    stations[2].core.scale.setScalar(0.72 + Math.max(buffer, core) * 0.5);
+    stations[2].core.scale.setScalar(0.72 + buffer * 0.5);
     stations[1].core.scale.setScalar(0.9 + Math.sin(elapsed * 4.2) * (processing ? 0.16 : 0.025));
     flow.visible = processing;
     flow.material = processing ? activeGlow : soft;
