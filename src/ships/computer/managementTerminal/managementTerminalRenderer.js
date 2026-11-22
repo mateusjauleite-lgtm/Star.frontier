@@ -223,6 +223,7 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
       const autoTransferNode = layer.querySelector('[data-warp-core-auto-transfer]');
       const transferRateNode = layer.querySelector('[data-warp-core-transfer-rate]');
       const fuelRateNode = layer.querySelector('[data-warp-core-fuel-rate]');
+      const throttleNode = layer.querySelector('[data-warp-core-throttle]');
       const input = layer.querySelector('[data-power-transfer-amount]');
       const button = layer.querySelector('[data-power-transfer]');
       if (bufferNode) bufferNode.textContent = buffer.toFixed(2) + ' u';
@@ -238,6 +239,7 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
       if (autoTransferNode) autoTransferNode.textContent = refinery?.transferEnabled ? 'ATIVA' : 'DESLIGADA';
       if (transferRateNode) transferRateNode.textContent = (Number(refinery?.transferRate) || 0).toFixed(3) + ' u/s';
       if (fuelRateNode) fuelRateNode.textContent = (Number(core.conventionalFuelConsumptionRate) || 0).toFixed(3) + ' u/s';
+      if (throttleNode) throttleNode.textContent = core.conventionalThrottleActive ? 'ATIVO' : 'DESLIGADO';
       if (input) input.max = transferable.toFixed(2);
       if (button) button.disabled = !moduleData?.available || !refinery?.available || transferable <= 0;
     }
