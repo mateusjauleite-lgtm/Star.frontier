@@ -31,7 +31,7 @@ export function createShipOrbitalTelemetrySource({ THREE, earthSystem, ship, shi
           // O orbital usa eixos globais inerciais; a rotação da superfície
           // continua pertencendo ao referencial terrestre.
           orientationWorld: [0, 0, 0, 1],
-          visualUnitsPerKm
+          metersPerVisualUnit
         },
         shipWorldPosition,
         shipForwardWorld
