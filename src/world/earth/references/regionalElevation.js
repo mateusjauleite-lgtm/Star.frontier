@@ -5,9 +5,10 @@ export function terrariumTileCoordinate(longitudeDeg, latitudeDeg, zoom) {
   if (![longitudeDeg, latitudeDeg, zoom].every(Number.isFinite) ||
       !Number.isInteger(zoom) || zoom < 0 || zoom > 15) return null;
   const n = 2 ** zoom;
+  const normalizedLongitude = ((longitudeDeg + 180) % 360 + 360) % 360 - 180;
   const latitude = Math.max(-85.05112878, Math.min(85.05112878, latitudeDeg));
   const latitudeRad = latitude * Math.PI / 180;
-  const xFloat = ((longitudeDeg + 180) / 360) * n;
+  const xFloat = ((normalizedLongitude + 180) / 360) * n;
   const yFloat = (1 - Math.asinh(Math.tan(latitudeRad)) / Math.PI) * .5 * n;
   const x = Math.min(n - 1, Math.max(0, Math.floor(xFloat)));
   const y = Math.min(n - 1, Math.max(0, Math.floor(yFloat)));
@@ -75,18 +76,20 @@ export function createTerrariumElevationProvider({
       const response = await fetchImpl(url);
       if (!response?.ok) throw new Error(`Terrarium tile HTTP ${response?.status ?? 'error'}`);
       const bitmap = await createImageBitmapImpl(await response.blob());
-      const canvas = createCanvas(bitmap.width, bitmap.height);
+      const tileWidth = bitmap.width;
+      const tileHeight = bitmap.height;
+      const canvas = createCanvas(tileWidth, tileHeight);
       const context = canvas?.getContext('2d', { willReadFrequently: true });
       if (!context) throw new Error('Canvas 2D is unavailable for DEM decoding.');
       context.drawImage(bitmap, 0, 0);
       const rgba = context.getImageData(0, 0, bitmap.width, bitmap.height).data;
       bitmap.close?.();
-      const values = new Float32Array(bitmap.width * bitmap.height);
+      const values = new Float32Array(tileWidth * tileHeight);
       for (let i = 0; i < values.length; i++) {
         const offset = i * 4;
         values[i] = decodeTerrariumElevation(rgba[offset], rgba[offset + 1], rgba[offset + 2]);
       }
-      const tile = { width: bitmap.width, height: bitmap.height, values, source: 'AWS Terrain Tiles / Terrarium' };
+      const tile = { width: tileWidth, height: tileHeight, values, source: 'AWS Terrain Tiles / Terrarium' };
       cache.set(key, tile);
       while (cache.size > maxCachedTiles) cache.delete(cache.keys().next().value);
       return tile;
