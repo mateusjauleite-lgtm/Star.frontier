@@ -146,6 +146,28 @@ jobs:
           tree.write(path, encoding="utf-8", xml_declaration=True)
           PY
 
+      - name: Declare Android microphone permission
+        run: |
+          python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          path = "android/app/src/main/AndroidManifest.xml"
+          tree = ET.parse(path)
+          root = tree.getroot()
+          android_ns = "{http://schemas.android.com/apk/res/android}"
+          permission = "android.permission.RECORD_AUDIO"
+          existing = {
+              node.get(android_ns + "name")
+              for node in root.findall("uses-permission")
+          }
+          if permission not in existing:
+              node = ET.Element("uses-permission")
+              node.set(android_ns + "name", permission)
+              root.insert(0, node)
+          ET.register_namespace("android", "http://schemas.android.com/apk/res/android")
+          tree.write(path, encoding="utf-8", xml_declaration=True)
+          print("Android RECORD_AUDIO permission declared.")
+          PY
+
       - name: Enable immersive fullscreen
         run: |
           python3 - <<'PY'
