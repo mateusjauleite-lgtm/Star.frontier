@@ -37,7 +37,9 @@ export function createEarthCore(options = {}) {
   const planetaryProfile = createEarthPlanetaryProfile({
     visualRadiusUnits: settings.radius
   });
-  settings.physicalScale = planetaryProfile.physicalScale;\n\n  const group = new THREE.Group();
+  settings.physicalScale = planetaryProfile.physicalScale;
+
+  const group = new THREE.Group();
   group.name = 'StarFrontier-Earth-Core';
   group.position.set(...settings.position);
 
