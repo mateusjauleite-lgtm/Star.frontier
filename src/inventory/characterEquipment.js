@@ -294,10 +294,13 @@ export function createCharacterEquipmentSystem(gameState, {
       if (!exists) inventory.addWithOverflow(itemId, 1);
     }
 
-    if (inventory.count('ore.dilithium.raw') === 0) {
-      const legacyRaw = Math.floor(Math.max(0, Number(gameState.rawDilithiumOre) || 0));
-      const stored = inventory.addWithOverflow('ore.dilithium.raw', legacyRaw > 0 ? legacyRaw : 12);
-      if (legacyRaw > 0) gameState.rawDilithiumOre = Math.max(0, legacyRaw - stored.added);
+    if (gameState.dilithiumInventoryVersion !== 1) {
+      if (inventory.count('ore.dilithium.raw') === 0) {
+        const legacyRaw = Math.floor(Math.max(0, Number(gameState.rawDilithiumOre) || 0));
+        const stored = inventory.addWithOverflow('ore.dilithium.raw', legacyRaw > 0 ? legacyRaw : 12);
+        if (legacyRaw > 0) gameState.rawDilithiumOre = Math.max(0, legacyRaw - stored.added);
+      }
+      gameState.dilithiumInventoryVersion = 1;
     }
     initialized = true;
     syncVisuals();
