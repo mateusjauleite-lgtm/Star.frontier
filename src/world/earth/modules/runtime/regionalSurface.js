@@ -258,8 +258,10 @@ export function createEarthRegionalSurfaceRuntime({
       const cameraWorld = context.camera.getWorldPosition(new THREE.Vector3());
       const cameraLocal = surface.worldToLocal(cameraWorld);
       const altitude = Math.max(0, cameraLocal.length() - radius);
-      demActive = altitude <= radius * .35;
-      const selected = selectEarthQuadtreeTiles(cameraLocal, radius, { maxLevel, maxTiles });
+      demActive = altitude <= radius * .08;
+      const selected = altitude <= radius * 1.5
+        ? selectEarthQuadtreeTiles(cameraLocal, radius, { maxLevel, maxTiles })
+        : [];
       const keys = selected.map(node => node.key);
       const demModeChanged = demActive !== lastDemActive;
       const changed = keys.length !== lastSelection.length ||
