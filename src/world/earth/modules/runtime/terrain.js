@@ -183,9 +183,7 @@ export function createTerrainRuntime({ options, layers }) {
           longitudeDeg, latitudeDeg, { zoom: regionalDemZoom }
         );
         if (Number.isFinite(regionalMeters)) {
-          return earthKernel.elevationMetersToUnits(
-            regionalMeters, radius, 6371.0088, exaggeration
-          );
+          return physicalScale.metersToRenderUnits(regionalMeters) * exaggeration;
         }
 
         if (gridIsReady) {
