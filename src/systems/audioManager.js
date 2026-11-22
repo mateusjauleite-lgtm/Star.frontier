@@ -65,6 +65,7 @@ export function createAudioManager(options = {}) {
       microphone: {
         supported: capabilities.supported,
         secureContext: capabilities.secureContext,
+        capabilityError: capabilities.reason,
         recognitionSupported: capabilities.speechRecognition,
         permission: permission.state,
         active: captureState.active,
