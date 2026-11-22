@@ -1760,11 +1760,10 @@ function updateAlexiaInteraction(dt = 0) {
       from.z = nextZ;
       if (isCharacterPositionBlocked(from, 0) || !isCharacterInsideDeck(from, 0)) from.z = previousZ;
       alexiaCharacter.group.rotation.y = Math.atan2(-dx, -dz);
-      alexiaCharacter.core?.setMovement?.({ x: 0, y: 1 });
-    } else alexiaCharacter.core?.setMovement?.({ x: 0, y: 0 });
+      alexiaCharacter.core?.setMovement?.(0, 1);
+    } else alexiaCharacter.core?.setMovement?.(0, 0);
   }
   const floorY = starshipInterior.layout.decks[0].y + 0.21;
-  alexiaCharacter.update?.(Math.max(0, dt), { position: alexiaCharacter.group.position, floorY });
   if (available) {
     if (button) {
       button.disabled = false; button.dataset.interaction = 'alexia';
