@@ -14,7 +14,7 @@ test('Alexia mantém banco de dados próprio vinculado ao identificador da nave'
   assert.equal(computer.onboardAI.searchKnowledge('barramento').length, 1);
   assert.equal(stored.shipId, 'test-ship');
   assert.equal(computer.getSnapshot().onboardAI.name, 'Alexia');
-  assert.equal(computer.getSnapshot().onboardAI.database.knowledgeEntries, 4);
+  assert.equal(computer.getSnapshot().onboardAI.database.knowledgeEntries, 5);
 });
 
 test('Alexia faz ronda de sistemas consultando o estado registrado sem alterar a simulação', () => {
