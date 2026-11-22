@@ -106,10 +106,9 @@ export function createShipManagementTerminalController({
       onAIMessage: message => {
         const ai = computer.onboardAI;
         if (!ai?.processMessage) return { ok: false, reason: 'ai-chat-unavailable', response: 'Chat da Alexia indisponível.' };
-        const result = ai.processMessage(message, { source: 'text' });
-        refreshSelectedModule();
-        render(computer.getSnapshot());
-        return result;
+        // O renderer atualiza a conversa em linha. Não reconstruir o painel
+        // aqui: isso removeria o input focado e interromperia o teclado móvel.
+        return ai.processMessage(message, { source: 'text' });
       },
       onAIAction: action => {
         const ai = computer.onboardAI;

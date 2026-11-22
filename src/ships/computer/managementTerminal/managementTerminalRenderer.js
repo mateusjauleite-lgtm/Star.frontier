@@ -69,19 +69,31 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
       const input = form.querySelector('[data-ai-chat-input]');
       const message = String(input?.value || '').trim();
       if (!message) return;
+      const history = layer.querySelector('[data-ai-chat-history]');
+      const previousMessageCount = history?.childElementCount ?? 0;
       const result = aiMessageHandler?.(message);
       if (input) input.value = '';
+      // O Ship Computer pode publicar a nova conversa sincronamente. Só
+      // acrescenta localmente se nenhum refresh já atualizou o histórico.
+      if ((history?.childElementCount ?? 0) === previousMessageCount) {
+        appendAIMessage('user', message);
+        if (result?.response) appendAIMessage('assistant', result.response);
+      }
       showAIResult(result);
-      layer.querySelector('[data-ai-chat-input]')?.focus();
+      if (history) history.scrollTop = history.scrollHeight;
     });
     layer.addEventListener('click', event => {
       if (event.target.closest('[data-management-open]')) { openHandler?.(); return; }
       if (event.target.closest('[data-management-close]')) { closeHandler?.(); return; }
       const aiAction = event.target.closest('[data-ai-action]');
       if (aiAction) {
-        const feedback = layer.querySelector('[data-ai-feedback]');
         const result = aiActionHandler?.(aiAction.dataset.aiAction);
-        if (feedback) feedback.textContent = result?.ok ? 'SOLICITAÇÃO PROCESSADA · ' + (result.report ? result.report.systemsChecked + ' SISTEMAS VERIFICADOS' : 'COMANDO ENCAMINHADO') : 'AÇÃO NÃO DISPONÍVEL · ' + (result?.reason || 'ERRO');
+        // A ação pode atualizar o Ship Computer e redesenhar a área de detalhes.
+        // Consulta o feedback depois do callback para não escrever num nó removido.
+        const feedback = layer.querySelector('[data-ai-feedback]');
+        if (feedback) feedback.textContent = result?.ok
+          ? 'SOLICITAÇÃO PROCESSADA · ' + (result.report ? result.report.systemsChecked + ' SISTEMAS VERIFICADOS' : 'COMANDO ENCAMINHADO')
+          : 'AÇÃO NÃO DISPONÍVEL · ' + (result?.reason || 'ERRO');
         return;
       }
       if (event.target.closest('[data-shield-toggle]')) {
@@ -125,6 +137,20 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
     return true;
   }
 
+  function appendAIMessage(role, content) {
+    if (!layer || !content) return;
+    const history = layer.querySelector('[data-ai-chat-history]');
+    if (!history) return;
+    const bubble = document.createElement('div');
+    bubble.className = 'management-ai-message ' + (role === 'user' ? 'user' : 'assistant');
+    const label = document.createElement('small');
+    label.textContent = role === 'user' ? 'OPERADOR' : 'ALEXIA';
+    const body = document.createElement('p');
+    body.textContent = String(content);
+    bubble.append(label, body);
+    history.append(bubble);
+  }
+
   function showAIResult(result) {
     if (!layer) return;
     const feedback = layer.querySelector('[data-ai-feedback]');
@@ -149,6 +175,43 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
   function renderTelemetry(moduleData, selectedModuleId) {
     const output = layer.querySelector('[data-management-detail-output]');
     if (!output) return;
+
+    // Atualizações do Ship Computer não devem substituir o formulário de chat.
+    // O histórico é atualizado dentro do painel existente, preservando o input
+    // e o foco que mantém o teclado virtual disponível no Android.
+    const existingAIPanel = selectedModuleId === 'onboard-ai'
+      ? output.querySelector('.management-ai-panel')
+      : null;
+    if (existingAIPanel && moduleData?.available && moduleData.data) {
+      const history = existingAIPanel.querySelector('[data-ai-chat-history]');
+      if (history) {
+        history.replaceChildren();
+        const messages = Array.isArray(moduleData.conversation) ? moduleData.conversation.slice(-40) : [];
+        if (!messages.length) {
+          const welcome = document.createElement('div');
+          welcome.className = 'management-ai-message assistant';
+          welcome.textContent = 'Ponte de comando conectada. Sou Alexia. Posso consultar a telemetria, verificar sistemas e pesquisar meu banco de conhecimento.';
+          history.append(welcome);
+        } else {
+          for (const message of messages) {
+            const bubble = document.createElement('div');
+            bubble.className = 'management-ai-message ' + (message.role === 'user' ? 'user' : 'assistant');
+            bubble.dataset.messageId = message.id || '';
+            const role = document.createElement('small');
+            role.textContent = message.role === 'user' ? 'OPERADOR' : 'ALEXIA';
+            const body = document.createElement('p');
+            body.textContent = message.content || '';
+            bubble.append(role, body);
+            history.append(bubble);
+          }
+        }
+        history.scrollTop = history.scrollHeight;
+      }
+      const status = existingAIPanel.querySelector('.management-ai-status');
+      if (status) status.textContent = moduleData.data?.voice?.state === 'listening' ? 'ESCUTANDO' : 'ONLINE';
+      return;
+    }
+
     output.replaceChildren();
     if (!moduleData?.available || !moduleData.data) {
       const empty = document.createElement('div');
@@ -196,7 +259,7 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
         }
       }
       const form = document.createElement('form'); form.className = 'management-ai-chat-form'; form.dataset.aiChatForm = 'true';
-      const input = document.createElement('input'); input.type = 'text'; input.maxLength = 2000; input.autocomplete = 'off';
+      const input = document.createElement('input'); input.type = 'text'; input.maxLength = 2000; input.autocomplete = 'off'; input.inputMode = 'text'; input.enterKeyHint = 'send';
       input.placeholder = 'Escreva uma mensagem para Alexia…'; input.setAttribute('aria-label', 'Mensagem para Alexia'); input.dataset.aiChatInput = 'true';
       const send = document.createElement('button'); send.type = 'submit'; send.textContent = 'ENVIAR';
       form.append(input, send);
