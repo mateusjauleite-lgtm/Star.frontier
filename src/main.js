@@ -25,6 +25,7 @@ import { createShipComputer } from './ships/computer/shipComputer.js';
 import { createShipManagementTerminalController, SHIP_MANAGEMENT_TERMINAL_LOCAL_POSITION, SHIP_MANAGEMENT_TERMINAL_DISPLAY_RADIUS, SHIP_MANAGEMENT_TERMINAL_INTERACTION_RADIUS } from './ships/computer/managementTerminal/managementTerminalController.js';
 import { createShipManagementTerminalRenderer } from './ships/computer/managementTerminal/managementTerminalRenderer.js';
 import { createShipManagementHologram } from './ships/computer/managementTerminal/shipManagementHologram.js';
+import { createRefineryHologram } from './ships/computer/managementTerminal/shipManagementHologram.js';
 import { createEngineeringTerminalController, ENGINEERING_CONSOLE_LOCAL_POSITION, ENGINEERING_CONSOLE_DISPLAY_RADIUS, ENGINEERING_CONSOLE_INTERACTION_RADIUS } from './ships/computer/engineeringTerminalController.js';
 import { createEngineeringTerminalRenderer } from './ships/computer/engineeringTerminal/engineeringTerminalRenderer.js';
 import { createRefineryTerminalController, REFINERY_TERMINAL_LOCAL_POSITION, REFINERY_TERMINAL_DISPLAY_RADIUS, REFINERY_TERMINAL_INTERACTION_RADIUS } from './ships/computer/refineryTerminalController.js';
@@ -1052,7 +1053,7 @@ async function init3D() {
     scale: 1.35
   });
   refineryHologram?.dispose?.();
-  refineryHologram = createShipManagementHologram({ parent: shipVisual, position: { x: REFINERY_TERMINAL_LOCAL_POSITION.x, y: REFINERY_TERMINAL_LOCAL_POSITION.y + 1.19, z: REFINERY_TERMINAL_LOCAL_POSITION.z }, scale: 1.2 });
+  refineryHologram = createRefineryHologram({ parent: shipVisual, position: { x: REFINERY_TERMINAL_LOCAL_POSITION.x, y: REFINERY_TERMINAL_LOCAL_POSITION.y + 1.05, z: REFINERY_TERMINAL_LOCAL_POSITION.z }, scale: 1.15, getTelemetry: () => dilithiumRefinerySystem.snapshot() });
 
   characterCameraInitialized = false;
   characterInWorldFrame = false;
