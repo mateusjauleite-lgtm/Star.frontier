@@ -22,6 +22,16 @@ export const state = {
   deflectorCoreConsumedTotal: 0,
   deflectorBranchConsumptionTotals: {},
   deflectorCoreTelemetry: null,
+  warpCoreEnabled: true,
+  warpCoreMatrixEnabled: true,
+  warpCoreContainmentStable: true,
+  warpCoreMatrixRegulation: 1,
+  warpCoreCriticalBuffer: 0,
+  warpCoreOperationsBuffer: 0,
+  warpCoreWarpBuffer: 0,
+  warpCoreGeneratedTotal: 0,
+  warpCoreDeliveredTotal: 0,
+  warpCorePowerBusConnected: false,
   fuel: 100,
   refinedDilithium: 100,
   warpDilithiumConsumedTotal: 0,
@@ -85,6 +95,8 @@ export function resetTransientState() {
   state.throttle = false;
   state.braking = false;
   state.warpDriveButton = false;
+  state.warpCorePowerBusConnected = false;
+  delete state.requestWarpPower;
   state.warpDriveActive = false;
   state.warpCurrentStage = 0;
   state.warpTargetSpeed = 0;

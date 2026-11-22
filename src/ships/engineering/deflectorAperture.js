@@ -1,13 +1,13 @@
-// Recorte provisório da abertura frontal do defletor principal no Deck 3.
+// Abertura ampliada da montagem frontal do defletor principal no Deck 3.
 // O conjunto visual do emissor é instalado por deflectorAssembly.js no modelo da nave.
 // Coordenadas locais da nave; Z negativo aponta para a proa.
 export const DECK_3_DEFLECTOR_APERTURE = Object.freeze({
   centerX: 0,
   centerY: -2.9,
   centerZ: -45,
-  radiusX: 8.5,
-  radiusY: 3.6,
-  radiusZ: 7.5
+  radiusX: 11.2,
+  radiusY: 5.2,
+  radiusZ: 10.0
 });
 
 // Recebe o centroide de um triângulo da concha inferior em coordenadas

@@ -4,6 +4,7 @@
  */
 export const WARP_STAGE_SPEEDS = Object.freeze([0, 115, 155, 205, 270, 350]);
 export const WARP_DILITHIUM_CONSUMPTION = Object.freeze([0, 0.008, 0.014, 0.022, 0.032, 0.045]);
+export const WARP_POWER_CONSUMPTION = Object.freeze([0, 2.0, 2.8, 3.8, 5.2, 7.5]);
 
 const MAX_DELTA_SECONDS = 0.04;
 const WARP_ACCELERATION = 65;
@@ -43,9 +44,24 @@ export function advanceShipFlightDynamics(state, deltaSeconds) {
   }
 
   const refinedDilithium = Math.max(0, Number(state.refinedDilithium) || 0);
-  const requestedWarp = Boolean(state.warpDriveButton && refinedDilithium > 0);
+  const plasma = state.plasma === undefined ? refinedDilithium : Math.max(0, Number(state.plasma) || 0);
+  const hasCorePowerSystem = Boolean(state.warpCorePowerBusConnected);
+  const requestedWarp = Boolean(state.warpDriveButton && (hasCorePowerSystem ? (plasma > 0 || Number(state.warpCoreWarpBuffer) > 0) : refinedDilithium > 0));
+  let warpPowerRejected = false;
+  if (requestedWarp && state.warpCorePowerBusConnected) {
+    const stage = normalizeStage(state.warpStage);
+    const requestedPower = WARP_POWER_CONSUMPTION[stage] * dt;
+    const deliveredPower = typeof state.requestWarpPower === 'function'
+      ? Math.max(0, Number(state.requestWarpPower(requestedPower, dt)) || 0)
+      : 0;
+    warpPowerRejected = deliveredPower + 1e-9 < requestedPower;
+    if (warpPowerRejected) {
+      state.warpDriveButton = false;
+      state.warpShutdownReason = 'insufficient-warp-power';
+    }
+  }
 
-  if (requestedWarp) {
+  if (requestedWarp && !warpPowerRejected) {
     const stage = normalizeStage(state.warpStage);
     const targetSpeed = WARP_STAGE_SPEEDS[stage];
     state.warpStage = stage;
@@ -58,16 +74,17 @@ export function advanceShipFlightDynamics(state, deltaSeconds) {
     // A aceleração de dobra é contínua; mudar de estágio nunca zera a velocidade.
     if (!state.braking) state.speed = approach(state.speed, targetSpeed, WARP_ACCELERATION * dt);
     if (conventionalWarpAssist) state.speed += 18 * dt;
-    const consumption = WARP_DILITHIUM_CONSUMPTION[stage] * dt;
-    state.warpDilithiumConsumedTotal = Math.max(0, Number(state.warpDilithiumConsumedTotal) || 0) + consumption;
-    state.refinedDilithium = Math.max(0, refinedDilithium - consumption);
-
-    if (state.refinedDilithium <= 0) {
+    if (!hasCorePowerSystem) {
+      const consumption = WARP_DILITHIUM_CONSUMPTION[stage] * dt;
+      state.warpDilithiumConsumedTotal = Math.max(0, Number(state.warpDilithiumConsumedTotal) || 0) + consumption;
+      state.refinedDilithium = Math.max(0, refinedDilithium - consumption);
+    }
+    if (hasCorePowerSystem ? (Number(state.plasma) <= 0 && Number(state.warpCoreWarpBuffer) <= 0) : state.refinedDilithium <= 0) {
       state.warpDriveButton = false;
       state.warpDriveActive = false;
       state.warpCurrentStage = 0;
       state.warpTransition = 'exiting';
-      state.warpShutdownReason = 'dilithium-depleted';
+      state.warpShutdownReason = hasCorePowerSystem ? 'plasma-depleted' : 'dilithium-depleted';
     }
   } else {
     state.warpDriveActive = false;

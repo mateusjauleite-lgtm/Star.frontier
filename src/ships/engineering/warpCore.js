@@ -66,6 +66,49 @@ export function createEngineeringWarpCore() {
   add(group, new THREE.TubeGeometry(energySpiral, 160, 0.075, 8, false),
     cyanLight, 'Engineering-Core-Energy-Spiral');
 
+  // Matriz de dilítio: estabiliza e modula a reação antes do condicionamento do plasma.
+  const matrixShell = add(group,
+    new THREE.CylinderGeometry(1.24, 1.24, 0.82, 48, 1, true),
+    coreShell, 'Engineering-Dilithium-Matrix-Chamber', [0, -1.42, 0]);
+  matrixShell.material = coreShell;
+  const matrixCrystal = add(group, new THREE.OctahedronGeometry(0.48, 1),
+    cyanLight, 'Engineering-Dilithium-Matrix-Crystal', [0, -1.42, 0]);
+  matrixCrystal.rotation.y = Math.PI / 4;
+  for (const [index, y] of [-1.88, -1.42, -0.96].entries()) {
+    const matrixRing = add(group, new THREE.TorusGeometry(1.34, 0.055, 8, 56),
+      cyanLight, `Engineering-Dilithium-Matrix-Regulator-${index + 1}`, [0, y, 0]);
+    matrixRing.rotation.x = Math.PI / 2;
+  }
+
+  // Condicionador de plasma e manifold EPS: três saídas isoladas, sem atravessar
+  // o núcleo visual nem criar volumes de colisão nos corredores do Deck 3.
+  add(group, new THREE.CylinderGeometry(1.05, 1.18, 0.42, 40),
+    edgeMetal, 'Engineering-Plasma-Conditioning-Manifold', [0, -2.18, 0]);
+  const conduitMaterial = new THREE.MeshStandardMaterial({
+    color: 0x287b9c, emissive: 0x07506d, emissiveIntensity: 0.8,
+    metalness: 0.78, roughness: 0.25
+  });
+  const busNodes = [
+    { name: 'EPS-Critical-Bus', position: [-4.65, -2.18, -1.8], target: [-1.05, -2.18, 0] },
+    { name: 'EPS-Operations-Bus', position: [4.65, -2.18, -1.8], target: [1.05, -2.18, 0] },
+    { name: 'EPS-Warp-Deflector-Bus', position: [0, -2.18, 4.1], target: [0, -2.18, 1.05] }
+  ];
+  for (const node of busNodes) {
+    const start = new THREE.Vector3(...node.target);
+    const end = new THREE.Vector3(...node.position);
+    const midpoint = start.clone().lerp(end, 0.5);
+    midpoint.y += 0.22;
+    const curve = new THREE.CatmullRomCurve3([start, midpoint, end]);
+    const conduit = add(group,
+      new THREE.TubeGeometry(curve, 20, 0.16, 8, false),
+      conduitMaterial, `${node.name}-Conduit`);
+    conduit.userData.isolatedPowerBranch = true;
+    add(group, new THREE.CylinderGeometry(0.72, 0.72, 0.28, 32),
+      darkMetal, `${node.name}-Housing`, node.position);
+    add(group, new THREE.TorusGeometry(0.58, 0.045, 8, 32),
+      cyanLight, `${node.name}-Status-Ring`, [node.position[0], node.position[1] + 0.16, node.position[2]]);
+  }
+
   const crown = add(group, new THREE.CylinderGeometry(1.9, 1.9, 0.2, 48),
     edgeMetal, 'Engineering-Core-Upper-Collar', [0, 2.78, 0]);
   crown.material = edgeMetal;

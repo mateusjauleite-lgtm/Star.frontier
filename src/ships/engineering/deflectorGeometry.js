@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 // Geometria modular do prato embutido; origem local no centro da abertura do Deck 3.
 export function createDeflectorGeometry(options = {}) {
-  const radius=Number(options.radius)||6.8, depth=Number(options.depth)||1.15;
+  const radius=Number(options.radius)||8.5, depth=Number(options.depth)||1.15;
   const group=new THREE.Group(); group.name='Frontier-Deflector-Assembly';
   const dark=new THREE.MeshStandardMaterial({color:0x142635,metalness:0.88,roughness:0.28});
   const trim=new THREE.MeshStandardMaterial({color:0x39728e,metalness:0.82,roughness:0.24,emissive:0x062b3c});

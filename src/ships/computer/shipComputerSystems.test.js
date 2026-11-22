@@ -169,15 +169,46 @@ test('piloto não ativa dobra sem dilítio refinado', () => {
   assert.equal(state.warpDriveButton, false);
 });
 
-test('Engenharia assume autoridade e comanda a mesma propulsão', () => {
+test('piloto ativa dobra com plasma mesmo sem dilítio refinado no barramento integrado', () => {
+  const { computer, state } = createHarness();
+  state.warpCorePowerBusConnected = true;
+  state.refinedDilithium = 0;
+  state.plasma = 24;
+  const response = computer.dispatch('pilot-console', 'propulsion', 'setPilotInput', {
+    control: 'warpDriveButton',
+    active: true
+  });
+  assert.equal(response.result.accepted, true);
+  assert.equal(state.warpDriveButton, true);
+});
+
+test('piloto não ativa dobra integrada sem plasma nem reserva EPS', () => {
+  const { computer, state } = createHarness();
+  state.warpCorePowerBusConnected = true;
+  state.refinedDilithium = 60;
+  state.plasma = 0;
+  state.warpCoreWarpBuffer = 0;
+  const response = computer.dispatch('pilot-console', 'propulsion', 'setPilotInput', {
+    control: 'warpDriveButton',
+    active: true
+  });
+  assert.equal(response.result.accepted, false);
+  assert.equal(response.result.reason, 'plasma-unavailable');
+  assert.equal(state.warpDriveButton, false);
+});
+
+test('comando no console do piloto retoma a autoridade da Ponte após controle da Engenharia', () => {
   const { computer, state } = createHarness();
   assert.equal(computer.dispatch('engineering-console', 'engineering', 'setAuthority', { mode: 'engineering' }).result.accepted, true);
-  const pilot = computer.dispatch('pilot-console', 'propulsion', 'setPilotInput', { control: 'throttle', active: true });
-  assert.equal(pilot.result.accepted, false);
-  assert.equal(pilot.result.reason, 'engineering-has-authority');
-  const engineering = computer.dispatch('engineering-console', 'engineering', 'setInput', { control: 'warpDriveButton', active: true });
-  assert.equal(engineering.result.accepted, true);
+  const pilot = computer.dispatch('pilot-console', 'propulsion', 'setPilotInput', { control: 'warpDriveButton', active: true });
+  assert.equal(pilot.result.accepted, true);
+  assert.equal(state.propulsionAuthority, 'bridge');
   assert.equal(state.warpDriveButton, true);
+  const engineering = computer.dispatch('engineering-console', 'engineering', 'setAuthority', { mode: 'engineering' });
+  assert.equal(engineering.result.accepted, true);
+  const engineeringCommand = computer.dispatch('engineering-console', 'engineering', 'setInput', { control: 'warpDriveButton', active: false });
+  assert.equal(engineeringCommand.result.accepted, true);
+  assert.equal(state.warpDriveButton, false);
 });
 
 test('troca de autoridade não desliga uma dobra já em cruzeiro', () => {

@@ -53,8 +53,12 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
   const applyPropulsionInput = ({ control, active } = {}) => {
     if (!PROPULSION_INPUTS.has(control) || typeof active !== 'boolean') return { accepted: false, reason: 'invalid-propulsion-input' };
     if (!readShip()) return { accepted: false, reason: 'ship-unavailable' };
-    if (control === 'warpDriveButton' && active && !(Number(state.refinedDilithium) > 0)) {
-      return { accepted: false, reason: 'dilithium-unavailable' };
+    if (control === 'warpDriveButton' && active) {
+      const integrated = Boolean(state.warpCorePowerBusConnected);
+      const hasWarpResource = integrated
+        ? Number(state.plasma) > 0 || Number(state.warpCoreWarpBuffer) > 0
+        : Number(state.refinedDilithium) > 0;
+      if (!hasWarpResource) return { accepted: false, reason: integrated ? 'plasma-unavailable' : 'dilithium-unavailable' };
     }
     state[control] = active;
     if (control === 'warpDriveButton' && active) state.warpStage = 5;
@@ -114,24 +118,28 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
       status: () => {
         const propulsion = readPropulsion();
         if (!propulsion.available) return { available: false };
+        const integrated = Boolean(state.warpCorePowerBusConnected);
+        const plasmaAmount = integrated ? Math.max(0, Number(state.plasma) || 0) : Math.max(0, Number(state.refinedDilithium) || 0);
         return {
           available: true,
-          conventionalFuel: state.fuel,
+          ...(!integrated ? { conventionalFuel: state.fuel, refinedDilithium: state.refinedDilithium } : {}),
           personalRawDilithiumOre: readPersonalRawOre(),
-          refinedDilithium: state.refinedDilithium,
+          matrixDilithiumFeedstock: Math.max(0, Number(state.refinedDilithium) || 0),
+          plasma: { amount: plasmaAmount, capacity: integrated ? Math.max(0, Number(state.plasmaCapacity) || 0) : Number(refinerySystem?.snapshot?.().coreCapacity) || 250, consumedTotal: integrated ? Math.max(0, Number(state.plasmaConsumedTotal) || 0) : Math.max(0, Number(state.warpDilithiumConsumedTotal) || 0), consumptionRate: integrated ? Math.max(0, Number(state.warpCorePlasmaConsumptionRate) || 0) : state.warpDriveActive ? (WARP_DILITHIUM_CONSUMPTION[Number(state.warpCurrentStage) || 0] || 0) : 0 },
+          warpCorePower: state.warpCorePowerTelemetry || null,
           warpCore: {
-            resourceId: RESOURCE_IDS.REFINED_DILITHIUM,
-            reserve: Math.max(0, Number(state.refinedDilithium) || 0),
-            capacity: Number(refinerySystem?.snapshot?.().coreCapacity) || 250,
+            resourceId: integrated ? 'resource.plasma' : RESOURCE_IDS.REFINED_DILITHIUM,
+            reserve: plasmaAmount,
+            capacity: integrated ? Math.max(0, Number(state.plasmaCapacity) || 0) : Number(refinerySystem?.snapshot?.().coreCapacity) || 250,
             active: Boolean(state.warpDriveActive),
             stage: Number(state.warpCurrentStage) || 0,
-            consumptionRate: state.warpDriveActive ? (WARP_DILITHIUM_CONSUMPTION[Number(state.warpCurrentStage) || 0] || 0) : 0,
-            consumedTotal: Math.max(0, Number(state.warpDilithiumConsumedTotal) || 0),
+            consumptionRate: integrated ? Math.max(0, Number(state.warpCorePlasmaConsumptionRate) || 0) : state.warpDriveActive ? (WARP_DILITHIUM_CONSUMPTION[Number(state.warpCurrentStage) || 0] || 0) : 0,
+            consumedTotal: integrated ? Math.max(0, Number(state.plasmaConsumedTotal) || 0) : Math.max(0, Number(state.warpDilithiumConsumedTotal) || 0),
             conventionalThrottleActive: Boolean(state.throttle),
             conventionalFuelConsumptionRate: state.throttle && Number(state.fuel) > 0 ? 0.28 : 0
           },
           refinery: refinerySystem?.snapshot?.() ?? { available: false },
-          shields: state.shield,
+          shields: shieldSystem?.snapshot?.() ?? { shield: state.shield, enabled: state.shieldEnabled !== false },
           shieldEnabled: state.shieldEnabled !== false,
           hull: state.hull,
           propulsionAuthority: propulsion.authority,
@@ -156,8 +164,8 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
         enabled: state.shieldEnabled !== false, shield: state.shield, hull: state.hull
       },
       setEnabled: (payload, context) => {
-        if (context?.terminalId !== 'engineering-console') {
-          return { accepted: false, reason: 'engineering-terminal-required' };
+        if (!['engineering-console','ship-management-terminal','pilot-console'].includes(context?.terminalId)) {
+          return { accepted: false, reason: 'ship-computer-terminal-required' };
         }
         const status = shieldSystem?.setEnabled?.(Boolean(payload?.enabled));
         return { accepted: Boolean(status), status };
@@ -181,8 +189,11 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
       setPilotInput: (payload, context) => {
         if (context.terminalId !== 'pilot-console') return { accepted: false, reason: 'pilot-terminal-required' };
         const authority = state.propulsionAuthority || 'bridge';
-        if (authority === 'engineering') return { accepted: false, reason: 'engineering-has-authority' };
-        if (authority === 'automatic') state.propulsionAuthority = 'bridge';
+        // Um comando físico no console do piloto é uma retomada explícita do leme.
+        // A Engenharia pode reassumir o controle a qualquer momento pelo seu console.
+        if (authority === 'engineering' || authority === 'automatic') {
+          state.propulsionAuthority = 'bridge';
+        }
         return applyPropulsionInput(payload);
       },
       setWarpStage: (payload, context) => {
