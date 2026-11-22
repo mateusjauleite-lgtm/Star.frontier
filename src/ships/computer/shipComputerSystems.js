@@ -1,4 +1,4 @@
-import { WARP_STAGE_SPEEDS } from '../flight/flightDynamics.js';
+import { WARP_STAGE_SPEEDS, WARP_DILITHIUM_CONSUMPTION } from '../flight/flightDynamics.js';
 import { RESOURCE_IDS } from '../../core/resources/resourceCatalog.js';
 // Adaptadores entre o computador central e os sistemas reais da nave.
 // Ponte e Engenharia consultam e comandam a mesma fonte de estado.
@@ -110,6 +110,16 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
           available: true,
           conventionalFuel: state.fuel,
           refinedDilithium: state.refinedDilithium,
+          warpCore: {
+            resourceId: RESOURCE_IDS.REFINED_DILITHIUM,
+            reserve: Math.max(0, Number(state.refinedDilithium) || 0),
+            capacity: Number(refinerySystem?.snapshot?.().coreCapacity) || 250,
+            active: Boolean(state.warpDriveActive),
+            stage: Number(state.warpCurrentStage) || 0,
+            consumptionRate: state.warpDriveActive ? (WARP_DILITHIUM_CONSUMPTION[Number(state.warpCurrentStage) || 0] || 0) : 0,
+            consumedTotal: Math.max(0, Number(state.warpDilithiumConsumedTotal) || 0),
+            conventionalFuelConsumptionRate: state.throttle && Number(state.fuel) > 0 ? 0.28 : 0
+          },
           refinery: refinerySystem?.snapshot?.() ?? { available: false },
           shields: state.shield,
           shieldEnabled: state.shieldEnabled !== false,
