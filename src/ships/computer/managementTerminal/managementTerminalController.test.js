@@ -21,8 +21,9 @@ function createHarness() {
   });
   computer.boot();
   const calls = [];
+  const mounted = {};
   const renderer = {
-    mount: options => { calls.push(['mount', Boolean(options.onClose)]); },
+    mount: options => { mounted.options = options; calls.push(['mount', Boolean(options.onClose)]); },
     render: value => calls.push(['render', value.present, value.open]),
     unmount: () => calls.push(['unmount'])
   };
@@ -32,7 +33,7 @@ function createHarness() {
     renderer,
     onInteractionChange: active => changes.push(active)
   });
-  return { computer, controller, calls, changes };
+  return { computer, controller, calls, changes, mounted };
 }
 
 test('terminal holográfico permanece passivo até receber presença e interação', () => {
@@ -98,5 +99,18 @@ test('aplicativo dedicado do núcleo de dobra consulta a telemetria real do Ship
   assert.ok(h.controller.getSnapshot().modules.includes('warp-core'));
   assert.equal(h.controller.selectModule('warp-core'), true);
   assert.equal(h.controller.getSnapshot().selectedModuleId, 'warp-core');
+  h.controller.shutdown();
+});
+
+test('aplicativo da Alexia encaminha texto ao núcleo único e recupera histórico', () => {
+  const h = createHarness();
+  h.controller.initialize();
+  h.controller.setPresence(true, true);
+  h.controller.open('PILOTO');
+  assert.equal(h.controller.selectModule('onboard-ai'), true);
+  const response = h.mounted.options.onAIMessage('qual a situação da nave?');
+  assert.equal(response.ok, true);
+  assert.equal(response.intent, 'telemetry');
+  assert.equal(h.computer.onboardAI.getConversationHistory().length, 2);
   h.controller.shutdown();
 });
