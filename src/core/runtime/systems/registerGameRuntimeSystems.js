@@ -50,7 +50,7 @@ export function registerGameRuntimeSystems(runtime, dependencies) {
   runtime.registerSystem('character', createCharacterRuntimeSystem(character));
   runtime.registerSystem('world', createWorldRuntimeSystem(world));
   const shipComputerRuntime = shipComputer && typeof shipComputer.registerSystems === 'function'
-    ? { ...shipComputer, registerSystems: () => shipComputer.registerSystems(deflector) }
+    ? { ...shipComputer, onboardAI: shipComputer.onboardAI || null, registerSystems: () => shipComputer.registerSystems(deflector) }
     : shipComputer;
   runtime.registerSystem('ship-computer', createShipComputerRuntimeSystem(shipComputerRuntime));
   if (shipManagementTerminal) {

@@ -6,6 +6,7 @@ import { defenseModule } from './defense/index.js';
 import { diagnosticsModule } from './diagnostics/index.js';
 import { warpCoreModule } from './warpCore/index.js';
 import { deflectorModule } from './deflector/index.js';
+import { onboardAIModule } from './onboardAI/index.js';
 
 export const SHIP_COMPUTER_MODULES = Object.freeze([
   navigationModule,
@@ -14,6 +15,7 @@ export const SHIP_COMPUTER_MODULES = Object.freeze([
   engineeringModule,
   warpCoreModule,
   deflectorModule,
+  onboardAIModule,
   defenseModule,
   diagnosticsModule
 ]);

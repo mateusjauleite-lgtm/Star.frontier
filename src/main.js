@@ -62,7 +62,12 @@ const characterCore = createCharacterCore();
 const characterAudio = createCharacterAudio({ core: characterCore });
 characterAudio.attach();
 const shipAudio = createShipAudio();
-const shipComputer = createShipComputer();
+const shipComputer = createShipComputer({
+  aiDatabaseAdapter: {
+    load: () => state.shipComputerAIDatabase || null,
+    save: database => { state.shipComputerAIDatabase = database; save(); }
+  }
+});
 shipComputer.registerTerminal({
   id: 'ship-management-terminal',
   name: 'Terminal holográfico de gerenciamento',
@@ -830,6 +835,7 @@ async function startGame() {
           onStage: stage => { startupStage = stage; }
         },
         shipComputer: {
+          onboardAI: shipComputer.onboardAI,
           registerSystems: deflectorRuntime => {
             try {
               registerComputerSubsystems(deflectorRuntime);
