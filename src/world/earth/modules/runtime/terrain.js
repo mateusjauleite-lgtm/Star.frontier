@@ -150,7 +150,12 @@ export function createTerrainRuntime({ options, layers }) {
         (grid.north ?? 90) > (grid.south ?? -90)
       );
       const exaggeration = Math.max(1, options.terrainVerticalExaggeration ?? 16);
-      const radius = options.radius;\n      const physicalScale = options.physicalScale;\n      if (!physicalScale || typeof physicalScale.metersToRenderUnits !== 'function' ||\n          typeof physicalScale.kmToRenderUnits !== 'function') {\n        throw new TypeError('Earth terrain requires the authoritative SI/render physical scale.');\n      }
+      const radius = options.radius;
+      const physicalScale = options.physicalScale;
+      if (!physicalScale || typeof physicalScale.metersToRenderUnits !== 'function' ||
+          typeof physicalScale.kmToRenderUnits !== 'function') {
+        throw new TypeError('Earth terrain requires the authoritative SI/render physical scale.');
+      }
       let elevationRevision = 0;
       const getLodGeometries = () => surface.userData?.earthLodGeometries ?? [surface.geometry];
       const yieldToFrame = () => new Promise(resolve => {
@@ -186,9 +191,7 @@ export function createTerrainRuntime({ options, layers }) {
         if (gridIsReady) {
           const meters = sampleEarthElevationGrid(grid, longitudeDeg, latitudeDeg);
           if (meters !== null) {
-            return earthKernel.elevationMetersToUnits(
-              meters, radius, 6371.0088, exaggeration
-            );
+            return physicalScale.metersToRenderUnits(meters) * exaggeration;
           }
         }
 
@@ -235,9 +238,7 @@ export function createTerrainRuntime({ options, layers }) {
           for (let i = 0; i < positions.count; i++) {
             if (disposed || revision !== elevationRevision) return false;
             const elevationUnits = Number.isFinite(sampledMeters?.[i])
-              ? earthKernel.elevationMetersToUnits(
-                sampledMeters[i], radius, 6371.0088, exaggeration
-              )
+              ? physicalScale.metersToRenderUnits(sampledMeters[i]) * exaggeration
               : elevationSampler(longitudes[i], latitudes[i]);
             if (Number.isFinite(elevationUnits)) {
               vertexDirection.fromBufferAttribute(positions, i).normalize();
@@ -504,9 +505,7 @@ export function createTerrainRuntime({ options, layers }) {
         sampleElevationMetersBatch: points => regionalDemProvider.sampleBatch(points, {
           zoom: regionalDemZoom
         }),
-        elevationMetersToUnits: meters => earthKernel.elevationMetersToUnits(
-          meters, radius, 6371.0088, exaggeration
-        ),
+        elevationMetersToUnits: meters => physicalScale.metersToRenderUnits(meters) * exaggeration,
         maxLevel: options.regionalSurfaceMaxLevel ?? 12,
         maxTiles: options.regionalSurfaceMaxTiles ?? 48,
         segments: options.regionalSurfaceSegments ?? 24,
