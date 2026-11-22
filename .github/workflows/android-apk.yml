@@ -13,7 +13,6 @@ on:
       - feature/character-human-model-animation
       - feature/startup-loading-login-flow
       - feature/core-runtime-foundation
-      - feature/alexia-chat-core
       - feature/ship-management-holographic-terminal
       - feature/engineering-warp-core-foundation
       - feature/warp-stages-engineering-controls
@@ -26,10 +25,10 @@ on:
       - feature/dilithium-matrix-console
       - feature/ship-computer-matrix-integration
       - feature/alexia-chat-core
-      - feature/deflector-sensor-navigation-map
       - feature/aurora-ship-computer-ai-core
   pull_request:
     branches:
+      - feature/alexia-chat-core
       - feature/core-runtime-foundation
       - feature/refinery-core-energy-final-validation
       - feature/dilithium-inventory-refinery-transfer
