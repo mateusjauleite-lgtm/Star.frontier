@@ -1677,24 +1677,13 @@ function updateCharacterMovement(dt) {
 
   const leavingDeckThroughAft = activeDeckIndex === 3 &&
     isD4BeyondExitAperture(deck);
-  // Crossing the aft opening must not launch the external-elevator sequence.
-  // The player now exits the ship only through the explicit elevator action.
-  if (leavingDeckThroughAft && !externalElevatorRiding) {
+  // The aft opening is not an automatic exit trigger. Only the explicit
+  // external-elevator action may transfer the character to the planetary frame.
+  if (leavingDeckThroughAft) {
     deck.copy(previousDeckPosition);
     movedHorizontally = false;
   }
-  if (leavingDeckThroughAft && externalElevatorRiding) {
-    characterPhysics?.leaveGround();
-    if (transferCharacterToWorldFrame()) {
-      updateCharacterWorldPhysics(dt);
-      characterAnimator?.play('fall', { restart: true });
-      characterAnimator?.update(dt);
-      return;
-    }
-  }
-  const floorY = leavingDeckThroughAft
-    ? -1000000
-    : starshipInterior.layout.decks[activeDeckIndex].y + 0.21;
+  const floorY = starshipInterior.layout.decks[activeDeckIndex].y + 0.21;
   if (characterControls.consumeJump()) {
     if (characterPhysics?.jump()) {
       characterAnimator?.play('jump', { restart: true });
@@ -2739,7 +2728,10 @@ function cancelLandingGuidance(reason = 'cancelled') {
     ship.userData.landingAutopilotState = reason;
   }
   const button = $('landing-btn');
-  if (button) button.textContent = '◉ POUSO';
+  if (button) {
+    button.textContent = '◉ POUSO';
+    button.classList.remove('guidance-active');
+  }
 }
 
 $('landing-gear-btn')?.addEventListener('click', () => {
@@ -2883,7 +2875,7 @@ $('landing-select-btn')?.addEventListener('click', () => {
   const button = $('landing-btn');
   if (button) {
     button.textContent = '◎ ATIVAR GUIA DE POUSO';
-    button.classList.remove('gear-deployed','gear-deploying','gear-retracted');
+    button.classList.remove('gear-deployed','gear-deploying','gear-retracted','guidance-active');
   }
   const status = $('landing-status');
   if (status) status.textContent = 'Destino marcado: Salar de Uyuni · UY04. Ative a guia quando estiver pronto. A orientação calcula a aproximação, mas ainda não comanda a propulsão.';
