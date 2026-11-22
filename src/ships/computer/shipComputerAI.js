@@ -144,10 +144,13 @@ export function createShipComputerAI({
   function processUtterance(utterance) {
     const text = String(utterance || '').trim().toLocaleLowerCase('pt-BR');
     if (!text) return { ok: false, reason: 'empty-utterance' };
-    append('observations', { type: 'voice-command', utterance: text });
-    if (/\b(ronda|verifique|verificar)\b/.test(text)) return runPatrol();
-    if (/\b(diagn[oó]stico|diagnosticar|falhas)\b/.test(text)) return diagnose();
-    if (/\b(status|situa[cç][aã]o)\b/.test(text)) return { ok: true, snapshot: getSnapshot(), ai: snapshot() };
+    const calledName = aiName.toLocaleLowerCase('pt-BR');
+    if (!text.includes(calledName)) return { ok: false, reason: 'wake-name-not-detected' };
+    const commandText = text.replace(calledName, '').replace(/^[,\\s]+/, '').trim();
+    append('observations', { type: 'voice-command', assistant: aiName, utterance: text });
+    if (/\b(ronda|verifique|verificar)\b/.test(commandText)) return runPatrol();
+    if (/\b(diagn[oó]stico|diagnosticar|falhas)\b/.test(commandText)) return diagnose();
+    if (/\b(status|situa[cç][aã]o)\b/.test(commandText)) return { ok: true, snapshot: getSnapshot(), ai: snapshot() };
     return { ok: false, reason: 'voice-intent-not-mapped', message: 'Comando reconhecido, mas ainda sem ação cadastrada. Nenhum sistema foi alterado.' };
   }
 
@@ -206,6 +209,7 @@ export function createShipComputerAI({
 
   return Object.freeze({
     snapshot,
+    setName,
     getDatabase: () => clone(database),
     learn,
     searchKnowledge,
