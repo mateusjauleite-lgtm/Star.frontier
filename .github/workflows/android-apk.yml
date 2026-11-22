@@ -36,6 +36,7 @@ on:
       - feature/character-human-model-animation
       - feature/startup-loading-login-flow
       - feature/engineering-warp-core-foundation
+      - feature/audio-microphone-core
       - fix/character-hud-startup-layout
   workflow_dispatch:
 
