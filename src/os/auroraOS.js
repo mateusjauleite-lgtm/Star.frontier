@@ -34,8 +34,10 @@ export function createAuroraOS({ documentRef = globalThis.document, manager = au
   const view = documentRef.getElementById(VIEW_ID);
   let currentView = 'home';
   let destroyed = false;
+  let meterFrame = null;
 
   function showHome() {
+    stopMeterAnimation();
     currentView = 'home';
     menu.classList.add('aurora-os-active');
     menu.classList.remove('aurora-legacy-app');
@@ -49,6 +51,7 @@ export function createAuroraOS({ documentRef = globalThis.document, manager = au
     menu.classList.remove('aurora-legacy-app');
     renderAudio();
     updateNavigationState();
+    startMeterAnimation();
   }
 
   function openLegacyApp(id) {
@@ -243,6 +246,8 @@ export function createAuroraOS({ documentRef = globalThis.document, manager = au
 
   function refreshAudioReadouts() {
     const snapshot = manager.getSnapshot();
+    if (snapshot.microphone.active) startMeterAnimation();
+    else stopMeterAnimation();
     const mic = snapshot.microphone;
     const chip = view.querySelector('#aurora-mic-chip');
     const permission = view.querySelector('#aurora-mic-permission');
@@ -269,8 +274,27 @@ export function createAuroraOS({ documentRef = globalThis.document, manager = au
     if (stop) stop.disabled = !mic.active;
   }
 
+  function startMeterAnimation() {
+    if (meterFrame !== null || currentView !== 'audio' || !manager.getSnapshot().microphone.active) return;
+    const tick = () => {
+      meterFrame = null;
+      if (currentView !== 'audio' || destroyed) return;
+      const meter = view.querySelector('#aurora-mic-level');
+      if (meter) meter.style.width = Math.min(100, Math.round(manager.getSnapshot().microphone.inputLevel * 500)) + '%';
+      if (manager.getSnapshot().microphone.active) meterFrame = requestAnimationFrame(tick);
+    };
+    meterFrame = requestAnimationFrame(tick);
+  }
+
+  function stopMeterAnimation() {
+    if (meterFrame === null) return;
+    cancelAnimationFrame(meterFrame);
+    meterFrame = null;
+  }
+
   function destroy() {
     if (destroyed) return;
+    stopMeterAnimation();
     destroyed = true;
     unsubscribe?.();
     view?.removeEventListener('click', handleClick);
