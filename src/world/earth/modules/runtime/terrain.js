@@ -127,7 +127,9 @@ export function createTerrainRuntime({ options, layers }) {
       const surface = layers.surface;
       if (!surface?.geometry) return;
 
-      maskCanvas = createEarthLandMask(2048, 1024);
+      // The fallback mask is not the authoritative ETOPO grid; keep it lighter
+      // so startup does not allocate and read an unnecessary 2M-pixel canvas.
+      maskCanvas = createEarthLandMask(1024, 512);
       const context = maskCanvas.getContext('2d');
       maskData = context.getImageData(0, 0, maskCanvas.width, maskCanvas.height).data;
 
@@ -144,7 +146,15 @@ export function createTerrainRuntime({ options, layers }) {
       );
       const exaggeration = Math.max(1, options.terrainVerticalExaggeration ?? 8);
       const radius = options.radius;
-      const lodGeometries = surface.userData?.earthLodGeometries ?? [surface.geometry];
+      let elevationRevision = 0;
+      const getLodGeometries = () => surface.userData?.earthLodGeometries ?? [surface.geometry];
+      const yieldToFrame = () => new Promise(resolve => {
+        if (typeof globalThis.requestAnimationFrame === 'function') {
+          globalThis.requestAnimationFrame(() => resolve());
+        } else {
+          setTimeout(resolve, 0);
+        }
+      });
       const direction = new THREE.Vector3();
       const width = maskCanvas.width, height = maskCanvas.height;
       const unitsPerKm = radius / 6371.0088;
@@ -180,9 +190,11 @@ export function createTerrainRuntime({ options, layers }) {
         return baseUnits + (land > .5 && detailUnits !== null ? detailUnits : 0);
       };
 
-      const applyElevationToMeshes = () => {
+      const applyElevationToMeshes = async () => {
+        const revision = ++elevationRevision;
         const vertexDirection = new THREE.Vector3();
-        for (const geometry of lodGeometries) {
+        const geometries = getLodGeometries();
+        for (const geometry of geometries) {
           const positions = geometry.attributes.position;
           const longitudes = new Float32Array(positions.count);
           const latitudes = new Float32Array(positions.count);
@@ -196,28 +208,36 @@ export function createTerrainRuntime({ options, layers }) {
             ));
           }
 
-          // One batched C++/WASM call samples the authoritative NOAA grid.
-          // The JavaScript sampler remains the fallback for no-data cells and
-          // for devices where the WASM module is unavailable.
+          // Batch the NOAA samples once, then displace in short frame-sized
+          // slices. This lets the first renderer frame appear before the
+          // complete planetary mesh has finished processing.
           const sampledMeters = gridIsReady
             ? earthKernel.sampleElevationBatch(grid, longitudes, latitudes)
             : null;
           for (let i = 0; i < positions.count; i++) {
-            let elevationUnits = Number.isFinite(sampledMeters?.[i])
+            if (disposed || revision !== elevationRevision) return false;
+            const elevationUnits = Number.isFinite(sampledMeters?.[i])
               ? earthKernel.elevationMetersToUnits(
                 sampledMeters[i], radius, 6371.0088, exaggeration
               )
               : elevationSampler(longitudes[i], latitudes[i]);
-            if (!Number.isFinite(elevationUnits)) continue;
-            vertexDirection.fromBufferAttribute(positions, i).normalize();
-            const finalRadius = radius + elevationUnits;
-            positions.setXYZ(i, vertexDirection.x * finalRadius,
-              vertexDirection.y * finalRadius, vertexDirection.z * finalRadius);
+            if (Number.isFinite(elevationUnits)) {
+              vertexDirection.fromBufferAttribute(positions, i).normalize();
+              const finalRadius = radius + elevationUnits;
+              positions.setXYZ(i, vertexDirection.x * finalRadius,
+                vertexDirection.y * finalRadius, vertexDirection.z * finalRadius);
+            }
+            if (i > 0 && i % 4096 === 0) {
+              positions.needsUpdate = true;
+              await yieldToFrame();
+            }
           }
+          if (disposed || revision !== elevationRevision) return false;
           positions.needsUpdate = true;
           geometry.computeVertexNormals();
           geometry.computeBoundingSphere();
         }
+        return true;
       };
 
       applyElevationToMeshes();
@@ -226,6 +246,7 @@ export function createTerrainRuntime({ options, layers }) {
       layers.terrain = {
         integratedWith: 'surface',
         displacedVertices: positions.count,
+        lodLevel: surface.userData?.earthLodLevel ?? 0,
         elevationSource: gridIsReady ? (grid.source ?? 'provided-global-grid') : 'procedural-fallback',
         sourceAttribution: grid?.attribution ?? null,
         sourceGridReady: gridIsReady,
@@ -530,6 +551,17 @@ export function createTerrainRuntime({ options, layers }) {
             };
           }
         }
+      };
+
+      // Called by the surface runtime only when camera distance changes LOD.
+      // The collision sampler is deliberately untouched: only the visible mesh
+      // is replaced and displaced from the same authoritative elevation source.
+      layers.terrain.refreshGeometry = () => {
+        if (disposed) return false;
+        layers.terrain.displacedVertices = surface.geometry?.attributes?.position?.count ?? 0;
+        layers.terrain.lodLevel = surface.userData?.earthLodLevel ?? 0;
+        applyElevationToMeshes();
+        return true;
       };
 
       // Replace the procedural first frame with NOAA ETOPO data. Reusing
