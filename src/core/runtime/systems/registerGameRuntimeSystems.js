@@ -16,6 +16,7 @@ import { createDilithiumRefineryRuntimeSystem } from '../../../ships/systems/dil
 import { createRefineryTerminalRuntimeSystem } from '../../../ships/computer/refineryTerminalController.js';
 import { createDeflectorTerminalRuntimeSystem } from '../../../ships/computer/deflectorTerminalController.js';
 import { createDilithiumMatrixTerminalRuntimeSystem } from '../../../ships/computer/dilithiumMatrixTerminalController.js';
+import { createAlexiaCrewRuntimeSystem } from '../../../character/alexiaCrewRuntimeSystem.js';
 
 export function registerGameRuntimeSystems(runtime, dependencies) {
   if (!runtime || typeof runtime.registerSystem !== 'function') {
@@ -40,7 +41,8 @@ export function registerGameRuntimeSystems(runtime, dependencies) {
     warpCore: suppliedWarpCore,
     deflector: suppliedDeflector,
     readDeflectorInputs = () => ({}),
-    onDeflectorCreated = () => {}
+    onDeflectorCreated = () => {},
+    getAlexiaCharacter = () => null
   } = dependencies;
   const warpCore = suppliedWarpCore || createWarpCorePowerSystem({ state, persist: saveState });
   const deflector = suppliedDeflector || createDeflectorRuntimeSystem({
@@ -55,6 +57,7 @@ export function registerGameRuntimeSystems(runtime, dependencies) {
     ? { ...shipComputer, onboardAI: shipComputer.onboardAI || null, registerSystems: () => shipComputer.registerSystems(deflector) }
     : shipComputer;
   runtime.registerSystem('ship-computer', createShipComputerRuntimeSystem(shipComputerRuntime));
+  runtime.registerSystem('alexia-crew', createAlexiaCrewRuntimeSystem({ getActor: getAlexiaCharacter }));
   if (shipManagementTerminal) {
     runtime.registerSystem('ship-management-terminal', createShipManagementTerminalRuntimeSystem(shipManagementTerminal));
   }
