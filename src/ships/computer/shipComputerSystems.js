@@ -127,6 +127,7 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
             stage: Number(state.warpCurrentStage) || 0,
             consumptionRate: state.warpDriveActive ? (WARP_DILITHIUM_CONSUMPTION[Number(state.warpCurrentStage) || 0] || 0) : 0,
             consumedTotal: Math.max(0, Number(state.warpDilithiumConsumedTotal) || 0),
+            conventionalThrottleActive: Boolean(state.throttle),
             conventionalFuelConsumptionRate: state.throttle && Number(state.fuel) > 0 ? 0.28 : 0
           },
           refinery: refinerySystem?.snapshot?.() ?? { available: false },
