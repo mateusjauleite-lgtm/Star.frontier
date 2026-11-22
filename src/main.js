@@ -114,7 +114,7 @@ const deflectorRenderer = createDeflectorTerminalRenderer({
   root: $('game-screen'),
   onClose: () => toggleDeflectorConsole(),
   onToggle: (branch, enabled) => {
-    const commands = { core: 'setCoreEnabled', emitter: 'setEmitterEnabled', sensors: 'setSensorsEnabled', navigation: 'setNavigationEnabled', protection: 'setProtectionEnabled', science: 'setScienceEnabled' };
+    const commands = { core: 'setCoreEnabled', charging: 'setChargingEnabled', emitter: 'setEmitterEnabled', sensors: 'setSensorsEnabled', navigation: 'setNavigationEnabled', protection: 'setProtectionEnabled', science: 'setScienceEnabled' };
     const response = deflectorTerminal?.dispatch('deflector', commands[branch], { enabled });
     if (!response?.ok || !response.result?.accepted) toast('Comando do defletor recusado pelo Ship Computer.');
     else refreshDeflectorTerminal();
