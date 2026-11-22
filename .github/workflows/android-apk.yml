@@ -21,6 +21,7 @@ on:
       - feature/hud-profiles-editor-gameplay
       - feature/warp-dilithium-transfer-management
       - feature/warp-core-energy-matrix
+      - feature/dilithium-matrix-console
   pull_request:
     branches:
       - feature/core-runtime-foundation
