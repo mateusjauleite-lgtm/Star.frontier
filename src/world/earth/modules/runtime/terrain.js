@@ -383,7 +383,11 @@ export function createTerrainRuntime({ options, layers }) {
             patchMaterial.polygonOffsetFactor = -1;
             patchMaterial.polygonOffsetUnits = -1;
             const patch = new THREE.Mesh(geometry, patchMaterial);
-            patch.name = 'Earth-Local-HighResolution-Patch';
+            patch.name = 'Earth-Local-HighResolution-Collision-Proxy';
+            // Rendering is now owned by the streamed quadtree tiles. Keep this
+            // legacy geometry as a temporary proximity/collision activation
+            // marker until regional collision replaces the ETOPO proxy.
+            patch.visible = false;
             patch.userData.earthPatch = {
               longitudeDeg,
               latitudeDeg,
@@ -575,7 +579,7 @@ export function createTerrainRuntime({ options, layers }) {
       // the fallback and the authoritative base for the collision sampler.
       regionalDemProvider = createTerrariumElevationProvider({
         urlTemplate: options.regionalDemUrlTemplate ??
-          'https://elevation-tiles-prod.s3.amazonaws.com/terrarium/{z}/{x}/{y}.png',
+          'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png',
         maxCachedTiles: options.regionalDemCacheTiles ?? 96
       });
       regionalSurfaceRuntime = createEarthRegionalSurfaceRuntime({
@@ -591,7 +595,7 @@ export function createTerrainRuntime({ options, layers }) {
         maxLevel: options.regionalSurfaceMaxLevel ?? 12,
         maxTiles: options.regionalSurfaceMaxTiles ?? 48,
         segments: options.regionalSurfaceSegments ?? 24,
-        buildPerUpdate: 1
+        buildPerUpdate: 2
       });
       layers.terrain.regionalSurface = regionalSurfaceRuntime.getStatus();
       layers.terrain.regionalDem = regionalDemProvider.getStatus();
