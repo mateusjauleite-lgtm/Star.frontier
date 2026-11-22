@@ -15,6 +15,7 @@ import { createWarpCorePowerSystem } from '../../../ships/systems/warpCorePowerS
 import { createDilithiumRefineryRuntimeSystem } from '../../../ships/systems/dilithiumRefinerySystem.js';
 import { createRefineryTerminalRuntimeSystem } from '../../../ships/computer/refineryTerminalController.js';
 import { createDeflectorTerminalRuntimeSystem } from '../../../ships/computer/deflectorTerminalController.js';
+import { createAudioMicrophoneRuntimeSystem } from './audioMicrophoneSystem.js';
 
 export function registerGameRuntimeSystems(runtime, dependencies) {
   if (!runtime || typeof runtime.registerSystem !== 'function') {
@@ -35,6 +36,7 @@ export function registerGameRuntimeSystems(runtime, dependencies) {
     pauseMenu,
     orbitalPhysics,
     gameplay,
+    audioManager,
     warpCore: suppliedWarpCore,
     deflector: suppliedDeflector,
     readDeflectorInputs = () => ({}),
@@ -46,6 +48,9 @@ export function registerGameRuntimeSystems(runtime, dependencies) {
   });
   onDeflectorCreated(deflector);
 
+  if (audioManager) {
+    runtime.registerSystem('audio-microphone', createAudioMicrophoneRuntimeSystem(audioManager));
+  }
   runtime.registerSystem('entity-manager', createEntityRuntimeSystem({ manager: entityManager }));
   runtime.registerSystem('character', createCharacterRuntimeSystem(character));
   runtime.registerSystem('world', createWorldRuntimeSystem(world));
