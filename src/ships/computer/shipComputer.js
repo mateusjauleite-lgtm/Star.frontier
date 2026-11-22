@@ -1,5 +1,7 @@
 import { createShipComputerAI } from './shipComputerAI.js';
 
+const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
+
 // Núcleo central do computador da nave — Star Frontier.
 // Coordena sistemas, terminais e permissões sem duplicar a lógica das ramificações.
 export function createShipComputer({
