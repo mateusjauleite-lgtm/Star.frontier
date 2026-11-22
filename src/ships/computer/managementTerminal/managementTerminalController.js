@@ -75,7 +75,7 @@ export function createShipManagementTerminalController({
     const response = computer.dispatch(
       terminalId,
       module.systemId,
-      MODULE_COMMANDS[module.id]
+      MODULE_COMMANDS[module.id] || 'status'
     );
     moduleData = response.ok
       ? { available: true, label: module.label, phase: module.phase, data: response.result }

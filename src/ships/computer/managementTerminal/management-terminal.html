@@ -20,7 +20,7 @@
         <button type="button" class="management-app-link" data-management-module="weapons" data-system-id="weapons" aria-pressed="false"><span class="management-app-icon">✣</span><span>Arsenal<small data-module-state>PREPARADO</small></span></button>
         <button type="button" class="management-app-link" data-management-module="engineering" data-system-id="power" aria-pressed="false"><span class="management-app-icon">ϟ</span><span>Energia do núcleo<small data-module-state>PREPARADO</small></span></button>
         <button type="button" class="management-app-link" data-management-module="warp-core" data-system-id="power" aria-pressed="false"><span class="management-app-icon">✧</span><span>Núcleo de dobra<small data-module-state>PREPARADO</small></span></button>
-        <button type="button" class="management-app-link" data-management-module="defense" data-system-id="defense" aria-pressed="false"><span class="management-app-icon">⬡</span><span>Defesa<small data-module-state>PREPARADO</small></span></button>
+        <button type="button" class="management-app-link" data-management-module="defense" data-system-id="shields" aria-pressed="false"><span class="management-app-icon">⬡</span><span>Defesa e escudos<small data-module-state>PREPARADO</small></span></button>
         <button type="button" class="management-app-link" data-management-module="diagnostics" data-system-id="diagnostics" aria-pressed="false"><span class="management-app-icon">▤</span><span>Diagnósticos<small data-module-state>PREPARADO</small></span></button>
 
         <div class="management-sidebar-bottom">
@@ -52,11 +52,11 @@
               <div class="management-active-heading"><div><span class="management-os-eyebrow">APLICATIVO SELECIONADO</span><h3 data-management-detail-heading>Navegação</h3></div><span data-management-detail-state data-state="standby">AGUARDANDO</span></div>
               <p class="management-module-description" data-management-detail-description>Dados de navegação e telemetria da nave.</p>
               <div class="management-telemetry-grid" data-management-detail-output><div class="management-telemetry-empty">Selecione um aplicativo para consultar os dados do sistema.</div></div>
-              <section class="management-power-transfer" data-power-transfer-panel hidden aria-label="Transferência de dilítio para o núcleo de dobra">
-                <header><b>NÚCLEO DE DOBRA · RESERVA COMPARTILHADA</b><span>GESTÃO DE DILÍTIO</span></header>
+              <section class="management-power-transfer" data-power-transfer-panel hidden aria-label="Transferência de dilítio refinado para a matriz de plasma">
+                <header><b>NÚCLEO DE DOBRA · MATRIZ DE PLASMA</b><span>ALIMENTAÇÃO COM DILÍTIO REFINADO</span></header>
                 <div class="management-power-transfer-readouts">
                   <div><small>BUFFER REFINADO NA REFINARIA</small><strong data-power-transfer-buffer>0.00 u</strong></div>
-                  <div><small>RESERVA DO NÚCLEO</small><strong data-power-transfer-core>0.00 u</strong></div>
+                  <div><small>ALIMENTAÇÃO DA MATRIZ</small><strong data-power-transfer-core>0.00 u</strong></div>
                   <div><small>ESPAÇO LIVRE</small><strong data-power-transfer-capacity>0.00 u</strong></div>
                    <div><small>MINÉRIO NO INVENTÁRIO PESSOAL</small><strong data-warp-core-personal-raw>0.00 u</strong></div>
                    <div><small>MINÉRIO BRUTO NA REFINARIA</small><strong data-warp-core-raw>0.00 u</strong></div>
@@ -67,15 +67,16 @@
                    <div><small>TAXA DE REFINO</small><strong data-warp-core-refining-rate>0.000 u/s</strong></div>
                    <div><small>TRANSFERÊNCIA AUTOMÁTICA</small><strong data-warp-core-auto-transfer>DESLIGADA</strong></div>
                    <div><small>TAXA DE TRANSFERÊNCIA</small><strong data-warp-core-transfer-rate>0.000 u/s</strong></div>
-                   <div><small>CONSUMO DE COMBUSTÍVEL COMUM</small><strong data-warp-core-fuel-rate>0.000 u/s</strong></div>
+                   <div><small>RESERVA DE PLASMA</small><strong data-warp-core-plasma>0.00 u</strong></div>
+                   <div><small>CONSUMO DE PLASMA DO NÚCLEO</small><strong data-warp-core-plasma-rate>0.000 u/s</strong></div>
                    <div><small>ACELERADOR CONVENCIONAL</small><strong data-warp-core-throttle>DESLIGADO</strong></div>
                 </div>
                 <div class="management-power-transfer-controls">
                   <label for="power-transfer-amount">QUANTIDADE PARA TRANSFERIR</label>
                   <input id="power-transfer-amount" data-power-transfer-amount type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="Ex.: 25.00">
-                  <button type="button" data-power-transfer disabled>ABASTECER NÚCLEO DE DOBRA</button>
+                  <button type="button" data-power-transfer disabled>TRANSFERIR DILÍTIO PARA A MATRIZ</button>
                 </div>
-                <p data-power-transfer-feedback role="status" aria-live="polite">O núcleo consome dilítio somente enquanto a dobra está ativa.</p>
+                <p data-power-transfer-feedback role="status" aria-live="polite">A Refinaria entrega dilítio refinado à matriz, que o converte em plasma para o núcleo de dobra.</p>
               </section>
               
             </div>

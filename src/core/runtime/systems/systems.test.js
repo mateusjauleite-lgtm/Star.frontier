@@ -57,9 +57,9 @@ test('game runtime systems are registered in deterministic lifecycle order', () 
   registerGameRuntimeSystems(runtime, dependencies());
 
   assert.deepEqual(runtime.systems.map(system => system.name), [
-    'entity-manager', 'character', 'world', 'ship-computer', 'gameplay', 'deflector-core', 'orbital-physics'
+    'entity-manager', 'character', 'world', 'ship-computer', 'warp-core-power', 'gameplay', 'deflector-core', 'orbital-physics'
   ]);
-  assert.deepEqual(runtime.systems.map(system => system.priority), [5, 10, 20, 30, 40, 45, 45]);
+  assert.deepEqual(runtime.systems.map(system => system.priority), [5, 10, 20, 30, 39, 40, 45, 45]);
 });
 
 test('EntityManager is exposed in runtime context and detached without losing its data', async () => {
@@ -323,3 +323,17 @@ test('RuntimeBridge runs gameplay phases before sampling orbital telemetry', asy
 
 
 test('Runtime registra o terminal e o ciclo da Refinaria quando injetados',()=>{const runtime=fakeRuntime();const refinery={initialize:async()=>{},update(){},shutdown(){}};const refineryTerminal={initialize(){},shutdown(){}};registerGameRuntimeSystems(runtime,{...dependencies(),refinery,refineryTerminal});assert.ok(runtime.systems.some(x=>x.name==='refinery-terminal'&&x.priority===38));assert.ok(runtime.systems.some(x=>x.name==='dilithium-refinery'&&x.priority===46));});
+
+
+test('Runtime liga o núcleo de dobra ao barramento do núcleo do defletor', () => {
+  const runtime = fakeRuntime();
+  registerGameRuntimeSystems(runtime, dependencies());
+  const warpCore = runtime.systems.find(system => system.name === 'warp-core-power');
+  const deflector = runtime.systems.find(system => system.name === 'deflector-core');
+  assert.ok(warpCore);
+  assert.equal(deflector.snapshot().powerBusConnected, true);
+  warpCore.update(1);
+  deflector.update(0.5);
+  assert.ok(deflector.snapshot().energy > 0);
+  assert.equal(warpCore.snapshot().buses.critical.energy > 0, true);
+});

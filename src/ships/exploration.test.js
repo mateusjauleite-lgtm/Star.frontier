@@ -23,8 +23,21 @@ test('abertura provisória do defletor recorta somente a concha frontal inferior
   assert.ok(hull, 'concha inferior do casco deve existir');
 
   const aperture = DECK_3_DEFLECTOR_APERTURE;
+  const deflector = ship.visual.getObjectByName('Frontier-Deck3-Primary-Deflector');
+  assert.ok(deflector, 'conjunto emissor deve estar instalado na abertura frontal');
+  assert.deepEqual(deflector.position.toArray(), [aperture.centerX, aperture.centerY, aperture.centerZ]);
+  const outerRing = deflector.getObjectByName('Deflector-Outer-Structural-Ring');
+  assert.ok(outerRing, 'aro estrutural do emissor deve existir');
+  const outerRadius = outerRing.geometry.parameters.radius + outerRing.geometry.parameters.tube;
+  assert.ok(outerRadius * deflector.scale.y < aperture.radiusY,
+    'aro elíptico deve permanecer dentro da altura útil da abertura');
+  assert.ok(outerRadius < aperture.radiusX,
+    'aro estrutural deve permanecer dentro da largura útil da abertura');
   assert.equal(aperture.centerY, -2.9);
   assert.equal(aperture.centerZ, -45);
+  assert.ok(aperture.radiusX >= 11, 'abertura deve ter largura útil ampliada');
+  assert.ok(aperture.radiusY >= 5, 'abertura deve ter altura útil ampliada');
+  assert.ok(aperture.radiusZ >= 9.5, 'abertura deve ter profundidade útil ampliada');
   assert.equal(isInsideDeck3DeflectorAperture(0, aperture.centerY / 15.2, aperture.centerZ / 50), true);
 
   const geometry = hull.geometry;

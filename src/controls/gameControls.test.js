@@ -8,10 +8,13 @@ function element() {
   return {
     listeners, classes,
     addEventListener(type, callback) { listeners.set(type, callback); },
+    attributes: {},
     setPointerCapture() {},
+    setAttribute(name, value) { this.attributes[name] = value; },
     classList: {
       add(value) { classes.add(value); },
-      remove(value) { classes.delete(value); }
+      remove(value) { classes.delete(value); },
+      toggle(value, force) { if (force) classes.add(value); else classes.delete(value); }
     },
     fire(type, event = {}) { listeners.get(type)?.({ preventDefault() {}, ...event }); }
   };
@@ -47,4 +50,49 @@ test('camera cycle control preserves the three existing camera modes', () => {
   button.fire('click');
   assert.equal(state.camera, 0);
   assert.equal(button.textContent, 'FIRST');
+});
+
+
+test('botão de dobra alterna o comando travado e sincroniza estado visual', () => {
+  const warp = element();
+  const buttons = new Map([['warp-drive-btn', warp]]);
+  const document = { getElementById: id => buttons.get(id) || null };
+  const window = { addEventListener() {} };
+  const state = { warpDriveButton: false };
+  const commands = [];
+  registerHeldFlightControls({
+    document, window, state,
+    dispatchPropulsionCommand: payload => {
+      commands.push(payload);
+      state.warpDriveButton = payload.active;
+      return { accepted: true };
+    }
+  });
+  warp.fire('click');
+  assert.deepEqual(commands[0], { control: 'warpDriveButton', active: true });
+  assert.equal(state.warpDriveButton, true);
+  assert.equal(warp.attributes['aria-pressed'], 'true');
+  assert.equal(warp.classes.has('active'), true);
+  warp.fire('click');
+  assert.deepEqual(commands[1], { control: 'warpDriveButton', active: false });
+  assert.equal(state.warpDriveButton, false);
+  assert.equal(warp.attributes['aria-pressed'], 'false');
+  assert.equal(warp.classes.has('active'), false);
+});
+
+test('botão de dobra informa rejeição sem fingir que ativou', () => {
+  const warp = element();
+  const document = { getElementById: id => id === 'warp-drive-btn' ? warp : null };
+  const window = { addEventListener() {} };
+  const state = { warpDriveButton: false };
+  let rejected = null;
+  registerHeldFlightControls({
+    document, window, state,
+    dispatchPropulsionCommand: () => ({ accepted: false, reason: 'dilithium-unavailable' }),
+    onWarpRejected: reason => { rejected = reason; }
+  });
+  warp.fire('click');
+  assert.equal(rejected, 'dilithium-unavailable');
+  assert.equal(state.warpDriveButton, false);
+  assert.equal(warp.attributes['aria-pressed'], 'false');
 });

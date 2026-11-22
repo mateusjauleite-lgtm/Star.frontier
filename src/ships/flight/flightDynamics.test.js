@@ -114,3 +114,31 @@ test('frenagem nunca produz velocidade negativa e deltas grandes são limitados'
   advanceShipFlightDynamics(state, 1);
   assert.equal(state.speed, 0);
 });
+
+
+test('dobra integrada consome EPS do barramento sem consumir dilítio diretamente', () => {
+  let requested = 0;
+  const state = makeState({
+    warpDriveButton: true,
+    warpCorePowerBusConnected: true,
+    requestWarpPower: amount => { requested = amount; return amount; }
+  });
+  assert.equal(advanceShipFlightDynamics(state, 0.02), true);
+  assert.equal(requested, 7.5 * 0.02);
+  assert.equal(state.refinedDilithium, 100);
+});
+
+test('falta de potência no barramento aborta entrada em dobra com desligamento seguro', () => {
+  const state = makeState({
+    speed: 40,
+    warpDriveButton: true,
+    warpCorePowerBusConnected: true,
+    requestWarpPower: () => 0
+  });
+  assert.equal(advanceShipFlightDynamics(state, 0.02), false);
+  assert.equal(state.warpDriveButton, false);
+  assert.equal(state.warpDriveActive, false);
+  assert.equal(state.warpShutdownReason, 'insufficient-warp-power');
+  assert.equal(state.warpTransition, 'idle');
+  assert.equal(state.refinedDilithium, 100);
+});

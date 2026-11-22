@@ -1,7 +1,7 @@
 export const defenseModule = Object.freeze({
   id: 'defense',
-  label: 'DEFESA',
-  systemId: null,
+  label: 'DEFESA E ESCUDOS',
+  systemId: 'shields',
   phase: 'prepared',
-  scope: 'Preparado para integração futura de escudos, blindagem e contramedidas.'
+  scope: 'Telemetria dos escudos defletores, integridade, consumo de EPS e controle de ativação pelo computador da nave.'
 });

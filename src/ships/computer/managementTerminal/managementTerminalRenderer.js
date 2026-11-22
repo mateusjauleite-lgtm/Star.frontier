@@ -60,6 +60,13 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
     layer.addEventListener('click', event => {
       if (event.target.closest('[data-management-open]')) { openHandler?.(); return; }
       if (event.target.closest('[data-management-close]')) { closeHandler?.(); return; }
+      if (event.target.closest('[data-shield-toggle]')) {
+        const enabled = event.target.closest('[data-shield-toggle]').dataset.enabled === 'true';
+        const response = commandHandler?.('shields', 'setEnabled', { enabled: !enabled });
+        const feedback = layer.querySelector('[data-shield-feedback]');
+        if (feedback) feedback.textContent = response?.ok && response.result?.accepted ? (!enabled ? 'ESCUDOS ATIVADOS' : 'ESCUDOS DESATIVADOS') : 'COMANDO NÃO AUTORIZADO';
+        return;
+      }
       if (event.target.closest('[data-power-transfer]')) {
         const input = layer.querySelector('[data-power-transfer-amount]');
         const response = commandHandler?.('power', 'transferRefinedDilithium', { amount: Number(input?.value) });
@@ -105,7 +112,7 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
 
   function selectModule(moduleId) { selectedModule = moduleId; updateSelection(); }
 
-  function renderTelemetry(moduleData) {
+  function renderTelemetry(moduleData, selectedModuleId) {
     const output = layer.querySelector('[data-management-detail-output]');
     if (!output) return;
     output.replaceChildren();
@@ -133,6 +140,14 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
       reading.textContent = value;
       card.append(caption, reading);
       output.append(card);
+    }
+    if (selectedModuleId === 'defense') {
+      const shield = moduleData.data;
+      const action = document.createElement('section'); action.className = 'management-telemetry-card management-shield-control';
+      const title = document.createElement('b'); title.textContent = 'CONTROLE DOS ESCUDOS';
+      const button = document.createElement('button'); button.type = 'button'; button.dataset.shieldToggle = 'true'; button.dataset.enabled = String(Boolean(shield.enabled)); button.textContent = shield.enabled ? 'DESLIGAR ESCUDOS' : 'LIGAR ESCUDOS'; button.disabled = !moduleData.available;
+      const feedback = document.createElement('small'); feedback.dataset.shieldFeedback = 'true'; feedback.textContent = shield.enabled ? 'Escudos ativos · consumo de EPS em andamento' : 'Escudos desligados · sem consumo de EPS';
+      action.append(title, button, feedback); output.append(action);
     }
   }
 
@@ -199,7 +214,7 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
       detailState.textContent = moduleData?.available ? 'SISTEMA CONECTADO' : 'MÓDULO PREPARADO';
       detailState.dataset.state = moduleData?.available ? 'online' : 'standby';
     }
-    renderTelemetry(moduleData);
+    renderTelemetry(moduleData, selectedModuleId);
     const transferPanel = layer.querySelector('[data-power-transfer-panel]');
     if (transferPanel) {
       const powerSelected = (selectedModuleId || selectedModule) === 'warp-core';
@@ -222,7 +237,8 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
       const refiningRateNode = layer.querySelector('[data-warp-core-refining-rate]');
       const autoTransferNode = layer.querySelector('[data-warp-core-auto-transfer]');
       const transferRateNode = layer.querySelector('[data-warp-core-transfer-rate]');
-      const fuelRateNode = layer.querySelector('[data-warp-core-fuel-rate]');
+      const plasmaNode = layer.querySelector('[data-warp-core-plasma]');
+      const plasmaRateNode = layer.querySelector('[data-warp-core-plasma-rate]');
       const throttleNode = layer.querySelector('[data-warp-core-throttle]');
       const input = layer.querySelector('[data-power-transfer-amount]');
       const button = layer.querySelector('[data-power-transfer]');
@@ -238,7 +254,8 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
       if (refiningRateNode) refiningRateNode.textContent = (Number(refinery?.refiningRate) || 0).toFixed(3) + ' u/s';
       if (autoTransferNode) autoTransferNode.textContent = refinery?.transferEnabled ? 'ATIVA' : 'DESLIGADA';
       if (transferRateNode) transferRateNode.textContent = (Number(refinery?.transferRate) || 0).toFixed(3) + ' u/s';
-      if (fuelRateNode) fuelRateNode.textContent = (Number(core.conventionalFuelConsumptionRate) || 0).toFixed(3) + ' u/s';
+      if (plasmaNode) plasmaNode.textContent = (Number(moduleData?.data?.plasma?.amount) || 0).toFixed(2) + ' u';
+      if (plasmaRateNode) plasmaRateNode.textContent = (Number(moduleData?.data?.plasma?.consumptionRate) || 0).toFixed(3) + ' u/s';
       if (throttleNode) throttleNode.textContent = core.conventionalThrottleActive ? 'ATIVO' : 'DESLIGADO';
       if (input) input.max = transferable.toFixed(2);
       if (button) button.disabled = !moduleData?.available || !refinery?.available || transferable <= 0;

@@ -11,6 +11,7 @@ import { createPauseMenuRuntimeSystem } from './pauseMenuSystem.js';
 import { createOrbitalPhysicsRuntimeSystem } from './orbitalPhysicsSystem.js';
 import { createGameplayRuntimeSystem } from './gameplaySystem.js';
 import { createDeflectorRuntimeSystem } from '../../../ships/systems/deflectorRuntimeSystem.js';
+import { createWarpCorePowerSystem } from '../../../ships/systems/warpCorePowerSystem.js';
 import { createDilithiumRefineryRuntimeSystem } from '../../../ships/systems/dilithiumRefinerySystem.js';
 import { createRefineryTerminalRuntimeSystem } from '../../../ships/computer/refineryTerminalController.js';
 
@@ -32,8 +33,13 @@ export function registerGameRuntimeSystems(runtime, dependencies) {
     pauseMenu,
     orbitalPhysics,
     gameplay,
-    deflector = createDeflectorRuntimeSystem({ state, persist: saveState })
+    warpCore: suppliedWarpCore,
+    deflector: suppliedDeflector
   } = dependencies;
+  const warpCore = suppliedWarpCore || createWarpCorePowerSystem({ state, persist: saveState });
+  const deflector = suppliedDeflector || createDeflectorRuntimeSystem({
+    state, persist: saveState, powerBus: warpCore.powerBus
+  });
 
   runtime.registerSystem('entity-manager', createEntityRuntimeSystem({ manager: entityManager }));
   runtime.registerSystem('character', createCharacterRuntimeSystem(character));
@@ -46,6 +52,7 @@ export function registerGameRuntimeSystems(runtime, dependencies) {
   if (refineryTerminal) runtime.registerSystem('refinery-terminal', createRefineryTerminalRuntimeSystem(refineryTerminal));
   if (mining) runtime.registerSystem('mining', mining);
   if (pauseMenu) runtime.registerSystem('pause-menu', createPauseMenuRuntimeSystem({ ...pauseMenu, runtime }));
+  if (warpCore) runtime.registerSystem('warp-core-power', warpCore);
   runtime.registerSystem('gameplay', createGameplayRuntimeSystem(gameplay));
   if (deflector) runtime.registerSystem('deflector-core', deflector);
   if (refinery) runtime.registerSystem('dilithium-refinery', createDilithiumRefineryRuntimeSystem(refinery));
