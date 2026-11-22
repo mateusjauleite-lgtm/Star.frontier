@@ -8,6 +8,7 @@ const WORLD_ENTITY_DEFINITIONS = [
   { id: 'planet:earth', type: 'planet', name: 'Terra', tags: ['world', 'planet', 'earth'], objectPath: 'earthSystem.group' },
   { id: 'ship:exploration', type: 'ship', name: 'Nave exploradora', tags: ['vehicle', 'player-ship'], objectPath: 'ship' },
   { id: 'character:player', type: 'character', name: 'Personagem do jogador', tags: ['actor', 'player'], objectPath: 'characterModel.group' },
+  { id: 'character:alexia', type: 'character', name: 'Alexia', tags: ['actor', 'crew', 'ai-controlled'], objectPath: 'alexiaCharacter.group' },
   { id: 'station:orbital', type: 'station', name: 'Estação orbital', tags: ['structure', 'orbital'], objectPath: 'stationSystem.group' },
   { id: 'ship:interior', type: 'ship-interior', name: 'Interior da nave', tags: ['structure', 'ship-module'], objectPath: 'starshipInterior.group' },
   { id: 'ship:external-elevator', type: 'ship-module', name: 'Elevador externo', tags: ['structure', 'ship-module', 'elevator'], objectPath: 'externalElevator.group' }
@@ -73,6 +74,7 @@ export function registerGameWorldEntities(manager, world = {}) {
 
   const has = id => liveObjects.has(id);
   if (has('character:player') && has('ship:exploration')) ensureRelation(manager, 'character:player', 'aboard', 'ship:exploration');
+  if (has('character:alexia') && has('ship:exploration')) ensureRelation(manager, 'character:alexia', 'aboard', 'ship:exploration');
   if (has('ship:exploration') && has('planet:earth')) ensureRelation(manager, 'ship:exploration', 'orbits', 'planet:earth');
   if (has('station:orbital') && has('planet:earth')) ensureRelation(manager, 'station:orbital', 'orbits', 'planet:earth');
   if (has('ship:interior') && has('ship:exploration')) ensureRelation(manager, 'ship:interior', 'installed-in', 'ship:exploration');
