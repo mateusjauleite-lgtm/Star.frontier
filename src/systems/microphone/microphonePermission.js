@@ -32,6 +32,7 @@ export function createMicrophonePermissionController(options = {}) {
     }
 
     try {
+      if (permissionStatus) permissionStatus.onchange = null;
       permissionStatus = await permissions.query({ name: 'microphone' });
       if (disposed) return state;
       permissionStatus.onchange = () => {
