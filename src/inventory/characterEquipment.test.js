@@ -101,7 +101,7 @@ test('trocar para mochila menor preserva excedentes e mochila maior os recupera'
 
   assert.equal(system.equip(bag.instanceId).ok, true);
   assert.equal(system.snapshot().capacity, 12);
-  assert.equal(system.snapshot().overflowItems.length, 6);
+  assert.equal(system.snapshot().overflowItems.length, 7);
 
   system.add('equipment.backpack.medium');
   bag = system.snapshot().overflowItems.find(item => item.definitionId === 'equipment.backpack.medium');
@@ -197,4 +197,34 @@ test('snapshot persistido inclui IDs, capacidade, peso e excedentes', () => {
   assert.equal(state.inventory.items.length, snapshot.items.length);
   assert.equal(state.inventory.overflowItems.length, snapshot.overflowItems.length);
   assert.ok(state.inventory.items.every(item => item.instanceId && item.definitionId && item.itemId));
+});
+
+test('inventário inicial recebe minério bruto de dilítio para transferência à refinaria', () => {
+  const system = createSystem();
+  const snapshot = system.initialize();
+  const ore = snapshot.items.find(item => item.definitionId === 'ore.dilithium.raw');
+  assert.ok(ore);
+  assert.equal(ore.quantity, 12);
+});
+
+test('transferência remove e restauração preserva a mesma pilha de minério', () => {
+  const system = createSystem();
+  const snapshot = system.initialize();
+  const ore = snapshot.items.find(item => item.definitionId === 'ore.dilithium.raw');
+  const removed = system.removeInstance(ore.instanceId);
+  assert.equal(removed.ok, true);
+  assert.equal(system.snapshot().items.some(item => item.instanceId === ore.instanceId), false);
+  assert.equal(system.restoreInstance(removed.item).ok, true);
+  const restored = system.snapshot().items.find(item => item.instanceId === ore.instanceId);
+  assert.equal(restored.quantity, 12);
+});
+
+test('migra minério bruto legado para a mochila sem duplicar o estoque da refinaria',()=>{const state=createGameState();state.rawDilithiumOre=5;const system=createSystem(state);const snapshot=system.initialize();const ore=snapshot.items.find(item=>item.definitionId==='ore.dilithium.raw');assert.equal(ore.quantity,5);assert.equal(state.rawDilithiumOre,0);});
+
+test('inventário já migrado não recria carga de minério após o jogador transferir toda a pilha', () => {
+  const state = createGameState();
+  state.dilithiumInventoryVersion = 1;
+  const system = createSystem(state);
+  const snapshot = system.initialize();
+  assert.equal(snapshot.items.some(item => item.definitionId === 'ore.dilithium.raw'), false);
 });

@@ -9,6 +9,8 @@ export const state = {
   ore: 0,
   rawDilithiumOre: 0,
   refineryRefinedStorage: 0,
+  refineryRawReceivedTotal: 0,
+  dilithiumInventoryVersion: 0,
   refineryEnabled: true,
   refineryTransferEnabled: false,
   refineryRefinedTotal: 0,

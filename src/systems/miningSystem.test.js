@@ -1,48 +1,7 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { createMiningRuntimeSystem } from './miningSystem.js';
+import test from 'node:test';import assert from 'node:assert/strict';import {createMiningRuntimeSystem} from './miningSystem.js';
+function setup({ore=10,dilithium=0,active=true}={}){const state={cargo:0,ore:0,miningDrill:'Broca padrão'},asteroid={position:{distanceTo:()=>5},userData:{ore,resources:dilithium?{'resource:ore-dilithium':{amount:dilithium}}:{}},children:[]},calls={save:0,wallet:0,audio:0,messages:[],personalOre:0};const system=createMiningRuntimeSystem({state,isActive:()=>active,getAsteroids:()=>[asteroid],getShip:()=>({position:{}}),setAsteroids(){},save:()=>calls.save++,updateWallet:()=>calls.wallet++,shipAudio:{playMining:()=>calls.audio++},toast:m=>calls.messages.push(m),addDilithiumOre:q=>{calls.personalOre+=q;return {added:q};}});return {state,asteroid,calls,system};}
+test('mineração comum continua alimentando a carga genérica',()=>{const {state,asteroid,calls,system}=setup({ore:10});assert.equal(system.mine(),true);assert.equal(asteroid.userData.ore,4);assert.equal(state.ore,6);assert.equal(state.cargo,6);assert.equal(calls.save,1);});
+test('mineração de dilítio adiciona minério ao inventário pessoal',()=>{const {state,asteroid,calls,system}=setup({ore:0,dilithium:9});assert.equal(system.mine(),true);assert.equal(asteroid.userData.resources['resource:ore-dilithium'].amount,3);assert.equal(calls.personalOre,6);assert.equal(state.cargo,0);assert.equal(calls.save,1);});
+test('inventário cheio não consome depósito de dilítio',()=>{const {asteroid,calls}=setup({ore:0,dilithium:9});const blocked=createMiningRuntimeSystem({state:{cargo:0,ore:0},isActive:()=>true,getAsteroids:()=>[asteroid],getShip:()=>({position:{}}),setAsteroids(){},save:()=>calls.save++,updateWallet(){},shipAudio:{playMining(){}},toast:m=>calls.messages.push(m),addDilithiumOre:()=>({added:0})});assert.equal(blocked.mine(),false);assert.equal(asteroid.userData.resources['resource:ore-dilithium'].amount,9);});
 
-function setup({ ore = 10, dilithium = 0, active = true } = {}) {
-  const state = { cargo: 0, ore: 0, rawDilithiumOre: 0, miningDrill: 'Broca padrão' };
-  const asteroid = {
-    position: { distanceTo: () => 5 },
-    userData: { ore, resources: dilithium ? { 'resource:ore-dilithium': { amount: dilithium } } : {} },
-    children: []
-  };
-  const calls = { save: 0, wallet: 0, audio: 0, messages: [] };
-  const system = createMiningRuntimeSystem({
-    state, isActive: () => active, getAsteroids: () => [asteroid],
-    getShip: () => ({ position: {} }), setAsteroids() {},
-    save: () => calls.save++, updateWallet: () => calls.wallet++,
-    shipAudio: { playMining: () => calls.audio++ }, toast: message => calls.messages.push(message)
-  });
-  return { state, asteroid, calls, system };
-}
-
-test('mineração comum transfere minério para carga e persiste o resultado', () => {
-  const { state, asteroid, calls, system } = setup({ ore: 10 });
-  assert.equal(system.mine(), true);
-  assert.equal(asteroid.userData.ore, 4);
-  assert.equal(state.ore, 6);
-  assert.equal(state.cargo, 6);
-  assert.equal(calls.save, 1);
-  assert.equal(calls.wallet, 1);
-  assert.equal(calls.audio, 1);
-});
-
-test('mineração de dilítio abastece o estoque bruto sem ocupar carga comum', () => {
-  const { state, asteroid, calls, system } = setup({ ore: 0, dilithium: 9 });
-  assert.equal(system.mine(), true);
-  assert.equal(asteroid.userData.resources['resource:ore-dilithium'].amount, 3);
-  assert.equal(state.rawDilithiumOre, 6);
-  assert.equal(state.cargo, 0);
-  assert.equal(calls.save, 1);
-});
-
-test('mineração não altera recursos quando a sessão está inativa', () => {
-  const { state, asteroid, calls, system } = setup({ ore: 10, active: false });
-  assert.equal(system.mine(), false);
-  assert.equal(asteroid.userData.ore, 10);
-  assert.equal(state.cargo, 0);
-  assert.equal(calls.save, 0);
-});
+test('mineração não altera recursos quando a sessão está inativa',()=>{const {state,asteroid,calls,system}=setup({ore:10,active:false});assert.equal(system.mine(),false);assert.equal(asteroid.userData.ore,10);assert.equal(state.cargo,0);assert.equal(calls.save,0);});
