@@ -1,6 +1,6 @@
 // Barramento elétrico gerado pelo núcleo de dobra e condicionado pela matriz de dilítio.
-// A matriz regula a reação; não transforma o estoque refinado em eletricidade nem o consome.
-// O estoque refinado continua sendo administrado pelo fluxo de propulsão já existente.
+// A matriz converte dilítio refinado da reserva compartilhada em plasma estabilizado.
+// O núcleo consome plasma para gerar EPS; os consumidores recebem energia pelos barramentos.
 const DEFAULTS = Object.freeze({
   criticalCapacity: 80,
   operationsCapacity: 50,
