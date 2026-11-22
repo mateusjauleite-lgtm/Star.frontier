@@ -25,6 +25,7 @@ on:
       - feature/dilithium-matrix-console
       - feature/ship-computer-matrix-integration
       - feature/alexia-chat-core
+      - feature/power-manager-deflector-telemetry
       - feature/aurora-ship-computer-ai-core
   pull_request:
     branches:
