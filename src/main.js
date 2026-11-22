@@ -1719,7 +1719,7 @@ function updateCharacterMovement(dt) {
 function updateAlexiaInteraction(dt = 0) {
   const button = $('character-action-btn');
   const valid = Boolean(alexiaCharacter?.group && characterModel && shipVisual &&
-    characterCore.snapshot().mode === 'on-foot' && !characterInWorldFrame && !nearbyElevator);
+    characterCore.snapshot().mode === 'on-foot' && !characterInWorldFrame && !nearbyElevator && activeDeckIndex === 0);
   if (!valid) {
     nearbyAlexiaInteraction = false;
     alexiaInteractionMenu?.close?.();
@@ -1738,11 +1738,11 @@ function updateAlexiaInteraction(dt = 0) {
     if (distance > 1.45) {
       const step = Math.min(distance - 1.35, 2.25 * Math.max(0, dt));
       from.x += dx / distance * step; from.z += dz / distance * step;
-      alexiaCharacter.group.rotation.y = Math.atan2(dx, dz);
+      alexiaCharacter.group.rotation.y = Math.atan2(-dx, -dz);
       alexiaCharacter.core?.setMovement?.({ x: 0, y: 1 });
     } else alexiaCharacter.core?.setMovement?.({ x: 0, y: 0 });
   }
-  const floorY = starshipInterior.layout.decks[activeDeckIndex].y + 0.21;
+  const floorY = starshipInterior.layout.decks[0].y + 0.21;
   alexiaCharacter.update?.(Math.max(0, dt), { position: alexiaCharacter.group.position, floorY });
   if (available) {
     if (button) {
