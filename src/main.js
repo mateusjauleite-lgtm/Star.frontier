@@ -2772,7 +2772,8 @@ $('landing-btn')?.addEventListener('click', () => {
 
   if (selectedLandingSiteId && shipLandingAutopilot) {
     const gearDeployment = shipLandingGear?.getDeployment?.() ?? 0;
-    if (gearDeployment < 0.98) {
+    const gearTarget = shipLandingGear?.getTargetDeployment?.() ?? 0;
+    if (gearTarget < 0.98 || gearDeployment < 0.98) {
       toast('Abra o trem de pouso no comando próprio antes de ativar a guia.');
       return;
     }
