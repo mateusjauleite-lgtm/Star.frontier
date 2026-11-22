@@ -6,6 +6,7 @@ import { registerShipComputerSystems } from './shipComputerSystems.js';
 function setup(state = {}) {
   const computer = createShipComputer();
   computer.registerTerminal({ id: 'dilithium-matrix-console', systems: ['matrix', 'deflector'] });
+  computer.registerTerminal({ id: 'engineering-console', systems: ['matrix'] });
   const snapshot = { phase: 'idle', matrix: { enabled: true, online: true, regulation: 1 } };
   const warpCoreSystem = {
     snapshot: () => snapshot,
@@ -22,6 +23,7 @@ function setup(state = {}) {
   });
   computer.boot();
   computer.connectTerminal('dilithium-matrix-console', 'TESTE');
+  computer.connectTerminal('engineering-console', 'ENGENHEIRO');
   return { computer, snapshot };
 }
 
@@ -43,4 +45,12 @@ test('Ship Computer controla a mesma instância da matriz e valida regulação',
   assert.equal(snapshot.matrix.regulation, 0.65);
   const invalid = computer.dispatch('dilithium-matrix-console', 'matrix', 'setRegulation', { regulation: 2 });
   assert.equal(invalid.result.accepted, false);
+});
+
+test('controles da matriz permanecem restritos ao terminal dedicado', () => {
+  const { computer } = setup();
+  const result = computer.dispatch('engineering-console', 'matrix', 'setEnabled', { enabled: false });
+  assert.equal(result.ok, true);
+  assert.equal(result.result.accepted, false);
+  assert.equal(result.result.reason, 'matrix-terminal-required');
 });
