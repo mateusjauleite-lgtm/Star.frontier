@@ -165,13 +165,44 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
       return;
     }
     if (selectedModuleId === 'onboard-ai') {
-      const actions = document.createElement('section'); actions.className = 'management-telemetry-card';
-      const title = document.createElement('b'); title.textContent = 'CONTROLE DA ALEXIA';
-      const description = document.createElement('small'); description.textContent = 'A IA opera somente por permissões concedidas pelo Ship Computer.';
+      const panel = document.createElement('section');
+      panel.className = 'management-telemetry-card management-ai-panel';
+      const header = document.createElement('div'); header.className = 'management-ai-heading';
+      const identity = document.createElement('div');
+      const title = document.createElement('b'); title.textContent = 'ALEXIA · ASSISTENTE DE BORDO';
+      const description = document.createElement('small'); description.textContent = 'Canal único de conversa · texto e voz compartilham o mesmo histórico.';
+      identity.append(title, description);
+      const status = document.createElement('span'); status.className = 'management-ai-status'; status.textContent = moduleData.data?.voice?.state === 'listening' ? 'ESCUTANDO' : 'ONLINE';
+      header.append(identity, status);
       const controls = document.createElement('div'); controls.className = 'management-ai-controls';
-      for (const [action, label] of [['voice','CHAMAR POR VOZ'],['patrol','INICIAR RONDA'],['diagnose','DIAGNÓSTICO GERAL'],['stop-voice','ENCERRAR ESCUTA']]) { const button = document.createElement('button'); button.type = 'button'; button.dataset.aiAction = action; button.textContent = label; controls.append(button); }
-      const feedback = document.createElement('small'); feedback.dataset.aiFeedback = 'true'; feedback.textContent = 'Aguardando comando do operador.';
-      actions.append(title, description, controls, feedback); output.append(actions);
+      for (const [action, label] of [['voice','FALAR COM A ALEXIA'],['patrol','INICIAR RONDA'],['diagnose','DIAGNÓSTICO GERAL'],['stop-voice','ENCERRAR ESCUTA']]) {
+        const button = document.createElement('button'); button.type = 'button'; button.dataset.aiAction = action; button.textContent = label; controls.append(button);
+      }
+      const history = document.createElement('div'); history.className = 'management-ai-chat-history'; history.dataset.aiChatHistory = 'true'; history.setAttribute('aria-live', 'polite');
+      const messages = Array.isArray(moduleData.conversation) ? moduleData.conversation.slice(-40) : [];
+      if (!messages.length) {
+        const welcome = document.createElement('div'); welcome.className = 'management-ai-message assistant';
+        welcome.textContent = 'Ponte de comando conectada. Sou Alexia. Posso consultar a telemetria, verificar sistemas e pesquisar meu banco de conhecimento.';
+        history.append(welcome);
+      } else {
+        for (const message of messages) {
+          const bubble = document.createElement('div');
+          bubble.className = 'management-ai-message ' + (message.role === 'user' ? 'user' : 'assistant');
+          bubble.dataset.messageId = message.id || '';
+          const role = document.createElement('small'); role.textContent = message.role === 'user' ? 'OPERADOR' : 'ALEXIA';
+          const body = document.createElement('p'); body.textContent = message.content || '';
+          bubble.append(role, body); history.append(bubble);
+        }
+      }
+      const form = document.createElement('form'); form.className = 'management-ai-chat-form'; form.dataset.aiChatForm = 'true';
+      const input = document.createElement('input'); input.type = 'text'; input.maxLength = 2000; input.autocomplete = 'off';
+      input.placeholder = 'Escreva uma mensagem para Alexia…'; input.setAttribute('aria-label', 'Mensagem para Alexia'); input.dataset.aiChatInput = 'true';
+      const send = document.createElement('button'); send.type = 'submit'; send.textContent = 'ENVIAR';
+      form.append(input, send);
+      const feedback = document.createElement('small'); feedback.className = 'management-ai-feedback'; feedback.dataset.aiFeedback = 'true'; feedback.textContent = 'Canal seguro do Ship Computer.';
+      panel.append(header, controls, history, form, feedback);
+      output.append(panel);
+      history.scrollTop = history.scrollHeight;
     }
     for (const [label, value] of rows) {
       const card = document.createElement('article');
@@ -312,6 +343,8 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
     closeHandler = null;
     selectHandler = null;
     commandHandler = null;
+    aiActionHandler = null;
+    aiMessageHandler = null;
   }
-  return Object.freeze({ mount, render, selectModule, unmount });
+  return Object.freeze({ mount, render, selectModule, showAIResult, unmount });
 }
