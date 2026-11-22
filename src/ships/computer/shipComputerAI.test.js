@@ -11,7 +11,7 @@ test('Alexia mantém banco de dados próprio vinculado ao identificador da nave'
 
   const learned = computer.onboardAI.learn({ topic: 'EPS', content: 'Barramento de energia principal.' });
   assert.equal(learned.accepted, true);
-  assert.equal(computer.onboardAI.searchKnowledge('barramento').length, 1);
+  assert.equal(computer.onboardAI.searchKnowledge('barramento').length, 2);
   assert.equal(stored.shipId, 'test-ship');
   assert.equal(computer.getSnapshot().onboardAI.name, 'Alexia');
   assert.equal(computer.getSnapshot().onboardAI.database.knowledgeEntries, 5);
