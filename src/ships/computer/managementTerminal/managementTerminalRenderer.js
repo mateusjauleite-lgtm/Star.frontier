@@ -26,10 +26,10 @@ function formatValue(value) {
 }
 
 function collectTelemetry(value, prefix = '', rows = []) {
-  if (rows.length >= 8) return rows;
+  if (rows.length >= 24) return rows;
   if (value && typeof value === 'object' && !Array.isArray(value)) {
     for (const [key, item] of Object.entries(value)) {
-      if (rows.length >= 8) break;
+      if (rows.length >= 24) break;
       const label = prefix ? `${prefix} / ${humanizeKey(key)}` : humanizeKey(key);
       if (item && typeof item === 'object' && !Array.isArray(item) && Object.keys(item).length) collectTelemetry(item, label, rows);
       else rows.push([label, formatValue(item)]);
