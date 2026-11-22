@@ -82,6 +82,7 @@ let engineeringTerminal = null;
 let engineeringTelemetryAccumulator = 0;
 let refineryTerminal = null;
 let refineryConsoleActive = false;
+let refineryInventoryTransferMode = false;
 let refineryInteractionAvailable = false;
 let refineryTelemetryAccumulator = 0;
 let managementTelemetryAccumulator = 0;
@@ -103,7 +104,16 @@ const engineeringRenderer = createEngineeringTerminalRenderer({
   },
 });
 engineeringRenderer.mount();
-const refineryRenderer = createRefineryTerminalRenderer({ root: $('game-screen') });
+const refineryRenderer = createRefineryTerminalRenderer({
+  root: $('game-screen'),
+  onReceive: () => {
+    if (!refineryConsoleActive) { toast('Conecte-se ao console da Refinaria para receber minério.'); return; }
+    refineryInventoryTransferMode = true;
+    renderInventory();
+    openInventory();
+    toast('Inventário do personagem aberto. Selecione o minério para enviar à Refinaria.');
+  }
+});
 refineryTerminal = createRefineryTerminalController({ computer: shipComputer, renderer: refineryRenderer, onInteractionChange: active => { refineryConsoleActive = active; } });
 engineeringTerminal = createEngineeringTerminalController({
   computer: shipComputer,
@@ -2189,6 +2199,7 @@ $('elevator-up-btn')?.addEventListener('click', () => moveElevator(-1));
 $('elevator-down-btn')?.addEventListener('click', () => moveElevator(1));
 
 function closeInventory() {
+  refineryInventoryTransferMode = false;
   const modal = $('inventory-modal');
   modal?.classList.add('hidden');
   modal?.setAttribute('aria-hidden', 'true');
@@ -2267,8 +2278,11 @@ function renderInventory() {
     const name = escapeHtml(item.name || item.itemId || item.definitionId);
     const category = escapeHtml(item.category || 'ITEM').toUpperCase();
     const quantity = item.quantity > 1 ? ` ×${item.quantity}` : '';
+    const action = item.definitionId === DILITHIUM_ORE_ITEM_ID
+      ? (refineryInventoryTransferMode ? 'ENVIAR À REFINARIA' : 'MINÉRIO · NÃO EQUIPÁVEL')
+      : 'TOQUE PARA EQUIPAR';
     return `<button class="inventory-cell inventory-item-button" type="button" data-item-instance="${escapeHtml(item.instanceId)}">
-      <span>${name}${quantity}</span><small>${category} · TOQUE PARA EQUIPAR</small>
+      <span>${name}${quantity}</span><small>${category} · ${action}</small>
     </button>`;
   }).join('');
 
@@ -2325,7 +2339,7 @@ $('inventory-grid')?.addEventListener('click', event => {
   const target = event.target.closest('[data-item-instance]'); if (!target) return;
   const item = characterEquipment.snapshot().items.find(entry => entry.instanceId === target.dataset.itemInstance);
   if (item?.definitionId === DILITHIUM_ORE_ITEM_ID) {
-    if (!refineryConsoleActive) { toast('Abra o console da Refinaria no Deck 3 para transferir o minério.'); return; }
+    if (!refineryConsoleActive || !refineryInventoryTransferMode) { toast('Use o compartimento de recebimento da Refinaria para enviar este minério.'); return; }
     if (!dilithiumRefinerySystem.canReceiveRawOre(item.quantity).accepted) { toast('Compartimento de minério bruto cheio.'); return; }
     const removed = characterEquipment.removeInstance(item.instanceId); if (!removed.ok) { toast(removed.reason); return; }
     const received = dilithiumRefinerySystem.receiveRawOre(removed.item.quantity);
@@ -2607,7 +2621,13 @@ const miningRuntimeSystem = createMiningRuntimeSystem({
   updateWallet,
   shipAudio,
   toast,
-  addDilithiumOre: quantity => characterEquipment.add(DILITHIUM_ORE_ITEM_ID, quantity)
+  receiveDilithiumOre: quantity => {
+    const capacity = dilithiumRefinerySystem.canReceiveRawOre(quantity);
+    const amount = Math.min(Number(quantity) || 0, Number(capacity.available) || 0);
+    if (amount <= 0) return { added: 0 };
+    const received = dilithiumRefinerySystem.receiveRawOre(amount);
+    return { added: received.accepted ? received.received : 0 };
+  }
 });
 
 registerGameplayActions({
