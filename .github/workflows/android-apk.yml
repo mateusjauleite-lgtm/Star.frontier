@@ -25,10 +25,10 @@ on:
       - feature/dilithium-matrix-console
       - feature/ship-computer-matrix-integration
       - feature/alexia-chat-core
-      - fix/alexia-chat-mobile-input
       - feature/aurora-ship-computer-ai-core
   pull_request:
     branches:
+      - feature/alexia-chat-core
       - feature/core-runtime-foundation
       - feature/refinery-core-energy-final-validation
       - feature/dilithium-inventory-refinery-transfer
