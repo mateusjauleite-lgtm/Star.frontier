@@ -64,6 +64,21 @@ test('horizon fallback can still select regional tiles when the camera view cone
   assert.ok(horizonFallback.length <= 24);
 });
 
+test('regional tile UVs use the same north-to-v=1 orientation as the globe texture', () => {
+  const northGeometry = createEarthQuadtreeTileGeometry(createEarthQuadtreeNode(2), 600, {
+    segments: 2,
+    skirtUnits: 0
+  });
+  const southGeometry = createEarthQuadtreeTileGeometry(createEarthQuadtreeNode(3), 600, {
+    segments: 2,
+    skirtUnits: 0
+  });
+  assert.equal(northGeometry.attributes.uv.getY(4), 1);
+  assert.equal(southGeometry.attributes.uv.getY(4), 0);
+  northGeometry.dispose();
+  southGeometry.dispose();
+});
+
 test('tile geometry uses the requested segment budget and finite positions', () => {
   const geometry = createEarthQuadtreeTileGeometry(createEarthQuadtreeNode(4), 600, {
     segments: 8,
