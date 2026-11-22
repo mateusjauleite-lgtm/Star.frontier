@@ -71,8 +71,11 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
       if (!message) return;
       const result = aiMessageHandler?.(message);
       if (input) input.value = '';
+      appendAIMessage('user', message);
+      if (result?.response) appendAIMessage('assistant', result.response);
       showAIResult(result);
-      layer.querySelector('[data-ai-chat-input]')?.focus();
+      const history = layer.querySelector('[data-ai-chat-history]');
+      if (history) history.scrollTop = history.scrollHeight;
     });
     layer.addEventListener('click', event => {
       if (event.target.closest('[data-management-open]')) { openHandler?.(); return; }
@@ -123,6 +126,20 @@ export function createShipManagementTerminalRenderer({ root, html = template } =
     });
     root.append(layer);
     return true;
+  }
+
+  function appendAIMessage(role, content) {
+    if (!layer || !content) return;
+    const history = layer.querySelector('[data-ai-chat-history]');
+    if (!history) return;
+    const bubble = document.createElement('div');
+    bubble.className = 'management-ai-message ' + (role === 'user' ? 'user' : 'assistant');
+    const label = document.createElement('small');
+    label.textContent = role === 'user' ? 'OPERADOR' : 'ALEXIA';
+    const body = document.createElement('p');
+    body.textContent = String(content);
+    bubble.append(label, body);
+    history.append(bubble);
   }
 
   function showAIResult(result) {
