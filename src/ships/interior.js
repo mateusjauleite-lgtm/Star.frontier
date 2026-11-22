@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { createEngineeringWarpCore } from './engineering/warpCore.js';
 import { createDilithiumProcessingPlant } from './engineering/dilithiumProcessingPlant.js';
+import { DECK_3_DEFLECTOR_APERTURE } from './engineering/deflectorAperture.js';
 
 // Estrutura física inicial da nave exploradora.
 // Escala de trabalho: 120 x 64 x 32 m. Sem consoles, máquinas ou mobiliário.
@@ -120,11 +121,25 @@ export function createStarshipInterior(options = {}) {
     const shape = new THREE.Shape();
     shape.absellipse(0, 0, width / 2, length / 2, 0, Math.PI * 2, false, 0);
     if (name === 'D2-Floor') {
-      // Abertura circular real para o núcleo de Engenharia entre D2 e D3.
-      // O recorte fica no centro do convés; o Deck 1 não é alterado.
+      // Abertura do núcleo vertical de Engenharia, mantida no centro do convés.
       const engineeringCoreOpening = new THREE.Path();
       engineeringCoreOpening.absellipse(0, -2 - centerZ, 3.58, 3.58, 0, Math.PI * 2, true, 0);
       shape.holes.push(engineeringCoreOpening);
+
+      // O piso do D2 acompanha a abertura frontal do defletor no casco.
+      // A coordenada Y da Shape representa Z local da nave após a rotação do piso.
+      const deflectorOpening = new THREE.Path();
+      deflectorOpening.absellipse(
+        DECK_3_DEFLECTOR_APERTURE.centerX,
+        DECK_3_DEFLECTOR_APERTURE.centerZ - centerZ,
+        DECK_3_DEFLECTOR_APERTURE.radiusX,
+        DECK_3_DEFLECTOR_APERTURE.radiusZ,
+        0,
+        Math.PI * 2,
+        true,
+        0
+      );
+      shape.holes.push(deflectorOpening);
     }
     if (name === 'D4-Floor') {
       // Abertura exclusiva do elevador externo; o piso original permanece
