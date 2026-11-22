@@ -118,7 +118,10 @@ export function createShipComputer({
     if (!online || !terminal || !system || !terminal.systems.has(systemId)) {
       return { granted: false, reason: 'terminal-system-link-unavailable' };
     }
-    const registeredCommands = commands.filter(command =>\n      !/^(create|add|register|build|construct|spawn)/i.test(String(command)) &&\n      typeof system.commands?.[command] === 'function'\n    );
+    const registeredCommands = commands.filter(command =>
+      !/^(create|add|register|build|construct|spawn)/i.test(String(command)) &&
+      typeof system.commands?.[command] === 'function'
+    );
     if (registeredCommands.length === 0) return { granted: false, reason: 'no-registered-commands' };
     let systemsForTerminal = aiPermissions.get(terminalId);
     if (!systemsForTerminal) {
