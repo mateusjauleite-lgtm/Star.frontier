@@ -6,11 +6,14 @@ import { DECK_3_DEFLECTOR_APERTURE } from './deflectorAperture.js';
 export function createDeflectorInteriorStructure() {
   const group = new THREE.Group();
   group.name = 'Deck3-Deflector-Interior-Structure';
-  group.position.set(
+  const collar = new THREE.Group();
+  collar.name = 'Deflector-Interior-Collar-Assembly';
+  collar.position.set(
     DECK_3_DEFLECTOR_APERTURE.centerX,
     DECK_3_DEFLECTOR_APERTURE.centerY,
     DECK_3_DEFLECTOR_APERTURE.centerZ
   );
+  group.add(collar);
 
   const depth = 1.5;
   const radius = 8.5;
@@ -31,7 +34,7 @@ export function createDeflectorInteriorStructure() {
     mesh.name = name;
     mesh.scale.y = verticalScale;
     mesh.position.z = z;
-    group.add(mesh);
+    collar.add(mesh);
     return mesh;
   };
 
@@ -41,7 +44,7 @@ export function createDeflectorInteriorStructure() {
   addRing('Deflector-Interior-Inner-Trim', radius - 0.48, 0.12, edge, 0);
 
   // Longarinas curtas conectam os dois aros e dão continuidade ao volume.
-  for ( (let i = 0; i < 24; i += 1) ) {
+  for (let i = 0; i < 24; i += 1) {
     const angle = (i / 24) * Math.PI * 2;
     const x = Math.cos(angle) * (radius + 0.18);
     const y = Math.sin(angle) * (radius + 0.18) * verticalScale;
@@ -52,7 +55,7 @@ export function createDeflectorInteriorStructure() {
     strut.name = `Deflector-Interior-Collar-Strut-${String(i + 1).padStart(2, '0')}`;
     strut.position.set(x, y, 0);
     strut.rotation.z = angle;
-    group.add(strut);
+    collar.add(strut);
 
     const lamp = new THREE.Mesh(
       new THREE.BoxGeometry(0.34, 0.12, 0.16),
@@ -65,7 +68,7 @@ export function createDeflectorInteriorStructure() {
       0
     );
     lamp.rotation.z = angle;
-    group.add(lamp);
+    collar.add(lamp);
   }
 
   // Passarela curta liga a área caminhável do Deck 3 à face de manutenção do anel.
@@ -95,15 +98,24 @@ export function createDeflectorInteriorStructure() {
     access.add(railLight);
   }
 
-  const threshold = new THREE.Mesh(
-    new THREE.BoxGeometry(3.0, 2.35, 0.22), edge
+  for (const side of [-1, 1]) {
+    const post = new THREE.Mesh(
+      new THREE.BoxGeometry(0.2, 2.25, 0.24), edge
+    );
+    post.name = side < 0 ? 'Deflector-Access-Entry-Port-Post' : 'Deflector-Access-Entry-Starboard-Post';
+    post.position.set(side * 1.42, 1.12, 2.52);
+    access.add(post);
+  }
+
+  const entryHeader = new THREE.Mesh(
+    new THREE.BoxGeometry(3.05, 0.22, 0.24), edge
   );
-  threshold.name = 'Deflector-Access-Deck3-Threshold';
-  threshold.position.set(0, 1.18, 2.52);
-  access.add(threshold);
+  entryHeader.name = 'Deflector-Access-Deck3-Entry-Header';
+  entryHeader.position.set(0, 2.2, 2.52);
+  access.add(entryHeader);
 
   const thresholdGlow = new THREE.Mesh(
-    new THREE.BoxGeometry(2.55, 0.055, 0.07), light
+    new THREE.BoxGeometry(2.6, 0.055, 0.07), light
   );
   thresholdGlow.name = 'Deflector-Access-Deck3-Threshold-Light';
   thresholdGlow.position.set(0, 2.1, 2.4);
