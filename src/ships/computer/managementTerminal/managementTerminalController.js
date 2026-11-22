@@ -15,7 +15,8 @@ export const SHIP_MANAGEMENT_TERMINAL_INTERACTION_RADIUS = 3.5;
 const MODULE_COMMANDS = Object.freeze({
   navigation: 'telemetry',
   tactical: 'scan',
-  engineering: 'status'
+  engineering: 'status',
+  'warp-core': 'status'
 });
 
 export function createShipManagementTerminalController({
