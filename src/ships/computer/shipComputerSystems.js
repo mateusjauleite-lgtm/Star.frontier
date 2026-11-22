@@ -186,7 +186,7 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
         return { accepted: true, status: warpCoreSystem.setMatrixRegulation(regulation) };
       }
     },
-    getStatus: () => readShip() ? (state.warpCoreMatrixEnabled === false ? 'standby' : 'online') : 'standby'
+    getStatus: () => readShip() && warpCoreSystem ? (state.warpCoreMatrixEnabled === false ? 'standby' : 'online') : 'standby'
   });
   computer.registerSystem('deflector', {
     name: 'Ramificações do defletor',
