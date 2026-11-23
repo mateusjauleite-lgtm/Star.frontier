@@ -12,133 +12,87 @@ function makeState(overrides = {}) {
     braking: false,
     warpDriveButton: false,
     warpDriveActive: false,
+    warpSpeedC: 0,
     warpStage: 5,
     warpCurrentStage: 0,
     warpTargetSpeed: 0,
     warpTransition: 'idle',
     warpExitMode: 'smooth',
+    conventionalSpeedLimit: 12000,
     ...overrides
   };
 }
 
-test('aceleração convencional continua independente e consome combustível comum', () => {
-  const state = makeState({ throttle: true });
-  assert.equal(advanceShipFlightDynamics(state, 0.5), false);
-  assert.equal(state.speed, 10.72);
-  assert.equal(state.fuel, 99.9888);
+test('propulsor principal acelera em m/s e consome combustível comum', () => {
+  const state = makeState({ throttle: true, speed: 10 });
+  advanceShipFlightDynamics(state, 0.04);
+  assert.equal(state.speed, 19.6);
+  assert.ok(state.fuel < 100);
   assert.equal(state.refinedDilithium, 100);
-  assert.equal(state.warpDilithiumConsumedTotal, 0);
 });
 
-test('ativar dobra inicia no estágio 5 e acelera progressivamente sem consumir combustível comum', () => {
-  const state = makeState({ speed: 10, warpDriveButton: true });
-  assert.equal(advanceShipFlightDynamics(state, 0.02), true);
+test('limite de aproximação prevalece sobre o limite de espaço aberto', () => {
+  const state = makeState({ throttle: true, speed: 55, conventionalSpeedLimit: 60 });
+  advanceShipFlightDynamics(state, 0.04);
+  assert.equal(state.speed, 60);
+});
+
+test('dobra usa múltiplos de c e mantém velocidade convencional independente', () => {
+  const state = makeState({ speed: 0, warpDriveButton: true, warpStage: 5 });
+  assert.equal(advanceShipFlightDynamics(state, 0.04), true);
   assert.equal(state.warpCurrentStage, 5);
   assert.equal(state.warpTargetSpeed, WARP_STAGE_SPEEDS[5]);
-  assert.equal(state.speed, 11.3);
-  assert.equal(state.fuel, 100);
+  assert.equal(state.warpSpeedC, 10);
+  assert.equal(state.speed, 0);
   assert.ok(state.refinedDilithium < 100);
-  assert.ok(state.warpDilithiumConsumedTotal > 0);
-  assert.equal(state.warpTransition, 'entering');
 });
 
-test('selecionar um estágio inferior mantém a velocidade e muda o alvo progressivamente', () => {
-  const state = makeState({ speed: 200, warpDriveButton: true, warpStage: 2 });
-  advanceShipFlightDynamics(state, 0.02);
-  assert.equal(state.warpCurrentStage, 2);
-  assert.equal(state.warpTargetSpeed, WARP_STAGE_SPEEDS[2]);
-  assert.equal(state.speed, 198.7);
-  assert.equal(state.warpDriveActive, true);
-});
-
-test('acelerador convencional continua independente durante a dobra', () => {
-  const state = makeState({ speed: 155, warpDriveButton: true, warpStage: 2, throttle: true });
-  const initialFuel = state.fuel;
+test('selecionar estágio inferior reduz o alvo em c sem alterar m/s convencional', () => {
+  const state = makeState({ speed: 42, warpDriveButton: true, warpStage: 2, warpSpeedC: 25 });
   advanceShipFlightDynamics(state, 0.04);
-  assert.ok(state.speed > 155);
-  assert.ok(state.fuel < initialFuel);
+  assert.equal(state.warpTargetSpeed, 5);
+  assert.equal(state.warpSpeedC, 15);
+  assert.equal(state.speed, 42);
 });
 
-test('dobra mantém cruzeiro e consome dilítio continuamente por estágio', () => {
-  const state = makeState({ speed: 155, warpDriveButton: true, warpStage: 2 });
-  advanceShipFlightDynamics(state, 0.04);
-  const afterFirstFrame = state.refinedDilithium;
-  advanceShipFlightDynamics(state, 0.04);
-  assert.ok(state.refinedDilithium < afterFirstFrame);
-  assert.equal(state.speed, 155);
-  assert.equal(state.warpTransition, 'cruise');
+test('dobra não inicia dentro do envelope gravitacional de pouso', () => {
+  const state = makeState({ warpDriveButton: true, warpSafetyLock: true });
+  assert.equal(advanceShipFlightDynamics(state, 0.04), false);
+  assert.equal(state.warpDriveButton, false);
+  assert.equal(state.warpShutdownReason, 'planetary-proximity');
+  assert.equal(state.warpSpeedC, 0);
 });
 
-test('esgotamento de dilítio inicia desligamento seguro da dobra', () => {
-  const state = makeState({ speed: 180, refinedDilithium: 0.0001, warpDriveButton: true, warpStage: 5 });
+test('saída suave desacelera o campo de dobra sem tocar na velocidade convencional', () => {
+  const state = makeState({ speed: 120, warpSpeedC: 25, warpDriveActive: true, warpTransition: 'cruise' });
+  advanceShipFlightDynamics(state, 0.04);
+  assert.equal(state.warpSpeedC, 15);
+  assert.equal(state.warpTransition, 'exiting');
+  assert.equal(state.speed, 120);
+});
+
+test('esgotamento de dilítio inicia desligamento seguro', () => {
+  const state = makeState({ refinedDilithium: 0.0001, warpDriveButton: true, warpStage: 5 });
   assert.equal(advanceShipFlightDynamics(state, 0.04), false);
   assert.equal(state.warpDriveButton, false);
   assert.equal(state.warpDriveActive, false);
   assert.equal(state.warpTransition, 'exiting');
   assert.equal(state.warpShutdownReason, 'dilithium-depleted');
-  assert.ok(state.speed > 0);
 });
 
-test('saída suave reduz a velocidade sem interromper o movimento', () => {
-  const state = makeState({ speed: 200, warpDriveActive: true, warpDriveButton: false, warpTransition: 'cruise' });
-  advanceShipFlightDynamics(state, 0.04);
-  assert.equal(state.speed, 199.04);
-  assert.equal(state.warpTransition, 'exiting');
-});
-
-test('acelerador convencional não transforma uma saída suave em corte instantâneo', () => {
+test('falta de potência no barramento aborta a dobra', () => {
   const state = makeState({
-    speed: 200,
-    fuel: 100,
-    throttle: true,
-    warpDriveActive: true,
-    warpDriveButton: false,
-    warpTransition: 'cruise',
-    warpExitMode: 'smooth'
-  });
-  advanceShipFlightDynamics(state, 0.04);
-  assert.equal(state.speed, 199.04);
-  assert.ok(state.fuel < 100);
-  assert.equal(state.warpTransition, 'exiting');
-});
-
-test('saída direta retorna à velocidade convencional sem zerar o deslocamento', () => {
-  const state = makeState({ speed: 300, warpDriveActive: true, warpDriveButton: false, warpTransition: 'cruise', warpExitMode: 'direct' });
-  advanceShipFlightDynamics(state, 0.04);
-  assert.equal(state.speed, 75);
-  assert.equal(state.warpTransition, 'idle');
-});
-
-test('frenagem nunca produz velocidade negativa e deltas grandes são limitados', () => {
-  const state = makeState({ speed: 0.2, braking: true });
-  advanceShipFlightDynamics(state, 1);
-  assert.equal(state.speed, 0);
-});
-
-
-test('dobra integrada consome EPS do barramento sem consumir dilítio diretamente', () => {
-  let requested = 0;
-  const state = makeState({
-    warpDriveButton: true,
-    warpCorePowerBusConnected: true,
-    requestWarpPower: amount => { requested = amount; return amount; }
-  });
-  assert.equal(advanceShipFlightDynamics(state, 0.02), true);
-  assert.equal(requested, 7.5 * 0.02);
-  assert.equal(state.refinedDilithium, 100);
-});
-
-test('falta de potência no barramento aborta entrada em dobra com desligamento seguro', () => {
-  const state = makeState({
-    speed: 40,
     warpDriveButton: true,
     warpCorePowerBusConnected: true,
     requestWarpPower: () => 0
   });
   assert.equal(advanceShipFlightDynamics(state, 0.02), false);
   assert.equal(state.warpDriveButton, false);
-  assert.equal(state.warpDriveActive, false);
   assert.equal(state.warpShutdownReason, 'insufficient-warp-power');
-  assert.equal(state.warpTransition, 'idle');
-  assert.equal(state.refinedDilithium, 100);
+});
+
+test('freio de alto empuxo nunca produz velocidade negativa', () => {
+  const state = makeState({ speed: 5, braking: true });
+  advanceShipFlightDynamics(state, 0.04);
+  assert.equal(state.speed, 0);
 });

@@ -3,23 +3,23 @@ import { EARTH_REFERENCE_POLICY, EARTH_REFERENCE_SOURCES } from './references/in
 import { EARTH_UPDATE_MODULES } from './modules/index.js';
 import { createEarthUpdatePipeline } from './earthUpdatePipeline.js';
 import { createInteriorRuntime } from './modules/runtime/interior.js';
-import { createSurfaceRuntime } from './modules/runtime/surface.js';
+import { createBlueMarbleSurfaceRuntime } from './modules/runtime/blueMarbleSurface.js';
 import { createTerrainRuntime } from './modules/runtime/terrain.js';
 import { createOceansRuntime } from './modules/runtime/oceans.js';
-import { createAtmosphereRuntime } from './modules/runtime/atmosphere.js';
+import { createBlueMarbleAtmosphereRuntime } from './modules/runtime/blueMarbleAtmosphere.js';
 import { createCloudsRuntime } from './modules/runtime/clouds.js';
-import { createLightingRuntime } from './modules/runtime/lighting.js';
+import { createBlueMarbleLightingRuntime } from './modules/runtime/blueMarbleLighting.js';
 import { createEarthInfrastructureRuntime } from './modules/runtime/infrastructure.js';
 import { createEarthPlanetaryProfile } from './planetaryProfile.js';
 
 const RUNTIME_FACTORIES = Object.freeze({
   interior: createInteriorRuntime,
-  surface: createSurfaceRuntime,
+  surface: createBlueMarbleSurfaceRuntime,
   terrain: createTerrainRuntime,
   oceans: createOceansRuntime,
-  atmosphere: createAtmosphereRuntime,
+  atmosphere: createBlueMarbleAtmosphereRuntime,
   clouds: createCloudsRuntime,
-  lighting: createLightingRuntime,
+  lighting: createBlueMarbleLightingRuntime,
   infrastructure: createEarthInfrastructureRuntime
 });
 
@@ -37,6 +37,8 @@ export function createEarthCore(options = {}) {
   const planetaryProfile = createEarthPlanetaryProfile({
     visualRadiusUnits: settings.radius
   });
+  settings.physicalScale = planetaryProfile.physicalScale;
+
   const group = new THREE.Group();
   group.name = 'StarFrontier-Earth-Core';
   group.position.set(...settings.position);
@@ -61,11 +63,14 @@ export function createEarthCore(options = {}) {
 
   return {
     group,
-    version: '1.6.0',
+    version: '1.7.0',
     referencePolicy: EARTH_REFERENCE_POLICY,
     references: EARTH_REFERENCE_SOURCES,
     getPlanetaryProfile() {
       return planetaryProfile;
+    },
+    getPhysicalScale() {
+      return planetaryProfile.physicalScale;
     },
     getSurfaceFrame() {
       return surfaceFrame;
@@ -108,14 +113,18 @@ export function createEarthCore(options = {}) {
     getStatus() {
       return {
         core: 'ready',
-        version: '1.6.0',
-        renderer: 'modular-earth-runtime',
+        version: '1.7.0',
+        renderer: 'nasa-blue-marble-visual-runtime',
+        surfaceVisual: layers.surfaceVisual ?? null,
+        atmosphereVisual: layers.atmosphereVisual ?? null,
         referencesAreAdvisory: true,
         planetaryProfile: {
           id: planetaryProfile.id,
           physicalMeanRadiusKm: planetaryProfile.physical.meanRadiusKm,
           visualRadiusUnits: planetaryProfile.render.visualRadiusUnits,
-          visualUnitsPerKm: planetaryProfile.render.visualUnitsPerKm
+          visualUnitsPerKm: planetaryProfile.render.visualUnitsPerKm,
+          metersPerVisualUnit: planetaryProfile.render.metersPerVisualUnit,
+          renderUnitsPerMeter: planetaryProfile.physicalScale.renderUnitsPerMeter
         },
         terrain: layers.terrain ? {
           elevationSource: layers.terrain.elevationSource,
@@ -123,7 +132,10 @@ export function createEarthCore(options = {}) {
           etopoStatus: layers.terrain.etopoStatus,
           verticalDatum: layers.terrain.verticalDatum ?? null,
           gridResolutionArcSeconds: layers.terrain.gridResolutionArcSeconds ?? null,
-          verticalExaggeration: layers.terrain.verticalExaggeration
+          verticalExaggeration: layers.terrain.verticalExaggeration,
+          visualVerticalExaggeration: layers.terrain.visualVerticalExaggeration,
+          regionalSurface: layers.terrain.regionalSurface ?? null,
+          regionalDem: layers.terrain.regionalDem ?? null
         } : null,
         updateModules: updatePipeline.getStatus(),
         disposed

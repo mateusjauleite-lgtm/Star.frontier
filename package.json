@@ -16,6 +16,7 @@
     "build:earth:wasm": "bash scripts/build-earth-wasm.sh",
     "build:ship:wasm": "bash scripts/build-ship-flight-wasm.sh",
     "prepare:earth:etopo": "python3 scripts/prepare-etopo2022.py",
+    "prepare:earth:visual": "python3 scripts/prepare-earth-blue-marble.py",
     "build:gravity:wasm": "bash scripts/build-gravity-wasm.sh",
     "build:runtime:wasm": "bash scripts/build-runtime-wasm.sh"
   },

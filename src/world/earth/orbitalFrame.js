@@ -20,16 +20,21 @@ function inverseQuaternion(quaternion) {
 
 /**
  * Bridges Earth-centred Three.js world coordinates to SI orbital coordinates.
- * The render scale comes from Earth's planetary profile; ship mesh dimensions
- * remain a separate visual/model calibration and are not rescaled here.
+ * Runtime telemetry supplies metersPerVisualUnit from the authoritative
+ * physical-scale adapter. visualUnitsPerKm remains accepted for older callers.
  */
 export function createEarthOrbitalFrame({
   originWorld = [0, 0, 0],
   orientationWorld = [0, 0, 0, 1],
+  metersPerVisualUnit,
   visualUnitsPerKm
 } = {}) {
+  const resolvedMetersPerVisualUnit = Number.isFinite(metersPerVisualUnit) && metersPerVisualUnit > 0
+    ? metersPerVisualUnit
+    : (Number.isFinite(visualUnitsPerKm) && visualUnitsPerKm > 0
+      ? 1000 / visualUnitsPerKm : null);
   if (!isVector3(originWorld) || !isQuaternion(orientationWorld) ||
-      !Number.isFinite(visualUnitsPerKm) || visualUnitsPerKm <= 0) {
+      !Number.isFinite(resolvedMetersPerVisualUnit) || resolvedMetersPerVisualUnit <= 0) {
     throw new TypeError('Invalid Earth orbital frame calibration.');
   }
 
@@ -38,35 +43,37 @@ export function createEarthOrbitalFrame({
 
   const orientation = orientationWorld.map(value => value / quaternionLength);
   const inverseOrientation = inverseQuaternion(orientation);
-  const metersPerVisualUnit = 1000 / visualUnitsPerKm;
+  const resolvedVisualUnitsPerKm = 1000 / resolvedMetersPerVisualUnit;
   const clean = values => values.map(value => Object.is(value, -0) ? 0 : value);
 
   return Object.freeze({
     originWorld: [...originWorld],
     orientationWorld: [...orientation],
-    visualUnitsPerKm,
-    metersPerVisualUnit,
+    visualUnitsPerKm: resolvedVisualUnitsPerKm,
+    metersPerVisualUnit: resolvedMetersPerVisualUnit,
     worldPositionToMeters(positionWorld) {
       if (!isVector3(positionWorld)) return null;
       const relative = positionWorld.map((value, axis) => value - originWorld[axis]);
-      return clean(rotateVector(relative, inverseOrientation).map(value => value * metersPerVisualUnit));
+      return clean(rotateVector(relative, inverseOrientation)
+        .map(value => value * resolvedMetersPerVisualUnit));
     },
     metersToWorldPosition(positionMeters) {
       if (!isVector3(positionMeters)) return null;
       const relativeWorld = rotateVector(
-        positionMeters.map(value => value / metersPerVisualUnit),
+        positionMeters.map(value => value / resolvedMetersPerVisualUnit),
         orientation
       );
       return clean(relativeWorld.map((value, axis) => value + originWorld[axis]));
     },
     worldVectorToMeters(vectorWorld) {
       if (!isVector3(vectorWorld)) return null;
-      return clean(rotateVector(vectorWorld, inverseOrientation).map(value => value * metersPerVisualUnit));
+      return clean(rotateVector(vectorWorld, inverseOrientation)
+        .map(value => value * resolvedMetersPerVisualUnit));
     },
     metersVectorToWorld(vectorMeters) {
       if (!isVector3(vectorMeters)) return null;
       return clean(rotateVector(
-        vectorMeters.map(value => value / metersPerVisualUnit),
+        vectorMeters.map(value => value / resolvedMetersPerVisualUnit),
         orientation
       ));
     }

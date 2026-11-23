@@ -26,6 +26,12 @@ on:
       - feature/ship-computer-matrix-integration
       - feature/alexia-chat-core
       - feature/aurora-ship-computer-ai-core
+      - feature/earth-regional-quadtree-dem-2026-11-22
+      - fix/earth-collision-elevator-landing-controls-2026-11-22
+      - feature/earth-blue-marble-visual-runtime-2026-11-22
+      - fix/earth-true-3d-relief-cleanup-2026-11-22
+      - feature/central-physical-scale-2026-11-22
+      - feature/earth-scale-mineral-field-labels-2026-11-22
   pull_request:
     branches:
       - feature/alexia-chat-core
@@ -34,6 +40,7 @@ on:
       - feature/dilithium-inventory-refinery-transfer
       - feature/refinery-hologram-console-interaction
       - main
+      - feature/earth-scale-mineral-field-labels-2026-11-22
       - architecture/modules-skeleton
       - integration/threejs-recovery
       - feature/earth-procedural-lod
@@ -41,6 +48,10 @@ on:
       - feature/startup-loading-login-flow
       - feature/engineering-warp-core-foundation
       - fix/character-hud-startup-layout
+      - feature/earth-regional-quadtree-dem-2026-11-22
+      - fix/earth-collision-elevator-landing-controls-2026-11-22
+      - feature/earth-blue-marble-visual-runtime-2026-11-22
+      - feature/central-physical-scale-2026-11-22
   workflow_dispatch:
 
 permissions:
@@ -64,6 +75,11 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+
+      - name: Prepare NASA Blue Marble visual texture
+        run: |
+          python -m pip install --disable-pip-version-check pillow
+          npm run prepare:earth:visual
 
       - name: Prepare Emscripten cache directory
         run: mkdir -p "${{ runner.temp }}/emsdk-cache"

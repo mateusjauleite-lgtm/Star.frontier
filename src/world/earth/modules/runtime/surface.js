@@ -62,90 +62,6 @@ export function createEarthLandMask(width = 2048, height = 1024) {
   return canvas;
 }
 
-function makeRockAlbedo() {
-  const width = 2048, height = 1024;
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext('2d');
-
-  // Ocean basins remain exposed rock: no blue water, transparency or water shader.
-  const basin = ctx.createLinearGradient(0, 0, 0, height);
-  basin.addColorStop(0, '#343b40');
-  basin.addColorStop(.5, '#242b30');
-  basin.addColorStop(1, '#3a3935');
-  ctx.fillStyle = basin;
-  ctx.fillRect(0, 0, width, height);
-
-  // Subtle geological variation across the dry oceanic crust.
-  for (let i = 0; i < 9000; i++) {
-    const x = (i * 7919) % width;
-    const y = (i * 3571) % height;
-    ctx.fillStyle = i % 3 ? 'rgba(151,137,117,.055)' : 'rgba(5,9,12,.11)';
-    ctx.beginPath();
-    ctx.ellipse(x, y, 3 + (i % 23), 1 + (i % 4), (i % 9) * .08, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  for (let p = 0; p < EARTH_LAND_POLYGONS.length; p++) {
-    const polygon = EARTH_LAND_POLYGONS[p];
-    ctx.beginPath();
-    polygon.forEach(([lon, lat], index) => {
-      const x = (lon + 180) / 360 * width;
-      const y = (90 - lat) / 180 * height;
-      index ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
-    });
-    ctx.closePath();
-
-    const rock = ctx.createLinearGradient(0, 70, 0, 970);
-    rock.addColorStop(0, '#77766e');
-    rock.addColorStop(.18, '#8b806c');
-    rock.addColorStop(.42, '#746b5b');
-    rock.addColorStop(.68, '#625c50');
-    rock.addColorStop(1, '#8a8173');
-    ctx.fillStyle = rock;
-    ctx.fill();
-    ctx.save();
-    ctx.clip();
-
-    // Mineral bands, weathered plateaus and exposed-rock mottling.
-    for (let i = 0; i < 1250; i++) {
-      const x = ((i * 127 + p * 313) % 1000) / 1000 * width;
-      const y = ((i * 233 + p * 97) % 1000) / 1000 * height;
-      const r = 2 + ((i * 19) % 22);
-      const shade = i % 5;
-      ctx.fillStyle = shade === 0 ? 'rgba(193,169,130,.18)' :
-        shade === 1 ? 'rgba(30,34,34,.16)' :
-        shade === 2 ? 'rgba(220,207,179,.11)' :
-        shade === 3 ? 'rgba(104,77,55,.17)' : 'rgba(151,145,128,.12)';
-      ctx.beginPath();
-      ctx.ellipse(x, y, r * (1.4 + (i % 4) * .35), r * .65, (i % 7) * .2, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // Long, broken ridge marks; restrained enough to keep broad plains readable.
-    ctx.lineCap = 'round';
-    for (let i = 0; i < 110; i++) {
-      const x = ((i * 173 + p * 211) % 1000) / 1000 * width;
-      const y = ((i * 317 + p * 149) % 1000) / 1000 * height;
-      ctx.strokeStyle = i % 2 ? 'rgba(37,39,37,.28)' : 'rgba(222,204,171,.22)';
-      ctx.lineWidth = 1 + (i % 4);
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-      ctx.lineTo(x + 12 + (i % 29), y - 5 - (i % 17));
-      ctx.lineTo(x + 25 + (i % 39), y + 4 + (i % 11));
-      ctx.stroke();
-    }
-    ctx.restore();
-
-    ctx.strokeStyle = 'rgba(190,177,151,.58)';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-  }
-
-  return canvas;
-}
-
 // Match the packaged NOAA ETOPO 0.25-degree grid across the entire globe.
 // A single global mesh avoids waiting for the ship to approach before relief appears.
 export const EARTH_GLOBAL_SURFACE_SEGMENTS = Object.freeze({ width: 360, height: 180 });
@@ -154,8 +70,8 @@ export const EARTH_GLOBAL_SURFACE_SEGMENTS = Object.freeze({ width: 360, height:
 // then increases detail only when the camera approaches. Local ETOPO patches
 // remain independent and continue to use the authoritative collision sampler.
 export const EARTH_LOD_SEGMENTS = Object.freeze([
-  Object.freeze({ width: 90, height: 45 }),
-  Object.freeze({ width: 180, height: 90 }),
+  Object.freeze({ width: 144, height: 72 }),
+  Object.freeze({ width: 216, height: 108 }),
   Object.freeze({ width: 360, height: 180 }),
   Object.freeze({ width: 540, height: 270 })
 ]);
@@ -176,71 +92,4 @@ export function selectEarthLodLevel(distance, radius, currentLevel = null) {
     return currentLevel - 1;
   }
   return currentLevel;
-}
-
-export function createSurfaceRuntime({ group, surfaceFrame = group, options, layers }) {
-  let mesh, texture, geometry, material;
-  let currentLevel = 0;
-  let lodCheckElapsed = 0;
-  return {
-    initialize() {
-      texture = new THREE.CanvasTexture(makeRockAlbedo());
-      texture.colorSpace = THREE.SRGBColorSpace;
-      texture.anisotropy = 4;
-      // Start with a small mesh so the renderer can show the scene immediately.
-      // Camera-driven LOD upgrades happen after the first gameplay frames.
-      const initial = EARTH_LOD_SEGMENTS[0];
-      geometry = new THREE.SphereGeometry(options.radius, initial.width, initial.height);
-      material = new THREE.MeshStandardMaterial({
-        map: texture,
-        roughness: .96,
-        metalness: .025
-      });
-      mesh = new THREE.Mesh(geometry, material);
-      mesh.name = 'Earth-Continuous-Rocky-Globe';
-      mesh.userData.earthLodGeometries = [geometry];
-      mesh.userData.earthLodLevel = currentLevel;
-      surfaceFrame.add(mesh);
-      layers.surface = mesh;
-    },
-    update(delta, context) {
-      if (!mesh) return;
-      surfaceFrame.rotation.y += Math.min(Math.max(delta || 0, 0), .1) * .012;
-      lodCheckElapsed += Math.min(Math.max(delta || 0, 0), .1);
-      if (lodCheckElapsed < .35) return;
-      lodCheckElapsed = 0;
-      const camera = context?.camera;
-      if (!camera) return;
-      camera.updateMatrixWorld?.();
-      surfaceFrame.updateWorldMatrix(true, false);
-      const cameraPosition = camera.getWorldPosition(new THREE.Vector3());
-      const earthPosition = surfaceFrame.getWorldPosition(new THREE.Vector3());
-      const distance = cameraPosition.distanceTo(earthPosition);
-      const nextLevel = selectEarthLodLevel(
-        distance, options.radius, Number.isInteger(currentLevel) ? currentLevel : null
-      );
-      if (nextLevel === currentLevel) return;
-
-      const segments = EARTH_LOD_SEGMENTS[nextLevel];
-      const nextGeometry = new THREE.SphereGeometry(
-        options.radius, segments.width, segments.height
-      );
-      const previousGeometry = geometry;
-      geometry = nextGeometry;
-      currentLevel = nextLevel;
-      mesh.geometry = nextGeometry;
-      mesh.userData.earthLodGeometries = [nextGeometry];
-      mesh.userData.earthLodLevel = nextLevel;
-      previousGeometry?.dispose();
-      // Terrain owns elevation displacement; it rebuilds only the newly active
-      // mesh, while collision and the nearby high-resolution patch stay intact.
-      layers.terrain?.refreshGeometry?.();
-    },
-    dispose() {
-      if (mesh) surfaceFrame.remove(mesh);
-      geometry?.dispose();
-      material?.dispose();
-      texture?.dispose();
-    }
-  };
 }

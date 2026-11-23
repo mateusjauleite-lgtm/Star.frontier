@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { createEarthLandMask } from './surface.js';
 import { createEarthKernelAdapter, loadEarthKernel } from '../../wasm/earthKernel.js';
 import { loadEtopo2022GlobalGrid } from '../../references/etopo2022.js';
+import { createEarthRegionalSurfaceRuntime } from './regionalSurface.js';
+import { createTerrariumElevationProvider } from '../../references/regionalElevation.js';
 
 const clamp01 = value => THREE.MathUtils.clamp(value, 0, 1);
 const surfacePatchDispose = patch => {
@@ -110,6 +112,9 @@ export function createTerrainRuntime({ options, layers }) {
   let earthKernel = createEarthKernelAdapter();
   let heightScale = 1;
   let disposed = false;
+  let regionalDemProvider = null;
+  let regionalDemZoom = options.regionalDemZoom ?? 12;
+  let regionalSurfaceRuntime = null;
   const highResolutionPatches = new Set();
   let activeHighResolutionPatch = null;
   let lastPatchCenter = null;
@@ -144,8 +149,13 @@ export function createTerrainRuntime({ options, layers }) {
         (grid.east ?? 180) > (grid.west ?? -180) &&
         (grid.north ?? 90) > (grid.south ?? -90)
       );
-      const exaggeration = Math.max(1, options.terrainVerticalExaggeration ?? 8);
+      const exaggeration = Math.max(1, options.terrainVerticalExaggeration ?? 16);
       const radius = options.radius;
+      const physicalScale = options.physicalScale;
+      if (!physicalScale || typeof physicalScale.metersToRenderUnits !== 'function' ||
+          typeof physicalScale.kmToRenderUnits !== 'function') {
+        throw new TypeError('Earth terrain requires the authoritative SI/render physical scale.');
+      }
       let elevationRevision = 0;
       const getLodGeometries = () => surface.userData?.earthLodGeometries ?? [surface.geometry];
       const yieldToFrame = () => new Promise(resolve => {
@@ -157,7 +167,7 @@ export function createTerrainRuntime({ options, layers }) {
       });
       const direction = new THREE.Vector3();
       const width = maskCanvas.width, height = maskCanvas.height;
-      const unitsPerKm = radius / 6371.0088;
+      const unitsPerKm = physicalScale.kmToRenderUnits(1);
       heightScale = exaggeration;
 
       // One authoritative elevation function feeds both the visible mesh and
@@ -167,12 +177,19 @@ export function createTerrainRuntime({ options, layers }) {
         if (!Number.isFinite(longitudeDeg) || !Number.isFinite(latitudeDeg) ||
             latitudeDeg < -90 || latitudeDeg > 90) return null;
 
+        // The regional DEM cache is shared by rendering and collision. Until a
+        // tile is decoded, ETOPO remains the immediate synchronous fallback.
+        const regionalMeters = regionalDemProvider?.sampleCached?.(
+          longitudeDeg, latitudeDeg, { zoom: regionalDemZoom }
+        );
+        if (Number.isFinite(regionalMeters)) {
+          return physicalScale.metersToRenderUnits(regionalMeters) * exaggeration;
+        }
+
         if (gridIsReady) {
           const meters = sampleEarthElevationGrid(grid, longitudeDeg, latitudeDeg);
           if (meters !== null) {
-            return earthKernel.elevationMetersToUnits(
-              meters, radius, 6371.0088, exaggeration
-            );
+            return physicalScale.metersToRenderUnits(meters) * exaggeration;
           }
         }
 
@@ -186,7 +203,7 @@ export function createTerrainRuntime({ options, layers }) {
         const baseUnits = proceduralFallback(lon, lat, radius, land);
         const detailMeters = earthKernel.proceduralDetailMeters(longitudeDeg, latitudeDeg, 2600);
         const detailUnits = detailMeters === null ? 0 :
-          earthKernel.elevationMetersToUnits(detailMeters, radius, 6371.0088, exaggeration);
+          physicalScale.metersToRenderUnits(detailMeters) * exaggeration;
         return baseUnits + (land > .5 && detailUnits !== null ? detailUnits : 0);
       };
 
@@ -219,9 +236,7 @@ export function createTerrainRuntime({ options, layers }) {
           for (let i = 0; i < positions.count; i++) {
             if (disposed || revision !== elevationRevision) return false;
             const elevationUnits = Number.isFinite(sampledMeters?.[i])
-              ? earthKernel.elevationMetersToUnits(
-                sampledMeters[i], radius, 6371.0088, exaggeration
-              )
+              ? physicalScale.metersToRenderUnits(sampledMeters[i]) * exaggeration
               : elevationSampler(longitudes[i], latitudes[i]);
             if (Number.isFinite(elevationUnits)) {
               vertexDirection.fromBufferAttribute(positions, i).normalize();
@@ -258,6 +273,7 @@ export function createTerrainRuntime({ options, layers }) {
             ? { state: 'disabled', reason: 'load-disabled' }
             : { state: 'loading', source: 'procedural-fallback-active' },
         verticalExaggeration: exaggeration,
+        visualVerticalExaggeration: exaggeration,
         computeBackend: earthKernel.backend,
         unitsPerKm,
         waterGeometry: false,
@@ -285,120 +301,25 @@ export function createTerrainRuntime({ options, layers }) {
             const divisions = Number.isFinite(segments)
               ? Math.round(THREE.MathUtils.clamp(segments, 8, 128))
               : calculateEtopoPatchSegments(safeRadiusKm, latitudeDeg, gridIsReady ? grid : null);
-            const angularSegments = Math.max(32, Math.ceil(divisions * Math.PI * 2));
-            const positions = [];
-            const uvs = [];
-            const indices = [];
-            const longitudes = [];
-            const latitudes = [];
-            const centerLatitude = THREE.MathUtils.degToRad(latitudeDeg);
-            const centerLongitude = THREE.MathUtils.degToRad(longitudeDeg);
-            const point = new THREE.Vector3();
 
-            const appendPoint = (longitude, latitude) => {
-              longitudes.push(longitude);
-              latitudes.push(latitude);
-              uvs.push((longitude + 180) / 360, (90 - latitude) / 180);
-              return true;
-            };
-
-            if (!appendPoint(longitudeDeg, latitudeDeg)) return null;
-            for (let ring = 1; ring <= divisions; ring++) {
-              const angularDistance = (ring / divisions * safeRadiusKm) / 6371.0088;
-              const sinCenter = Math.sin(centerLatitude);
-              const cosCenter = Math.cos(centerLatitude);
-              const sinDistance = Math.sin(angularDistance);
-              const cosDistance = Math.cos(angularDistance);
-              for (let segment = 0; segment < angularSegments; segment++) {
-                const bearing = segment / angularSegments * Math.PI * 2;
-                const latitude = Math.asin(THREE.MathUtils.clamp(
-                  sinCenter * cosDistance + cosCenter * sinDistance * Math.cos(bearing),
-                  -1, 1
-                ));
-                const longitude = centerLongitude + Math.atan2(
-                  Math.sin(bearing) * sinDistance * cosCenter,
-                  cosDistance - sinCenter * Math.sin(latitude)
-                );
-                const longitudeDegAtPoint = THREE.MathUtils.euclideanModulo(
-                  THREE.MathUtils.radToDeg(longitude) + 180, 360
-                ) - 180;
-                if (!appendPoint(longitudeDegAtPoint, THREE.MathUtils.radToDeg(latitude))) {
-                  return null;
-                }
-              }
-
-              const outerStart = 1 + (ring - 1) * angularSegments;
-              const innerStart = ring === 1 ? 0 : 1 + (ring - 2) * angularSegments;
-              for (let segment = 0; segment < angularSegments; segment++) {
-                const next = (segment + 1) % angularSegments;
-                if (ring === 1) {
-                  indices.push(0, outerStart + segment, outerStart + next);
-                } else {
-                  indices.push(
-                    innerStart + segment, outerStart + segment, innerStart + next,
-                    outerStart + segment, outerStart + next, innerStart + next
-                  );
-                }
-              }
-            }
-
-            // Sample the complete regional disk in one batch, using the same
-            // ETOPO grid path as the global LOD meshes. Fall back per point
-            // only when a source cell is no-data or WASM allocation fails.
-            const sampledMeters = gridIsReady
-              ? earthKernel.sampleElevationBatch(
-                grid, new Float32Array(longitudes), new Float32Array(latitudes)
-              )
-              : null;
-            for (let i = 0; i < longitudes.length; i++) {
-              const elevationUnits = Number.isFinite(sampledMeters?.[i])
-                ? earthKernel.elevationMetersToUnits(
-                  sampledMeters[i], radius, 6371.0088, exaggeration
-                )
-                : elevationSampler(longitudes[i], latitudes[i]);
-              if (!Number.isFinite(elevationUnits)) return null;
-              const latRad = THREE.MathUtils.degToRad(latitudes[i]);
-              const lonRad = THREE.MathUtils.degToRad(longitudes[i]);
-              const patchRadius = radius + elevationUnits + 0.025;
-              point.set(
-                Math.cos(lonRad) * Math.cos(latRad) * patchRadius,
-                Math.sin(latRad) * patchRadius,
-                Math.sin(lonRad) * Math.cos(latRad) * patchRadius
-              );
-              positions.push(point.x, point.y, point.z);
-            }
-
-            const geometry = new THREE.BufferGeometry();
-            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-            geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-            geometry.setIndex(indices);
-            geometry.computeVertexNormals();
-            geometry.computeBoundingSphere();
-            const patchMaterial = surface.material.clone();
-            patchMaterial.polygonOffset = true;
-            patchMaterial.polygonOffsetFactor = -1;
-            patchMaterial.polygonOffsetUnits = -1;
-            const patch = new THREE.Mesh(geometry, patchMaterial);
-            patch.name = 'Earth-Local-HighResolution-Patch';
-            patch.userData.earthPatch = {
+            // Compatibility marker only: regional quadtree tiles now own the
+            // visible surface. Avoid allocating a second invisible terrain mesh.
+            const marker = new THREE.Object3D();
+            marker.name = 'Earth-Regional-Collision-Activation';
+            marker.visible = false;
+            marker.userData.earthPatch = {
               longitudeDeg,
               latitudeDeg,
               radiusKm: safeRadiusKm,
               segments: divisions,
-              angularSegments,
-              shape: 'geodesic-disk',
-              meshSpacingKm: safeRadiusKm / divisions,
-              sourceGridSpacingKm: gridIsReady
-                ? (grid.north - grid.south) / (grid.height - 1) * 111.195
-                : 0.25 * 111.195,
-              patchAreaDiameterKm: safeRadiusKm * 2,
-              samplingFollowsEtopo: true,
+              shape: 'quadtree-activation-marker',
               elevationSource: gridIsReady ? (grid.source ?? 'provided-global-grid') : 'procedural-fallback'
             };
-            surface.add(patch);
-            highResolutionPatches.add(patch);
-            return patch;
+            surface.add(marker);
+            highResolutionPatches.add(marker);
+            return marker;
           },
+
           updateHighResolutionPatch(worldPosition, {
             activationAltitudeUnits = 120,
             radiusKm = 750,
@@ -442,7 +363,7 @@ export function createTerrainRuntime({ options, layers }) {
                 Math.cos(THREE.MathUtils.degToRad(latitudeDeg)) *
                   Math.sin(THREE.MathUtils.degToRad(longitudeDeg))
               );
-              const movedKm = previous.angleTo(current) * 6371.0088;
+              const movedKm = previous.angleTo(current) * physicalScale.physicalRadiusKm;
               if (movedKm < recenterDistanceKm) return activeHighResolutionPatch;
             }
 
@@ -566,6 +487,31 @@ export function createTerrainRuntime({ options, layers }) {
         return true;
       };
 
+      // Regional cube-sphere tiles replace the former single local high-res
+      // patch as the scalable near-player surface. The global ETOPO grid remains
+      // the fallback and the authoritative base for the collision sampler.
+      regionalDemZoom = options.regionalDemZoom ?? 12;
+      regionalDemProvider = createTerrariumElevationProvider({
+        urlTemplate: options.regionalDemUrlTemplate ??
+          'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png',
+        maxCachedTiles: options.regionalDemCacheTiles ?? 96
+      });
+      regionalSurfaceRuntime = createEarthRegionalSurfaceRuntime({
+        surface,
+        radius,
+        elevationSampler,
+        sampleElevationMetersBatch: points => regionalDemProvider.sampleBatch(points, {
+          zoom: regionalDemZoom
+        }),
+        elevationMetersToUnits: meters => physicalScale.metersToRenderUnits(meters) * exaggeration,
+        maxLevel: options.regionalSurfaceMaxLevel ?? 12,
+        maxTiles: options.regionalSurfaceMaxTiles ?? 48,
+        segments: options.regionalSurfaceSegments ?? 24,
+        buildPerUpdate: 2
+      });
+      layers.terrain.regionalSurface = regionalSurfaceRuntime.getStatus();
+      layers.terrain.regionalDem = regionalDemProvider.getStatus();
+
       // Replace the procedural first frame with NOAA ETOPO data. Reusing
       // applyElevationToMeshes also applies the identical no-data fallback
       // used by point queries from the collision surface.
@@ -619,9 +565,17 @@ export function createTerrainRuntime({ options, layers }) {
         // Keep the already-generated JS terrain if WASM loading fails.
       });
     },
-    update() {},
+    update(delta, context) {
+      regionalSurfaceRuntime?.update(delta, context);
+      if (layers.terrain && regionalSurfaceRuntime) {
+        layers.terrain.regionalSurface = regionalSurfaceRuntime.getStatus();
+        layers.terrain.regionalDem = regionalDemProvider?.getStatus?.() ?? null;
+      }
+    },
     dispose() {
       disposed = true;
+      regionalSurfaceRuntime?.dispose();
+      regionalDemProvider?.dispose();
       for (const patch of highResolutionPatches) {
         surfacePatchDispose(patch);
       }

@@ -1,6 +1,6 @@
-// Campo gravitacional artificial no referencial local da nave.
-// A compensação longitudinal atua no sentido oposto à aceleração da nave no eixo local Z.
-const SPEED_TO_WORLD_UNITS = 0.45;
+// Gravidade artificial interna da nave; não substitui a gravidade externa dos planetas.
+// O voo agora usa m/s e 1 unidade visual equivale a 1 metro.
+const SPEED_TO_WORLD_UNITS = 1;
 const MAX_COMPENSATION = 24;
 
 export function createArtificialGravityField({ gravity = 18 } = {}) {

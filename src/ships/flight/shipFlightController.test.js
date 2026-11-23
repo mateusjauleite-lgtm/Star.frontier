@@ -34,7 +34,7 @@ function fixture(overrides = {}) {
     settings: { sensitivity: 1 },
     move: { x: 0.5, y: -0.5 },
     throttle: false, braking: false, nitroButton: false,
-    fuel: 10, speed: 0, nitro: 100
+    fuel: 10, speed: 0, nitro: 100, maneuveringAssist: true
   };
   const controller = createShipFlightController({
     THREE: {

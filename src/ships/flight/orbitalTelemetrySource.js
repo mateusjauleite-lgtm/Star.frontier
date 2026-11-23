@@ -12,8 +12,8 @@ export function createShipOrbitalTelemetrySource({ THREE, earthSystem, ship, shi
   return Object.freeze({
     sample() {
       const profile = earthSystem.getPlanetaryProfile?.();
-      const visualUnitsPerKm = profile?.render?.visualUnitsPerKm;
-      if (!Number.isFinite(visualUnitsPerKm) || visualUnitsPerKm <= 0) return null;
+      const metersPerVisualUnit = profile?.conversion?.metersPerVisualUnit;
+      if (!Number.isFinite(metersPerVisualUnit) || metersPerVisualUnit <= 0) return null;
 
       earthSystem.group.updateWorldMatrix(true, false);
       ship.updateWorldMatrix(true, false);
@@ -31,7 +31,7 @@ export function createShipOrbitalTelemetrySource({ THREE, earthSystem, ship, shi
           // O orbital usa eixos globais inerciais; a rotação da superfície
           // continua pertencendo ao referencial terrestre.
           orientationWorld: [0, 0, 0, 1],
-          visualUnitsPerKm
+          metersPerVisualUnit
         },
         shipWorldPosition,
         shipForwardWorld

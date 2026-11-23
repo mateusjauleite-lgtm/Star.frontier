@@ -2614,3 +2614,14 @@ body * {
 .crew-confirm div { display:flex; gap:6px; }
 .crew-confirm button { min-height:29px; padding:4px 8px; border:1px solid rgba(73,220,255,.45); border-radius:7px; background:rgba(9,49,70,.95); color:#dff8ff; font-size:8px; font-weight:800; }
 .crew-wheel.is-confirming .crew-wheel-option,.crew-wheel.is-confirming .crew-wheel-title,.crew-wheel.is-confirming .crew-wheel-close { visibility:hidden; }
+
+
+/* Trem de pouso independente do comando de orientação de pouso. */
+#flight-controls #landing-gear-btn { width:100%; min-height:58px; }
+#landing-gear-btn.gear-deploying { border-color:rgba(255,200,87,.85); color:#ffd27c; }
+#landing-gear-btn.gear-deployed { border-color:rgba(84,230,160,.95); color:#8ff0b9; background:rgba(10,52,42,.92); box-shadow:0 0 15px rgba(84,230,160,.18); }
+#landing-gear-btn.gear-retracted { border-color:rgba(120,160,185,.55); color:#b8cbd7; }
+#landing-btn.guidance-active { border-color:rgba(67,217,255,.9); color:#b9f2ff; }
+@media (orientation:landscape) and (max-height:600px) {
+  #flight-controls #landing-gear-btn, #flight-controls #landing-btn { min-height:48px; }
+}

@@ -7,6 +7,8 @@ test('Earth physical radius is independent from visual radius', () => {
   assert.equal(profile.physical.meanRadiusKm, 6371.0088);
   assert.equal(profile.render.visualRadiusUnits, 300);
   assert.ok(Math.abs(profile.conversion.kmToVisualUnits(6371.0088) - 300) < 1e-9);
+  assert.ok(Math.abs(profile.conversion.metersToVisualUnits(1000) - 300 / 6371.0088) < 1e-12);
+  assert.equal(profile.physicalScale.renderUnitsPerMeter, profile.conversion.visualUnitsPerMeter);
 });
 
 test('Earth profile converts altitude without changing physical source values', () => {

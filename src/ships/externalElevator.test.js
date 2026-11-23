@@ -54,3 +54,16 @@ test('external elevator exposes a top-only contact area matching its moving plat
     elevator.dispose();
   }
 });
+
+test('external elevator remains stopped until the character issues an explicit command', () => {
+  const elevator = createExternalElevator();
+  try {
+    assert.equal(elevator.phase, 'top');
+    assert.equal(elevator.moving, false);
+    assert.equal(elevator.update(10), null);
+    assert.equal(elevator.phase, 'top');
+    assert.equal(elevator.platform.position.y, 0);
+  } finally {
+    elevator.dispose();
+  }
+});

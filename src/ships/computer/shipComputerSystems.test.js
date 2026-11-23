@@ -319,3 +319,20 @@ test('gerenciador de energia informa defletor indisponível sem Runtime conectad
   const response = computer.dispatch('ship-management-terminal', 'power', 'status');
   assert.deepEqual(response.result.deflectorPower, { available: false });
 });
+
+test('comandos dos manobradores passam pelo Ship Computer e compartilham o estado', () => {
+  const { computer, state } = createHarness();
+  const response = computer.dispatch('pilot-console', 'propulsion', 'setPilotInput', {
+    control: 'maneuverUp',
+    active: true
+  });
+  assert.equal(response.ok, true);
+  assert.equal(response.result.accepted, true);
+  assert.equal(state.maneuver.up, true);
+  const release = computer.dispatch('pilot-console', 'propulsion', 'setPilotInput', {
+    control: 'maneuverUp',
+    active: false
+  });
+  assert.equal(release.result.accepted, true);
+  assert.equal(state.maneuver.up, false);
+});
