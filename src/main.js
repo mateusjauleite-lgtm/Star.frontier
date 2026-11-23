@@ -1345,7 +1345,7 @@ function updateCharacterCamera() {
     );
     characterCameraInitialized = true;
   } else {
-    characterCameraOffset.set(0, 2.35, 5.2).applyQuaternion(characterCameraWorldQuaternion);
+    characterCameraOffset.set(0, 1.55, 3.35).applyQuaternion(characterCameraWorldQuaternion);
     const desired = characterCameraWorldPosition.clone().add(characterCameraOffset);
     // Na primeira apresentação, posiciona a câmera diretamente atrás do piloto.
     // O lerp só começa depois disso; evita a câmera atravessar a cena desde a origem,
@@ -1354,7 +1354,7 @@ function updateCharacterCamera() {
       camera.position.copy(desired);
       characterCameraInitialized = true;
     } else {
-      camera.position.lerp(desired, 0.22);
+      camera.position.lerp(desired, 0.36);
     }
     const lookTarget = target.addScaledVector(characterCameraForward, 1.4);
     lookTarget.addScaledVector(cameraUp, Math.sin(characterPitch) * 4.2);
@@ -2331,12 +2331,12 @@ function updateCamera() {
     camera.quaternion.copy(finalQuaternion);
   } else {
     // Câmera externa mais próxima, orbitando a nave com o arrasto da mira.
-    const offset = new THREE.Vector3(0, 28, 112)
+    const offset = new THREE.Vector3(0, 13, 48)
       .applyQuaternion(flightQuaternion)
       .applyQuaternion(cameraViewQuaternion);
 
     const desiredPosition = ship.position.clone().add(offset);
-    camera.position.lerp(desiredPosition, 0.12);
+    camera.position.lerp(desiredPosition, 0.34);
     camera.lookAt(ship.position);
   }
 }
