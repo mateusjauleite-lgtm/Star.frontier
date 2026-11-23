@@ -148,7 +148,7 @@ export function createShipFlightController(dependencies = {}) {
       assistEnabled: state.maneuveringAssist !== false,
       radialVelocity
     });
-    if (earthCenter && altitudeMeters <= 250000 && !state.warpDriveActive) {
+    if (earthCenter && altitudeMeters <= 250000 && !state.warpDriveActive && !(state.warpTransition === 'exiting' && Number(state.warpSpeedC) > 0)) {
       state.gravityVelocity = integrateWorldVelocity(
         currentGravityVelocity,
         gravityAcceleration.map((value, axis) => value + maneuverAcceleration[axis]),
@@ -157,10 +157,11 @@ export function createShipFlightController(dependencies = {}) {
       ) || currentGravityVelocity;
     }
     const warpDriveActive = advanceFlightDynamics(state, safeDt);
+    const warpTravelActive = warpDriveActive || (state.warpTransition === 'exiting' && Number(state.warpSpeedC) > 0);
 
     shipAudio.updateFlight({
       throttle: Boolean(state.throttle && state.fuel > 0),
-      warpDriveActive,
+      warpDriveActive: warpTravelActive,
       braking: Boolean(state.braking),
       moveX,
       moveY,
@@ -174,7 +175,7 @@ export function createShipFlightController(dependencies = {}) {
     // O nariz do casco está no eixo local -Z. Velocidade convencional em m/s;
     // dobra usa c e só pode atuar fora do envelope planetário.
     const nextShipWorldPosition = new THREE.Vector3(currentWorldPosition.x, currentWorldPosition.y, currentWorldPosition.z);
-    if (warpDriveActive) {
+    if (warpTravelActive) {
       const warpMetersPerSecond = SPEED_OF_LIGHT_MPS * Math.max(0, Number(state.warpSpeedC) || 0);
       nextShipWorldPosition.addScaledVector(forwardVector, warpMetersPerSecond * safeDt);
       state.gravityVelocity = [0, 0, 0];
@@ -308,12 +309,12 @@ export function createShipFlightController(dependencies = {}) {
 
     // Efeitos das nacelles.
     const warpStage = Number(state.warpCurrentStage) || 0;
-    const enginePower = warpDriveActive ? 1.25 + warpStage * 0.35 : (state.throttle ? 1.25 : 0.65);
+    const enginePower = warpTravelActive ? 1.25 + warpStage * 0.35 : (state.throttle ? 1.25 : 0.65);
     (getEngineFlames() || []).forEach(flame => {
       flame.scale.set(
-        warpDriveActive ? 1 + warpStage * 0.09 : 1,
-        warpDriveActive ? 1.5 + warpStage * 0.2 : enginePower,
-        warpDriveActive ? 1 + warpStage * 0.09 : 1
+        warpTravelActive ? 1 + warpStage * 0.09 : 1,
+        warpTravelActive ? 1.5 + warpStage * 0.2 : enginePower,
+        warpTravelActive ? 1 + warpStage * 0.09 : 1
       );
       flame.material.opacity = warpDriveActive ? 0.68 + warpStage * 0.055 : (state.throttle ? 0.7 : 0.3);
     });
