@@ -2626,3 +2626,17 @@ body * {
 @media (orientation:landscape) and (max-height:600px) {
   #flight-controls #landing-gear-btn, #flight-controls #landing-btn { min-height:48px; }
 }
+
+/* Altímetro atmosférico para pilotagem manual. Escala logarítmica 0–10.000 km. */
+.altimeter-instrument{display:flex;flex-direction:column;gap:7px;padding:9px 10px;border:1px solid rgba(67,217,255,.24);border-radius:9px;background:linear-gradient(110deg,rgba(5,24,43,.72),rgba(3,13,27,.62))}
+.altimeter-header,.altimeter-primary,.altimeter-details span{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.altimeter-header b{color:#9cecff;font-size:9px;letter-spacing:.1em}.altimeter-header span{color:#d8f7ff;font-size:9px;font-weight:800}
+.altimeter-primary{align-items:baseline}.altimeter-primary b{color:#f0fcff;font-size:22px;font-variant-numeric:tabular-nums}.altimeter-primary span{color:#7899aa;font-size:8px;letter-spacing:.1em}
+.altimeter-details{display:grid;grid-template-columns:1fr 1fr;gap:8px}.altimeter-details span{color:#7899aa;font-size:7px;letter-spacing:.04em}.altimeter-details b{color:#d9f6ff;font-size:9px;font-variant-numeric:tabular-nums;text-align:right}
+.atmosphere-scale{display:flex;flex-direction:column;gap:4px;padding-top:2px}.atmosphere-scale-track{position:relative;display:flex;height:9px;overflow:visible;border:1px solid rgba(160,210,230,.28);border-radius:8px;background:#06101e}
+.atmosphere-band{display:block;height:100%}.troposphere-band{width:10.3%;background:#58b9f4;border-radius:7px 0 0 7px}.stratosphere-band{width:14.1%;background:#4b8fe8}.mesosphere-band{width:6.3%;background:#7568c9}.thermosphere-band{width:27.7%;background:#c16bd7}.exosphere-band{width:41.6%;background:#9b9de8;border-radius:0 7px 7px 0}
+.ozone-band{position:absolute;left:12%;width:8.3%;top:-3px;height:15px;border:1px solid #ffe18a;border-radius:4px;background:rgba(255,211,107,.28);box-shadow:0 0 7px rgba(255,211,107,.45)}
+.altitude-marker{position:absolute;left:0;top:-5px;width:2px;height:19px;border-radius:2px;background:#fff;box-shadow:0 0 7px #fff,0 0 12px #43d9ff;transform:translateX(-1px)}
+.atmosphere-scale-labels{display:flex;justify-content:space-between;color:#7899aa;font-size:7px;font-variant-numeric:tabular-nums}
+.ozone-caption{display:flex;align-items:center;gap:5px;color:#b7cbd5;font-size:7px;letter-spacing:.04em}.ozone-caption i{width:8px;height:8px;flex:0 0 8px;border:1px solid #ffe18a;border-radius:2px;background:rgba(255,211,107,.35)}.ozone-caption b{margin-left:auto;color:#ffe18a;font-size:7px}
+@media(max-width:520px){.altimeter-instrument{padding:7px;gap:6px}.altimeter-primary b{font-size:19px}.altimeter-details{gap:5px}.altimeter-details span{font-size:6px}.altimeter-details b{font-size:8px}}

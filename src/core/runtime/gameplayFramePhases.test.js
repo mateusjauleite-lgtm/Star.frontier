@@ -196,3 +196,31 @@ test('Alexia interaction availability is re-evaluated outside on-foot mode', () 
   assert.equal(f.calls.filter(([name]) => name === 'alexia-interaction').length, 1);
   assert.ok(f.calls.some(([name, dt]) => name === 'alexia-interaction' && dt === 0.02));
 });
+
+test('manual flight HUD shows altitude, atmospheric layer, ozone band and vertical speed', () => {
+  const f = fixture();
+  f.dependencies.ship = { position: { x: 0, y: 0, z: 0 }, userData: {} };
+  f.phases.updateHud();
+  assert.equal(f.elements.get('altitude-msl').textContent, '12,40 km');
+  assert.equal(f.elements.get('atmosphere-layer').textContent, 'ESTRATOSFERA');
+  assert.equal(f.elements.get('ozone-status').textContent, 'FORA DA FAIXA');
+  assert.equal(f.elements.get('vertical-speed').textContent, '120,0 m/s · DESCENDO ↓');
+  assert.ok(Number.parseFloat(f.elements.get('altitude-marker').style.left) > 0);
+  f.dependencies.state.altitudeMeters = 20000;
+  f.phases.updateHud();
+  assert.equal(f.elements.get('ozone-status').textContent, 'NA FAIXA DE OZÔNIO');
+});
+
+test('manual flight HUD reports terrain clearance only when collision telemetry exists', () => {
+  const f = fixture();
+  f.dependencies.ship = { position: { x: 0, y: 0, z: 0 }, userData: { earthLandingContacts: { minimumClearanceUnits: 42.5 } } };
+  f.phases.updateHud();
+  assert.equal(f.elements.get('terrain-clearance').textContent, '42,5 m');
+});
+
+test('manual flight HUD does not turn a null terrain sample into zero clearance', () => {
+  const f = fixture();
+  f.dependencies.ship = { position: { x: 0, y: 0, z: 0 }, userData: { earthLandingContacts: { minimumClearanceUnits: null } } };
+  f.phases.updateHud();
+  assert.equal(f.elements.get('terrain-clearance').textContent, '—');
+});

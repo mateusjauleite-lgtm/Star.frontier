@@ -105,6 +105,10 @@ export function createShipFlightController(dependencies = {}) {
       altitudeMeters = Math.max(0, distance - earthRadius);
       if (distance > 1) radialUp.copy(radial).normalize();
       state.altitudeMeters = altitudeMeters;
+      // Telemetria de distância em coordenadas WORLD: permite distinguir
+      // velocidade de avanço de aproximação radial real ao planeta.
+      state.distanceToEarthCenterMeters = distance;
+      state.distanceToEarthSurfaceMeters = altitudeMeters;
       state.conventionalSpeedLimit = getConventionalSpeedLimit(altitudeMeters);
       // O campo de dobra fica bloqueado dentro do envelope planetário e de aproximação.
       state.warpSafetyLock = altitudeMeters < earthRadius * 3;
@@ -124,6 +128,8 @@ export function createShipFlightController(dependencies = {}) {
       }
     } else {
       state.altitudeMeters = Infinity;
+      state.distanceToEarthCenterMeters = Infinity;
+      state.distanceToEarthSurfaceMeters = Infinity;
       state.conventionalSpeedLimit = getConventionalSpeedLimit(Infinity);
       state.warpSafetyLock = false;
     }
@@ -139,6 +145,8 @@ export function createShipFlightController(dependencies = {}) {
     const currentGravityVelocity = Array.isArray(state.gravityVelocity) && state.gravityVelocity.length === 3
       ? state.gravityVelocity : [0, 0, 0];
     const radialVelocity = projectRadialVelocity(currentGravityVelocity, [radialUp.x, radialUp.y, radialUp.z]);
+    // Velocidade vertical radial: gravidade mais a projeção do avanço da nave.
+    state.verticalSpeedMps = radialVelocity + (Number(state.speed) || 0) * forwardVector.dot(radialUp);
     const maneuverAcceleration = calculateManeuveringAcceleration({
       gravityAcceleration,
       radialUp: [radialUp.x, radialUp.y, radialUp.z],
