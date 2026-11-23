@@ -1522,8 +1522,6 @@ function updateCharacterWorldPhysics(deltaSeconds) {
     }
   } else if (gravityKernel) {
     const earthCenter = earthSystem?.group?.getWorldPosition(new THREE.Vector3());
-    const profile = earthSystem?.getPlanetaryProfile?.();
-    const radius = profile?.render?.visualRadiusUnits ?? 6_371_008.8;
     const mu = 3.986004418e14;
     if (earthCenter) {
       const acceleration = gravityKernel.acceleration({
