@@ -4,9 +4,9 @@ import { createGameplayFramePhases } from './gameplayFramePhases.js';
 
 function fixture() {
   const calls = [];
-  const elements = new Map(['speed', 'fuel', 'cargo', 'hull', 'shield', 'hud-credits', 'hud', 'flight-controls', 'navigation-coordinates', 'navigation-distance', 'navigation-bearing', 'navigation-full-coordinates', 'navigation-full-distance', 'navigation-full-bearing', 'combat-target-name', 'combat-hull', 'combat-shield', 'warp-core-consumption', 'warp-stability-readout']
+  const elements = new Map(['speed', 'fuel', 'cargo', 'hull', 'shield', 'hud-credits', 'hud', 'flight-controls', 'altitude-msl', 'atmosphere-layer', 'vertical-speed', 'terrain-clearance', 'altitude-marker', 'ozone-status', 'navigation-coordinates', 'navigation-distance', 'navigation-bearing', 'navigation-full-coordinates', 'navigation-full-distance', 'navigation-full-bearing', 'combat-target-name', 'combat-hull', 'combat-shield', 'warp-core-consumption', 'warp-stability-readout']
     .map(id => {
-      const element = { _textContent: '' };
+      const element = { _textContent: '', style: {} };
       Object.defineProperty(element, 'textContent', {
         get() { return this._textContent; },
         set(value) { this._textContent = String(value); }
@@ -45,7 +45,7 @@ function fixture() {
     shipEarthContactPoints: [],
     shipLandingGearContactPoints: [],
     forwardVector: {},
-    state: { speed: 12, fuel: 80, cargo: 3, hull: 100, shield: 90, credits: 1250, coreDilithiumConsumedTotal: 4.5 },
+    state: { speed: 12, fuel: 80, cargo: 3, hull: 100, shield: 90, credits: 1250, coreDilithiumConsumedTotal: 4.5, altitudeMeters: 12400, verticalSpeedMps: -120 },
     getActivePilotHudProfile: () => 'navigation',
     updateNavigationSensorMap: () => calls.push(['navigation-sensor-map']),
     orbitSystem: { update: dt => calls.push(['orbits', dt]) },
