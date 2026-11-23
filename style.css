@@ -2640,3 +2640,28 @@ body * {
 .atmosphere-scale-labels{display:flex;justify-content:space-between;color:#7899aa;font-size:7px;font-variant-numeric:tabular-nums}
 .ozone-caption{display:flex;align-items:center;gap:5px;color:#b7cbd5;font-size:7px;letter-spacing:.04em}.ozone-caption i{width:8px;height:8px;flex:0 0 8px;border:1px solid #ffe18a;border-radius:2px;background:rgba(255,211,107,.35)}.ozone-caption b{margin-left:auto;color:#ffe18a;font-size:7px}
 @media(max-width:520px){.altimeter-instrument{padding:7px;gap:6px}.altimeter-primary b{font-size:19px}.altimeter-details{gap:5px}.altimeter-details span{font-size:6px}.altimeter-details b{font-size:8px}}
+
+
+/* Painéis de instrumentos recolhíveis do HUD de pilotagem. */
+.pilot-instruments { width:min(440px,58vw); min-width:0; max-width:calc(100vw - 20px); }
+.instrument-header { align-items:center; gap:10px; }
+.instrument-panel-actions { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:5px; pointer-events:auto; }
+.instrument-panel-toggle {
+  min-height:30px; padding:5px 9px; border:1px solid rgba(67,217,255,.38);
+  border-radius:7px; background:linear-gradient(145deg,rgba(12,47,73,.94),rgba(3,15,31,.96));
+  color:#a9eaff; font-size:8px; font-weight:800; letter-spacing:.07em;
+  pointer-events:auto; touch-action:manipulation;
+}
+.instrument-panel-toggle[aria-expanded="true"] {
+  border-color:rgba(67,217,255,.9); color:#fff;
+  background:linear-gradient(145deg,rgba(12,92,126,.96),rgba(4,36,62,.98));
+  box-shadow:inset 0 0 10px rgba(67,217,255,.12),0 0 10px rgba(67,217,255,.12);
+}
+.instrument-panel-content { width:100%; }
+.instrument-panel-content.hidden { display:none !important; }
+@media (max-width:520px) {
+  .pilot-instruments { width:min(330px,calc(100vw - 18px)); max-width:calc(100vw - 18px); padding:7px; }
+  .instrument-panel-toggle { min-height:32px; padding:5px 8px; font-size:8px; }
+  .instrument-header #hud-user { font-size:9px; }
+  .instrument-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px 8px; }
+}
