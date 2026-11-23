@@ -79,6 +79,16 @@ export function createPlanetaryGravitySystem({
       : null;
   }
 
+  function surfaceVelocityAt(position) {
+    if (!finiteVector(position)) return null;
+    const body = earthBody();
+    const axis = normalize(getEarthSpinAxis());
+    if (!body || !axis) return null;
+    const radius = position.map((value, index) => value - body.position[index]);
+    const omega = axis.map(value => value * EARTH_SIDEREAL_ROTATION_RAD_S);
+    return cross(omega, radius);
+  }
+
   return Object.freeze({
     gravitationalParameter: gravitationalParameter,
     rotationAngularVelocity: EARTH_SIDEREAL_ROTATION_RAD_S,
@@ -86,6 +96,7 @@ export function createPlanetaryGravitySystem({
     earthBody,
     accelerationAt,
     circularOrbitVelocity,
+    surfaceVelocityAt,
     integrate
   });
 }
