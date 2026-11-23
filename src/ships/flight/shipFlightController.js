@@ -279,6 +279,7 @@ export function createShipFlightController(dependencies = {}) {
         ship.position.copy(correctedWorldPosition);
       }
       if (forwardVector.dot(closestContact.normal) < 0) state.speed = 0;
+      state.gravityVelocity = [0, 0, 0];
       ship.userData.earthCollisionResolved = true;
       ship.userData.earthCollisionClearanceUnits = landingContactTargetClearance;
       ship.userData.earthLandingContactToleranceUnits = landingContactTolerance;
