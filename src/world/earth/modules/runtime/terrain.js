@@ -113,6 +113,7 @@ export function createTerrainRuntime({ options, layers }) {
   let heightScale = 1;
   let disposed = false;
   let regionalDemProvider = null;
+  let regionalDemZoom = options.regionalDemZoom ?? 12;
   let regionalSurfaceRuntime = null;
   const highResolutionPatches = new Set();
   let activeHighResolutionPatch = null;
@@ -170,6 +171,17 @@ export function createTerrainRuntime({ options, layers }) {
       elevationSampler = (longitudeDeg, latitudeDeg) => {
         if (!Number.isFinite(longitudeDeg) || !Number.isFinite(latitudeDeg) ||
             latitudeDeg < -90 || latitudeDeg > 90) return null;
+
+        // The regional DEM cache is shared by rendering and collision. Until a
+        // tile is decoded, ETOPO remains the immediate synchronous fallback.
+        const regionalMeters = regionalDemProvider?.sampleCached?.(
+          longitudeDeg, latitudeDeg, { zoom: regionalDemZoom }
+        );
+        if (Number.isFinite(regionalMeters)) {
+          return earthKernel.elevationMetersToUnits(
+            regionalMeters, radius, 6371.0088, exaggeration
+          );
+        }
 
         if (gridIsReady) {
           const meters = sampleEarthElevationGrid(grid, longitudeDeg, latitudeDeg);
@@ -478,6 +490,7 @@ export function createTerrainRuntime({ options, layers }) {
       // Regional cube-sphere tiles replace the former single local high-res
       // patch as the scalable near-player surface. The global ETOPO grid remains
       // the fallback and the authoritative base for the collision sampler.
+      regionalDemZoom = options.regionalDemZoom ?? 12;
       regionalDemProvider = createTerrariumElevationProvider({
         urlTemplate: options.regionalDemUrlTemplate ??
           'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png',
@@ -488,7 +501,7 @@ export function createTerrainRuntime({ options, layers }) {
         radius,
         elevationSampler,
         sampleElevationMetersBatch: points => regionalDemProvider.sampleBatch(points, {
-          zoom: options.regionalDemZoom ?? 12
+          zoom: regionalDemZoom
         }),
         elevationMetersToUnits: meters => earthKernel.elevationMetersToUnits(
           meters, radius, 6371.0088, exaggeration

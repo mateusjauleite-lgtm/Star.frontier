@@ -1269,17 +1269,16 @@ function applyEarthSurfaceRotation(deltaSeconds) {
 function updateFlight(dt) {
   const deployment = shipLandingGear?.update?.(dt) ?? 0;
   const target = shipLandingGear?.getTargetDeployment?.() ?? 0;
-  const button = $('landing-btn');
-  if (button && Math.abs(deployment - target) < 0.02) {
-    button.classList.remove('gear-deploying');
-    button.classList.toggle('gear-deployed', target > 0.5);
-    button.classList.toggle('gear-retracted', target <= 0.5);
-    if (target > 0.5 && (button.textContent.includes('ABRINDO') || button.textContent.includes('POUSAR'))) {
-      button.textContent = '◉ TREM ABERTO · RECOLHER';
-    }
-    if (target <= 0.5 && button.textContent.includes('RECOLHENDO')) {
-      button.textContent = '◉ TREM RECOLHIDO · POUSAR';
-    }
+  const gearButton = $('landing-gear-btn');
+  if (gearButton) {
+    const settled = Math.abs(deployment - target) < 0.02;
+    gearButton.classList.toggle('gear-deploying', !settled);
+    gearButton.classList.toggle('gear-deployed', settled && target > 0.5);
+    gearButton.classList.toggle('gear-retracted', settled && target <= 0.5);
+    gearButton.textContent = !settled
+      ? (target > deployment ? '◉ TREM ABRINDO...' : '◉ TREM RECOLHENDO...')
+      : (target > 0.5 ? '◉ TREM ABERTO · RECOLHER' : '◉ TREM RECOLHIDO · ABRIR');
+    gearButton.setAttribute('aria-pressed', String(target > 0.5));
   }
   const warpControls = $('warp-stage-controls');
   const shipComputerStatus = shipComputer.isTerminalConnected('pilot-console')
@@ -1616,6 +1615,7 @@ function updateCharacterMovement(dt) {
   const input = characterControls.getMoveInput();
   const magnitude = Math.min(1, Math.hypot(input.x, input.y));
   const deck = characterModel.group.position;
+  const previousDeckPosition = deck.clone();
   let movedHorizontally = false;
   const stamina = characterCore.snapshot().stamina;
   const sprinting = characterControls.isSprinting() && magnitude > 0.08 && stamina > 0;
@@ -1677,18 +1677,13 @@ function updateCharacterMovement(dt) {
 
   const leavingDeckThroughAft = activeDeckIndex === 3 &&
     isD4BeyondExitAperture(deck);
+  // The aft opening is not an automatic exit trigger. Only the explicit
+  // external-elevator action may transfer the character to the planetary frame.
   if (leavingDeckThroughAft) {
-    characterPhysics?.leaveGround();
-    if (transferCharacterToWorldFrame()) {
-      updateCharacterWorldPhysics(dt);
-      characterAnimator?.play('fall', { restart: true });
-      characterAnimator?.update(dt);
-      return;
-    }
+    deck.copy(previousDeckPosition);
+    movedHorizontally = false;
   }
-  const floorY = leavingDeckThroughAft
-    ? -1000000
-    : starshipInterior.layout.decks[activeDeckIndex].y + 0.21;
+  const floorY = starshipInterior.layout.decks[activeDeckIndex].y + 0.21;
   if (characterControls.consumeJump()) {
     if (characterPhysics?.jump()) {
       characterAnimator?.play('jump', { restart: true });
@@ -2733,60 +2728,55 @@ function cancelLandingGuidance(reason = 'cancelled') {
     ship.userData.landingAutopilotState = reason;
   }
   const button = $('landing-btn');
-  if (button) button.textContent = '◉ POUSAR';
+  if (button) {
+    button.textContent = '◉ POUSO';
+    button.classList.remove('guidance-active');
+  }
 }
+
+$('landing-gear-btn')?.addEventListener('click', () => {
+  if (!active || characterCore.snapshot().mode !== 'ship-control') return;
+  const target = shipLandingGear?.getTargetDeployment?.() ?? 0;
+  const next = target > 0.5 ? 0 : 1;
+  if (!shipLandingGear?.setDeployment) {
+    toast('Sistema de trem de pouso indisponível.');
+    return;
+  }
+  shipLandingGear.setDeployment(next);
+  const button = $('landing-gear-btn');
+  if (button) {
+    button.classList.add('gear-deploying');
+    button.classList.remove('gear-deployed', 'gear-retracted');
+    button.textContent = next > 0.5 ? '◉ TREM ABRINDO...' : '◉ TREM RECOLHENDO...';
+    button.setAttribute('aria-pressed', String(next > 0.5));
+  }
+  if ($('landing-status')) {
+    $('landing-status').textContent = next > 0.5
+      ? 'Trem de pouso acionado manualmente. Aguarde o travamento.'
+      : 'Trem de pouso recolhendo por comando manual.';
+  }
+  shipAudio.playConsole();
+  toast(next > 0.5 ? 'Trem de pouso abrindo.' : 'Trem de pouso recolhendo.');
+});
 
 $('landing-btn')?.addEventListener('click', () => {
   if (!active || characterCore.snapshot().mode !== 'ship-control') return;
 
-  const gearTarget = shipLandingGear?.getTargetDeployment?.() ?? 0;
-  const gearCurrent = shipLandingGear?.getDeployment?.() ?? 0;
   if (shipLandingAutopilot?.snapshot?.().active) {
     cancelLandingGuidance('standby');
     shipAudio.playConsole();
-    if ($('landing-status')) $('landing-status').textContent = 'Orientação cancelada. O trem permanece aberto até novo comando.';
+    if ($('landing-status')) $('landing-status').textContent = 'Orientação cancelada. O trem de pouso mantém seu estado atual.';
     toast('Guia de pouso cancelada.');
     return;
   }
 
-  if (gearTarget > 0.5 && selectedLandingSiteId && gearCurrent < 0.98) {
-    toast('Aguarde o trem de pouso travar na posição aberta.');
-    return;
-  }
-
-  if (gearTarget > 0.5 && !selectedLandingSiteId) {
-    shipLandingGear?.setDeployment?.(0);
-    $('landing-modal')?.classList.add('hidden');
-    $('landing-modal')?.setAttribute('aria-hidden', 'true');
-    const button = $('landing-btn');
-    if (button) {
-      button.textContent = '◉ TREM RECOLHENDO';
-      button.classList.add('gear-deploying');
-      button.classList.remove('gear-deployed');
-    }
-    shipAudio.playConsole();
-    toast('Trem de pouso recolhendo.');
-    return;
-  }
-
-  if (gearTarget <= 0.5) {
-    shipLandingGear?.setDeployment?.(1);
-    const button = $('landing-btn');
-    if (button) {
-      button.textContent = '◉ TREM ABRINDO';
-      button.classList.add('gear-deploying');
-      button.classList.remove('gear-retracted');
-    }
-    $('landing-modal')?.classList.remove('hidden');
-    $('landing-modal')?.setAttribute('aria-hidden', 'false');
-    const status = $('landing-status');
-    if (status) status.textContent = 'Trem de pouso em abertura. Aguarde o travamento antes de iniciar a aproximação.';
-    shipAudio.playConsole();
-    toast('Trem de pouso acionado: abrindo.');
-    return;
-  }
-
   if (selectedLandingSiteId && shipLandingAutopilot) {
+    const gearDeployment = shipLandingGear?.getDeployment?.() ?? 0;
+    const gearTarget = shipLandingGear?.getTargetDeployment?.() ?? 0;
+    if (gearTarget < 0.98 || gearDeployment < 0.98) {
+      toast('Abra o trem de pouso no comando próprio antes de ativar a guia.');
+      return;
+    }
     const site = getLandingSite(selectedLandingSiteId);
     if (!site || !shipLandingAutopilot.arm(site)) {
       toast('Não foi possível ativar a orientação de pouso.');
@@ -2796,8 +2786,8 @@ $('landing-btn')?.addEventListener('click', () => {
     ship.userData.landingAutopilotState = 'armed-guidance-only';
     shipAudio.playLandingAlert();
     $('landing-status').textContent = 'Telemetria conectada. A orientação calcula a aproximação, mas não comanda a propulsão nesta versão.';
-    $('landing-btn').textContent = '✕ CANCELAR GUIA · TREM ABERTO';
-    $('landing-btn').classList.add('gear-deployed');
+    $('landing-btn').textContent = '✕ CANCELAR GUIA';
+    $('landing-btn').classList.add('guidance-active');
     toast('Guia de pouso ativada. Propulsão automática permanece bloqueada.');
     return;
   }
@@ -2885,9 +2875,8 @@ $('landing-select-btn')?.addEventListener('click', () => {
   ship.userData.landingAutopilotState = 'target-selected';
   const button = $('landing-btn');
   if (button) {
-    button.textContent = '◎ ATIVAR GUIA · TREM ABERTO';
-    button.classList.add('gear-deployed');
-    button.classList.remove('gear-deploying','gear-retracted');
+    button.textContent = '◎ ATIVAR GUIA DE POUSO';
+    button.classList.remove('gear-deployed','gear-deploying','gear-retracted','guidance-active');
   }
   const status = $('landing-status');
   if (status) status.textContent = 'Destino marcado: Salar de Uyuni · UY04. Ative a guia quando estiver pronto. A orientação calcula a aproximação, mas ainda não comanda a propulsão.';
