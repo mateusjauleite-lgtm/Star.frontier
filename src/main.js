@@ -683,6 +683,8 @@ const flightQuaternion = new THREE.Quaternion();
 let asteroids = [];
 let engineFlames = [];
 let engineLights = [];
+let maneuveringFlames = [];
+let maneuveringLights = [];
 
 // Pontos de referência na concha inferior do casco. Servem primeiro para
 // medir folga/contato com o relevo; não aplicam forças nem alteram a trajetória.
@@ -722,7 +724,10 @@ const shipFlightController = createShipFlightController({
   getShipVisual: () => shipVisual,
   getEngineFlames: () => engineFlames,
   getEngineLights: () => engineLights,
+  getManeuveringFlames: () => maneuveringFlames,
+  getManeuveringLights: () => maneuveringLights,
   getEarthSystem: () => earthSystem,
+  getGravityKernel: () => gravityKernel,
   getLandingGearContactPoints: () => shipLandingGear?.getDeployment?.() > 0.95
     ? shipLandingGearContactPoints
     : shipEarthContactPoints,
@@ -1073,6 +1078,8 @@ async function startGame() {
     asteroids = [];
     engineFlames = [];
     engineLights = [];
+    maneuveringFlames = [];
+    maneuveringLights = [];
     nearbyElevator = false;
     activeDeckIndex = 0;
     npcReady = false;
@@ -1132,6 +1139,8 @@ async function init3D() {
     shipVisual,
     engineFlames,
     engineLights,
+    maneuveringFlames,
+    maneuveringLights,
     asteroidSystem,
     asteroids,
     lightingSystem,
