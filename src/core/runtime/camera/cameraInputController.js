@@ -1,4 +1,4 @@
-export function createCameraInputController({ state, cameraState, THREE }) {
+export function createCameraInputController({ state, cameraState, THREE, onShipModeChange = null, onCharacterModeChange = null }) {
   if (!state || !cameraState || !THREE?.MathUtils) {
     throw new TypeError('A entrada de câmera precisa do estado de voo, do estado de câmera e do Three.js.');
   }
@@ -8,11 +8,13 @@ export function createCameraInputController({ state, cameraState, THREE }) {
       if (!Number.isInteger(mode) || mode < 0 || mode > 2) return false;
       state.camera = mode;
       cameraState.setShipMode(mode);
+      onShipModeChange?.(mode);
       return true;
     },
     setCharacterMode(mode) {
       if (mode !== 'first-person' && mode !== 'third-person') return false;
       cameraState.setCharacterMode(mode);
+      onCharacterModeChange?.(mode);
       return true;
     },
     setView(x, y) {
