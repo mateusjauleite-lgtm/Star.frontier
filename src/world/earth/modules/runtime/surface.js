@@ -186,6 +186,8 @@ export function createSurfaceRuntime({ group, surfaceFrame = group, options, lay
     initialize() {
       texture = new THREE.CanvasTexture(makeRockAlbedo());
       texture.colorSpace = THREE.SRGBColorSpace;
+      texture.wrapS = THREE.RepeatWrapping;
+      texture.wrapT = THREE.ClampToEdgeWrapping;
       texture.anisotropy = 4;
       // Start with a small mesh so the renderer can show the scene immediately.
       // Camera-driven LOD upgrades happen after the first gameplay frames.

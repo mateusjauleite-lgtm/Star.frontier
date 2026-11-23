@@ -26,6 +26,7 @@ on:
       - feature/ship-computer-matrix-integration
       - feature/alexia-chat-core
       - feature/aurora-ship-computer-ai-core
+      - feature/earth-regional-quadtree-dem-2026-11-22
   pull_request:
     branches:
       - feature/alexia-chat-core

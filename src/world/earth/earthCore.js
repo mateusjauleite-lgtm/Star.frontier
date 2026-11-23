@@ -123,7 +123,9 @@ export function createEarthCore(options = {}) {
           etopoStatus: layers.terrain.etopoStatus,
           verticalDatum: layers.terrain.verticalDatum ?? null,
           gridResolutionArcSeconds: layers.terrain.gridResolutionArcSeconds ?? null,
-          verticalExaggeration: layers.terrain.verticalExaggeration
+          verticalExaggeration: layers.terrain.verticalExaggeration,
+          regionalSurface: layers.terrain.regionalSurface ?? null,
+          regionalDem: layers.terrain.regionalDem ?? null
         } : null,
         updateModules: updatePipeline.getStatus(),
         disposed
