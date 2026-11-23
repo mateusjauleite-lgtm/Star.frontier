@@ -39,6 +39,7 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
       speed: state.speed,
       speedUnit: 'm/s',
       warpSpeedC: Number(state.warpSpeedC) || 0,
+      warpSafetyLock: Boolean(state.warpSafetyLock),
       maneuver: { ...(state.maneuver || {}) },
       maneuveringAssist: state.maneuveringAssist !== false,
       fuel: state.fuel,
