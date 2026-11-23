@@ -1,4 +1,4 @@
-export function registerAimControls({ document, THREE, state }) {
+export function registerAimControls({ document, THREE, state, getCameraInput = () => null }) {
   // Arrasto livre de câmera em 360°: não altera a orientação física da nave.
   const aimArea = document.getElementById('aim-touch-area');
   let aimPointer = null;
@@ -25,8 +25,12 @@ export function registerAimControls({ document, THREE, state }) {
         x: THREE.MathUtils.clamp(state.view.x - dy * 0.004, -1.45, 1.45),
         y: THREE.MathUtils.euclideanModulo(state.view.y - dx * 0.004 + Math.PI, Math.PI * 2) - Math.PI
       };
-      state.view.x = nextView.x;
-      state.view.y = nextView.y;
+      const cameraInput = getCameraInput?.();
+      if (cameraInput) cameraInput.setView(nextView.x, nextView.y);
+      else {
+        state.view.x = nextView.x;
+        state.view.y = nextView.y;
+      }
     });
     const endAim = event => { if (aimPointer === event.pointerId) aimPointer = null; };
     aimArea.addEventListener('pointerup', endAim);
@@ -46,10 +50,21 @@ export function registerAimControls({ document, THREE, state }) {
     let y = event.clientY - rect.top - rect.height / 2;
     const length = Math.hypot(x, y);
     if (length > max) { x *= max / length; y *= max / length; }
-    state.aim.x = THREE.MathUtils.clamp(x / max, -1, 1);
-    state.aim.y = THREE.MathUtils.clamp(y / max, -1, 1);
-    state.view.y = THREE.MathUtils.euclideanModulo(state.view.y + state.aim.x * 0.055 + Math.PI, Math.PI * 2) - Math.PI;
-    state.view.x = THREE.MathUtils.clamp(state.view.x - state.aim.y * 0.035, -1.45, 1.45);
+    const aimX = THREE.MathUtils.clamp(x / max, -1, 1);
+    const aimY = THREE.MathUtils.clamp(y / max, -1, 1);
+    const cameraInput = getCameraInput?.();
+    if (cameraInput) {
+      cameraInput.setAim(aimX, aimY);
+      cameraInput.setView(
+        state.view.x - aimY * 0.035,
+        state.view.y + aimX * 0.055
+      );
+    } else {
+      state.aim.x = aimX;
+      state.aim.y = aimY;
+      state.view.y = THREE.MathUtils.euclideanModulo(state.view.y + state.aim.x * 0.055 + Math.PI, Math.PI * 2) - Math.PI;
+      state.view.x = THREE.MathUtils.clamp(state.view.x - state.aim.y * 0.035, -1.45, 1.45);
+    }
     if (knob) knob.style.transform = `translate(-50%,-50%) translate(${x}px,${y}px)`;
   };
   aimStick.addEventListener('pointerdown', event => {
@@ -67,8 +82,9 @@ export function registerAimControls({ document, THREE, state }) {
   const endStick = event => {
     if (stickPointer !== event.pointerId) return;
     stickPointer = null;
-    state.aim.x = 0;
-    state.aim.y = 0;
+    const cameraInput = getCameraInput?.();
+    if (cameraInput) cameraInput.resetAim();
+    else { state.aim.x = 0; state.aim.y = 0; }
     if (knob) knob.style.transform = 'translate(-50%,-50%)';
   };
   aimStick.addEventListener('pointerup', endStick);
@@ -149,9 +165,12 @@ export function registerFlightSelectionGuards({ document }) {
   });
 }
 
-export function registerCameraCycleControl({ document, state, cameraNames }) {
+export function registerCameraCycleControl({ document, state, cameraNames, getCameraInput = () => null }) {
   document.getElementById('camera-btn')?.addEventListener('click', () => {
-    state.camera = (state.camera + 1) % 3;
+    const nextMode = (state.camera + 1) % 3;
+    const cameraInput = getCameraInput?.();
+    if (cameraInput) cameraInput.setShipMode(nextMode);
+    else state.camera = nextMode;
     document.getElementById('camera-btn').textContent = cameraNames[state.camera];
   });
 }
