@@ -139,6 +139,8 @@ export function createShipFlightController(dependencies = {}) {
     const currentGravityVelocity = Array.isArray(state.gravityVelocity) && state.gravityVelocity.length === 3
       ? state.gravityVelocity : [0, 0, 0];
     const radialVelocity = projectRadialVelocity(currentGravityVelocity, [radialUp.x, radialUp.y, radialUp.z]);
+    // Velocidade vertical radial: gravidade mais a projeção do avanço da nave.
+    state.verticalSpeedMps = radialVelocity + (Number(state.speed) || 0) * forwardVector.dot(radialUp);
     const maneuverAcceleration = calculateManeuveringAcceleration({
       gravityAcceleration,
       radialUp: [radialUp.x, radialUp.y, radialUp.z],
