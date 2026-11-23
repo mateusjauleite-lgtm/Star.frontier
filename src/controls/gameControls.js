@@ -85,14 +85,20 @@ export function registerHeldFlightControls({ document, window, state, dispatchPr
       if (typeof dispatchPropulsionCommand === 'function') {
         return dispatchPropulsionCommand({ control, active })?.accepted === true;
       }
-      state[key] = active;
+      if (control.startsWith('maneuver')) {
+        state.maneuver ||= { left: false, right: false, up: false, down: false };
+        state.maneuver[control.slice('maneuver'.length).toLowerCase()] = active;
+      } else state[key] = active;
       return true;
     };
     const stop = event => {
       if (activePointer !== null && event?.pointerId !== undefined && event.pointerId !== activePointer) return;
       if (activePointer !== null) apply(false);
       activePointer = null;
-      state[key] = false;
+      if (control.startsWith('maneuver')) {
+        state.maneuver ||= { left: false, right: false, up: false, down: false };
+        state.maneuver[control.slice('maneuver'.length).toLowerCase()] = false;
+      } else state[key] = false;
       button.classList.remove('active');
     };
     button.addEventListener('pointerdown', event => {
@@ -110,6 +116,10 @@ export function registerHeldFlightControls({ document, window, state, dispatchPr
   }
   holdButton('throttle-btn', 'throttle', 'throttle');
   holdButton('brake-btn', 'braking', 'braking');
+  holdButton('maneuver-left-btn', 'maneuverLeft', 'maneuverLeft');
+  holdButton('maneuver-right-btn', 'maneuverRight', 'maneuverRight');
+  holdButton('maneuver-up-btn', 'maneuverUp', 'maneuverUp');
+  holdButton('maneuver-down-btn', 'maneuverDown', 'maneuverDown');
 
   // Dobra é um comando de alternância: não depende de manter o toque pressionado.
   const warpButton = document.getElementById('warp-drive-btn');
