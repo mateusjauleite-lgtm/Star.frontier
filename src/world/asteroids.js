@@ -82,6 +82,7 @@ export function createAsteroidField(scene, options = {}) {
     const label = labels.get(asteroid);
     if (label && labelMaterials?.[mineralType]) {
       label.material = labelMaterials[mineralType];
+      label.name = `Mineral-Label-${mineralType}`;
     }
     return asteroid.userData.mineralLabel;
   };
