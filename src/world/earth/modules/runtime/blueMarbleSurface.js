@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { EARTH_SIDEREAL_ROTATION_RAD_S } from '../../../../physics/planetaryGravitySystem.js';
 import { EARTH_LOD_SEGMENTS, selectEarthLodLevel } from './surface.js';
 
 export const EARTH_BLUE_MARBLE_TEXTURE_PATH =
@@ -97,7 +98,7 @@ export function createBlueMarbleSurfaceRuntime({
     update(delta, context) {
       if (!mesh || disposed) return;
       const step = Math.min(Math.max(delta || 0, 0), 0.1);
-      surfaceFrame.rotation.y += step * 0.012;
+      surfaceFrame.rotation.y += step * EARTH_SIDEREAL_ROTATION_RAD_S;
       lodCheckElapsed += step;
       if (lodCheckElapsed < 0.35) return;
       lodCheckElapsed = 0;
