@@ -15,14 +15,14 @@ test('conventional speed envelope is fast in open space and controlled near terr
   assert.equal(getConventionalSpeedLimit(20), 4);
 });
 
-test('maneuvering assist counteracts local gravity and damps descent', () => {
+test('maneuvering assist damps descent without cancelling planetary gravity', () => {
   const acceleration = calculateManeuveringAcceleration({
     gravityAcceleration: [0, -9.80665, 0],
     radialUp: [0, 1, 0],
     altitudeMeters: 1000,
     radialVelocity: -4
   });
-  assert.ok(Math.abs(acceleration[1] - 19.80665) < 1e-9);
+  assert.ok(Math.abs(acceleration[1] - 10) < 1e-9);
 });
 
 test('manual maneuver input applies lateral and vertical thrust', () => {
@@ -40,5 +40,6 @@ test('manual maneuver input applies lateral and vertical thrust', () => {
 test('world velocity integration is bounded and uses SI seconds', () => {
   assert.deepEqual(integrateWorldVelocity([0, 0, 0], [0, -9.80665, 0], 1), [0, -9.80665, 0]);
   assert.ok(Math.abs(Math.hypot(...integrateWorldVelocity([0, 0, 0], [SPEED_OF_LIGHT_MPS, 0, 0], 1)) - 1200) < 1e-9);
+  assert.ok(Math.abs(Math.hypot(...integrateWorldVelocity([465, 0, 0], [0, 0, 0], 1, 0)) - 465) < 1e-9);
   assert.equal(projectRadialVelocity([0, -3, 0], [0, 1, 0]), -3);
 });
