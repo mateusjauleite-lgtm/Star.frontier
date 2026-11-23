@@ -3,6 +3,7 @@
  */
 import { STATION_WORLD_POSITION } from '../../world/earth/worldScale.js';
 import { calculateManeuveringAcceleration, getConventionalSpeedLimit, integrateWorldVelocity, projectRadialVelocity, SPEED_OF_LIGHT_MPS } from '../systems/maneuveringThrusterSystem.js';
+import { calculateAuxiliaryStabilizationAcceleration } from '../systems/auxiliaryThrusterSystem.js';
 
 export function createShipFlightController(dependencies = {}) {
   const {
@@ -148,10 +149,17 @@ export function createShipFlightController(dependencies = {}) {
       assistEnabled: state.maneuveringAssist !== false,
       radialVelocity
     });
+    const auxiliaryAcceleration = calculateAuxiliaryStabilizationAcceleration({
+      velocity: currentGravityVelocity,
+      radialUp: [radialUp.x, radialUp.y, radialUp.z],
+      altitudeMeters,
+      enabled: true
+    });
+    state.auxiliaryThrustersActive = Math.hypot(...auxiliaryAcceleration) > 0.1;
     if (earthCenter && altitudeMeters <= 250000 && !state.warpDriveActive && !(state.warpTransition === 'exiting' && Number(state.warpSpeedC) > 0)) {
       state.gravityVelocity = integrateWorldVelocity(
         currentGravityVelocity,
-        gravityAcceleration.map((value, axis) => value + maneuverAcceleration[axis]),
+        gravityAcceleration.map((value, axis) => value + maneuverAcceleration[axis] + auxiliaryAcceleration[axis]),
         safeDt,
         300
       ) || currentGravityVelocity;
@@ -288,7 +296,7 @@ export function createShipFlightController(dependencies = {}) {
     }
 
     // Plumas inferiores respondem aos manobradores e ao assistente de descida.
-    const maneuveringActive = Boolean(lateralInput || verticalInput ||
+    const maneuveringActive = Boolean(lateralInput || verticalInput || state.auxiliaryThrustersActive ||
       (earthCenter && altitudeMeters <= 25000 && state.maneuveringAssist !== false));
     (getManeuveringFlames() || []).forEach(flame => {
       flame.visible = maneuveringActive;
@@ -304,7 +312,7 @@ export function createShipFlightController(dependencies = {}) {
     if (maneuveringStatus) {
       maneuveringStatus.textContent = earthCenter && altitudeMeters <= 25000 && state.maneuveringAssist !== false
         ? 'ESTABILIZANDO'
-        : (lateralInput || verticalInput) ? 'MANUAL' : 'STANDBY';
+        : state.auxiliaryThrustersActive ? 'AUX. PRECISÃO' : (lateralInput || verticalInput) ? 'MANUAL' : 'STANDBY';
     }
 
     // Efeitos das nacelles.
