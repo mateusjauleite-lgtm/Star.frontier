@@ -107,6 +107,8 @@ export async function createGameWorld({
   shipLandingTelemetry?.reset?.();
   const engineFlames = explorationShip.engineFlames;
   const engineLights = explorationShip.engineLights;
+  const maneuveringFlames = explorationShip.maneuveringFlames;
+  const maneuveringLights = explorationShip.maneuveringLights;
   scene.add(ship);
 
   await loadingStep(70, 'Carregando campo de asteroides...');
@@ -187,6 +189,8 @@ export async function createGameWorld({
     shipVisual,
     engineFlames,
     engineLights,
+    maneuveringFlames,
+    maneuveringLights,
     asteroidSystem,
     asteroids,
     lightingSystem,
