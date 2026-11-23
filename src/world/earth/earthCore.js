@@ -69,6 +69,9 @@ export function createEarthCore(options = {}) {
     getPlanetaryProfile() {
       return planetaryProfile;
     },
+    getPhysicalScale() {
+      return planetaryProfile.physicalScale;
+    },
     getSurfaceFrame() {
       return surfaceFrame;
     },
