@@ -149,7 +149,7 @@ export function createTerrainRuntime({ options, layers }) {
         (grid.east ?? 180) > (grid.west ?? -180) &&
         (grid.north ?? 90) > (grid.south ?? -90)
       );
-      const exaggeration = Math.max(1, options.terrainVerticalExaggeration ?? 16);
+      const exaggeration = Math.max(1, options.terrainVerticalExaggeration ?? 1);
       const radius = options.radius;
       const physicalScale = options.physicalScale;
       if (!physicalScale || typeof physicalScale.metersToRenderUnits !== 'function' ||
