@@ -15,6 +15,7 @@ import { createCharacterAnimator } from '../character/characterAnimator.js';
 import { createCharacterWeaponController } from '../character/characterWeaponController.js';
 import { createCharacterPhysics } from '../character/characterPhysics.js';
 import { loadGravityKernel } from '../physics/gravityKernel.js';
+import { createPlanetaryGravitySystem } from '../physics/planetaryGravitySystem.js';
 import { createShipOrbitalTelemetrySource } from '../ships/flight/orbitalTelemetrySource.js';
 import {
   EARTH_RENDER_RADIUS_UNITS,
@@ -103,6 +104,18 @@ export async function createGameWorld({
   const shieldVisual = explorationShip.shieldVisual;
   shipFlightKernel = await loadShipFlightKernel();
   gravityKernel = await loadGravityKernel();
+  const planetaryGravitySystem = createPlanetaryGravitySystem({
+    getEarthCenter: () => earthSystem.group.getWorldPosition(new THREE.Vector3()).toArray(),
+    getEarthSpinAxis: () => {
+      const rotationState = earthSystem.getSurfaceRotationState();
+      if (!rotationState?.localAxis) return [0, 1, 0];
+      return rotationState.localAxis.clone()
+        .applyQuaternion(earthSystem.group.getWorldQuaternion(new THREE.Quaternion()))
+        .normalize().toArray();
+    },
+    gravityKernel,
+    gravitationalParameter: shipFlightKernel.earthGravitationalParameter
+  });
   const shipLandingAutopilot = createShipLandingAutopilot(shipFlightKernel);
   shipLandingTelemetry?.reset?.();
   const engineFlames = explorationShip.engineFlames;
@@ -116,7 +129,8 @@ export async function createGameWorld({
   const asteroidSystem = createAsteroidField(scene, {
     count: 24,
     center: ASTEROID_FIELD_CENTER,
-    spread: ASTEROID_FIELD_SPREAD
+    spread: ASTEROID_FIELD_SPREAD,
+    gravitySystem: planetaryGravitySystem
   });
   const asteroids = asteroidSystem.asteroids;
 
@@ -179,6 +193,7 @@ export async function createGameWorld({
     stationSystem,
     shipFlightKernel,
     gravityKernel,
+    planetaryGravitySystem,
     orbitalTelemetrySource: createShipOrbitalTelemetrySource({ THREE, earthSystem, ship, shipVisual }),
     shipLandingAutopilot,
     shipLandingGear,
