@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   EARTH_DEFAULT_TERRAIN_VERTICAL_EXAGGERATION,
+  EARTH_NO_DEM_FALLBACK_ELEVATION_METERS,
   sampleEarthElevationGrid,
   calculateEtopoPatchSegments
 } from './terrain.js';
@@ -11,6 +12,7 @@ import { createEarthKernelAdapter } from '../../wasm/earthKernel.js';
 
 test('uses physical 1x terrain elevation by default', () => {
   assert.equal(EARTH_DEFAULT_TERRAIN_VERTICAL_EXAGGERATION, 1);
+  assert.equal(EARTH_NO_DEM_FALLBACK_ELEVATION_METERS, 0);
 });
 
 const grid = (values, extra = {}) => ({
