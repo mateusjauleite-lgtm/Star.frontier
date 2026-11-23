@@ -151,6 +151,11 @@ export function createTerrainRuntime({ options, layers }) {
       );
       const exaggeration = Math.max(1, options.terrainVerticalExaggeration ?? 16);
       const radius = options.radius;
+      const physicalScale = options.physicalScale;
+      if (!physicalScale || typeof physicalScale.metersToRenderUnits !== 'function' ||
+          typeof physicalScale.kmToRenderUnits !== 'function') {
+        throw new TypeError('Earth terrain requires the authoritative SI/render physical scale.');
+      }
       let elevationRevision = 0;
       const getLodGeometries = () => surface.userData?.earthLodGeometries ?? [surface.geometry];
       const yieldToFrame = () => new Promise(resolve => {
@@ -162,7 +167,7 @@ export function createTerrainRuntime({ options, layers }) {
       });
       const direction = new THREE.Vector3();
       const width = maskCanvas.width, height = maskCanvas.height;
-      const unitsPerKm = radius / 6371.0088;
+      const unitsPerKm = physicalScale.kmToRenderUnits(1);
       heightScale = exaggeration;
 
       // One authoritative elevation function feeds both the visible mesh and
@@ -178,17 +183,13 @@ export function createTerrainRuntime({ options, layers }) {
           longitudeDeg, latitudeDeg, { zoom: regionalDemZoom }
         );
         if (Number.isFinite(regionalMeters)) {
-          return earthKernel.elevationMetersToUnits(
-            regionalMeters, radius, 6371.0088, exaggeration
-          );
+          return physicalScale.metersToRenderUnits(regionalMeters) * exaggeration;
         }
 
         if (gridIsReady) {
           const meters = sampleEarthElevationGrid(grid, longitudeDeg, latitudeDeg);
           if (meters !== null) {
-            return earthKernel.elevationMetersToUnits(
-              meters, radius, 6371.0088, exaggeration
-            );
+            return physicalScale.metersToRenderUnits(meters) * exaggeration;
           }
         }
 
@@ -202,7 +203,7 @@ export function createTerrainRuntime({ options, layers }) {
         const baseUnits = proceduralFallback(lon, lat, radius, land);
         const detailMeters = earthKernel.proceduralDetailMeters(longitudeDeg, latitudeDeg, 2600);
         const detailUnits = detailMeters === null ? 0 :
-          earthKernel.elevationMetersToUnits(detailMeters, radius, 6371.0088, exaggeration);
+          physicalScale.metersToRenderUnits(detailMeters) * exaggeration;
         return baseUnits + (land > .5 && detailUnits !== null ? detailUnits : 0);
       };
 
@@ -235,9 +236,7 @@ export function createTerrainRuntime({ options, layers }) {
           for (let i = 0; i < positions.count; i++) {
             if (disposed || revision !== elevationRevision) return false;
             const elevationUnits = Number.isFinite(sampledMeters?.[i])
-              ? earthKernel.elevationMetersToUnits(
-                sampledMeters[i], radius, 6371.0088, exaggeration
-              )
+              ? physicalScale.metersToRenderUnits(sampledMeters[i]) * exaggeration
               : elevationSampler(longitudes[i], latitudes[i]);
             if (Number.isFinite(elevationUnits)) {
               vertexDirection.fromBufferAttribute(positions, i).normalize();
@@ -364,7 +363,7 @@ export function createTerrainRuntime({ options, layers }) {
                 Math.cos(THREE.MathUtils.degToRad(latitudeDeg)) *
                   Math.sin(THREE.MathUtils.degToRad(longitudeDeg))
               );
-              const movedKm = previous.angleTo(current) * 6371.0088;
+              const movedKm = previous.angleTo(current) * physicalScale.physicalRadiusKm;
               if (movedKm < recenterDistanceKm) return activeHighResolutionPatch;
             }
 
@@ -504,9 +503,7 @@ export function createTerrainRuntime({ options, layers }) {
         sampleElevationMetersBatch: points => regionalDemProvider.sampleBatch(points, {
           zoom: regionalDemZoom
         }),
-        elevationMetersToUnits: meters => earthKernel.elevationMetersToUnits(
-          meters, radius, 6371.0088, exaggeration
-        ),
+        elevationMetersToUnits: meters => physicalScale.metersToRenderUnits(meters) * exaggeration,
         maxLevel: options.regionalSurfaceMaxLevel ?? 12,
         maxTiles: options.regionalSurfaceMaxTiles ?? 48,
         segments: options.regionalSurfaceSegments ?? 24,

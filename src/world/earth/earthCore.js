@@ -37,6 +37,8 @@ export function createEarthCore(options = {}) {
   const planetaryProfile = createEarthPlanetaryProfile({
     visualRadiusUnits: settings.radius
   });
+  settings.physicalScale = planetaryProfile.physicalScale;
+
   const group = new THREE.Group();
   group.name = 'StarFrontier-Earth-Core';
   group.position.set(...settings.position);
@@ -66,6 +68,9 @@ export function createEarthCore(options = {}) {
     references: EARTH_REFERENCE_SOURCES,
     getPlanetaryProfile() {
       return planetaryProfile;
+    },
+    getPhysicalScale() {
+      return planetaryProfile.physicalScale;
     },
     getSurfaceFrame() {
       return surfaceFrame;
@@ -117,7 +122,9 @@ export function createEarthCore(options = {}) {
           id: planetaryProfile.id,
           physicalMeanRadiusKm: planetaryProfile.physical.meanRadiusKm,
           visualRadiusUnits: planetaryProfile.render.visualRadiusUnits,
-          visualUnitsPerKm: planetaryProfile.render.visualUnitsPerKm
+          visualUnitsPerKm: planetaryProfile.render.visualUnitsPerKm,
+          metersPerVisualUnit: planetaryProfile.render.metersPerVisualUnit,
+          renderUnitsPerMeter: planetaryProfile.physicalScale.renderUnitsPerMeter
         },
         terrain: layers.terrain ? {
           elevationSource: layers.terrain.elevationSource,
