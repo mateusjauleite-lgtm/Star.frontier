@@ -3,18 +3,22 @@ import * as THREE from 'three';
 // Referencial espacial fixo do sistema. O Sol fica dez vezes mais distante
 // sem alterar a direção da luz em relação à Terra.
 export const SUN_DISTANCE_SCALE = 10;
-const SUN_POSITION = new THREE.Vector3(-1760, 922, -2526).multiplyScalar(SUN_DISTANCE_SCALE);
+const SUN_POSITION_BASE = new THREE.Vector3(-1760, 922, -2526).multiplyScalar(SUN_DISTANCE_SCALE);
 const SUN_RADIUS = 1200;
 const STAR_FIELD_RADIUS = 6500;
 const STAR_FIELD_COUNT = 8800;
 
 // Iluminação espacial, estrela central e campo de estrelas.
 export function createSpaceLighting(scene, options = {}) {
+  const worldScaleFactor = Number.isFinite(options.worldScaleFactor) && options.worldScaleFactor > 0
+    ? options.worldScaleFactor
+    : 1;
+  const sunPosition = SUN_POSITION_BASE.clone().multiplyScalar(worldScaleFactor);
+  const sunRadius = SUN_RADIUS * worldScaleFactor;
   const ambientLight = new THREE.HemisphereLight(0x9acfff, 0x111827, 0.75);
   scene.add(ambientLight);
 
-  const sunPosition = SUN_POSITION.clone();
-  const sunLight = new THREE.PointLight(0xffd6a0, 260, 40000, 1.15);
+  const sunLight = new THREE.PointLight(0xffd6a0, 260, 40000 * worldScaleFactor, 1.15);
   sunLight.position.copy(sunPosition);
   scene.add(sunLight);
 
@@ -23,7 +27,7 @@ export function createSpaceLighting(scene, options = {}) {
   scene.add(sunlight);
 
   const fillLight = new THREE.DirectionalLight(0x5caaff, 0.35);
-  fillLight.position.set(100, 20, 80);
+  fillLight.position.set(100 * worldScaleFactor, 20 * worldScaleFactor, 80 * worldScaleFactor);
   scene.add(fillLight);
 
   const sun = new THREE.Group();
@@ -31,13 +35,13 @@ export function createSpaceLighting(scene, options = {}) {
   scene.add(sun);
 
   const sunCore = new THREE.Mesh(
-    new THREE.SphereGeometry(SUN_RADIUS, 64, 48),
+    new THREE.SphereGeometry(sunRadius, 64, 48),
     new THREE.MeshBasicMaterial({ color: 0xffc45c, fog: false })
   );
   sun.add(sunCore);
 
   const sunGlow = new THREE.Mesh(
-    new THREE.SphereGeometry(SUN_RADIUS * 1.10, 48, 32),
+    new THREE.SphereGeometry(sunRadius * 1.10, 48, 32),
     new THREE.MeshBasicMaterial({
       color: 0xff9e35,
       fog: false,
@@ -51,7 +55,7 @@ export function createSpaceLighting(scene, options = {}) {
   sun.add(sunGlow);
 
   const sunHalo = new THREE.Mesh(
-    new THREE.SphereGeometry(SUN_RADIUS * 1.25, 48, 32),
+    new THREE.SphereGeometry(sunRadius * 1.25, 48, 32),
     new THREE.MeshBasicMaterial({
       color: 0xff6b28,
       fog: false,
@@ -67,7 +71,7 @@ export function createSpaceLighting(scene, options = {}) {
   const positions = [];
   const colors = [];
   const starCount = options.starCount ?? STAR_FIELD_COUNT;
-  const starRadius = options.starRadius ?? STAR_FIELD_RADIUS;
+  const starRadius = (options.starRadius ?? STAR_FIELD_RADIUS) * worldScaleFactor;
 
   // Gerador determinístico: distribuição irregular sem padrão em espiral ou grade.
   let seed = (options.starSeed ?? 20261117) >>> 0;
@@ -197,7 +201,7 @@ export function createSpaceLighting(scene, options = {}) {
       streaks.visible = intensity > 0;
       streakMaterial.opacity = intensity * 0.78;
       if (intensity > 0) {
-        const length = 8 + intensity * 92;
+        const length = (8 + intensity * 92) * worldScaleFactor;
         const attribute = streakGeometry.getAttribute('position');
         for (let i = 0; i < streakCount; i += 1) {
           const source = i * 3;
