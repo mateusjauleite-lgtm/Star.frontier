@@ -275,6 +275,22 @@
           <div class="instrument" data-instrument="shield"><div class="instrument-readout"><span>ESCUDO</span><b><span id="shield">100</span>%</b></div><div class="instrument-track"><i id="shield-bar"></i></div></div>
           <div class="instrument" data-instrument="fuel"><div class="instrument-readout"><span>COMBUSTÍVEL</span><b><span id="fuel">100</span>%</b></div><div class="instrument-track"><i id="fuel-bar"></i></div></div>
         </div>
+        <section class="altimeter-instrument" aria-label="Altímetro atmosférico">
+          <header class="altimeter-header"><b>ALTÍMETRO ATMOSFÉRICO</b><span id="atmosphere-layer">TROPOSFERA</span></header>
+          <div class="altimeter-primary"><b id="altitude-msl">0 m</b><span>ALTITUDE MSL</span></div>
+          <div class="altimeter-details">
+            <span>VELOCIDADE VERTICAL <b id="vertical-speed">0,0 m/s · NIVELADO</b></span>
+            <span>ALTURA DO TERRENO <b id="terrain-clearance">—</b></span>
+          </div>
+          <div class="atmosphere-scale" role="img" aria-label="Escala logarítmica das camadas atmosféricas, de 0 a 10.000 quilômetros">
+            <div class="atmosphere-scale-track">
+              <i class="atmosphere-band troposphere-band"></i><i class="atmosphere-band stratosphere-band"></i><i class="atmosphere-band mesosphere-band"></i><i class="atmosphere-band thermosphere-band"></i><i class="atmosphere-band exosphere-band"></i>
+              <i class="ozone-band" aria-hidden="true"></i><i id="altitude-marker" class="altitude-marker"></i>
+            </div>
+            <div class="atmosphere-scale-labels"><span>0</span><span>12</span><span>50</span><span>85</span><span>600</span><span>10.000 km</span></div>
+            <div class="ozone-caption"><i></i><span>CAMADA DE OZÔNIO · 15–35 km</span><b id="ozone-status">FORA DA FAIXA</b></div>
+          </div>
+        </section>
         <div class="instrument-cargo">CARGA <b id="cargo">0</b></div>
       </section>
 
