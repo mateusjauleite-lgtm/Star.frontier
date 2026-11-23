@@ -18,7 +18,7 @@ export function createGameplayFramePhases(getDependencies) {
     },
 
     updateCharacterMode(dt) {
-      const { characterCore, updateCharacterMovement, updateCharacterWeapon, updateExternalElevatorAnimation, updateElevatorInteraction, updateAlexiaInteraction, updatePilotInteraction, updateShipManagementInteraction, updateEngineeringConsoleInteraction, updateRefineryConsoleInteraction, updateDeflectorConsoleInteraction, updateExternalElevatorInteraction, updateCharacterCamera, updateFlight, updateCamera, state } = getDependencies();
+      const { characterCore, updateCharacterMovement, updateCharacterWeapon, updateExternalElevatorAnimation, updateElevatorInteraction, updateAlexiaInteraction, updatePilotInteraction, updateShipManagementInteraction, updateEngineeringConsoleInteraction, updateRefineryConsoleInteraction, updateDeflectorConsoleInteraction, updateExternalElevatorInteraction, updateCharacterCamera, updateFlight, updateCamera, cameraRuntime, state } = getDependencies();
   if (characterCore.snapshot().mode === 'on-foot') {
     updateCharacterMovement(dt);
     updateCharacterWeapon(dt);
@@ -31,11 +31,13 @@ export function createGameplayFramePhases(getDependencies) {
     if (state && (Number(state.speed) > 0.01 || state.warpDriveActive || state.warpDriveButton || state.warpTransition === 'exiting' || Object.values(state.maneuver || {}).some(Boolean) || (state.maneuveringAssist !== false && Number(state.altitudeMeters) <= 25000))) {
       updateFlight(dt);
     }
-    updateCharacterCamera();
   } else {
     updateFlight(dt);
-    updateCamera();
   }
+  // O controlador ativo atualiza a câmera depois do movimento e antes da renderização.
+  if (cameraRuntime?.updateActive) cameraRuntime.updateActive();
+  else if (characterCore.snapshot().mode === 'on-foot') updateCharacterCamera();
+  else updateCamera();
   updateShipManagementInteraction(dt);
   updateEngineeringConsoleInteraction?.(dt);
   // Mantém presença, holograma e ação da Refinaria sincronizados com a posição do personagem.

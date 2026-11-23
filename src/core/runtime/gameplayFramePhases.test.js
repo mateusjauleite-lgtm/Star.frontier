@@ -84,6 +84,23 @@ test('extracted gameplay phases preserve the existing frame order and delta time
   assert.equal(f.elements.get('hud-credits').textContent, '1.250');
 });
 
+test('camera runtime updates after movement and before world rendering phases', () => {
+  const f = fixture();
+  f.dependencies.cameraRuntime = {
+    updateActive: () => f.calls.push(['camera-runtime'])
+  };
+  f.dependencies.state.speed = 0;
+  f.dependencies.state.warpDriveButton = true;
+
+  f.phases.updateCharacterMode(0.02);
+
+  const names = f.calls.map(([name]) => name);
+  assert.ok(names.indexOf('flight') < names.indexOf('camera-runtime'));
+  assert.ok(names.indexOf('camera-runtime') < names.indexOf('ship-management-interaction'));
+  assert.equal(names.includes('character-camera'), false);
+  assert.equal(names.includes('ship-camera'), false);
+});
+
 test('ship flight continues while the character is on foot if warp is active', () => {
   const f = fixture();
   f.dependencies.state.speed = 0;

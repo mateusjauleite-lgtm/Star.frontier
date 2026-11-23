@@ -47,6 +47,10 @@ import { DILITHIUM_MATRIX_INTERACTION_LOCAL_POSITION } from './ships/engineering
 import { registerTextInteractionGuard } from './core/ui/textInteractionGuard.js';
 import { createPilotHudProfileStore, PILOT_HUD_PROFILES } from './ui/hudProfiles.js';
 import { createNavigationSensorMap } from './ui/navigationSensorMap.js';
+import { createShipCameraController } from './core/runtime/camera/shipCameraController.js';
+import { createCharacterCameraController } from './core/runtime/camera/characterCameraController.js';
+import { createCameraInputController } from './core/runtime/camera/cameraInputController.js';
+import { createCameraRuntimeSystem } from './core/runtime/systems/cameraRuntimeSystem.js';
 
 const artificialGravityField = createArtificialGravityField();
 const shipShieldSystem = createShipShieldSystem(state);
@@ -698,6 +702,8 @@ const shipEarthContactPoints = [
 
 let active = false;
 let runtimeBridge = null;
+let cameraRuntimeInput = null;
+let cameraRuntimeService = null;
 let npcReady = false;
 const handleRuntimeVisibility = createRuntimeVisibilityHandler({
   getRuntime: () => runtimeBridge,
@@ -822,7 +828,33 @@ async function startGame() {
     if (!runtimeBridge) {
       const runtimeKernel = await loadRuntimeKernel({ maximumDeltaSeconds: 0.04 });
       runtimeBridge = createRuntimeBridge(runtimeKernel);
+      const cameraRuntimeSystem = createCameraRuntimeSystem({
+        getCharacterMode: () => characterCore.snapshot().mode,
+        getShipMode: () => state.camera,
+        getCharacterCameraMode: () => characterCameraMode,
+        shipController: createShipCameraController({
+          updateCamera,
+          getMode: () => state.camera
+        }),
+        characterController: createCharacterCameraController({
+          updateCamera: updateCharacterCamera,
+          getMode: () => characterCameraMode
+        })
+      });
+      cameraRuntimeSystem.service.input = createCameraInputController({
+        state,
+        cameraState: cameraRuntimeSystem.cameraState,
+        THREE,
+        onCharacterModeChange: mode => {
+          characterCameraMode = mode;
+          characterCameraInitialized = false;
+          updateCharacterCameraButton();
+        }
+      });
+      cameraRuntimeInput = cameraRuntimeSystem.service.input;
+      cameraRuntimeService = cameraRuntimeSystem.service;
       registerGameRuntimeSystems(runtimeBridge, {
+        cameraRuntime: cameraRuntimeSystem,
         audioManager,
         getAlexiaCharacter: () => alexiaCharacter,
         shipManagementTerminal,
@@ -912,6 +944,7 @@ async function startGame() {
           isActive: () => active,
           isRendererReady: () => Boolean(renderer),
           ...createGameplayFramePhases(() => ({
+            cameraRuntime: cameraRuntimeSystem.service,
             earthSystem, camera, applyEarthSurfaceRotation, ship, updatePhaserWeapon,
             characterCore, updateCharacterMovement, updateCharacterWeapon,
             updateExternalElevatorAnimation, updateElevatorInteraction,
@@ -2688,7 +2721,7 @@ document.addEventListener('visibilitychange', () => {
   handleRuntimeVisibility(document.hidden);
 });
 
-registerAimControls({ document, THREE, state });
+registerAimControls({ document, THREE, state, getCameraInput: () => cameraRuntimeInput });
 const instrumentBindings = [
   ['hull', 'hull-bar', 100], ['shield', 'shield-bar', 100],
   ['fuel', 'fuel-bar', 100], ['speed', 'speed-bar', 12000]
@@ -2895,7 +2928,7 @@ $('landing-select-btn')?.addEventListener('click', () => {
 
 /* CÂMERAS */
 
-registerCameraCycleControl({ document, state, cameraNames });
+registerCameraCycleControl({ document, state, cameraNames, getCameraInput: () => cameraRuntimeInput });
 
 const miningRuntimeSystem = createMiningRuntimeSystem({
   state,
@@ -3380,11 +3413,11 @@ for (const profile of PILOT_HUD_PROFILES) {
 /* MENU DE PAUSA */
 
 $('character-camera-btn')?.addEventListener('click', () => {
-  characterCameraMode = characterCameraMode === 'first-person'
-    ? 'third-person'
-    : 'first-person';
+  const nextMode = characterCameraMode === 'first-person' ? 'third-person' : 'first-person';
+  if (!cameraRuntimeInput?.setCharacterMode(nextMode)) characterCameraMode = nextMode;
   updateCharacterCameraButton();
-  if (camera && characterModel) updateCharacterCamera();
+  if (cameraRuntimeService?.updateActive) cameraRuntimeService.updateActive();
+  else if (camera && characterModel) updateCharacterCamera();
 });
 updateCharacterCameraButton();
 

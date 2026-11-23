@@ -44,7 +44,8 @@ export function registerGameRuntimeSystems(runtime, dependencies) {
     deflector: suppliedDeflector,
     readDeflectorInputs = () => ({}),
     onDeflectorCreated = () => {},
-    getAlexiaCharacter = () => null
+    getAlexiaCharacter = () => null,
+    cameraRuntime = null
   } = dependencies;
   const warpCore = suppliedWarpCore || createWarpCorePowerSystem({ state, persist: saveState });
   const deflector = suppliedDeflector || createDeflectorRuntimeSystem({
@@ -71,6 +72,7 @@ export function registerGameRuntimeSystems(runtime, dependencies) {
   if (mining) runtime.registerSystem('mining', mining);
   if (pauseMenu) runtime.registerSystem('pause-menu', createPauseMenuRuntimeSystem({ ...pauseMenu, runtime }));
   if (warpCore) runtime.registerSystem('warp-core-power', warpCore);
+  if (cameraRuntime) runtime.registerSystem('camera-runtime', cameraRuntime);
   runtime.registerSystem('gameplay', createGameplayRuntimeSystem(gameplay));
   if (deflector) runtime.registerSystem('deflector-core', deflector);
   if (refinery) runtime.registerSystem('dilithium-refinery', createDilithiumRefineryRuntimeSystem(refinery));
