@@ -316,10 +316,10 @@ export function createShipFlightController(dependencies = {}) {
         warpTravelActive ? 1.5 + warpStage * 0.2 : enginePower,
         warpTravelActive ? 1 + warpStage * 0.09 : 1
       );
-      flame.material.opacity = warpDriveActive ? 0.68 + warpStage * 0.055 : (state.throttle ? 0.7 : 0.3);
+      flame.material.opacity = warpTravelActive ? 0.68 + warpStage * 0.055 : (state.throttle ? 0.7 : 0.3);
     });
     (getEngineLights() || []).forEach(light => {
-      light.intensity = warpDriveActive ? 3.5 + warpStage * 1.15 : (state.throttle ? 4 : 1.5);
+      light.intensity = warpTravelActive ? 3.5 + warpStage * 1.15 : (state.throttle ? 4 : 1.5);
     });
 
     // HUD de dobra: cinco estágios selecionáveis e reserva em unidades de dilítio.
