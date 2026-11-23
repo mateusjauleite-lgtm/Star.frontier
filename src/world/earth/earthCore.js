@@ -51,6 +51,7 @@ export function createEarthCore(options = {}) {
   group.add(surfaceFrame);
 
   const layers = {};
+  let planetaryGravitySystem = null;
   const context = { group, surfaceFrame, options: settings, layers };
   const updatePipeline = createEarthUpdatePipeline(EARTH_UPDATE_MODULES);
   let disposed = false;
@@ -72,6 +73,12 @@ export function createEarthCore(options = {}) {
     },
     getPhysicalScale() {
       return planetaryProfile.physicalScale;
+    },
+    setPlanetaryGravitySystem(system) {
+      planetaryGravitySystem = system ?? null;
+    },
+    getPlanetaryGravitySystem() {
+      return planetaryGravitySystem;
     },
     getSurfaceFrame() {
       return surfaceFrame;
