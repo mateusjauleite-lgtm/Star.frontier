@@ -92,3 +92,36 @@ test('asteroid field removes an object and releases its visual resources', () =>
   assert.equal(field.remove(asteroid), false);
   field.dispose();
 });
+
+test('asteroids register as dynamic receivers of the planetary gravity field', () => {
+  const scene = new THREE.Scene();
+  const gravityCalls = [];
+  const gravitySystem = {
+    circularOrbitVelocity(position) {
+      gravityCalls.push(['initialize', position]);
+      return [0, 0, 2];
+    },
+    integrate(position, velocity, dt) {
+      gravityCalls.push(['integrate', dt]);
+      return {
+        position: [position[0], position[1], position[2] + velocity[2] * dt],
+        velocity
+      };
+    }
+  };
+  const field = createAsteroidField(scene, {
+    count: 1,
+    center: [100, 0, 0],
+    spread: [0, 0, 0],
+    gravitySystem
+  });
+  try {
+    const asteroid = field.asteroids[0];
+    assert.deepEqual(asteroid.userData.gravityVelocityMps, [0, 0, 2]);
+    field.update(0.04);
+    assert.ok(Math.abs(asteroid.position.z - 0.08) < 1e-9);
+    assert.ok(gravityCalls.some(([kind]) => kind === 'integrate'));
+  } finally {
+    field.dispose();
+  }
+});
