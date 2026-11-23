@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Download and package NASA Blue Marble for the offline Android runtime."""
+"""Download and package NASA Blue Marble Next Generation natural-color base map."""
 from pathlib import Path
 from urllib.request import Request, urlopen
 from io import BytesIO
@@ -7,10 +7,10 @@ from PIL import Image
 
 SOURCE_URL = (
     "https://assets.science.nasa.gov/content/dam/science/esd/eo/images/"
-    "bmng/bmng-topography-bathymetry/january/"
-    "world.topo.bathy.200401.3x5400x2700.jpg"
+    "bmng/bmng-base/january/"
+    "world.200401.3x5400x2700.jpg"
 )
-OUTPUT = Path("public/earth/blue-marble-topography-bathymetry.jpg")
+OUTPUT = Path("public/earth/blue-marble-natural-color.jpg")
 TARGET_SIZE = (4096, 2048)
 
 
@@ -28,7 +28,7 @@ def main():
             raise RuntimeError(f"Unexpected optimized texture dimensions: {image.size}")
         image.save(OUTPUT, "JPEG", quality=90, optimize=True, progressive=True)
     print(f"Prepared {OUTPUT} at {TARGET_SIZE[0]}x{TARGET_SIZE[1]} "
-          f"from NASA Blue Marble ({len(source_bytes)} source bytes).")
+          f"from NASA Blue Marble natural-color base map ({len(source_bytes)} source bytes).")
 
 
 if __name__ == "__main__":
