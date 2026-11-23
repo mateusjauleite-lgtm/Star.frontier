@@ -48,6 +48,40 @@ test('mineral label changes to metal when a dilithium deposit is exhausted', () 
   field.dispose();
 });
 
+
+test('each asteroid receives a billboard mineral label positioned above its body', () => {
+  const originalDocument = globalThis.document;
+  const context = {
+    clearRect() {}, beginPath() {}, moveTo() {}, lineTo() {},
+    quadraticCurveTo() {}, closePath() {}, fill() {}, stroke() {}, fillText() {}
+  };
+  globalThis.document = {
+    createElement() {
+      return { getContext: () => context };
+    }
+  };
+  const scene = new THREE.Scene();
+  const field = createAsteroidField(scene, { count: 4 });
+  try {
+    const labels = scene.children.filter(object => object.isSprite);
+    assert.equal(labels.length, 4);
+    const asteroid = field.asteroids[0];
+    const label = labels.find(item =>
+      item.userData.asteroidEntityId === asteroid.userData.entityId
+    );
+    assert.ok(label);
+    field.update();
+    assert.ok(label.position.y > asteroid.position.y + asteroid.userData.radius);
+    asteroid.position.x += 12;
+    field.update();
+    assert.ok(Math.abs(label.position.x - asteroid.position.x) < 1e-9);
+  } finally {
+    field.dispose();
+    if (originalDocument === undefined) delete globalThis.document;
+    else globalThis.document = originalDocument;
+  }
+});
+
 test('asteroid field removes an object and releases its visual resources', () => {
   const scene = new THREE.Scene();
   const field = createAsteroidField(scene, { count: 4 });
