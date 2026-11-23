@@ -15,6 +15,14 @@ export const EARTH_WORLD_CENTER = Object.freeze([
 
 export const EARTH_ORBIT_RADIUS_UNITS = 960 * EARTH_WORLD_SCALE_FACTOR;
 
+// A estação mantém a posição relativa histórica à Terra, em vez de ficar
+// artificialmente próxima da nave após o aumento do raio planetário.
+export const STATION_WORLD_POSITION = Object.freeze([
+  24 * EARTH_WORLD_SCALE_FACTOR,
+  3 * EARTH_WORLD_SCALE_FACTOR,
+  EARTH_WORLD_CENTER[2] + 785 * EARTH_WORLD_SCALE_FACTOR
+]);
+
 // O cinturão fica a 3,4 raios terrestres do centro. Mesmo no limite interno
 // do volume aleatório, permanece próximo de três raios distante da Terra.
 export const ASTEROID_FIELD_CENTER = Object.freeze([
