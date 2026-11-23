@@ -3,6 +3,8 @@
  * The existing gameplay speed scale, world/local transforms and collision
  * responses are intentionally preserved; this module does not use SI units.
  */
+import { STATION_WORLD_POSITION } from '../../world/earth/worldScale.js';
+
 export function createShipFlightController(dependencies = {}) {
   const {
     THREE,
@@ -113,7 +115,7 @@ export function createShipFlightController(dependencies = {}) {
     }
 
     // Plataforma e observatório permanecem sólidos para a nave.
-    const stationCenter = new THREE.Vector3(24, 3, -65);
+    const stationCenter = new THREE.Vector3(...STATION_WORLD_POSITION);
     const stationScale = 1.18;
     const dx = ship.position.x - stationCenter.x;
     const dz = ship.position.z - stationCenter.z;
