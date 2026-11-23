@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   calculateManeuveringAcceleration,
+  getConventionalFlightSpeedLimit,
   getConventionalSpeedLimit,
   integrateWorldVelocity,
   projectRadialVelocity,
@@ -13,6 +14,21 @@ test('conventional speed envelope is fast in open space and controlled near terr
   assert.equal(getConventionalSpeedLimit(50000), 300);
   assert.equal(getConventionalSpeedLimit(500), 12);
   assert.equal(getConventionalSpeedLimit(20), 4);
+});
+
+test('powered upward flight can exceed the low-altitude approach speed limit', () => {
+  assert.equal(getConventionalFlightSpeedLimit(20), 4);
+  assert.equal(getConventionalFlightSpeedLimit(20, {
+    throttle: true,
+    climbAlignment: 0.9
+  }), 12000);
+  assert.equal(getConventionalFlightSpeedLimit(20, {
+    throttle: true,
+    climbAlignment: 0.1
+  }), 4);
+  assert.equal(getConventionalFlightSpeedLimit(20, {
+    verticalSpeed: 25
+  }), 12000);
 });
 
 test('maneuvering assist damps descent without cancelling planetary gravity', () => {
