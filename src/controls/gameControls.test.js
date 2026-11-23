@@ -96,3 +96,28 @@ test('botão de dobra informa rejeição sem fingir que ativou', () => {
   assert.equal(state.warpDriveButton, false);
   assert.equal(warp.attributes['aria-pressed'], 'false');
 });
+
+test('manobradores mantêm o comando pressionado e liberam ao soltar o toque', () => {
+  const ids = ['throttle-btn', 'brake-btn', 'maneuver-left-btn', 'maneuver-right-btn', 'maneuver-up-btn', 'maneuver-down-btn'];
+  const buttons = new Map(ids.map(id => [id, element()]));
+  const document = { getElementById: id => buttons.get(id) || null };
+  const window = { addEventListener() {} };
+  const state = { maneuver: { left: false, right: false, up: false, down: false } };
+  const commands = [];
+  registerHeldFlightControls({
+    document, window, state,
+    dispatchPropulsionCommand: payload => {
+      commands.push(payload);
+      const direction = payload.control.slice('maneuver'.length).toLowerCase();
+      state.maneuver[direction] = payload.active;
+      return { accepted: true };
+    }
+  });
+  const up = buttons.get('maneuver-up-btn');
+  up.fire('pointerdown', { pointerId: 9, pointerType: 'touch' });
+  assert.equal(state.maneuver.up, true);
+  assert.equal(commands[0].control, 'maneuverUp');
+  up.fire('pointerup', { pointerId: 9 });
+  assert.equal(state.maneuver.up, false);
+  assert.equal(commands[1].active, false);
+});
