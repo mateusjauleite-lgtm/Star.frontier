@@ -16,6 +16,13 @@ import { createCharacterWeaponController } from '../character/characterWeaponCon
 import { createCharacterPhysics } from '../character/characterPhysics.js';
 import { loadGravityKernel } from '../physics/gravityKernel.js';
 import { createShipOrbitalTelemetrySource } from '../ships/flight/orbitalTelemetrySource.js';
+import {
+  EARTH_RENDER_RADIUS_UNITS,
+  EARTH_WORLD_CENTER,
+  EARTH_ORBIT_RADIUS_UNITS,
+  ASTEROID_FIELD_CENTER,
+  ASTEROID_FIELD_SPREAD
+} from './earth/worldScale.js';
 
 export async function createGameWorld({
   THREE,
@@ -40,9 +47,12 @@ export async function createGameWorld({
 
   try {
   scene.background = new THREE.Color(0x020817);
-  scene.fog = new THREE.FogExp2(0x020817, 0.00055);
+  scene.fog = new THREE.FogExp2(0x020817, 0.000055);
 
-  earthSystem = createEarthCore({ radius: 600, position: [0, 0, -850] });
+  earthSystem = createEarthCore({
+    radius: EARTH_RENDER_RADIUS_UNITS,
+    position: EARTH_WORLD_CENTER
+  });
   scene.add(earthSystem.group);
   const earthReferenceFrames = createEarthReferenceFrames({
     globalFrame: scene,
@@ -53,7 +63,7 @@ export async function createGameWorld({
     70,
     viewport.width / viewport.height,
     0.1,
-    40000
+    60000
   );
 
   renderer = new THREE.WebGLRenderer({
@@ -98,8 +108,8 @@ export async function createGameWorld({
 
   const asteroidSystem = createAsteroidField(scene, {
     count: 24,
-    center: [310, 0, -300],
-    spread: [190, 100, 160]
+    center: ASTEROID_FIELD_CENTER,
+    spread: ASTEROID_FIELD_SPREAD
   });
   const asteroids = asteroidSystem.asteroids;
 
@@ -143,7 +153,10 @@ export async function createGameWorld({
   alexiaCharacter.group.rotation.y = characterYaw + Math.PI / 2;
   shipVisual.add(alexiaCharacter.group);
 
-  const orbitSystem = createOrbitSystem({ center: [0, 0, -850], radius: 960 });
+  const orbitSystem = createOrbitSystem({
+    center: EARTH_WORLD_CENTER,
+    radius: EARTH_ORBIT_RADIUS_UNITS
+  });
   scene.add(orbitSystem.group);
 
   await loadingStep(96, 'Finalizando cenário e sistemas de voo...');
