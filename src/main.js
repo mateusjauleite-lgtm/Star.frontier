@@ -47,6 +47,10 @@ import { DILITHIUM_MATRIX_INTERACTION_LOCAL_POSITION } from './ships/engineering
 import { registerTextInteractionGuard } from './core/ui/textInteractionGuard.js';
 import { createPilotHudProfileStore, PILOT_HUD_PROFILES } from './ui/hudProfiles.js';
 import { createNavigationSensorMap } from './ui/navigationSensorMap.js';
+import { createShipCameraController } from './core/runtime/camera/shipCameraController.js';
+import { createCharacterCameraController } from './core/runtime/camera/characterCameraController.js';
+import { createCameraInputController } from './core/runtime/camera/cameraInputController.js';
+import { createCameraRuntimeSystem } from './core/runtime/systems/cameraRuntimeSystem.js';
 
 const artificialGravityField = createArtificialGravityField();
 const shipShieldSystem = createShipShieldSystem(state);
@@ -822,7 +826,26 @@ async function startGame() {
     if (!runtimeBridge) {
       const runtimeKernel = await loadRuntimeKernel({ maximumDeltaSeconds: 0.04 });
       runtimeBridge = createRuntimeBridge(runtimeKernel);
+      const cameraRuntimeSystem = createCameraRuntimeSystem({
+        getCharacterMode: () => characterCore.snapshot().mode,
+        getShipMode: () => state.camera,
+        getCharacterCameraMode: () => characterCameraMode,
+        shipController: createShipCameraController({
+          updateCamera,
+          getMode: () => state.camera
+        }),
+        characterController: createCharacterCameraController({
+          updateCamera: updateCharacterCamera,
+          getMode: () => characterCameraMode
+        })
+      });
+      cameraRuntimeSystem.service.input = createCameraInputController({
+        state,
+        cameraState: cameraRuntimeSystem.cameraState,
+        THREE
+      });
       registerGameRuntimeSystems(runtimeBridge, {
+        cameraRuntime: cameraRuntimeSystem,
         audioManager,
         getAlexiaCharacter: () => alexiaCharacter,
         shipManagementTerminal,
@@ -912,6 +935,7 @@ async function startGame() {
           isActive: () => active,
           isRendererReady: () => Boolean(renderer),
           ...createGameplayFramePhases(() => ({
+            cameraRuntime: cameraRuntimeSystem.service,
             earthSystem, camera, applyEarthSurfaceRotation, ship, updatePhaserWeapon,
             characterCore, updateCharacterMovement, updateCharacterWeapon,
             updateExternalElevatorAnimation, updateElevatorInteraction,
