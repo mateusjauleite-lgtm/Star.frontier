@@ -2,6 +2,7 @@
  * Owns the frame-level gameplay phases and resolves live dependencies per frame.
  * Domain behavior is preserved; this module relocates orchestration out of main.js.
  */
+import { EARTH_ATMOSPHERE_LAYERS, sampleEarthAtmosphere } from '../../world/earth/modules/runtime/atmosphereModel.js';
 export function createGameplayFramePhases(getDependencies) {
   if (typeof getDependencies !== 'function') {
     throw new TypeError('As dependências das fases de gameplay precisam ser fornecidas por uma função.');
@@ -206,6 +207,45 @@ export function createGameplayFramePhases(getDependencies) {
         $('hud')?.setAttribute('data-active-hud-profile', activeProfile);
         $('flight-controls')?.setAttribute('data-active-hud-profile', activeProfile);
       }
+      const altitudeMeters = Number(state.altitudeMeters);
+      const altitudeReadout = $('altitude-msl');
+      const layerReadout = $('atmosphere-layer');
+      const marker = $('altitude-marker');
+      const ozoneStatus = $('ozone-status');
+      if (Number.isFinite(altitudeMeters)) {
+        const altitudeKm = Math.max(0, altitudeMeters / 1000);
+        const atmosphere = sampleEarthAtmosphere(altitudeKm);
+        const layer = EARTH_ATMOSPHERE_LAYERS.find(item => item.id === atmosphere.layer);
+        if (altitudeReadout) altitudeReadout.textContent = altitudeMeters < 1000
+          ? Math.round(altitudeMeters).toLocaleString('pt-BR') + ' m'
+          : altitudeKm.toFixed(2).replace('.', ',') + ' km';
+        if (layerReadout) layerReadout.textContent = layer?.label?.toUpperCase() || 'ATMOSFERA';
+        if (marker) {
+          const position = Math.log1p(Math.min(10000, altitudeKm) / 12) / Math.log1p(10000 / 12) * 100;
+          marker.style.left = Math.max(0, Math.min(100, position)) + '%';
+        }
+        if (ozoneStatus) ozoneStatus.textContent = altitudeKm >= 15 && altitudeKm <= 35
+          ? 'NA FAIXA DE OZÔNIO' : 'FORA DA FAIXA';
+      } else {
+        if (altitudeReadout) altitudeReadout.textContent = 'SEM REFERÊNCIA';
+        if (layerReadout) layerReadout.textContent = 'SEM REFERÊNCIA';
+        if (marker) marker.style.left = '0%';
+        if (ozoneStatus) ozoneStatus.textContent = 'SEM DADOS';
+      }
+      const verticalSpeed = Number(state.verticalSpeedMps);
+      const verticalReadout = $('vertical-speed');
+      if (verticalReadout) verticalReadout.textContent = !Number.isFinite(verticalSpeed)
+        ? '—'
+        : Math.abs(verticalSpeed) < 0.5 ? '0,0 m/s · NIVELADO'
+        : Math.abs(verticalSpeed).toFixed(1).replace('.', ',') + ' m/s · ' +
+          (verticalSpeed > 0 ? 'SUBINDO ↑' : 'DESCENDO ↓');
+      const terrainReadout = $('terrain-clearance');
+      const terrainClearance = Number(ship?.userData?.earthLandingContacts?.minimumClearanceUnits);
+      if (terrainReadout) terrainReadout.textContent = Number.isFinite(terrainClearance)
+        ? (terrainClearance < 1000
+          ? Math.max(0, terrainClearance).toFixed(1).replace('.', ',') + ' m'
+          : (terrainClearance / 1000).toFixed(2).replace('.', ',') + ' km')
+        : '—';
       if ($('speed')) $('speed').textContent = Math.round(state.speed);
       if ($('fuel')) $('fuel').textContent = Math.round(state.fuel);
       if ($('cargo')) $('cargo').textContent = state.cargo + ' / 100';
