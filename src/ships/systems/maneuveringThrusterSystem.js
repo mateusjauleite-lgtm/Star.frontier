@@ -36,9 +36,8 @@ export function calculateManeuveringAcceleration({
     altitudeMeters <= MANEUVER_ASSIST_MAX_ALTITUDE_METERS;
 
   if (assistActive) {
-    for (let axis = 0; axis < 3; axis += 1) {
-      acceleration[axis] -= gravityAcceleration[axis];
-    }
+    // Assistência reduz a velocidade radial, mas nunca cancela a gravidade.
+    // A sustentação precisa vir de empuxo real aplicado pelos controles da nave.
     const damping = clamp(-radialVelocity * 2.5, -30, 30);
     for (let axis = 0; axis < 3; axis += 1) {
       acceleration[axis] += radialUp[axis] * damping;
