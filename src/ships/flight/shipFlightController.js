@@ -137,11 +137,11 @@ export function createShipFlightController(dependencies = {}) {
     const verticalInput = (maneuver.up ? 1 : 0) - (maneuver.down ? 1 : 0);
     const currentGravityVelocity = Array.isArray(state.gravityVelocity) && state.gravityVelocity.length === 3
       ? state.gravityVelocity : [0, 0, 0];
-    const radialVelocity = projectRadialVelocity(currentGravityVelocity, radialUp.toArray());
+    const radialVelocity = projectRadialVelocity(currentGravityVelocity, [radialUp.x, radialUp.y, radialUp.z]);
     const maneuverAcceleration = calculateManeuveringAcceleration({
       gravityAcceleration,
-      radialUp: radialUp.toArray(),
-      shipRight: shipRight.toArray(),
+      radialUp: [radialUp.x, radialUp.y, radialUp.z],
+      shipRight: [shipRight.x, shipRight.y, shipRight.z],
       lateralInput,
       verticalInput,
       altitudeMeters,
