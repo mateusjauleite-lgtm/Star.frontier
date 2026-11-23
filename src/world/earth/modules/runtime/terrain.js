@@ -221,7 +221,7 @@ export function createTerrainRuntime({ options, layers }) {
         integratedWith: 'surface',
         displacedVertices: positions.count,
         lodLevel: surface.userData?.earthLodLevel ?? 0,
-        elevationSource: gridIsReady ? (grid.source ?? 'provided-global-grid')  : 'reference-sphere',
+        elevationSource: gridIsReady ? (grid.source ?? 'provided-global-grid') : 'reference-sphere',
         sourceAttribution: grid?.attribution ?? null,
         sourceGridReady: gridIsReady,
         etopoStatus: gridIsReady
@@ -239,7 +239,7 @@ export function createTerrainRuntime({ options, layers }) {
         // elevation source used by the visible terrain. Coordinates are in
         // Earth-local space; the caller applies the Earth group's world transform.
         collisionSurface: {
-          source: gridIsReady ? (grid.source ?? 'provided-global-grid') : 'procedural-fallback',
+          source: gridIsReady ? (grid.source ?? 'provided-global-grid') : 'reference-sphere',
           sharesVisualElevation: true,
           // Build a local, high-resolution render patch from the same authoritative
           // sampler used by the global LOD mesh and physical point queries.
@@ -270,7 +270,7 @@ export function createTerrainRuntime({ options, layers }) {
               radiusKm: safeRadiusKm,
               segments: divisions,
               shape: 'quadtree-activation-marker',
-              elevationSource: gridIsReady ? (grid.source ?? 'provided-global-grid') : 'procedural-fallback'
+              elevationSource: gridIsReady ? (grid.source ?? 'provided-global-grid') : 'reference-sphere'
             };
             surface.add(marker);
             highResolutionPatches.add(marker);
