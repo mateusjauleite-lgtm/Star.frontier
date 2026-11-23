@@ -18,6 +18,7 @@ import { loadGravityKernel } from '../physics/gravityKernel.js';
 import { createShipOrbitalTelemetrySource } from '../ships/flight/orbitalTelemetrySource.js';
 import {
   EARTH_RENDER_RADIUS_UNITS,
+  EARTH_WORLD_SCALE_FACTOR,
   EARTH_WORLD_CENTER,
   EARTH_ORBIT_RADIUS_UNITS,
   ASTEROID_FIELD_CENTER,
@@ -48,7 +49,7 @@ export async function createGameWorld({
 
   try {
   scene.background = new THREE.Color(0x020817);
-  scene.fog = new THREE.FogExp2(0x020817, 0.000055);
+  scene.fog = new THREE.FogExp2(0x020817, 0.00055 / EARTH_WORLD_SCALE_FACTOR);
 
   earthSystem = createEarthCore({
     radius: EARTH_RENDER_RADIUS_UNITS,
@@ -64,12 +65,13 @@ export async function createGameWorld({
     70,
     viewport.width / viewport.height,
     0.1,
-    60000
+    60000 * EARTH_WORLD_SCALE_FACTOR
   );
 
   renderer = new THREE.WebGLRenderer({
     antialias: state.settings.quality !== 'Baixa',
-    powerPreference: 'high-performance'
+    powerPreference: 'high-performance',
+    logarithmicDepthBuffer: true
   });
 
   renderer.setPixelRatio(
@@ -84,7 +86,9 @@ export async function createGameWorld({
 
   await loadingStep(24, 'Preparando o espaço e a iluminação...');
 
-  const lightingSystem = createSpaceLighting(scene);
+  const lightingSystem = createSpaceLighting(scene, {
+    worldScaleFactor: EARTH_WORLD_SCALE_FACTOR
+  });
   const stars = lightingSystem.stars;
 
   await loadingStep(42, 'Montando a nave exploradora de quatro decks...');
