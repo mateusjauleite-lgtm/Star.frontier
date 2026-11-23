@@ -11,8 +11,8 @@ import {
 } from './worldScale.js';
 
 test('Earth render radius uses kilometres as render units without changing ship geometry', () => {
-  assert.ok(Math.abs(EARTH_RENDER_RADIUS_UNITS - 6371.0088) < 1e-9);
-  assert.ok(Math.abs(EARTH_WORLD_SCALE_FACTOR - 6371.0088 / 600) < 1e-12);
+  assert.ok(Math.abs(EARTH_RENDER_RADIUS_UNITS - 6371008.8) < 1e-9);
+  assert.ok(Math.abs(EARTH_WORLD_SCALE_FACTOR - 6371008.8 / 600) < 1e-12);
   assert.ok(Math.abs(EARTH_WORLD_CENTER[2] + 850 * EARTH_WORLD_SCALE_FACTOR) < 1e-9);
 });
 
@@ -28,7 +28,7 @@ test('mining asteroid field is placed well beyond the Earth surface', () => {
     ASTEROID_FIELD_CENTER[2] - EARTH_WORLD_CENTER[2]
   );
   assert.ok(centerDistance > EARTH_RENDER_RADIUS_UNITS * 3.3);
-  assert.ok(ASTEROID_FIELD_MIN_DISTANCE_UNITS > EARTH_RENDER_RADIUS_UNITS * 2.9);
+  assert.ok(ASTEROID_FIELD_MIN_DISTANCE_UNITS > EARTH_RENDER_RADIUS_UNITS * 3.1);
 });
 
 test('station preserves its relative altitude above the enlarged Earth', () => {
