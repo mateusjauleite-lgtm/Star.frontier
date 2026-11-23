@@ -270,7 +270,7 @@
       <section class="hud-card pilot-instruments" data-hud-editable="instruments" data-hud-scope="pilot" data-hud-profile="flight" aria-label="Instrumentos da nave">
         <header class="instrument-header"><b id="hud-user">PILOTO</b><span>FLIGHT SYSTEMS</span></header>
         <div class="instrument-grid">
-          <div class="instrument" data-instrument="speed"><div class="instrument-readout"><span>VELOCIDADE</span><b><span id="speed">0</span></b></div><div class="instrument-track"><i id="speed-bar"></i></div></div>
+          <div class="instrument" data-instrument="speed"><div class="instrument-readout"><span>VELOCIDADE (m/s)</span><b><span id="speed">0</span></b></div><div class="instrument-track"><i id="speed-bar"></i></div></div>
           <div class="instrument" data-instrument="hull"><div class="instrument-readout"><span>CASCO</span><b><span id="hull">100</span>%</b></div><div class="instrument-track"><i id="hull-bar"></i></div></div>
           <div class="instrument" data-instrument="shield"><div class="instrument-readout"><span>ESCUDO</span><b><span id="shield">100</span>%</b></div><div class="instrument-track"><i id="shield-bar"></i></div></div>
           <div class="instrument" data-instrument="fuel"><div class="instrument-readout"><span>COMBUSTÍVEL</span><b><span id="fuel">100</span>%</b></div><div class="instrument-track"><i id="fuel-bar"></i></div></div>
@@ -352,10 +352,22 @@
         </div>
 
         <div class="propulsion-slot">
-          <div class="propulsion-heading"><span>PROPULSÃO CONVENCIONAL</span><b>VOO</b></div>
+          <div class="propulsion-heading"><span>PROPULSORES PRINCIPAIS</span><b>m/s</b></div>
           <div class="button-pair propulsion-buttons">
-            <button id="throttle-btn" data-pilot-size-button class="control-button" type="button">▲ ACELERAR</button>
+            <button id="throttle-btn" data-pilot-size-button class="control-button" type="button" aria-label="Ativar propulsores principais">▲ PROPULSORES</button>
             <button id="brake-btn" data-pilot-size-button class="control-button" type="button">▼ FREAR</button>
+          </div>
+        </div>
+
+        <div class="propulsion-slot maneuvering-slot">
+          <div class="propulsion-heading"><span>MANOBRADORES INFERIORES</span><b id="maneuvering-status">STANDBY</b></div>
+          <div class="button-pair propulsion-buttons">
+            <button id="maneuver-up-btn" class="control-button" type="button">↑ SUBIR</button>
+            <button id="maneuver-down-btn" class="control-button" type="button">↓ DESCER</button>
+          </div>
+          <div class="button-pair propulsion-buttons">
+            <button id="maneuver-left-btn" class="control-button" type="button">← ESQUERDA</button>
+            <button id="maneuver-right-btn" class="control-button" type="button">DIREITA →</button>
           </div>
         </div>
 
@@ -390,7 +402,7 @@
             <div class="warp-main-control">
               <div class="propulsion-heading"><span>PROPULSÃO DE DOBRA</span><b id="warp-drive-level">DESATIVADA</b></div>
               <div class="warp-telemetry-row">
-                <span>VELOCIDADE <b id="warp-speed-readout">0</b></span>
+                <span>VELOCIDADE <b id="warp-speed-readout">0.0 c</b></span>
                 <span>DILÍTIO <b id="warp-dilithium-readout">100.00 u</b></span>
                 <span>CONSUMO ACUMULADO <b id="warp-core-consumption">0.00 u</b></span>
                 <span>ESTABILIDADE <b id="warp-stability-readout">—</b></span>
@@ -466,7 +478,7 @@
           <input id="pilot-hud-button-width" type="range" min="82" max="180" step="2" value="112">
           <label for="pilot-hud-button-height">ALTURA DOS BOTÕES <output id="pilot-hud-button-height-value">52 px</output></label>
           <input id="pilot-hud-button-height" type="range" min="40" max="88" step="2" value="52">
-          <small>Aplica somente a DISPARAR, INTERAGIR, ACELERAR e FREAR.</small>
+          <small>Aplica somente a DISPARAR, INTERAGIR, PROPULSORES e FREAR.</small>
         </div>
         <div class="character-hud-editor-actions">
           <button id="character-hud-reset-btn" type="button">PADRÃO</button>

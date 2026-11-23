@@ -475,10 +475,59 @@ export function createExplorationShip() {
   }
 
 
+  // Manobradores inferiores: seis bocais compactos integrados à concha existente.
+  // A montagem acrescenta apenas componentes externos; não altera casco nem decks.
+  const maneuveringFlames = [];
+  const maneuveringLights = [];
+  const maneuveringThrusterMounts = [
+    [-15, -14.8, -25], [15, -14.8, -25],
+    [-17, -14.2, 0], [17, -14.2, 0],
+    [-12, -13.8, 25], [12, -13.8, 25]
+  ];
+  maneuveringThrusterMounts.forEach(([x, y, z], index) => {
+    const mount = new THREE.Group();
+    mount.name = 'Maneuvering-Thruster-Mount-' + (index + 1);
+    mount.position.set(x, y, z);
+    visual.add(mount);
+
+    const nozzle = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.72, 0.5, 1.25, 16, 1, false),
+      undersideMaterial
+    );
+    nozzle.name = 'Maneuvering-Thruster-Nozzle-' + (index + 1);
+    mount.add(nozzle);
+
+    const rim = new THREE.Mesh(
+      new THREE.TorusGeometry(0.58, 0.09, 8, 20),
+      trimMaterial
+    );
+    rim.rotation.x = Math.PI / 2;
+    rim.position.y = -0.62;
+    mount.add(rim);
+
+    const plume = new THREE.Mesh(
+      new THREE.ConeGeometry(0.48, 2.8, 12),
+      new THREE.MeshBasicMaterial({
+        color: 0x68dfff, transparent: true, opacity: 0.0,
+        depthWrite: false, blending: THREE.AdditiveBlending
+      })
+    );
+    plume.rotation.z = Math.PI;
+    plume.position.y = -2.05;
+    plume.visible = false;
+    mount.add(plume);
+    maneuveringFlames.push(plume);
+
+    const light = new THREE.PointLight(0x45cfff, 0, 8);
+    light.position.y = -1.1;
+    mount.add(light);
+    maneuveringLights.push(light);
+  });
+
   // Quatro conjuntos compactos de trem de pouso articulado com rodas.
   const { group: landingGear, contactPoints: landingGearContactPoints } =
     createLandingGear(THREE);
   visual.add(landingGear);
 
-  return { group, yaw, pitch, visual, engineFlames, engineLights, landingGear, landingGearContactPoints, shieldVisual };
+  return { group, yaw, pitch, visual, engineFlames, engineLights, maneuveringFlames, maneuveringLights, landingGear, landingGearContactPoints, shieldVisual };
 }

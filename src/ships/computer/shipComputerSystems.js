@@ -3,7 +3,7 @@ import { RESOURCE_IDS } from '../../core/resources/resourceCatalog.js';
 import { DILITHIUM_MATRIX_TERMINAL_ID } from './dilithiumMatrixTerminalController.js';
 // Adaptadores entre o computador central e os sistemas reais da nave.
 // Ponte e Engenharia consultam e comandam a mesma fonte de estado.
-const PROPULSION_INPUTS = new Set(['throttle', 'braking', 'warpDriveButton']);
+const PROPULSION_INPUTS = new Set(['throttle', 'braking', 'warpDriveButton', 'maneuverLeft', 'maneuverRight', 'maneuverUp', 'maneuverDown']);
 const CONTROL_AUTHORITIES = new Set(['bridge', 'engineering', 'automatic']);
 const WARP_EXIT_MODES = new Set(['smooth', 'direct']);
 
@@ -37,6 +37,11 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
       available: true,
       authority: state.propulsionAuthority || 'bridge',
       speed: state.speed,
+      speedUnit: 'm/s',
+      warpSpeedC: Number(state.warpSpeedC) || 0,
+      warpSafetyLock: Boolean(state.warpSafetyLock),
+      maneuver: { ...(state.maneuver || {}) },
+      maneuveringAssist: state.maneuveringAssist !== false,
       fuel: state.fuel,
       refinedDilithium: state.refinedDilithium,
       warpDriveActive,
@@ -61,7 +66,13 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
         : Number(state.refinedDilithium) > 0;
       if (!hasWarpResource) return { accepted: false, reason: integrated ? 'plasma-unavailable' : 'dilithium-unavailable' };
     }
-    state[control] = active;
+    if (control.startsWith('maneuver')) {
+      const direction = control.slice('maneuver'.length).toLowerCase();
+      state.maneuver ||= { left: false, right: false, up: false, down: false };
+      state.maneuver[direction] = active;
+    } else {
+      state[control] = active;
+    }
     if (control === 'warpDriveButton' && active) state.warpStage = 5;
     return { accepted: true, control, active, authority: state.propulsionAuthority };
   };
@@ -69,6 +80,7 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
     // A dobra é um modo travado, não uma entrada momentânea como acelerador/freio.
     state.throttle = false;
     state.braking = false;
+    state.maneuver = { left: false, right: false, up: false, down: false };
   };
   const requireEngineering = context => context?.terminalId === 'engineering-console';
 
@@ -260,7 +272,7 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
         const stage = Math.round(Number(payload?.stage));
         if (!Number.isInteger(stage) || stage < 1 || stage > 5) return { accepted: false, reason: 'invalid-warp-stage' };
         state.warpStage = stage;
-        return { accepted: true, stage, targetSpeed: [0, 115, 155, 205, 270, 350][stage] };
+        return { accepted: true, stage, targetSpeed: WARP_STAGE_SPEEDS[stage], speedUnit: 'c' };
       },
       setWarpExitMode: (payload, context) => {
         if (!requireEngineering(context)) return { accepted: false, reason: 'engineering-terminal-required' };

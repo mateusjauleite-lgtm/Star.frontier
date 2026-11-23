@@ -28,7 +28,7 @@ export function createGameplayFramePhases(getDependencies) {
     updateExternalElevatorInteraction();
     // A nave continua em movimento enquanto a tripulação está a pé,
     // inclusive durante a dobra iniciada ou monitorada pelo console de Engenharia.
-    if (state && (Number(state.speed) > 0.01 || state.warpDriveActive || state.warpDriveButton || state.warpTransition === 'exiting')) {
+    if (state && (Number(state.speed) > 0.01 || state.warpDriveActive || state.warpDriveButton || state.warpTransition === 'exiting' || Object.values(state.maneuver || {}).some(Boolean) || (state.maneuveringAssist !== false && Number(state.altitudeMeters) <= 25000))) {
       updateFlight(dt);
     }
     updateCharacterCamera();
