@@ -2,6 +2,11 @@ import {
   EARTH_MEAN_RADIUS_METERS,
   createPhysicalScale
 } from './physicalScale.js';
+import {
+  EARTH_GRAVITATIONAL_PARAMETER_M3_S2,
+  EARTH_SIDEREAL_ROTATION_RAD_S,
+  EARTH_AXIAL_TILT_DEGREES
+} from '../../physics/planetaryGravitySystem.js';
 
 /**
  * Physical Earth reference profile. All measurements are SI; render-space
@@ -15,7 +20,13 @@ export const EARTH_PLANETARY_PROFILE = Object.freeze({
     meanRadiusKm: EARTH_MEAN_RADIUS_METERS / 1000,
     equatorialRadiusKm: 6378.137,
     polarRadiusKm: 6356.7523142,
-    standardGravityMps2: 9.80665
+    standardGravityMps2: 9.80665,
+    gravitationalParameterM3S2: EARTH_GRAVITATIONAL_PARAMETER_M3_S2
+  }),
+  rotation: Object.freeze({
+    siderealAngularVelocityRadS: EARTH_SIDEREAL_ROTATION_RAD_S,
+    axialTiltDegrees: EARTH_AXIAL_TILT_DEGREES,
+    siderealPeriodSeconds: 86164.0905
   }),
   atmosphere: Object.freeze({
     referenceHeightKm: 100,
