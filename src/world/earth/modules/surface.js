@@ -3,7 +3,7 @@ export const EARTH_SURFACE_MODULE = Object.freeze({
   id: 'surface', label: 'Superfície e continentes', domain: 'surface',
   status: 'preview', enabledByDefault: true, dependsOn: [],
   referenceScopes: ['continents', 'surface', 'global-imagery'],
-  baselineTarget: 'modular-earth-surface',
+  baselineTarget: 'nasa-blue-marble-surface',
   responsibilities: ['surface-materials', 'continental-mapping', 'coastlines'],
-  implementation: './runtime/surface.js'
+  implementation: './runtime/blueMarbleSurface.js'
 });
