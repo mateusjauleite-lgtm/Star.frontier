@@ -3397,6 +3397,22 @@ $('navigation-panel-open-btn')?.addEventListener('click', () => {
 $('navigation-panel-close-btn')?.addEventListener('click', () => {
   $('navigation-full-panel')?.classList.add('hidden');
 });
+
+// Painéis do HUD: um abre por vez; tocar novamente no ativo recolhe o painel.
+document.querySelectorAll('[data-instrument-panel]').forEach(button => {
+  button.addEventListener('click', () => {
+    const target = $(button.getAttribute('aria-controls'));
+    if (!target) return;
+    const shouldOpen = target.classList.contains('hidden');
+    document.querySelectorAll('[data-instrument-panel]').forEach(otherButton => {
+      const otherPanel = $(otherButton.getAttribute('aria-controls'));
+      const isOpen = otherButton === button && shouldOpen;
+      otherButton.setAttribute('aria-expanded', String(isOpen));
+      otherPanel?.classList.toggle('hidden', !isOpen);
+      otherPanel?.setAttribute('aria-hidden', String(!isOpen));
+    });
+  });
+});
 applyHudProfileVisibility(activePilotHudProfile);
 applyHudLayout('character', readHudLayout('character'));
 applyHudLayout('pilot', pilotHudProfiles.getLayout(activePilotHudProfile), activePilotHudProfile);
