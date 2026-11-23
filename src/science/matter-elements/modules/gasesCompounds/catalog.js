@@ -1,0 +1,9 @@
+import { MATTER_CATEGORIES as C } from '../../constants.js';
+
+export const gasesCompounds = [
+  { id: 'compound.water', name: 'Água', formula: 'H2O', category: C.COMPOUND, state: 'liquid', description: 'Composto molecular essencial aos processos biológicos terrestres.', composition: [{ elementId: 'element.hydrogen', fraction: 0.1119 }, { elementId: 'element.oxygen', fraction: 0.8881 }], properties: { molarMassGmol: 18.015, meltingPointK: 273.15, boilingPointK: 373.15 }, tags: ['líquido', 'solvente'] },
+  { id: 'compound.carbon-dioxide', name: 'Dióxido de carbono', formula: 'CO2', category: C.COMPOUND, state: 'gas', description: 'Gás atmosférico relevante ao ciclo do carbono e ao efeito estufa.', composition: [{ elementId: 'element.carbon', fraction: 0.2729 }, { elementId: 'element.oxygen', fraction: 0.7271 }], properties: { molarMassGmol: 44.01 }, tags: ['gás', 'atmosfera'] },
+  { id: 'compound.methane', name: 'Metano', formula: 'CH4', category: C.COMPOUND, state: 'gas', description: 'Hidrocarboneto simples encontrado em ambientes geológicos e atmosféricos.', composition: [{ elementId: 'element.carbon', fraction: 0.7487 }, { elementId: 'element.hydrogen', fraction: 0.2513 }], properties: { molarMassGmol: 16.043 }, tags: ['gás', 'hidrocarboneto'] },
+  { id: 'compound.ammonia', name: 'Amônia', formula: 'NH3', category: C.COMPOUND, state: 'gas', description: 'Composto de nitrogênio e hidrogênio presente em ambientes planetários e interestelares.', composition: [{ elementId: 'element.nitrogen', fraction: 0.8224 }, { elementId: 'element.hydrogen', fraction: 0.1776 }], properties: { molarMassGmol: 17.031 }, tags: ['gás', 'nitrogenado'] },
+  { id: 'compound.oxygen-gas', name: 'Oxigênio molecular', formula: 'O2', category: C.COMPOUND, state: 'gas', description: 'Forma molecular diatômica do elemento oxigênio.', composition: [{ elementId: 'element.oxygen', fraction: 1 }], properties: { molarMassGmol: 31.998 }, tags: ['gás', 'oxidante'] },
+];
