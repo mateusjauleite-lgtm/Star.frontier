@@ -177,7 +177,8 @@ export async function createGameWorld({
 
   const orbitSystem = createOrbitSystem({
     center: EARTH_WORLD_CENTER,
-    radius: EARTH_ORBIT_RADIUS_UNITS
+    radius: EARTH_ORBIT_RADIUS_UNITS,
+    gravitySystem: planetaryGravitySystem
   });
   scene.add(orbitSystem.group);
 
