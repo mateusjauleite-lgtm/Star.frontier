@@ -4,6 +4,7 @@
  * responses are intentionally preserved; this module does not use SI units.
  */
 import { STATION_WORLD_POSITION } from '../../world/earth/worldScale.js';
+import { calculateManeuveringAcceleration, getConventionalSpeedLimit, integrateWorldVelocity, projectRadialVelocity, SPEED_OF_LIGHT_MPS } from '../systems/maneuveringThrusterSystem.js';
 
 export function createShipFlightController(dependencies = {}) {
   const {
@@ -15,7 +16,10 @@ export function createShipFlightController(dependencies = {}) {
     getShipVisual,
     getEngineFlames,
     getEngineLights,
+    getManeuveringFlames = () => [],
+    getManeuveringLights = () => [],
     getEarthSystem,
+    getGravityKernel = () => null,
     getLandingGearContactPoints = () => [],
     getLandingAutopilot,
     getFlightQuaternion,
@@ -48,12 +52,13 @@ export function createShipFlightController(dependencies = {}) {
       Number.isFinite(deltaSeconds) ? deltaSeconds : 0, 0, 0.04
     );
     const sensitivity = Number(state.settings.sensitivity) || 1;
-    const hasPropulsion = state.fuel > 0 || state.refinedDilithium > 0;
+    const hasPropulsion = state.fuel > 0 || state.refinedDilithium > 0 || state.maneuveringAssist !== false;
     const moveX = hasPropulsion ? state.move.x : 0;
     const moveY = hasPropulsion ? state.move.y : 0;
     const manualOverride = Math.abs(moveX) > 0.015 ||
       Math.abs(moveY) > 0.015 ||
-      state.throttle || state.braking || state.warpDriveButton;
+      state.throttle || state.braking || state.warpDriveButton ||
+      Object.values(state.maneuver || {}).some(Boolean);
 
     if (manualOverride && ship.userData.earthSurfaceAnchored) {
       ship.userData.earthSurfaceAnchored = false;
@@ -84,6 +89,75 @@ export function createShipFlightController(dependencies = {}) {
       shipVisual.rotation.z, targetRoll, Math.min(1, safeDt * 3)
     );
 
+    // Referencial SI: o mundo usa 1 unidade visual por metro.
+    ship.parent?.updateWorldMatrix(true, false);
+    const currentWorldPosition = ship.getWorldPosition(new THREE.Vector3());
+    const earthSystem = getEarthSystem?.();
+    const earthCenter = earthSystem?.group?.getWorldPosition(new THREE.Vector3());
+    const planetaryProfile = earthSystem?.getPlanetaryProfile?.();
+    const earthRadius = Number(planetaryProfile?.render?.visualRadiusUnits) || 6371008.8;
+    const surfaceGravity = Number(planetaryProfile?.physical?.standardGravityMps2) || 9.80665;
+    let altitudeMeters = Infinity;
+    let gravityAcceleration = [0, 0, 0];
+    let radialUp = new THREE.Vector3(0, 1, 0);
+    if (earthCenter) {
+      const radial = currentWorldPosition.clone().sub(earthCenter);
+      const distance = radial.length();
+      altitudeMeters = Math.max(0, distance - earthRadius);
+      if (distance > 1) radialUp.copy(radial).normalize();
+      state.altitudeMeters = altitudeMeters;
+      state.conventionalSpeedLimit = getConventionalSpeedLimit(altitudeMeters);
+      // O campo de dobra fica bloqueado dentro do envelope planetário e de aproximação.
+      state.warpSafetyLock = altitudeMeters < earthRadius * 3;
+      if (altitudeMeters <= 250000) {
+        const mu = surfaceGravity * earthRadius * earthRadius;
+        const acceleration = getGravityKernel?.()?.acceleration?.({
+          position: currentWorldPosition.toArray(),
+          bodies: [{ position: earthCenter.toArray(), mu }]
+        });
+        if (acceleration) gravityAcceleration = acceleration;
+        else {
+          const factor = -mu / Math.pow(distance, 3);
+          gravityAcceleration = radial.toArray().map(value => value * factor);
+        }
+      } else {
+        state.gravityVelocity = [0, 0, 0];
+      }
+    } else {
+      state.altitudeMeters = Infinity;
+      state.conventionalSpeedLimit = getConventionalSpeedLimit(Infinity);
+      state.warpSafetyLock = false;
+    }
+
+    const flightQuaternion = getFlightQuaternion();
+    const forwardVector = getForwardVector();
+    shipVisual.getWorldQuaternion(flightQuaternion);
+    forwardVector.set(0, 0, -1).applyQuaternion(flightQuaternion).normalize();
+    const shipRight = new THREE.Vector3(1, 0, 0).applyQuaternion(flightQuaternion).normalize();
+    const maneuver = state.maneuver || {};
+    const lateralInput = (maneuver.right ? 1 : 0) - (maneuver.left ? 1 : 0);
+    const verticalInput = (maneuver.up ? 1 : 0) - (maneuver.down ? 1 : 0);
+    const currentGravityVelocity = Array.isArray(state.gravityVelocity) && state.gravityVelocity.length === 3
+      ? state.gravityVelocity : [0, 0, 0];
+    const radialVelocity = projectRadialVelocity(currentGravityVelocity, radialUp.toArray());
+    const maneuverAcceleration = calculateManeuveringAcceleration({
+      gravityAcceleration,
+      radialUp: radialUp.toArray(),
+      shipRight: shipRight.toArray(),
+      lateralInput,
+      verticalInput,
+      altitudeMeters,
+      assistEnabled: state.maneuveringAssist !== false,
+      radialVelocity
+    });
+    if (earthCenter && altitudeMeters <= 250000 && !state.warpDriveActive) {
+      state.gravityVelocity = integrateWorldVelocity(
+        currentGravityVelocity,
+        gravityAcceleration.map((value, axis) => value + maneuverAcceleration[axis]),
+        safeDt,
+        300
+      ) || currentGravityVelocity;
+    }
     const warpDriveActive = advanceFlightDynamics(state, safeDt);
 
     shipAudio.updateFlight({
@@ -99,15 +173,21 @@ export function createShipFlightController(dependencies = {}) {
       dt: safeDt
     });
 
-    // O nariz do casco está no eixo local -Z; a direção é calculada no mundo.
-    const flightQuaternion = getFlightQuaternion();
-    const forwardVector = getForwardVector();
-    shipVisual.getWorldQuaternion(flightQuaternion);
-    forwardVector.set(0, 0, -1).applyQuaternion(flightQuaternion).normalize();
-
-    ship.parent?.updateWorldMatrix(true, false);
-    const nextShipWorldPosition = ship.getWorldPosition(new THREE.Vector3())
-      .addScaledVector(forwardVector, state.speed * safeDt * 0.45);
+    // O nariz do casco está no eixo local -Z. Velocidade convencional em m/s;
+    // dobra usa c e só pode atuar fora do envelope planetário.
+    const nextShipWorldPosition = currentWorldPosition.clone();
+    if (warpDriveActive) {
+      const warpMetersPerSecond = SPEED_OF_LIGHT_MPS * Math.max(0, Number(state.warpSpeedC) || 0);
+      nextShipWorldPosition.addScaledVector(forwardVector, warpMetersPerSecond * safeDt);
+      state.gravityVelocity = [0, 0, 0];
+    } else {
+      nextShipWorldPosition.addScaledVector(forwardVector, state.speed * safeDt);
+      if (Array.isArray(state.gravityVelocity)) {
+        nextShipWorldPosition.addScaledVector(
+          new THREE.Vector3(...state.gravityVelocity), safeDt
+        );
+      }
+    }
     if (ship.parent) {
       ship.position.copy(ship.parent.worldToLocal(nextShipWorldPosition));
     } else {
@@ -207,6 +287,19 @@ export function createShipFlightController(dependencies = {}) {
       ship.userData.earthLandingContactPoint = closestContact.clearance;
     }
 
+    // Plumas inferiores respondem aos manobradores e ao assistente de descida.
+    const maneuveringActive = Boolean(lateralInput || verticalInput ||
+      (earthCenter && altitudeMeters <= 25000 && state.maneuveringAssist !== false));
+    (getManeuveringFlames() || []).forEach(flame => {
+      flame.visible = maneuveringActive;
+      if (flame.material) flame.material.opacity = maneuveringActive ? (verticalInput < 0 ? 0.72 : 0.42) : 0;
+      const pulse = 0.85 + Math.min(1, Math.abs(lateralInput) + Math.abs(verticalInput)) * 0.5;
+      flame.scale.set(pulse, pulse, pulse);
+    });
+    (getManeuveringLights() || []).forEach(light => {
+      light.intensity = maneuveringActive ? 1.5 + Math.abs(lateralInput) + Math.abs(verticalInput) : 0;
+    });
+
     // Efeitos das nacelles.
     const warpStage = Number(state.warpCurrentStage) || 0;
     const enginePower = warpDriveActive ? 1.25 + warpStage * 0.35 : (state.throttle ? 1.25 : 0.65);
@@ -232,7 +325,7 @@ export function createShipFlightController(dependencies = {}) {
     const dilithiumReadout = getElement('warp-dilithium-readout');
     if (dilithiumReadout) dilithiumReadout.textContent = (Math.max(0, Number(state.refinedDilithium) || 0)).toFixed(2) + ' u';
     const warpSpeedReadout = getElement('warp-speed-readout');
-    if (warpSpeedReadout) warpSpeedReadout.textContent = String(Math.round(state.speed));
+    if (warpSpeedReadout) warpSpeedReadout.textContent = (Math.max(0, Number(state.warpSpeedC) || 0)).toFixed(1) + ' c';
     const stageControls = getElement('warp-stage-controls');
     if (stageControls) stageControls.hidden = !warpDriveActive;
     const stageButtons = getElement('warp-stage-controls')?.querySelectorAll('[data-warp-stage]') || [];
