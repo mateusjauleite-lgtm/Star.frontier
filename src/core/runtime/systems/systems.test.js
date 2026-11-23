@@ -63,6 +63,23 @@ test('game runtime systems are registered in deterministic lifecycle order', () 
   assert.deepEqual(runtime.systems.map(system => system.priority), [5, 10, 20, 30, 40, 39, 40, 45, 45]);
 });
 
+test('camera runtime is registered before gameplay at its dedicated priority', () => {
+  const runtime = fakeRuntime();
+  const cameraRuntime = {
+    priority: 35,
+    initialize() {},
+    update() {},
+    shutdown() {}
+  };
+  registerGameRuntimeSystems(runtime, { ...dependencies(), cameraRuntime });
+
+  const cameraIndex = runtime.systems.findIndex(system => system.name === 'camera-runtime');
+  const gameplayIndex = runtime.systems.findIndex(system => system.name === 'gameplay');
+  assert.equal(cameraIndex >= 0, true);
+  assert.equal(runtime.systems[cameraIndex].priority, 35);
+  assert.equal(cameraIndex < gameplayIndex, true);
+});
+
 test('EntityManager is exposed in runtime context and detached without losing its data', async () => {
   const runtime = fakeRuntime();
   const manager = new EntityManager({ idFactory: () => 'ship-01', eventEmitter() {} });
