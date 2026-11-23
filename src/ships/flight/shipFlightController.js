@@ -345,6 +345,8 @@ export function createShipFlightController(dependencies = {}) {
     if (warpButton) {
       warpButton.classList.toggle('active', warpDriveActive || Boolean(state.warpDriveButton));
       warpButton.textContent = warpDriveActive ? '⚡ DESATIVAR DOBRA' : state.warpTransition === 'exiting' ? 'SAINDO DA DOBRA' : '⚡ ATIVAR DOBRA';
+      warpButton.disabled = Boolean(state.warpSafetyLock && !warpDriveActive);
+      warpButton.title = state.warpSafetyLock ? 'Dobra bloqueada no envelope planetário' : 'Ativar propulsão de dobra';
       warpButton.setAttribute('aria-pressed', String(Boolean(state.warpDriveButton)));
     }
     return true;
