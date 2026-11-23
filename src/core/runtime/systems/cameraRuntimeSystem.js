@@ -29,6 +29,8 @@ export function createCameraRuntimeSystem({
     },
     updateActive() {
       if (!initialized) return false;
+      cameraState.setShipMode(getShipMode());
+      cameraState.setCharacterMode(getCharacterCameraMode());
       const onFoot = getCharacterMode() === 'on-foot';
       const controller = onFoot ? characterController : shipController;
       const id = onFoot ? 'character' : 'ship';
