@@ -39,7 +39,13 @@ export const state = {
   hull: 100,
   shield: 100,
   shieldEnabled: true,
-  speed: 0,
+  speed: 0, // velocidade convencional em m/s
+  warpSpeedC: 0, // velocidade de dobra em múltiplos de c
+  gravityVelocity: [0, 0, 0], // componente de velocidade mundial não longitudinal, em m/s
+  conventionalSpeedLimit: 12000,
+  warpSafetyLock: false,
+  maneuveringAssist: true,
+  maneuver: { left: false, right: false, up: false, down: false },
   ship: 'Nave exploradora',
   character: 'Explorador',
   camera: 2,
@@ -93,6 +99,10 @@ export function resetTransientState() {
   state.aim = { x: 0, y: 0 };
   state.view = { x: 0, y: 0 };
   state.throttle = false;
+  state.maneuver = { left: false, right: false, up: false, down: false };
+  state.gravityVelocity = [0, 0, 0];
+  state.warpSpeedC = 0;
+  state.warpSafetyLock = false;
   state.braking = false;
   state.warpDriveButton = false;
   state.warpCorePowerBusConnected = false;
