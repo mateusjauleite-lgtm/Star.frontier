@@ -10,7 +10,7 @@ import {
   STATION_WORLD_POSITION
 } from './worldScale.js';
 
-test('Earth render radius uses kilometres as render units without changing ship geometry', () => {
+test('Earth render radius uses metres as render units without changing ship geometry', () => {
   assert.ok(Math.abs(EARTH_RENDER_RADIUS_UNITS - 6371008.8) < 1e-9);
   assert.ok(Math.abs(EARTH_WORLD_SCALE_FACTOR - 6371008.8 / 600) < 1e-12);
   assert.ok(Math.abs(EARTH_WORLD_CENTER[2] + 850 * EARTH_WORLD_SCALE_FACTOR) < 1e-9);
