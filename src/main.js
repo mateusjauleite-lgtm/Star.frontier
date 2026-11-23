@@ -1307,7 +1307,7 @@ function updateFlight(dt) {
     stageButton.setAttribute('aria-pressed', String(selected));
   });
   const moveStick = $('move-stick');
-  const hasPropulsion = Number(state.fuel) > 0 || Number(state.refinedDilithium) > 0;
+  const hasPropulsion = Number(state.fuel) > 0 || Number(state.refinedDilithium) > 0 || state.maneuveringAssist !== false;
   if (moveStick) {
     moveStick.classList.toggle('no-propulsion', !hasPropulsion);
     moveStick.setAttribute('aria-disabled', String(!hasPropulsion));
@@ -2351,7 +2351,7 @@ function bindStick(id, key) {
 
   const knob = element.querySelector('.knob');
   let pointer = null;
-  const hasPropulsion = () => Number(state.fuel) > 0 || Number(state.refinedDilithium) > 0;
+  const hasPropulsion = () => Number(state.fuel) > 0 || Number(state.refinedDilithium) > 0 || state.maneuveringAssist !== false;
   const reset = () => {
     state[key].x = 0;
     state[key].y = 0;
@@ -2691,7 +2691,7 @@ document.addEventListener('visibilitychange', () => {
 registerAimControls({ document, THREE, state });
 const instrumentBindings = [
   ['hull', 'hull-bar', 100], ['shield', 'shield-bar', 100],
-  ['fuel', 'fuel-bar', 100], ['speed', 'speed-bar', 100]
+  ['fuel', 'fuel-bar', 100], ['speed', 'speed-bar', 12000]
 ];
 const updateInstrumentBars = () => instrumentBindings.forEach(([valueId, barId, max]) => {
   const value = Number($(valueId)?.textContent?.replace(',', '.')) || 0;
