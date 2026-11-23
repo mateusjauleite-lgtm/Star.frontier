@@ -70,8 +70,8 @@ export const EARTH_GLOBAL_SURFACE_SEGMENTS = Object.freeze({ width: 360, height:
 // then increases detail only when the camera approaches. Local ETOPO patches
 // remain independent and continue to use the authoritative collision sampler.
 export const EARTH_LOD_SEGMENTS = Object.freeze([
-  Object.freeze({ width: 90, height: 45 }),
-  Object.freeze({ width: 180, height: 90 }),
+  Object.freeze({ width: 144, height: 72 }),
+  Object.freeze({ width: 216, height: 108 }),
   Object.freeze({ width: 360, height: 180 }),
   Object.freeze({ width: 540, height: 270 })
 ]);

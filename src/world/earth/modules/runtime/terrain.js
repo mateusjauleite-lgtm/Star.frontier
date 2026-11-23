@@ -149,7 +149,7 @@ export function createTerrainRuntime({ options, layers }) {
         (grid.east ?? 180) > (grid.west ?? -180) &&
         (grid.north ?? 90) > (grid.south ?? -90)
       );
-      const exaggeration = Math.max(1, options.terrainVerticalExaggeration ?? 8);
+      const exaggeration = Math.max(1, options.terrainVerticalExaggeration ?? 16);
       const radius = options.radius;
       let elevationRevision = 0;
       const getLodGeometries = () => surface.userData?.earthLodGeometries ?? [surface.geometry];
@@ -274,6 +274,7 @@ export function createTerrainRuntime({ options, layers }) {
             ? { state: 'disabled', reason: 'load-disabled' }
             : { state: 'loading', source: 'procedural-fallback-active' },
         verticalExaggeration: exaggeration,
+        visualVerticalExaggeration: exaggeration,
         computeBackend: earthKernel.backend,
         unitsPerKm,
         waterGeometry: false,

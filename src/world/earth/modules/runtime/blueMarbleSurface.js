@@ -52,6 +52,7 @@ export function createBlueMarbleSurfaceRuntime({
       layers.surfaceVisual = {
         source: 'NASA Blue Marble Next Generation',
         texture: EARTH_BLUE_MARBLE_TEXTURE_PATH,
+        relief: 'ETOPO/DEM mesh displacement',
         state: textureState,
         resolution: '4096x2048 (optimized from NASA 5400x2700)',
         attribution: 'NASA Earth Observatory'

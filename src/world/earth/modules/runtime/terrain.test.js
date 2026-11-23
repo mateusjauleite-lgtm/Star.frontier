@@ -172,15 +172,16 @@ test('keeps the global ETOPO source independent from the active render-mesh reso
   assert.equal(EARTH_GLOBAL_SURFACE_SEGMENTS.width, 360);
   assert.equal(EARTH_GLOBAL_SURFACE_SEGMENTS.height, 180);
   assert.deepEqual(EARTH_LOD_SEGMENTS, [
-    { width: 90, height: 45 },
-    { width: 180, height: 90 },
+    { width: 144, height: 72 },
+    { width: 216, height: 108 },
     { width: 360, height: 180 },
     { width: 540, height: 270 }
   ]);
   const vertexCounts = EARTH_LOD_SEGMENTS.map(level =>
     (level.width + 1) * (level.height + 1)
   );
-  assert.ok(vertexCounts[0] < 5000);
+  // The coarsest global LOD is intentionally lightweight at 10,585 vertices.
+  assert.ok(vertexCounts[0] < 11000);
   assert.ok(vertexCounts[3] < 300000);
   assert.ok(vertexCounts[3] < ETOPO_2022_GLOBAL_GRID.width * ETOPO_2022_GLOBAL_GRID.height);
 });
