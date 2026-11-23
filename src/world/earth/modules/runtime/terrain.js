@@ -1,11 +1,11 @@
 import * as THREE from 'three';
-import { createEarthLandMask } from './surface.js';
 import { createEarthKernelAdapter, loadEarthKernel } from '../../wasm/earthKernel.js';
 import { loadEtopo2022GlobalGrid } from '../../references/etopo2022.js';
 import { createEarthRegionalSurfaceRuntime } from './regionalSurface.js';
 import { createTerrariumElevationProvider } from '../../references/regionalElevation.js';
 
 export const EARTH_DEFAULT_TERRAIN_VERTICAL_EXAGGERATION = 1;
+export const EARTH_NO_DEM_FALLBACK_ELEVATION_METERS = 0;
 
 const clamp01 = value => THREE.MathUtils.clamp(value, 0, 1);
 const surfacePatchDispose = patch => {
@@ -13,11 +13,6 @@ const surfacePatchDispose = patch => {
   patch.geometry?.dispose();
   patch.material?.dispose();
 };
-const smoothstep = (a, b, value) => {
-  const t = clamp01((value - a) / (b - a));
-  return t * t * (3 - 2 * t);
-};
-
 export function calculateEtopoPatchSegments(radiusKm, latitudeDeg, grid = null, maxSegments = 128) {
   if (!Number.isFinite(radiusKm) || radiusKm <= 0 ||
       !Number.isFinite(latitudeDeg) || !Number.isFinite(maxSegments)) return 8;
@@ -82,34 +77,7 @@ export function sampleEarthElevationGrid(grid, longitudeDeg, latitudeDeg) {
     sum + (weights[index] ? value * weights[index] : 0), 0);
 }
 
-function proceduralFallback(longitude, latitude, radius, land) {
-  const continentalShape =
-    Math.sin(longitude * 2.35 + Math.sin(latitude * 3.7) * .72) *
-    Math.cos(latitude * 5.4 - longitude * .86);
-  const plateau = Math.max(0, continentalShape * .5 + .5);
-  const plainVariation =
-    Math.sin(longitude * 13.1 + Math.sin(latitude * 8.2)) *
-    Math.cos(latitude * 17.3 - longitude * 3.1);
-  const tectonicWave =
-    Math.sin(longitude * 5.1 + Math.sin(latitude * 7.4) * 1.35) *
-    Math.cos(latitude * 9.2 - longitude * 1.8);
-  const mountainBelt = Math.pow(Math.max(0, 1 - Math.abs(tectonicWave)), 3.2);
-  const highland = Math.pow(Math.max(0, plateau - .58), 1.7);
-  const oceanWave =
-    Math.sin(longitude * 4.3 + Math.sin(latitude * 2.8)) *
-    Math.cos(latitude * 6.1 - longitude * 1.4);
-  const oceanBasin = Math.pow(Math.max(0, 1 - Math.abs(oceanWave)), 4);
-
-  const continental = radius * (
-    .0012 + plateau * .0022 + mountainBelt * .014 +
-    highland * .004 + plainVariation * .00035
-  );
-  const oceanic = -radius * (.006 + oceanBasin * .004 + Math.abs(oceanWave) * .001);
-  return THREE.MathUtils.lerp(oceanic, continental, land);
-}
-
 export function createTerrainRuntime({ options, layers }) {
-  let maskCanvas, maskData;
   let elevationSampler = null;
   let earthKernel = createEarthKernelAdapter();
   let heightScale = 1;
@@ -133,12 +101,6 @@ export function createTerrainRuntime({ options, layers }) {
     initialize() {
       const surface = layers.surface;
       if (!surface?.geometry) return;
-
-      // The fallback mask is not the authoritative ETOPO grid; keep it lighter
-      // so startup does not allocate and read an unnecessary 2M-pixel canvas.
-      maskCanvas = createEarthLandMask(1024, 512);
-      const context = maskCanvas.getContext('2d');
-      maskData = context.getImageData(0, 0, maskCanvas.width, maskCanvas.height).data;
 
       let grid = options.elevationGrid ?? null;
       let gridIsReady = Boolean(
@@ -168,7 +130,6 @@ export function createTerrainRuntime({ options, layers }) {
         }
       });
       const direction = new THREE.Vector3();
-      const width = maskCanvas.width, height = maskCanvas.height;
       const unitsPerKm = physicalScale.kmToRenderUnits(1);
       heightScale = exaggeration;
 
@@ -195,18 +156,12 @@ export function createTerrainRuntime({ options, layers }) {
           }
         }
 
-        const lon = THREE.MathUtils.degToRad(longitudeDeg);
-        const lat = THREE.MathUtils.degToRad(latitudeDeg);
-        const u = (longitudeDeg + 180) / 360;
-        const v = (90 - latitudeDeg) / 180;
-        const px = Math.min(width - 1, Math.max(0, Math.floor(u * (width - 1))));
-        const py = Math.min(height - 1, Math.max(0, Math.floor(v * (height - 1))));
-        const land = smoothstep(.08, .92, maskData[(py * width + px) * 4] / 255);
-        const baseUnits = proceduralFallback(lon, lat, radius, land);
-        const detailMeters = earthKernel.proceduralDetailMeters(longitudeDeg, latitudeDeg, 2600);
-        const detailUnits = detailMeters === null ? 0 :
-          physicalScale.metersToRenderUnits(detailMeters) * exaggeration;
-        return baseUnits + (land > .5 && detailUnits !== null ? detailUnits : 0);
+        // Never invent geographic features when elevation data is unavailable.
+        // Keep the reference sphere at zero elevation until ETOPO or a regional
+        // DEM tile supplies a real measurement; rendering and collision share it.
+        return physicalScale.metersToRenderUnits(
+          EARTH_NO_DEM_FALLBACK_ELEVATION_METERS
+        ) * exaggeration;
       };
 
       const applyElevationToMeshes = async () => {
@@ -266,14 +221,14 @@ export function createTerrainRuntime({ options, layers }) {
         integratedWith: 'surface',
         displacedVertices: positions.count,
         lodLevel: surface.userData?.earthLodLevel ?? 0,
-        elevationSource: gridIsReady ? (grid.source ?? 'provided-global-grid') : 'procedural-fallback',
+        elevationSource: gridIsReady ? (grid.source ?? 'provided-global-grid')  : 'reference-sphere',
         sourceAttribution: grid?.attribution ?? null,
         sourceGridReady: gridIsReady,
         etopoStatus: gridIsReady
           ? { state: 'ready', source: grid.source ?? 'provided-global-grid' }
           : options.loadEtopo === false
             ? { state: 'disabled', reason: 'load-disabled' }
-            : { state: 'loading', source: 'procedural-fallback-active' },
+            : { state: 'loading', source: 'reference-sphere-active' },
         verticalExaggeration: exaggeration,
         visualVerticalExaggeration: exaggeration,
         computeBackend: earthKernel.backend,
@@ -514,7 +469,7 @@ export function createTerrainRuntime({ options, layers }) {
       layers.terrain.regionalSurface = regionalSurfaceRuntime.getStatus();
       layers.terrain.regionalDem = regionalDemProvider.getStatus();
 
-      // Replace the procedural first frame with NOAA ETOPO data. Reusing
+      // Replace the reference-sphere first frame with NOAA ETOPO data. Reusing
       // applyElevationToMeshes also applies the identical no-data fallback
       // used by point queries from the collision surface.
       if (!gridIsReady && options.loadEtopo !== false) {
@@ -526,7 +481,7 @@ export function createTerrainRuntime({ options, layers }) {
             if (status.state === 'ready') {
               console.info('[Earth] NOAA ETOPO loaded:', status);
             } else if (status.state !== 'loading') {
-              console.warn('[Earth] NOAA ETOPO unavailable; procedural terrain remains active:', status);
+              console.warn('[Earth] NOAA ETOPO unavailable; reference-radius terrain remains active:', status);
             }
           }
         }).then(loadedGrid => {
@@ -554,8 +509,8 @@ export function createTerrainRuntime({ options, layers }) {
       }
 
       // Rebuild the visible meshes through the same sampler after WASM is
-      // ready. C++ accelerates the procedural detail calculation; it does not
-      // introduce a second elevation path or a different collision surface.
+      // ready. C++ accelerates batch sampling; it does not introduce a second
+      // elevation path or a different collision surface.
       loadEarthKernel().then(kernel => {
         if (disposed) { kernel.dispose(); return; }
         earthKernel.dispose();
@@ -584,8 +539,6 @@ export function createTerrainRuntime({ options, layers }) {
       highResolutionPatches.clear();
       activeHighResolutionPatch = null;
       lastPatchCenter = null;
-      maskCanvas = null;
-      maskData = null;
       elevationSampler = null;
       earthKernel.dispose();
     }
