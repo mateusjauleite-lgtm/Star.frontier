@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { EARTH_LOD_SEGMENTS, selectEarthLodLevel } from './surface.js';
 
 export const EARTH_BLUE_MARBLE_TEXTURE_PATH =
-  'earth/blue-marble-natural-color.jpg';
+  'earth/blue-marble-topography-bathymetry.jpg';
 
 export function resolveEarthTextureUrl(baseUrl = './') {
   const normalizedBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
@@ -10,9 +10,8 @@ export function resolveEarthTextureUrl(baseUrl = './') {
 }
 
 /**
- * Visual-only Earth albedo based on NASA Blue Marble Next Generation Base Map.
- * The source has no topographic shading: terrain.js alone owns DEM displacement,
- * elevation normals and the shared visual/physical collision surface.
+ * Visual Earth surface based on NASA Blue Marble Next Generation with topography
+ * and bathymetry. Terrain displacement and collision remain owned by terrain.js.
  */
 export function createBlueMarbleSurfaceRuntime({
   surfaceFrame,
@@ -47,15 +46,12 @@ export function createBlueMarbleSurfaceRuntime({
       mesh.name = 'Earth-Blue-Marble-Surface';
       mesh.userData.earthLodGeometries = [geometry];
       mesh.userData.earthLodLevel = currentLevel;
-      mesh.userData.visualSource = 'NASA Blue Marble Next Generation Base Map';
+      mesh.userData.visualSource = 'NASA Blue Marble Next Generation — Topography and Bathymetry';
       surfaceFrame.add(mesh);
       layers.surface = mesh;
       layers.surfaceVisual = {
-        source: 'NASA Blue Marble Next Generation Base Map',
+        source: 'NASA Blue Marble Next Generation — Topography and Bathymetry',
         texture: EARTH_BLUE_MARBLE_TEXTURE_PATH,
-        textureRole: 'natural-color-albedo',
-        relief: 'DEM-only',
-        shading: 'runtime-lighting-and-DEM-derived-normals',
         state: textureState,
         resolution: '4096x2048 (optimized from NASA 5400x2700)',
         attribution: 'NASA Earth Observatory'
@@ -89,7 +85,7 @@ export function createBlueMarbleSurfaceRuntime({
         undefined,
         error => {
           textureState = 'fallback';
-          textureError = error?.message ?? 'NASA natural-color texture could not be loaded';
+          textureError = error?.message ?? 'NASA Blue Marble texture could not be loaded';
           if (layers.surfaceVisual) {
             layers.surfaceVisual.state = textureState;
             layers.surfaceVisual.error = textureError;
@@ -138,10 +134,8 @@ export function createBlueMarbleSurfaceRuntime({
 
     getStatus() {
       return {
-        source: 'NASA Blue Marble Next Generation Base Map',
+        source: 'NASA Blue Marble Next Generation — Topography and Bathymetry',
         texture: EARTH_BLUE_MARBLE_TEXTURE_PATH,
-        textureRole: 'natural-color-albedo',
-        relief: 'DEM-only',
         textureState,
         textureError,
         lodLevel: currentLevel,
