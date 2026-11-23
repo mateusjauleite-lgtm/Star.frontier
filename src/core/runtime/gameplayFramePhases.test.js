@@ -4,9 +4,9 @@ import { createGameplayFramePhases } from './gameplayFramePhases.js';
 
 function fixture() {
   const calls = [];
-  const elements = new Map(['speed', 'fuel', 'cargo', 'hull', 'shield', 'hud-credits', 'hud', 'flight-controls', 'navigation-coordinates', 'navigation-distance', 'navigation-bearing', 'navigation-full-coordinates', 'navigation-full-distance', 'navigation-full-bearing', 'combat-target-name', 'combat-hull', 'combat-shield', 'warp-core-consumption', 'warp-stability-readout']
+  const elements = new Map(['speed', 'fuel', 'cargo', 'hull', 'shield', 'hud-credits', 'hud', 'flight-controls', 'altitude-msl', 'atmosphere-layer', 'vertical-speed', 'terrain-clearance', 'altitude-marker', 'ozone-status', 'navigation-coordinates', 'navigation-distance', 'navigation-bearing', 'navigation-full-coordinates', 'navigation-full-distance', 'navigation-full-bearing', 'combat-target-name', 'combat-hull', 'combat-shield', 'warp-core-consumption', 'warp-stability-readout']
     .map(id => {
-      const element = { _textContent: '' };
+      const element = { _textContent: '', style: {} };
       Object.defineProperty(element, 'textContent', {
         get() { return this._textContent; },
         set(value) { this._textContent = String(value); }
@@ -45,7 +45,7 @@ function fixture() {
     shipEarthContactPoints: [],
     shipLandingGearContactPoints: [],
     forwardVector: {},
-    state: { speed: 12, fuel: 80, cargo: 3, hull: 100, shield: 90, credits: 1250, coreDilithiumConsumedTotal: 4.5 },
+    state: { speed: 12, fuel: 80, cargo: 3, hull: 100, shield: 90, credits: 1250, coreDilithiumConsumedTotal: 4.5, altitudeMeters: 12400, verticalSpeedMps: -120 },
     getActivePilotHudProfile: () => 'navigation',
     updateNavigationSensorMap: () => calls.push(['navigation-sensor-map']),
     orbitSystem: { update: dt => calls.push(['orbits', dt]) },
@@ -195,4 +195,32 @@ test('Alexia interaction availability is re-evaluated outside on-foot mode', () 
   f.phases.updateCharacterMode(0.02);
   assert.equal(f.calls.filter(([name]) => name === 'alexia-interaction').length, 1);
   assert.ok(f.calls.some(([name, dt]) => name === 'alexia-interaction' && dt === 0.02));
+});
+
+test('manual flight HUD shows altitude, atmospheric layer, ozone band and vertical speed', () => {
+  const f = fixture();
+  f.dependencies.ship = { position: { x: 0, y: 0, z: 0 }, userData: {} };
+  f.phases.updateHud();
+  assert.equal(f.elements.get('altitude-msl').textContent, '12,40 km');
+  assert.equal(f.elements.get('atmosphere-layer').textContent, 'ESTRATOSFERA');
+  assert.equal(f.elements.get('ozone-status').textContent, 'FORA DA FAIXA');
+  assert.equal(f.elements.get('vertical-speed').textContent, '120,0 m/s · DESCENDO ↓');
+  assert.ok(Number.parseFloat(f.elements.get('altitude-marker').style.left) > 0);
+  f.dependencies.state.altitudeMeters = 20000;
+  f.phases.updateHud();
+  assert.equal(f.elements.get('ozone-status').textContent, 'NA FAIXA DE OZÔNIO');
+});
+
+test('manual flight HUD reports terrain clearance only when collision telemetry exists', () => {
+  const f = fixture();
+  f.dependencies.ship = { position: { x: 0, y: 0, z: 0 }, userData: { earthLandingContacts: { minimumClearanceUnits: 42.5 } } };
+  f.phases.updateHud();
+  assert.equal(f.elements.get('terrain-clearance').textContent, '42,5 m');
+});
+
+test('manual flight HUD does not turn a null terrain sample into zero clearance', () => {
+  const f = fixture();
+  f.dependencies.ship = { position: { x: 0, y: 0, z: 0 }, userData: { earthLandingContacts: { minimumClearanceUnits: null } } };
+  f.phases.updateHud();
+  assert.equal(f.elements.get('terrain-clearance').textContent, '—');
 });
