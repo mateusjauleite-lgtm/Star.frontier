@@ -51,7 +51,7 @@ function createMineralLabelMaterials() {
     materials[type] = new THREE.SpriteMaterial({
       map: texture,
       transparent: true,
-      depthTest: false,
+      depthTest: true,
       depthWrite: false,
       sizeAttenuation: true
     });
