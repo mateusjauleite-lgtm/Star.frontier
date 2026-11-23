@@ -60,3 +60,14 @@ test('Earth spin and axial tilt use sidereal physical reference values', () => {
   assert.ok(Math.abs(EARTH_SIDEREAL_ROTATION_RAD_S - 7.2921150e-5) < 1e-12);
   assert.ok(Math.abs(EARTH_AXIAL_TILT_DEGREES - 23.439281) < 1e-6);
 });
+
+test('surface launch inherits the velocity created by Earth rotation', () => {
+  const gravity = createPlanetaryGravitySystem({
+    getEarthCenter: () => [0, 0, 0],
+    getEarthSpinAxis: () => [0, 1, 0]
+  });
+  const velocity = gravity.surfaceVelocityAt([6_378_137, 0, 0]);
+  assert.ok(Math.abs(Math.hypot(...velocity) - 465.1) < 0.2);
+  assert.ok(Math.abs(velocity[0]) < 1e-9);
+  assert.ok(Math.abs(velocity[1]) < 1e-9);
+});
