@@ -40,6 +40,7 @@ on:
       - feature/dilithium-inventory-refinery-transfer
       - feature/refinery-hologram-console-interaction
       - main
+      - feature/earth-scale-mineral-field-labels-2026-11-22
       - architecture/modules-skeleton
       - integration/threejs-recovery
       - feature/earth-procedural-lod
