@@ -9,6 +9,7 @@ export function createOrbitSystem(options = {}) {
   const group = new THREE.Group();
   group.name = 'StarFrontier-Orbits';
   group.position.set(...center);
+  group.rotation.z = THREE.MathUtils.degToRad(gravitySystem?.axialTiltDegrees ?? 0);
 
   const orbit = new THREE.Mesh(
     new THREE.TorusGeometry(radius, 0.12, 8, 192),
