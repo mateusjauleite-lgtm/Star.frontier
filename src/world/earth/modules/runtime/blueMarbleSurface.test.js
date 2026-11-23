@@ -5,24 +5,24 @@ import {
   resolveEarthTextureUrl
 } from './blueMarbleSurface.js';
 
-test('packages the NASA natural-color base map under the app base path', () => {
+test('packages the NASA topography/bathymetry texture under the app base path', () => {
   assert.equal(
     resolveEarthTextureUrl('./'),
-    './earth/blue-marble-natural-color.jpg'
+    './earth/blue-marble-topography-bathymetry.jpg'
   );
   assert.equal(
     resolveEarthTextureUrl('/app/'),
-    '/app/earth/blue-marble-natural-color.jpg'
+    '/app/earth/blue-marble-topography-bathymetry.jpg'
   );
   assert.equal(
     EARTH_BLUE_MARBLE_TEXTURE_PATH,
-    'earth/blue-marble-natural-color.jpg'
+    'earth/blue-marble-topography-bathymetry.jpg'
   );
 });
 
 test('normalizes a base path without duplicating separators', () => {
   assert.equal(
     resolveEarthTextureUrl('/app'),
-    '/app/earth/blue-marble-natural-color.jpg'
+    '/app/earth/blue-marble-topography-bathymetry.jpg'
   );
 });
