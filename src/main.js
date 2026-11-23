@@ -1471,9 +1471,12 @@ function isCharacterPositionBlocked(position, deckIndex) {
 function transferCharacterToWorldFrame() {
   if (!characterModel?.group || !shipVisual || !scene || characterInWorldFrame) return false;
   const player = characterModel.group;
+  const launchPosition = player.getWorldPosition(new THREE.Vector3()).toArray();
   if (earthReferenceFrames) earthReferenceFrames.attachToGlobal(player);
   else scene.attach(player);
-  characterWorldVelocity.set(0, 0, 0);
+  const inheritedRotationVelocity = earthSystem?.getPlanetaryGravitySystem?.()
+    ?.surfaceVelocityAt?.(launchPosition);
+  characterWorldVelocity.set(...(inheritedRotationVelocity ?? [0, 0, 0]));
   characterInWorldFrame = true;
   characterWorldGrounded = false;
   characterCore.setGrounded(false);
@@ -1501,32 +1504,49 @@ function updateCharacterWorldPhysics(deltaSeconds) {
   const dt = THREE.MathUtils.clamp(Number.isFinite(deltaSeconds) ? deltaSeconds : 0, 0, 0.05);
   const player = characterModel.group;
   const worldPosition = player.position;
-  const earthCenter = earthSystem?.group?.getWorldPosition(new THREE.Vector3());
-  const profile = earthSystem?.getPlanetaryProfile?.();
-  const radius = profile?.render?.visualRadiusUnits ?? 600;
-  const surfaceGravity = profile?.physical?.standardGravityMps2 ?? 9.80665;
-  const mu = surfaceGravity * radius * radius;
-
-  if (earthCenter && gravityKernel) {
-    const acceleration = gravityKernel.acceleration({
-      position: [worldPosition.x, worldPosition.y, worldPosition.z],
-      bodies: [{
-        position: [earthCenter.x, earthCenter.y, earthCenter.z],
-        mu
-      }]
-    });
-    if (acceleration) {
-      const nextVelocity = gravityKernel.integrateVelocity(
-        [characterWorldVelocity.x, characterWorldVelocity.y, characterWorldVelocity.z],
-        acceleration,
-        dt,
-        180
-      );
-      if (nextVelocity) characterWorldVelocity.set(...nextVelocity);
+  const gravitySystem = earthSystem?.getPlanetaryGravitySystem?.();
+  const currentVelocity = [
+    characterWorldVelocity.x,
+    characterWorldVelocity.y,
+    characterWorldVelocity.z
+  ];
+  if (gravitySystem) {
+    const next = gravitySystem.integrate(
+      [worldPosition.x, worldPosition.y, worldPosition.z],
+      currentVelocity,
+      dt
+    );
+    if (next) {
+      worldPosition.set(...next.position);
+      characterWorldVelocity.set(...next.velocity);
     }
+  } else if (gravityKernel) {
+    const earthCenter = earthSystem?.group?.getWorldPosition(new THREE.Vector3());
+    const profile = earthSystem?.getPlanetaryProfile?.();
+    const radius = profile?.render?.visualRadiusUnits ?? 6_371_008.8;
+    const mu = 3.986004418e14;
+    if (earthCenter) {
+      const acceleration = gravityKernel.acceleration({
+        position: [worldPosition.x, worldPosition.y, worldPosition.z],
+        bodies: [{
+          position: [earthCenter.x, earthCenter.y, earthCenter.z],
+          mu
+        }]
+      });
+      if (acceleration) {
+        const nextVelocity = gravityKernel.integrateVelocity(
+          currentVelocity,
+          acceleration,
+          dt,
+          0
+        );
+        if (nextVelocity) characterWorldVelocity.set(...nextVelocity);
+      }
+    }
+    worldPosition.addScaledVector(characterWorldVelocity, dt);
+  } else {
+    worldPosition.addScaledVector(characterWorldVelocity, dt);
   }
-
-  worldPosition.addScaledVector(characterWorldVelocity, dt);
 
   // O piso do elevador externo tem contato próprio, restrito à sua face
   // superior e somente quando a plataforma está parada no nível terrestre.
