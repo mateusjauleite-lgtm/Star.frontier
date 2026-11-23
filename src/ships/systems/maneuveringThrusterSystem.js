@@ -59,7 +59,7 @@ export function integrateWorldVelocity(velocity, acceleration, deltaSeconds, max
       !Number.isFinite(deltaSeconds) || deltaSeconds < 0) return null;
   const next = velocity.map((value, axis) => value + acceleration[axis] * deltaSeconds);
   const speed = Math.hypot(...next);
-  if (speed > maximumSpeed && speed > 0) {
+  if (maximumSpeed > 0 && speed > maximumSpeed && speed > 0) {
     const factor = maximumSpeed / speed;
     return next.map(value => value * factor);
   }
