@@ -45,6 +45,7 @@ export const state = {
   conventionalSpeedLimit: 12000,
   warpSafetyLock: false,
   maneuveringAssist: true,
+  auxiliaryThrustersActive: false,
   maneuver: { left: false, right: false, up: false, down: false },
   ship: 'Nave exploradora',
   character: 'Explorador',
@@ -103,6 +104,7 @@ export function resetTransientState() {
   state.gravityVelocity = [0, 0, 0];
   state.warpSpeedC = 0;
   state.warpSafetyLock = false;
+  state.auxiliaryThrustersActive = false;
   state.braking = false;
   state.warpDriveButton = false;
   state.warpCorePowerBusConnected = false;
