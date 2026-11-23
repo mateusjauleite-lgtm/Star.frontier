@@ -21,7 +21,8 @@ import {
   EARTH_WORLD_CENTER,
   EARTH_ORBIT_RADIUS_UNITS,
   ASTEROID_FIELD_CENTER,
-  ASTEROID_FIELD_SPREAD
+  ASTEROID_FIELD_SPREAD,
+  STATION_WORLD_POSITION
 } from './earth/worldScale.js';
 
 export async function createGameWorld({
@@ -115,7 +116,7 @@ export async function createGameWorld({
 
   await loadingStep(84, 'Carregando estação orbital e observatório...');
 
-  const stationSystem = createStation({ position: [24, 3, -65] });
+  const stationSystem = createStation({ position: STATION_WORLD_POSITION });
   scene.add(stationSystem.group);
 
   await loadingStep(90, 'Integrando os quatro decks ao casco da nave...');
