@@ -107,7 +107,7 @@ export function createShipFlightController(dependencies = {}) {
       state.conventionalSpeedLimit = getConventionalSpeedLimit(altitudeMeters);
       // O campo de dobra fica bloqueado dentro do envelope planetário e de aproximação.
       state.warpSafetyLock = altitudeMeters < earthRadius * 3;
-      if (altitudeMeters <= 250000) {
+      if (altitudeMeters <= 250000 && distance > 1) {
         const mu = surfaceGravity * earthRadius * earthRadius;
         const acceleration = getGravityKernel?.()?.acceleration?.({
           position: currentWorldPosition.toArray(),
