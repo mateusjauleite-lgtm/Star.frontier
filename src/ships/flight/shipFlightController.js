@@ -2,6 +2,7 @@
  * Owns manual flight, SI propulsion, local gravity compensation and collision responses.
  */
 import { STATION_WORLD_POSITION } from '../../world/earth/worldScale.js';
+import { EARTH_GRAVITATIONAL_PARAMETER_M3_S2 } from '../../physics/planetaryGravitySystem.js';
 import { calculateManeuveringAcceleration, getConventionalSpeedLimit, integrateWorldVelocity, projectRadialVelocity, SPEED_OF_LIGHT_MPS } from '../systems/maneuveringThrusterSystem.js';
 import { calculateAuxiliaryStabilizationAcceleration } from '../systems/auxiliaryThrusterSystem.js';
 
@@ -95,7 +96,6 @@ export function createShipFlightController(dependencies = {}) {
     const earthCenter = earthSystem?.group?.getWorldPosition(new THREE.Vector3());
     const planetaryProfile = earthSystem?.getPlanetaryProfile?.();
     const earthRadius = Number(planetaryProfile?.render?.visualRadiusUnits) || 6371008.8;
-    const surfaceGravity = Number(planetaryProfile?.physical?.standardGravityMps2) || 9.80665;
     let altitudeMeters = Infinity;
     let gravityAcceleration = [0, 0, 0];
     let radialUp = new THREE.Vector3(0, 1, 0);
@@ -112,19 +112,19 @@ export function createShipFlightController(dependencies = {}) {
       state.conventionalSpeedLimit = getConventionalSpeedLimit(altitudeMeters);
       // O campo de dobra fica bloqueado dentro do envelope planetário e de aproximação.
       state.warpSafetyLock = altitudeMeters < earthRadius * 3;
-      if (altitudeMeters <= 250000 && distance > 1) {
-        const mu = surfaceGravity * earthRadius * earthRadius;
+      if (distance > 1) {
         const acceleration = getGravityKernel?.()?.acceleration?.({
           position: currentWorldPosition.toArray(),
-          bodies: [{ position: earthCenter.toArray(), mu }]
+          bodies: [{
+            position: earthCenter.toArray(),
+            mu: EARTH_GRAVITATIONAL_PARAMETER_M3_S2
+          }]
         });
         if (acceleration) gravityAcceleration = acceleration;
         else {
-          const factor = -mu / Math.pow(distance, 3);
+          const factor = -EARTH_GRAVITATIONAL_PARAMETER_M3_S2 / Math.pow(distance, 3);
           gravityAcceleration = radial.toArray().map(value => value * factor);
         }
-      } else {
-        state.gravityVelocity = [0, 0, 0];
       }
     } else {
       state.altitudeMeters = Infinity;
@@ -164,12 +164,12 @@ export function createShipFlightController(dependencies = {}) {
       enabled: true
     });
     state.auxiliaryThrustersActive = Math.hypot(...auxiliaryAcceleration) > 0.1;
-    if (earthCenter && altitudeMeters <= 250000 && !state.warpDriveActive && !(state.warpTransition === 'exiting' && Number(state.warpSpeedC) > 0)) {
+    if (earthCenter && !state.warpDriveActive && !(state.warpTransition === 'exiting' && Number(state.warpSpeedC) > 0)) {
       state.gravityVelocity = integrateWorldVelocity(
         currentGravityVelocity,
         gravityAcceleration.map((value, axis) => value + maneuverAcceleration[axis] + auxiliaryAcceleration[axis]),
         safeDt,
-        300
+        0
       ) || currentGravityVelocity;
     }
     const warpDriveActive = advanceFlightDynamics(state, safeDt);
