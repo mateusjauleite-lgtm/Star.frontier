@@ -141,12 +141,22 @@ jobs:
       - name: Build Three.js web runtime
         run: npm run build
 
+      - name: Verify Blue Marble texture in web bundle
+        run: |
+          test -s dist/earth/blue-marble-topography-bathymetry.jpg
+          ls -lh dist/earth/blue-marble-topography-bathymetry.jpg
+
       - name: Generate and sync native Android project
         run: |
           if [ ! -d android ]; then
             npx cap add android
           fi
           npx cap sync android
+
+      - name: Verify Blue Marble texture in Android assets
+        run: |
+          test -s android/app/src/main/assets/public/earth/blue-marble-topography-bathymetry.jpg
+          ls -lh android/app/src/main/assets/public/earth/blue-marble-topography-bathymetry.jpg
 
       - name: Configure landscape orientation
         run: |
