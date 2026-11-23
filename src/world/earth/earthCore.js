@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { EARTH_AXIAL_TILT_DEGREES } from '../../physics/planetaryGravitySystem.js';
 import { EARTH_REFERENCE_POLICY, EARTH_REFERENCE_SOURCES } from './references/index.js';
 import { EARTH_UPDATE_MODULES } from './modules/index.js';
 import { createEarthUpdatePipeline } from './earthUpdatePipeline.js';
@@ -46,7 +47,7 @@ export function createEarthCore(options = {}) {
   // Frame terrestre compartilhado pela superfície, pelo relevo e pelos atores no solo.
   const surfaceFrame = new THREE.Group();
   surfaceFrame.name = 'StarFrontier-Earth-Terrestrial-Frame';
-  surfaceFrame.rotation.z = THREE.MathUtils.degToRad(11.5);
+  surfaceFrame.rotation.z = THREE.MathUtils.degToRad(EARTH_AXIAL_TILT_DEGREES);
   group.add(surfaceFrame);
 
   const layers = {};
