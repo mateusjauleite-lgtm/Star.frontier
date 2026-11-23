@@ -2409,26 +2409,27 @@ body * {
 /* Controles prioritários da pilotagem: não podem ficar atrás da área de mira. */
 #leave-pilot-btn {
   position: fixed;
-  left: 50%;
-  top: 50%;
+  left: auto;
+  right: max(12px, env(safe-area-inset-right));
+  top: max(52px, env(safe-area-inset-top));
   z-index: 18;
-  transform: translate(-50%, -50%);
-  min-width: 124px;
-  min-height: 46px;
-  padding: 8px 14px;
-  border: 1px solid rgba(67, 217, 255, .78);
-  border-radius: 12px;
-  background: rgba(4, 20, 39, .94);
+  transform: none;
+  min-width: 112px;
+  min-height: 40px;
+  padding: 7px 11px;
+  border: 1px solid rgba(67, 217, 255, .62);
+  border-radius: 10px;
+  background: rgba(4, 20, 39, .82);
   color: var(--cyan);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 800;
-  letter-spacing: .55px;
-  box-shadow: 0 0 18px rgba(67, 217, 255, .24);
+  letter-spacing: .45px;
+  box-shadow: 0 0 12px rgba(67, 217, 255, .14);
   pointer-events: auto;
   touch-action: manipulation;
 }
 #leave-pilot-btn:active {
-  transform: translate(-50%, -50%) scale(.96);
+  transform: scale(.96);
 }
 
 
