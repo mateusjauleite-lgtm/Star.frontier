@@ -175,7 +175,7 @@ export function createShipFlightController(dependencies = {}) {
 
     // O nariz do casco está no eixo local -Z. Velocidade convencional em m/s;
     // dobra usa c e só pode atuar fora do envelope planetário.
-    const nextShipWorldPosition = currentWorldPosition.clone();
+    const nextShipWorldPosition = new THREE.Vector3(currentWorldPosition.x, currentWorldPosition.y, currentWorldPosition.z);
     if (warpDriveActive) {
       const warpMetersPerSecond = SPEED_OF_LIGHT_MPS * Math.max(0, Number(state.warpSpeedC) || 0);
       nextShipWorldPosition.addScaledVector(forwardVector, warpMetersPerSecond * safeDt);
