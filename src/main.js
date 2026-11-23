@@ -2336,7 +2336,7 @@ function updateCamera() {
       .applyQuaternion(cameraViewQuaternion);
 
     const desiredPosition = ship.position.clone().add(offset);
-    camera.position.lerp(desiredPosition, 0.34);
+    camera.position.copy(desiredPosition);
     camera.lookAt(ship.position);
   }
 }
