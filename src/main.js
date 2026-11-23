@@ -702,6 +702,7 @@ const shipEarthContactPoints = [
 
 let active = false;
 let runtimeBridge = null;
+let cameraRuntimeInput = null;
 let npcReady = false;
 const handleRuntimeVisibility = createRuntimeVisibilityHandler({
   getRuntime: () => runtimeBridge,
@@ -849,6 +850,7 @@ async function startGame() {
           updateCharacterCameraButton();
         }
       });
+      cameraRuntimeInput = cameraRuntimeSystem.service.input;
       registerGameRuntimeSystems(runtimeBridge, {
         cameraRuntime: cameraRuntimeSystem,
         audioManager,
@@ -2717,7 +2719,7 @@ document.addEventListener('visibilitychange', () => {
   handleRuntimeVisibility(document.hidden);
 });
 
-registerAimControls({ document, THREE, state });
+registerAimControls({ document, THREE, state, getCameraInput: () => cameraRuntimeInput });
 const instrumentBindings = [
   ['hull', 'hull-bar', 100], ['shield', 'shield-bar', 100],
   ['fuel', 'fuel-bar', 100], ['speed', 'speed-bar', 12000]
@@ -2924,7 +2926,7 @@ $('landing-select-btn')?.addEventListener('click', () => {
 
 /* CÂMERAS */
 
-registerCameraCycleControl({ document, state, cameraNames });
+registerCameraCycleControl({ document, state, cameraNames, getCameraInput: () => cameraRuntimeInput });
 
 const miningRuntimeSystem = createMiningRuntimeSystem({
   state,
@@ -3409,9 +3411,8 @@ for (const profile of PILOT_HUD_PROFILES) {
 /* MENU DE PAUSA */
 
 $('character-camera-btn')?.addEventListener('click', () => {
-  characterCameraMode = characterCameraMode === 'first-person'
-    ? 'third-person'
-    : 'first-person';
+  const nextMode = characterCameraMode === 'first-person' ? 'third-person' : 'first-person';
+  if (!cameraRuntimeInput?.setCharacterMode(nextMode)) characterCameraMode = nextMode;
   updateCharacterCameraButton();
   if (camera && characterModel) updateCharacterCamera();
 });
