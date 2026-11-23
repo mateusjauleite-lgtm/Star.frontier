@@ -9,7 +9,7 @@ export function createCharacterInteractionMenu({ root, camera, actor, onConfirm 
   menu.setAttribute('aria-label', 'Interação com Alexia');
   menu.innerHTML = `
     <div class="crew-wheel-title">ALEXIA <small>INTERAÇÃO</small></div>
-    <button class="crew-wheel-option crew-follow" type="button" data-action="follow">↗<span>FOLLOW</span></button>
+    <button class="crew-wheel-option crew-follow" type="button" data-action="follow" aria-label="Seguir jogador">↗<span>SEGUIR</span></button>
     <button class="crew-wheel-option crew-console" type="button" disabled aria-label="Ocupar console e trabalhar">⌘<span>OCUPAR CONSOLE</span><small>EM BREVE</small></button>
     <button class="crew-wheel-close" type="button" aria-label="Fechar menu">×</button>
     <div class="crew-confirm hidden" role="dialog" aria-label="Confirmar ação">
@@ -21,7 +21,24 @@ export function createCharacterInteractionMenu({ root, camera, actor, onConfirm 
 
   const confirmPanel = menu.querySelector('.crew-confirm');
   const followButton = menu.querySelector('.crew-follow');
+  const confirmDescription = menu.querySelector('.crew-confirm-description');
   let selectedAction = null;
+  let following = false;
+
+  function syncFollowAction() {
+    const action = following ? 'stop-follow' : 'follow';
+    followButton.dataset.action = action;
+    followButton.setAttribute('aria-label', following ? 'Parar de seguir' : 'Seguir jogador');
+    followButton.querySelector('span').textContent = following ? 'PARAR DE SEGUIR' : 'SEGUIR';
+    confirmDescription.textContent = following
+      ? 'Alexia permanecerá onde está.'
+      : 'Alexia seguirá você.';
+  }
+
+  function setFollowing(value) {
+    following = Boolean(value);
+    syncFollowAction();
+  }
 
   function close() {
     menu.classList.add('hidden');
@@ -52,7 +69,8 @@ export function createCharacterInteractionMenu({ root, camera, actor, onConfirm 
   }
 
   followButton.addEventListener('click', () => {
-    selectedAction = 'follow';
+    selectedAction = followButton.dataset.action;
+    syncFollowAction();
     confirmPanel.classList.remove('hidden');
     menu.classList.add('is-confirming');
   });
@@ -67,5 +85,7 @@ export function createCharacterInteractionMenu({ root, camera, actor, onConfirm 
   });
   menu.querySelector('.crew-wheel-close').addEventListener('click', close);
 
-  return Object.freeze({ open, close, updatePosition, dispose: () => menu.remove(), isOpen: () => !menu.classList.contains('hidden') });
+  syncFollowAction();
+
+  return Object.freeze({ open, close, updatePosition, setFollowing, dispose: () => menu.remove(), isOpen: () => !menu.classList.contains('hidden') });
 }

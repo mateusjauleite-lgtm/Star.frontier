@@ -910,7 +910,7 @@ async function startGame() {
             earthSystem, camera, applyEarthSurfaceRotation, ship, updatePhaserWeapon,
             characterCore, updateCharacterMovement, updateCharacterWeapon,
             updateExternalElevatorAnimation, updateElevatorInteraction,
-            updatePilotInteraction, updateShipManagementInteraction, updateEngineeringConsoleInteraction, updateRefineryConsoleInteraction, updateDeflectorConsoleInteraction, updateExternalElevatorInteraction,
+            updatePilotInteraction, updateShipManagementInteraction, updateEngineeringConsoleInteraction, updateRefineryConsoleInteraction, updateDeflectorConsoleInteraction, updateExternalElevatorInteraction, updateAlexiaInteraction,
             updateCharacterCamera, updateFlight, updateCamera, updateShipSystems,
             setLandingBaseSystem: value => { landingBaseSystem = value; },
             updateShipLandingGuidance, THREE, shipVisual, shipEarthContactPoints,
@@ -1150,7 +1150,16 @@ async function init3D() {
   alexiaInteractionMenu = alexiaCharacter ? createCharacterInteractionMenu({
     root: document.body, camera, actor: alexiaCharacter.group,
     onConfirm: action => {
-      if (action === 'follow') { alexiaFollowing = true; toast('Alexia vai acompanhar você.'); }
+      if (action === 'follow') {
+        alexiaFollowing = true;
+        alexiaInteractionMenu?.setFollowing?.(true);
+        toast('Alexia vai acompanhar você.');
+      } else if (action === 'stop-follow') {
+        alexiaFollowing = false;
+        alexiaCharacter?.core?.setMovement?.(0, 0);
+        alexiaInteractionMenu?.setFollowing?.(false);
+        toast('Alexia permanecerá onde está.');
+      }
     }
   }) : null;
   nearbyAlexiaInteraction = false;
