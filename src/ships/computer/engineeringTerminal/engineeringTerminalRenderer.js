@@ -8,6 +8,6 @@ export function createEngineeringTerminalRenderer({root,onClose=()=>{},onStageSe
  layer.querySelectorAll('[data-engineering-stage]').forEach(b=>{const n=Number(b.dataset.engineeringStage),on=n===selected,small=b.querySelector('small');if(small)small.textContent=String(WARP_STAGE_SPEEDS[n]||0)+' c';b.classList.toggle('is-selected',on);b.disabled=!opened||!online||!active;b.setAttribute('aria-pressed',String(on));});
  layer.querySelectorAll('[data-engineering-exit-mode]').forEach(b=>{const on=b.dataset.engineeringExitMode===exit;b.classList.toggle('is-selected',on);b.setAttribute('aria-pressed',String(on));b.disabled=!opened||!online;});
  const alert=layer.querySelector('[data-engineering-alert]');if(alert){const reason=telemetry?.warpShutdownReason;alert.textContent=reason==='planetary-proximity'?'BLOQUEIO · DOBRA INDISPONÍVEL NO ENVELOPE PLANETÁRIO':reason==='dilithium-depleted'?'ALERTA · RESERVA DE DILÍTIO ESGOTADA · DOBRA DESLIGADA':'SEM ALERTAS · SISTEMAS ESTÁVEIS';alert.classList.toggle('is-warning',Boolean(reason));}
- const toggle=layer.querySelector('[data-engineering-warp-toggle]');if(toggle){toggle.textContent=active?'DESATIVAR PROPULSÃO DE DOBRA':'ATIVAR PROPULSÃO DE DOBRA';toggle.disabled=!opened||!online;}
+ const toggle=layer.querySelector('[data-engineering-warp-toggle]');if(toggle){toggle.textContent=active?'DESATIVAR PROPULSÃO DE DOBRA':'ATIVAR PROPULSÃO DE DOBRA';toggle.disabled=!opened||!online||Boolean(telemetry?.warpSafetyLock);}
  }
  return Object.freeze({mount,setPresence,setOpen,update,render});}
