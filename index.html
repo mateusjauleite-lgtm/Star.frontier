@@ -268,14 +268,23 @@
       </nav>
 
       <section class="hud-card pilot-instruments" data-hud-editable="instruments" data-hud-scope="pilot" data-hud-profile="flight" aria-label="Instrumentos da nave">
-        <header class="instrument-header"><b id="hud-user">PILOTO</b><span>FLIGHT SYSTEMS</span></header>
-        <div class="instrument-grid">
-          <div class="instrument" data-instrument="speed"><div class="instrument-readout"><span>VELOCIDADE (m/s)</span><b><span id="speed">0</span></b></div><div class="instrument-track"><i id="speed-bar"></i></div></div>
-          <div class="instrument" data-instrument="hull"><div class="instrument-readout"><span>CASCO</span><b><span id="hull">100</span>%</b></div><div class="instrument-track"><i id="hull-bar"></i></div></div>
-          <div class="instrument" data-instrument="shield"><div class="instrument-readout"><span>ESCUDO</span><b><span id="shield">100</span>%</b></div><div class="instrument-track"><i id="shield-bar"></i></div></div>
-          <div class="instrument" data-instrument="fuel"><div class="instrument-readout"><span>COMBUSTÍVEL</span><b><span id="fuel">100</span>%</b></div><div class="instrument-track"><i id="fuel-bar"></i></div></div>
+        <header class="instrument-header">
+          <b id="hud-user">PILOTO</b>
+          <div class="instrument-panel-actions" role="group" aria-label="Painéis de instrumentos">
+            <button type="button" class="instrument-panel-toggle" data-instrument-panel="systems" aria-controls="flight-systems-panel" aria-expanded="false">SISTEMAS</button>
+            <button type="button" class="instrument-panel-toggle" data-instrument-panel="altimeter" aria-controls="flight-altimeter-panel" aria-expanded="false">ALTITUDE</button>
+          </div>
+        </header>
+        <div id="flight-systems-panel" class="instrument-panel-content hidden" aria-hidden="true">
+          <div class="instrument-grid">
+            <div class="instrument" data-instrument="speed"><div class="instrument-readout"><span>VELOCIDADE (m/s)</span><b><span id="speed">0</span></b></div><div class="instrument-track"><i id="speed-bar"></i></div></div>
+            <div class="instrument" data-instrument="hull"><div class="instrument-readout"><span>CASCO</span><b><span id="hull">100</span>%</b></div><div class="instrument-track"><i id="hull-bar"></i></div></div>
+            <div class="instrument" data-instrument="shield"><div class="instrument-readout"><span>ESCUDO</span><b><span id="shield">100</span>%</b></div><div class="instrument-track"><i id="shield-bar"></i></div></div>
+            <div class="instrument" data-instrument="fuel"><div class="instrument-readout"><span>COMBUSTÍVEL</span><b><span id="fuel">100</span>%</b></div><div class="instrument-track"><i id="fuel-bar"></i></div></div>
+          </div>
+          <div class="instrument-cargo">CARGA <b id="cargo">0</b></div>
         </div>
-        <section class="altimeter-instrument" aria-label="Altímetro atmosférico">
+        <section id="flight-altimeter-panel" class="altimeter-instrument instrument-panel-content hidden" aria-label="Altímetro atmosférico" aria-hidden="true">
           <header class="altimeter-header"><b>ALTÍMETRO ATMOSFÉRICO</b><span id="atmosphere-layer">TROPOSFERA</span></header>
           <div class="altimeter-primary"><b id="altitude-msl">0 m</b><span>ALTITUDE MSL</span></div>
           <div class="altimeter-details"><span>VELOCIDADE VERTICAL <b id="vertical-speed">0,0 m/s · NIVELADO</b></span><span>ALTURA DO TERRENO <b id="terrain-clearance">—</b></span></div>
@@ -285,7 +294,6 @@
             <div class="ozone-caption"><i></i><span>CAMADA DE OZÔNIO · 15–35 km</span><b id="ozone-status">FORA DA FAIXA</b></div>
           </div>
         </section>
-        <div class="instrument-cargo">CARGA <b id="cargo">0</b></div>
       </section>
 
       <div class="hud-card right" data-hud-editable="credits" data-hud-scope="pilot" data-hud-profile="flight">
