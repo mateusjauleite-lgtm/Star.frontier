@@ -62,6 +62,7 @@ export function createCameraRuntimeSystem({
       service.reset();
       initialized = false;
     },
-    service
+    service,
+    cameraState
   };
 }
