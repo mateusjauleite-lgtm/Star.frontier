@@ -842,7 +842,12 @@ async function startGame() {
       cameraRuntimeSystem.service.input = createCameraInputController({
         state,
         cameraState: cameraRuntimeSystem.cameraState,
-        THREE
+        THREE,
+        onCharacterModeChange: mode => {
+          characterCameraMode = mode;
+          characterCameraInitialized = false;
+          updateCharacterCameraButton();
+        }
       });
       registerGameRuntimeSystems(runtimeBridge, {
         cameraRuntime: cameraRuntimeSystem,
