@@ -116,6 +116,7 @@ export async function createGameWorld({
     gravityKernel,
     gravitationalParameter: shipFlightKernel.earthGravitationalParameter
   });
+  earthSystem.setPlanetaryGravitySystem(planetaryGravitySystem);
   const shipLandingAutopilot = createShipLandingAutopilot(shipFlightKernel);
   shipLandingTelemetry?.reset?.();
   const engineFlames = explorationShip.engineFlames;
