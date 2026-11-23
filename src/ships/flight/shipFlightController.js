@@ -135,7 +135,7 @@ export function createShipFlightController(dependencies = {}) {
       state.altitudeMeters = Infinity;
       state.distanceToEarthCenterMeters = Infinity;
       state.distanceToEarthSurfaceMeters = Infinity;
-      state.conventionalSpeedLimit = getConventionalSpeedLimit(Infinity);
+      state.conventionalSpeedLimit = getConventionalFlightSpeedLimit(Infinity);
       state.warpSafetyLock = false;
     }
 
