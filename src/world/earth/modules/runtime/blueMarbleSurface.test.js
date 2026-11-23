@@ -5,7 +5,7 @@ import {
   resolveEarthTextureUrl
 } from './blueMarbleSurface.js';
 
-test('packages the NASA Blue Marble texture under the app base path', () => {
+test('packages the NASA topography/bathymetry texture under the app base path', () => {
   assert.equal(
     resolveEarthTextureUrl('./'),
     './earth/blue-marble-topography-bathymetry.jpg'

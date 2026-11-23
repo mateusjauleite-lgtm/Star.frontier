@@ -1,4 +1,4 @@
-# NASA Blue Marble Next Generation
+# NASA Blue Marble Next Generation — Topography and Bathymetry
 
 The visual Earth surface uses NASA Earth Observatory's **Blue Marble: Next Generation — Base Map with Topography and Bathymetry**, January global composite.
 
@@ -9,4 +9,4 @@ The visual Earth surface uses NASA Earth Observatory's **Blue Marble: Next Gener
 
 The Android build workflow downloads this image into the public asset directory before Vite builds the application. The game does not fetch the texture from NASA at runtime.
 
-The image supplies visual color and bathymetric/topographic shading only. It is not used as elevation data, collision data, or a substitute for ETOPO/DEM. Physical terrain remains owned by the existing Earth terrain runtime.
+The image supplies visual color and bathymetric/topographic shading. It is not used as elevation data, collision data, or a substitute for ETOPO/DEM. Physical terrain remains owned by the existing Earth terrain runtime.

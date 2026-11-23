@@ -1,9 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { sampleEarthElevationGrid, calculateEtopoPatchSegments } from './terrain.js';
+import {
+  EARTH_DEFAULT_TERRAIN_VERTICAL_EXAGGERATION,
+  EARTH_NO_DEM_FALLBACK_ELEVATION_METERS,
+  sampleEarthElevationGrid,
+  calculateEtopoPatchSegments
+} from './terrain.js';
 import { EARTH_GLOBAL_SURFACE_SEGMENTS, EARTH_LOD_SEGMENTS, selectEarthLodLevel } from './surface.js';
 import { ETOPO_2022_GLOBAL_GRID, loadEtopo2022GlobalGrid, parseEtopo2022Grid } from '../../references/etopo2022.js';
 import { createEarthKernelAdapter } from '../../wasm/earthKernel.js';
+
+test('uses physical 1x terrain elevation by default', () => {
+  assert.equal(EARTH_DEFAULT_TERRAIN_VERTICAL_EXAGGERATION, 1);
+  assert.equal(EARTH_NO_DEM_FALLBACK_ELEVATION_METERS, 0);
+});
 
 const grid = (values, extra = {}) => ({
   width: 2,

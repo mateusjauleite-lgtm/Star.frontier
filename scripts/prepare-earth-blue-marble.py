@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Download and package NASA Blue Marble for the offline Android runtime."""
+"""Download and package NASA Blue Marble topography/bathymetry for Android."""
 from pathlib import Path
 from urllib.request import Request, urlopen
 from io import BytesIO
@@ -28,7 +28,7 @@ def main():
             raise RuntimeError(f"Unexpected optimized texture dimensions: {image.size}")
         image.save(OUTPUT, "JPEG", quality=90, optimize=True, progressive=True)
     print(f"Prepared {OUTPUT} at {TARGET_SIZE[0]}x{TARGET_SIZE[1]} "
-          f"from NASA Blue Marble ({len(source_bytes)} source bytes).")
+          f"from NASA Blue Marble topography/bathymetry ({len(source_bytes)} source bytes).")
 
 
 if __name__ == "__main__":
