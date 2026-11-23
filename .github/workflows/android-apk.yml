@@ -29,7 +29,6 @@ on:
       - feature/earth-regional-quadtree-dem-2026-11-22
       - fix/earth-collision-elevator-landing-controls-2026-11-22
       - feature/earth-blue-marble-visual-runtime-2026-11-22
-      - feature/central-physical-scale-2026-11-22
       - fix/earth-true-3d-relief-cleanup-2026-11-22
       - feature/central-physical-scale-2026-11-22
       - feature/earth-scale-mineral-field-labels-2026-11-22
@@ -51,6 +50,7 @@ on:
       - feature/earth-regional-quadtree-dem-2026-11-22
       - fix/earth-collision-elevator-landing-controls-2026-11-22
       - feature/earth-blue-marble-visual-runtime-2026-11-22
+      - feature/central-physical-scale-2026-11-22
   workflow_dispatch:
 
 permissions:
