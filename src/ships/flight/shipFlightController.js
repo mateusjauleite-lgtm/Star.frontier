@@ -1,5 +1,5 @@
 /**
- * Owns manual flight, SI propulsion, local gravity compensation and collision responses.
+ * Owns manual flight, SI propulsion, response to the Earth-owned gravity field and collisions.
  */
 import { STATION_WORLD_POSITION } from '../../world/earth/worldScale.js';
 import { EARTH_GRAVITATIONAL_PARAMETER_M3_S2 } from '../../physics/planetaryGravitySystem.js';
