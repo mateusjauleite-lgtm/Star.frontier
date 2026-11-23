@@ -1,7 +1,5 @@
 /**
- * Owns the ship's current manual flight control loop.
- * The existing gameplay speed scale, world/local transforms and collision
- * responses are intentionally preserved; this module does not use SI units.
+ * Owns manual flight, SI propulsion, local gravity compensation and collision responses.
  */
 import { STATION_WORLD_POSITION } from '../../world/earth/worldScale.js';
 import { calculateManeuveringAcceleration, getConventionalSpeedLimit, integrateWorldVelocity, projectRadialVelocity, SPEED_OF_LIGHT_MPS } from '../systems/maneuveringThrusterSystem.js';
@@ -299,6 +297,13 @@ export function createShipFlightController(dependencies = {}) {
     (getManeuveringLights() || []).forEach(light => {
       light.intensity = maneuveringActive ? 1.5 + Math.abs(lateralInput) + Math.abs(verticalInput) : 0;
     });
+
+    const maneuveringStatus = getElement('maneuvering-status');
+    if (maneuveringStatus) {
+      maneuveringStatus.textContent = earthCenter && altitudeMeters <= 25000 && state.maneuveringAssist !== false
+        ? 'ESTABILIZANDO'
+        : (lateralInput || verticalInput) ? 'MANUAL' : 'STANDBY';
+    }
 
     // Efeitos das nacelles.
     const warpStage = Number(state.warpCurrentStage) || 0;
