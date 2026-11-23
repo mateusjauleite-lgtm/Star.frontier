@@ -271,7 +271,7 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
         const stage = Math.round(Number(payload?.stage));
         if (!Number.isInteger(stage) || stage < 1 || stage > 5) return { accepted: false, reason: 'invalid-warp-stage' };
         state.warpStage = stage;
-        return { accepted: true, stage, targetSpeed: [0, 115, 155, 205, 270, 350][stage] };
+        return { accepted: true, stage, targetSpeed: WARP_STAGE_SPEEDS[stage], speedUnit: 'c' };
       },
       setWarpExitMode: (payload, context) => {
         if (!requireEngineering(context)) return { accepted: false, reason: 'engineering-terminal-required' };
