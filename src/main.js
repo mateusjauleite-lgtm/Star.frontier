@@ -703,6 +703,7 @@ const shipEarthContactPoints = [
 let active = false;
 let runtimeBridge = null;
 let cameraRuntimeInput = null;
+let cameraRuntimeService = null;
 let npcReady = false;
 const handleRuntimeVisibility = createRuntimeVisibilityHandler({
   getRuntime: () => runtimeBridge,
@@ -851,6 +852,7 @@ async function startGame() {
         }
       });
       cameraRuntimeInput = cameraRuntimeSystem.service.input;
+      cameraRuntimeService = cameraRuntimeSystem.service;
       registerGameRuntimeSystems(runtimeBridge, {
         cameraRuntime: cameraRuntimeSystem,
         audioManager,
@@ -3414,7 +3416,8 @@ $('character-camera-btn')?.addEventListener('click', () => {
   const nextMode = characterCameraMode === 'first-person' ? 'third-person' : 'first-person';
   if (!cameraRuntimeInput?.setCharacterMode(nextMode)) characterCameraMode = nextMode;
   updateCharacterCameraButton();
-  if (camera && characterModel) updateCharacterCamera();
+  if (cameraRuntimeService?.updateActive) cameraRuntimeService.updateActive();
+  else if (camera && characterModel) updateCharacterCamera();
 });
 updateCharacterCameraButton();
 
