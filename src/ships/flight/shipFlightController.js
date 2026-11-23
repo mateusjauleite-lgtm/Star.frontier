@@ -61,7 +61,11 @@ export function createShipFlightController(dependencies = {}) {
       state.throttle || state.braking || state.warpDriveButton ||
       Object.values(state.maneuver || {}).some(Boolean);
 
-    if (manualOverride && ship.userData.earthSurfaceAnchored) {
+    const launchCommand = Boolean(
+      state.throttle || state.nitroButton ||
+      state.maneuver?.up || state.maneuver?.down
+    );
+    if (launchCommand && ship.userData.earthSurfaceAnchored) {
       const launchPosition = ship.getWorldPosition(new THREE.Vector3()).toArray();
       const inheritedRotationVelocity = earthSystem?.getPlanetaryGravitySystem?.()
         ?.surfaceVelocityAt?.(launchPosition);
