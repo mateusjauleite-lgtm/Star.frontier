@@ -3,7 +3,7 @@
  */
 import { STATION_WORLD_POSITION } from '../../world/earth/worldScale.js';
 import { EARTH_GRAVITATIONAL_PARAMETER_M3_S2 } from '../../physics/planetaryGravitySystem.js';
-import { calculateManeuveringAcceleration, getConventionalSpeedLimit, integrateWorldVelocity, projectRadialVelocity, SPEED_OF_LIGHT_MPS } from '../systems/maneuveringThrusterSystem.js';
+import { calculateManeuveringAcceleration, getConventionalFlightSpeedLimit, integrateWorldVelocity, projectRadialVelocity, SPEED_OF_LIGHT_MPS } from '../systems/maneuveringThrusterSystem.js';
 import { calculateAuxiliaryStabilizationAcceleration } from '../systems/auxiliaryThrusterSystem.js';
 
 export function createShipFlightController(dependencies = {}) {
@@ -113,7 +113,6 @@ export function createShipFlightController(dependencies = {}) {
       // velocidade de avanço de aproximação radial real ao planeta.
       state.distanceToEarthCenterMeters = distance;
       state.distanceToEarthSurfaceMeters = altitudeMeters;
-      state.conventionalSpeedLimit = getConventionalSpeedLimit(altitudeMeters);
       // O campo de dobra fica bloqueado dentro do envelope planetário e de aproximação.
       state.warpSafetyLock = altitudeMeters < earthRadius * 3;
       if (distance > 1) {
@@ -153,6 +152,11 @@ export function createShipFlightController(dependencies = {}) {
     const radialVelocity = projectRadialVelocity(currentGravityVelocity, [radialUp.x, radialUp.y, radialUp.z]);
     // Velocidade vertical radial: gravidade mais a projeção do avanço da nave.
     state.verticalSpeedMps = radialVelocity + (Number(state.speed) || 0) * forwardVector.dot(radialUp);
+    state.conventionalSpeedLimit = getConventionalFlightSpeedLimit(altitudeMeters, {
+      throttle: Boolean(state.throttle),
+      climbAlignment: forwardVector.dot(radialUp),
+      verticalSpeed: state.verticalSpeedMps
+    });
     const maneuverAcceleration = calculateManeuveringAcceleration({
       gravityAcceleration,
       radialUp: [radialUp.x, radialUp.y, radialUp.z],
