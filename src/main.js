@@ -1920,8 +1920,9 @@ function updateExternalElevatorAnimation(dt) {
 
   if (reached === 'bottom') {
     externalElevatorRiding = false;
+    // Preserva a velocidade tangencial herdada da rotação terrestre.
+    // Zerá-la aqui fazia a plataforma girar para longe do personagem.
     transferCharacterToWorldFrame();
-    characterWorldVelocity.set(0, 0, 0);
     characterWorldGrounded = false;
     characterCore.setGrounded(false);
     characterCore.setInteractionTarget('ELEVADOR EXTERNO');
@@ -2381,8 +2382,8 @@ function updateCamera() {
     camera.position.copy(ship.position).add(offset);
     camera.quaternion.copy(finalQuaternion);
   } else {
-    // Câmera externa mais próxima, orbitando a nave com o arrasto da mira.
-    const offset = new THREE.Vector3(0, 13, 48)
+    // Câmera externa afastada para enquadrar o casco inteiro, com órbita pela mira.
+    const offset = new THREE.Vector3(0, 30, 150)
       .applyQuaternion(flightQuaternion)
       .applyQuaternion(cameraViewQuaternion);
 
@@ -3414,6 +3415,22 @@ $('navigation-panel-open-btn')?.addEventListener('click', () => {
 });
 $('navigation-panel-close-btn')?.addEventListener('click', () => {
   $('navigation-full-panel')?.classList.add('hidden');
+});
+
+// Painéis do HUD: um abre por vez; tocar novamente no ativo recolhe o painel.
+document.querySelectorAll('[data-instrument-panel]').forEach(button => {
+  button.addEventListener('click', () => {
+    const target = $(button.getAttribute('aria-controls'));
+    if (!target) return;
+    const shouldOpen = target.classList.contains('hidden');
+    document.querySelectorAll('[data-instrument-panel]').forEach(otherButton => {
+      const otherPanel = $(otherButton.getAttribute('aria-controls'));
+      const isOpen = otherButton === button && shouldOpen;
+      otherButton.setAttribute('aria-expanded', String(isOpen));
+      otherPanel?.classList.toggle('hidden', !isOpen);
+      otherPanel?.setAttribute('aria-hidden', String(!isOpen));
+    });
+  });
 });
 applyHudProfileVisibility(activePilotHudProfile);
 applyHudLayout('character', readHudLayout('character'));
