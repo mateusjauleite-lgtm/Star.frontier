@@ -480,5 +480,5 @@ export function createExplorationShip() {
     createLandingGear(THREE);
   visual.add(landingGear);
 
-  return { group, yaw, pitch, visual, engineFlames, engineLights, landingGear, landingGearContactPoints, shieldVisual };
+  return { group, yaw, pitch, visual, engineFlames, engineLights, maneuveringFlames, maneuveringLights, landingGear, landingGearContactPoints, shieldVisual };
 }
