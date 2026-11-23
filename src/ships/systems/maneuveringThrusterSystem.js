@@ -14,6 +14,19 @@ export function getConventionalSpeedLimit(altitudeMeters) {
   return CONVENTIONAL_MAX_SPEED_MPS;
 }
 
+export function getConventionalFlightSpeedLimit(altitudeMeters, {
+  throttle = false,
+  climbAlignment = 0,
+  verticalSpeed = 0
+} = {}) {
+  const poweredClimb = Boolean(throttle) &&
+    Number.isFinite(climbAlignment) && climbAlignment > 0.25;
+  const alreadyAscending = Number.isFinite(verticalSpeed) && verticalSpeed > 0.5;
+  return poweredClimb || alreadyAscending
+    ? CONVENTIONAL_MAX_SPEED_MPS
+    : getConventionalSpeedLimit(altitudeMeters);
+}
+
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const dot = (a, b) => a.reduce((sum, value, index) => sum + value * b[index], 0);
 
