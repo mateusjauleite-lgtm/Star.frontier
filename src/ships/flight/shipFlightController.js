@@ -47,6 +47,7 @@ export function createShipFlightController(dependencies = {}) {
     const shipPitch = getShipPitch();
     const shipVisual = getShipVisual();
     if (!ship || !shipYaw || !shipPitch || !shipVisual) return false;
+    const earthSystem = getEarthSystem?.();
 
     const safeDt = THREE.MathUtils.clamp(
       Number.isFinite(deltaSeconds) ? deltaSeconds : 0, 0, 0.04
@@ -61,6 +62,10 @@ export function createShipFlightController(dependencies = {}) {
       Object.values(state.maneuver || {}).some(Boolean);
 
     if (manualOverride && ship.userData.earthSurfaceAnchored) {
+      const launchPosition = ship.getWorldPosition(new THREE.Vector3()).toArray();
+      const inheritedRotationVelocity = earthSystem?.getPlanetaryGravitySystem?.()
+        ?.surfaceVelocityAt?.(launchPosition);
+      if (inheritedRotationVelocity) state.gravityVelocity = inheritedRotationVelocity;
       ship.userData.earthSurfaceAnchored = false;
     }
     if (manualOverride && getLandingAutopilot()?.snapshot?.().active) {
@@ -92,7 +97,6 @@ export function createShipFlightController(dependencies = {}) {
     // Referencial SI: o mundo usa 1 unidade visual por metro.
     ship.parent?.updateWorldMatrix(true, false);
     const currentWorldPosition = ship.getWorldPosition(new THREE.Vector3());
-    const earthSystem = getEarthSystem?.();
     const earthCenter = earthSystem?.group?.getWorldPosition(new THREE.Vector3());
     const planetaryProfile = earthSystem?.getPlanetaryProfile?.();
     const earthRadius = Number(planetaryProfile?.render?.visualRadiusUnits) || 6371008.8;
@@ -113,13 +117,15 @@ export function createShipFlightController(dependencies = {}) {
       // O campo de dobra fica bloqueado dentro do envelope planetário e de aproximação.
       state.warpSafetyLock = altitudeMeters < earthRadius * 3;
       if (distance > 1) {
-        const acceleration = getGravityKernel?.()?.acceleration?.({
-          position: currentWorldPosition.toArray(),
-          bodies: [{
-            position: earthCenter.toArray(),
-            mu: EARTH_GRAVITATIONAL_PARAMETER_M3_S2
-          }]
-        });
+        const worldPosition = currentWorldPosition.toArray();
+        const acceleration = earthSystem?.getPlanetaryGravitySystem?.()
+          ?.accelerationAt?.(worldPosition) ?? getGravityKernel?.()?.acceleration?.({
+            position: worldPosition,
+            bodies: [{
+              position: earthCenter.toArray(),
+              mu: EARTH_GRAVITATIONAL_PARAMETER_M3_S2
+            }]
+          });
         if (acceleration) gravityAcceleration = acceleration;
         else {
           const factor = -EARTH_GRAVITATIONAL_PARAMETER_M3_S2 / Math.pow(distance, 3);
