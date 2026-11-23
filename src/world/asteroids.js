@@ -65,6 +65,7 @@ export function createAsteroidField(scene, options = {}) {
   const count = options.count ?? 24;
   const center = options.center ?? [310, 0, -300];
   const spread = options.spread ?? [190, 100, 160];
+  const gravitySystem = options.gravitySystem ?? null;
   const asteroids = [];
   const labels = new Map();
   const labelMaterials = createMineralLabelMaterials();
@@ -114,6 +115,11 @@ export function createAsteroidField(scene, options = {}) {
       } : {}
     };
     updateMineralLabel(asteroid);
+    // Asteroides começam com velocidade tangencial compatível com órbita
+    // circular; a gravidade da Terra passa a integrar sua trajetória a cada frame.
+    asteroid.userData.gravityVelocityMps = gravitySystem
+      ? gravitySystem.circularOrbitVelocity(asteroid.getWorldPosition(new THREE.Vector3()).toArray()) ?? [0, 0, 0]
+      : [0, 0, 0];
 
     if (hasDilithium) {
       const deposit = new THREE.Group();
@@ -164,8 +170,22 @@ export function createAsteroidField(scene, options = {}) {
 
   return {
     asteroids,
-    update() {
+    update(deltaSeconds = 0) {
+      const dt = Number.isFinite(deltaSeconds) ? Math.max(0, Math.min(0.04, deltaSeconds)) : 0;
       for (const asteroid of asteroids) {
+        if (gravitySystem && dt > 0) {
+          const currentPosition = asteroid.getWorldPosition(new THREE.Vector3()).toArray();
+          const velocity = asteroid.userData.gravityVelocityMps;
+          const next = gravitySystem.integrate(currentPosition, velocity, dt);
+          if (next) {
+            const worldPosition = new THREE.Vector3(...next.position);
+            if (asteroid.parent) {
+              asteroid.parent.updateWorldMatrix(true, false);
+              asteroid.position.copy(asteroid.parent.worldToLocal(worldPosition));
+            } else asteroid.position.copy(worldPosition);
+            asteroid.userData.gravityVelocityMps = next.velocity;
+          }
+        }
         asteroid.rotation.x += 0.001;
         asteroid.rotation.y += 0.0015;
         const label = labels.get(asteroid);
