@@ -51,7 +51,7 @@ export function createShipFlightController(dependencies = {}) {
       Number.isFinite(deltaSeconds) ? deltaSeconds : 0, 0, 0.04
     );
     const sensitivity = Number(state.settings.sensitivity) || 1;
-    const hasPropulsion = state.fuel > 0 || state.refinedDilithium > 0 || state.maneuveringAssist !== false;
+    const hasPropulsion = Number(state.fuel) > 0 || Number(state.nitro) > 0;
     const moveX = hasPropulsion ? state.move.x : 0;
     const moveY = hasPropulsion ? state.move.y : 0;
     const manualOverride = Math.abs(moveX) > 0.015 ||
