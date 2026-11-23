@@ -137,6 +137,7 @@ export async function createGameWorld({
 
   await loadingStep(84, 'Carregando estação orbital e observatório...');
 
+  // Exceção explícita da simulação: a estação permanece fixa e não recebe aceleração gravitacional.
   const stationSystem = createStation({ position: STATION_WORLD_POSITION });
   scene.add(stationSystem.group);
 
