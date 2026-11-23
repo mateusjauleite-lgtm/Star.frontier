@@ -5,6 +5,8 @@ import { loadEtopo2022GlobalGrid } from '../../references/etopo2022.js';
 import { createEarthRegionalSurfaceRuntime } from './regionalSurface.js';
 import { createTerrariumElevationProvider } from '../../references/regionalElevation.js';
 
+export const EARTH_DEFAULT_TERRAIN_VERTICAL_EXAGGERATION = 1;
+
 const clamp01 = value => THREE.MathUtils.clamp(value, 0, 1);
 const surfacePatchDispose = patch => {
   patch.parent?.remove(patch);
@@ -149,7 +151,7 @@ export function createTerrainRuntime({ options, layers }) {
         (grid.east ?? 180) > (grid.west ?? -180) &&
         (grid.north ?? 90) > (grid.south ?? -90)
       );
-      const exaggeration = Math.max(1, options.terrainVerticalExaggeration ?? 1);
+      const exaggeration = Math.max(1, options.terrainVerticalExaggeration ?? EARTH_DEFAULT_TERRAIN_VERTICAL_EXAGGERATION);
       const radius = options.radius;
       const physicalScale = options.physicalScale;
       if (!physicalScale || typeof physicalScale.metersToRenderUnits !== 'function' ||
