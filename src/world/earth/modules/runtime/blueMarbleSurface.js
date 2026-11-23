@@ -38,7 +38,7 @@ export function createBlueMarbleSurfaceRuntime({
         initial.height
       );
       material = new THREE.MeshStandardMaterial({
-        color: 0x123b68,
+        color: 0xffffff,
         roughness: 0.94,
         metalness: 0,
         dithering: true
@@ -82,11 +82,16 @@ export function createBlueMarbleSurfaceRuntime({
           material.needsUpdate = true;
           textureState = 'ready';
           layers.surfaceVisual.state = textureState;
+          console.info('[Earth] Blue Marble texture loaded:', {
+            width: loadedTexture.image?.width ?? null,
+            height: loadedTexture.image?.height ?? null
+          });
         },
         undefined,
         error => {
           textureState = 'fallback';
           textureError = error?.message ?? 'NASA Blue Marble texture could not be loaded';
+          console.warn('[Earth] Blue Marble texture failed to load:', textureError);
           if (layers.surfaceVisual) {
             layers.surfaceVisual.state = textureState;
             layers.surfaceVisual.error = textureError;
