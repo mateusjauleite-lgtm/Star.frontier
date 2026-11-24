@@ -74,16 +74,21 @@ export async function createGameWorld({
   });
   earthTerrainReferenceCore = createEarthTerrainReferenceCore({
     THREE, earthSystem, scene,
-    onReferenceRegistered: reference => planetaryTransportCore?.registerDestination({
-      id: reference.id,
-      name: reference.name,
-      bodyId: 'earth',
-      latitudeDeg: reference.latitudeDeg,
-      longitudeDeg: reference.longitudeDeg,
-      elevationMeters: reference.elevationMeters,
-      sourceId: reference.id,
-      tags: ['terrain-reference', reference.sourceFormat]
-    })
+    onReferenceRegistered: reference => {
+      // Apenas regiões declaradas como terreno (ou destinos explicitamente habilitados)
+      // entram no catálogo de transporte; objetos de cenário continuam sendo overlays.
+      if (!reference.destinationEnabled) return;
+      planetaryTransportCore?.registerDestination({
+        id: reference.id,
+        name: reference.name,
+        bodyId: 'earth',
+        latitudeDeg: reference.latitudeDeg,
+        longitudeDeg: reference.longitudeDeg,
+        elevationMeters: reference.elevationMeters,
+        sourceId: reference.id,
+        tags: ['terrain-reference', reference.surfaceRole, reference.sourceFormat]
+      });
+    }
   });
 
   // A Lua possui grupo e referencial próprios; sua posição nunca é parentada à Terra.
