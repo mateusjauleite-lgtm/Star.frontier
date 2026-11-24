@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { EARTH_SIDEREAL_ROTATION_RAD_S } from '../../../../physics/planetaryGravitySystem.js';
 import { EARTH_LOD_SEGMENTS, selectEarthLodLevel } from './surface.js';
 
 export const EARTH_BLUE_MARBLE_TEXTURE_PATH =
@@ -102,8 +101,8 @@ export function createBlueMarbleSurfaceRuntime({
 
     update(delta, context) {
       if (!mesh || disposed) return;
-      const step = Math.min(Math.max(delta || 0, 0), 0.1);
-      surfaceFrame.rotation.y += step * EARTH_SIDEREAL_ROTATION_RAD_S;
+      // A orientação angular é definida pelo relógio astronômico em EarthCore.
+      // Não integre a rotação aqui: isso criaria um segundo relógio independente.
       lodCheckElapsed += step;
       if (lodCheckElapsed < 0.35) return;
       lodCheckElapsed = 0;
