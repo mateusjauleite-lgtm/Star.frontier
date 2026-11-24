@@ -2,7 +2,7 @@ export const EARTH_STANDARD_GRAVITY_MPS2 = 9.80665;
 export const SPEED_OF_LIGHT_MPS = 299792458;
 export const CONVENTIONAL_MAX_SPEED_MPS = 12000;
 export const MANEUVER_LATERAL_ACCELERATION_MPS2 = 14;
-export const MANEUVER_VERTICAL_ACCELERATION_MPS2 = 18;
+export const MANEUVER_VERTICAL_ACCELERATION_MPS2 = 32;
 export const MANEUVER_ASSIST_MAX_ALTITUDE_METERS = 25000;
 
 export function getConventionalSpeedLimit(altitudeMeters) {
@@ -20,7 +20,7 @@ export function getConventionalFlightSpeedLimit(altitudeMeters, {
   verticalSpeed = 0
 } = {}) {
   const poweredClimb = Boolean(throttle) &&
-    Number.isFinite(climbAlignment) && climbAlignment > 0.25;
+    Number.isFinite(climbAlignment) && climbAlignment > 0.05;
   const alreadyAscending = Number.isFinite(verticalSpeed) && verticalSpeed > 0.5;
   return poweredClimb || alreadyAscending
     ? CONVENTIONAL_MAX_SPEED_MPS
