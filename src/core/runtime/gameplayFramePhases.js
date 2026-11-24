@@ -183,11 +183,17 @@ export function createGameplayFramePhases(getDependencies) {
     },
 
     updateWorld(dt) {
-      const { orbitSystem, solarSystemDynamics, asteroidSystem, lightingSystem, camera, shipVisual, THREE, scene, state, updateShipSystems } = getDependencies();
+      const { orbitSystem, solarSystemDynamics, solarSystemPresentation, asteroidSystem, lightingSystem, camera, shipVisual, THREE, scene, state, updateShipSystems } = getDependencies();
       updateShipSystems?.(dt);
       // A simulação astronômica avança em SI e publica um snapshot puro para a camada visual.
       const solarSnapshot = solarSystemDynamics?.advance(dt) ?? null;
-      if (scene && solarSnapshot) scene.userData.solarSystemSnapshot = solarSnapshot;
+      const solarFrame = solarSnapshot
+        ? solarSystemPresentation?.getFrame(solarSnapshot) ?? null
+        : null;
+      if (scene && solarSnapshot) {
+        scene.userData.solarSystemSnapshot = solarSnapshot;
+        scene.userData.solarSystemPresentationFrame = solarFrame;
+      }
       orbitSystem?.update(dt);
       asteroidSystem?.update(dt);
       const shipQuaternion = shipVisual?.getWorldQuaternion && THREE?.Quaternion
@@ -200,7 +206,8 @@ export function createGameplayFramePhases(getDependencies) {
         warpTargetSpeed: Number(state?.warpTargetSpeed) || 0,
         warpStage: state?.warpCurrentStage || 0,
         warpTransition: state?.warpTransition || 'idle',
-        cameraQuaternion: camera?.quaternion
+        cameraQuaternion: camera?.quaternion,
+        solarDirection: solarFrame?.sunDirection
       });
     },
 
