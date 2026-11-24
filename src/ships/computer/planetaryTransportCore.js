@@ -103,9 +103,44 @@ export function createPlanetaryTransportCore({
     });
     return { ok: true, destination, actor, position: lastTransfer.position };
   }
+
+  function transferToPosition({ id = 'ship-deck-2', name = 'Plataforma de transporte da nave', position, normal } = {}, { actor = 'character' } = {}) {
+    if (!active) return { ok: false, reason: 'transport-disabled' };
+    if (!position || ![position.x, position.y, position.z].every(finite)) {
+      return { ok: false, reason: 'destination-unresolved' };
+    }
+    const resolvedNormal = normal && [normal.x, normal.y, normal.z].every(finite)
+      ? normal : { x: 0, y: 1, z: 0 };
+    const actors = getActors() || {};
+    const target = actors[actor];
+    if (!target) return { ok: false, reason: 'actor-unavailable' };
+    const requiredEnergy = Math.max(0, Number(energyCost) || 0);
+    const power = typeof getPowerStatus === 'function' ? getPowerStatus() : null;
+    if (power && !power.available) return { ok: false, reason: 'power-unavailable', power };
+    if (power && Number(power.energy) < requiredEnergy) {
+      return { ok: false, reason: 'insufficient-power', requiredEnergy, availableEnergy: Number(power.energy) || 0, power };
+    }
+    const delivered = consumePower(requiredEnergy, { destination: { id, name, bodyId: 'ship' }, actor });
+    if (delivered === false || (typeof delivered === 'number' && delivered + 1e-9 < requiredEnergy)) {
+      return { ok: false, reason: 'insufficient-power', requiredEnergy, deliveredEnergy: Number(delivered) || 0, power };
+    }
+    const destination = Object.freeze({ id: String(id), name: String(name), bodyId: 'ship' });
+    const resolved = {
+      position: { x: Number(position.x), y: Number(position.y), z: Number(position.z) },
+      normal: { x: Number(resolvedNormal.x), y: Number(resolvedNormal.y), z: Number(resolvedNormal.z) }
+    };
+    const moved = moveActor(target, resolved, { destination, actor });
+    if (moved === false) return { ok: false, reason: 'actor-move-rejected' };
+    lastTransfer = Object.freeze({
+      destinationId: destination.id, actor, timestamp: Date.now(),
+      position: { ...resolved.position }
+    });
+    return { ok: true, destination, actor, position: lastTransfer.position };
+  }
+
   return Object.freeze({
     registerDestination, unregisterDestination, findDestinations, getDestination,
-    previewDestination, teleport,
+    previewDestination, teleport, transferToPosition,
     setEnabled(value) { active = Boolean(value); return active; },
     getStatus() {
       return {
