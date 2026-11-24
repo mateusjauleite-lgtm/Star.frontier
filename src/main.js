@@ -1189,6 +1189,7 @@ async function init3D() {
     ship,
     stars,
     earthSystem,
+    earthTerrainReferenceCore,
     earthReferenceFrames,
     solarSystemDynamics,
     solarSystemPresentation,
@@ -1225,6 +1226,7 @@ async function init3D() {
   transporterActionMenu?.dispose?.();
   planetaryTransportTerminal = createPlanetaryTransportTerminal({
     computer: shipComputer,
+    earthTerrainReferenceCore,
     root: $('game-screen'),
     onOpenChange: active => {
       transporterConsoleActive = active;
