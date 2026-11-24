@@ -48,7 +48,7 @@ async function parseModel(file, extension) {
  * Receives closed terrain blocks and regional meshes as georeferenced overlays.
  * It deliberately does not replace the global DEM or claim to sculpt continents.
  */
-export function createEarthTerrainReferenceCore({ THREE, earthSystem, scene } = {}) {
+export function createEarthTerrainReferenceCore({ THREE, earthSystem, scene, onReferenceRegistered = null } = {}) {
   if (!THREE || !earthSystem?.group || !scene) {
     throw new TypeError('EarthTerrainReferenceCore exige Three.js, EarthCore e cena.');
   }
@@ -102,6 +102,7 @@ export function createEarthTerrainReferenceCore({ THREE, earthSystem, scene } = 
       object: root
     });
     references.set(id, record);
+    onReferenceRegistered?.(record);
     return record;
   }
 
