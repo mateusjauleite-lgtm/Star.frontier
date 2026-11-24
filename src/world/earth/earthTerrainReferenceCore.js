@@ -190,6 +190,14 @@ export function createEarthTerrainReferenceCore({ THREE, earthSystem, scene, onR
       object: root
     });
     references.set(id, record);
+    if (collisionEnabled) {
+      const coverageCheck = sampleSurfaceWithRegions(geo.longitudeDeg, geo.latitudeDeg);
+      if (!coverageCheck?.regionalSurface || coverageCheck.regionalReferenceId !== id) {
+        references.delete(id);
+        bodyFixedFrame.remove(root);
+        throw new Error('A malha não cobre o ponto georreferenciado. Ajuste a origem do modelo ou as coordenadas antes de importar.');
+      }
+    }
     onReferenceRegistered?.(record);
     return record;
   }
