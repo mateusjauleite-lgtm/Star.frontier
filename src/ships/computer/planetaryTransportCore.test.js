@@ -92,3 +92,48 @@ test('pré-visualiza a coordenada geográfica sem mover o ator nem consumir ener
   assert.equal(moved, false);
   assert.equal(consumed, 0);
 });
+
+
+test('retorna o personagem para um ponto fixo da nave usando o mesmo barramento EPS', () => {
+  const actor = { position: null };
+  let consumed = 0;
+  let movedDestination = null;
+  const core = createPlanetaryTransportCore({
+    resolveDestination: () => ({ position: { x: 0, y: 0, z: 0 } }),
+    moveActor: (target, resolved, context) => {
+      target.position = resolved.position;
+      movedDestination = context.destination.id;
+      return true;
+    },
+    getActors: () => ({ character: actor }),
+    energyCost: 8,
+    getPowerStatus: () => ({ available: true, energy: 16, bus: 'OPERATIONS EPS' }),
+    consumePower: amount => { consumed += amount; return amount; }
+  });
+  const result = core.transferToPosition({
+    id: 'ship-deck-2',
+    name: 'Plataforma de transporte · Deck 2',
+    position: { x: 12, y: 3.5, z: 27 },
+    normal: { x: 0, y: 1, z: 0 }
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.destination.id, 'ship-deck-2');
+  assert.equal(movedDestination, 'ship-deck-2');
+  assert.deepEqual(actor.position, { x: 12, y: 3.5, z: 27 });
+  assert.equal(consumed, 8);
+});
+
+test('bloqueia retorno à nave sem energia ou sem posição fixa válida', () => {
+  let moved = false;
+  const core = createPlanetaryTransportCore({
+    resolveDestination: () => ({ position: { x: 0, y: 0, z: 0 } }),
+    moveActor: () => { moved = true; return true; },
+    getActors: () => ({ character: {} }),
+    energyCost: 8,
+    getPowerStatus: () => ({ available: true, energy: 1 }),
+    consumePower: () => 0
+  });
+  assert.equal(core.transferToPosition({ position: { x: 1, y: 2, z: 3 } }).reason, 'insufficient-power');
+  assert.equal(core.transferToPosition({ position: { x: NaN, y: 2, z: 3 } }).reason, 'destination-unresolved');
+  assert.equal(moved, false);
+});
