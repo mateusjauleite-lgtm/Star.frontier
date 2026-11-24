@@ -54,7 +54,10 @@ export function createEarthTerrainReferenceCore({ THREE, earthSystem, scene, onR
   }
   const references = new Map();
   const terrainRaycaster = new THREE.Raycaster();
-  const inverseEarthQuaternion = new THREE.Quaternion();
+  const inverseFrameQuaternion = new THREE.Quaternion();
+  const bodyFixedFrame = earthSystem.getSurfaceFrame?.() ?? earthSystem.group;
+  const collisionSurface = earthSystem.getCollisionSurface?.();
+  const originalSurfaceSample = collisionSurface?.sample ?? null;
   let disposed = false;
 
   function findRegionalTerrainHit(fallback) {
@@ -81,14 +84,14 @@ export function createEarthTerrainReferenceCore({ THREE, earthSystem, scene, onR
     const hit = intersections[0];
     if (!hit?.point || !hit.face?.normal) return null;
 
-    earthSystem.group.updateWorldMatrix(true, false);
+    bodyFixedFrame.updateWorldMatrix(true, false);
     const worldPosition = hit.point.clone();
-    const localPosition = earthSystem.group.worldToLocal(worldPosition.clone());
+    const localPosition = bodyFixedFrame.worldToLocal(worldPosition.clone());
     const worldNormal = hit.face.normal.clone()
       .applyMatrix3(new THREE.Matrix3().getNormalMatrix(hit.object.matrixWorld))
       .normalize();
-    earthSystem.group.getWorldQuaternion(inverseEarthQuaternion);
-    const localNormal = worldNormal.clone().applyQuaternion(inverseEarthQuaternion.invert()).normalize();
+    bodyFixedFrame.getWorldQuaternion(inverseFrameQuaternion);
+    const localNormal = worldNormal.clone().applyQuaternion(inverseFrameQuaternion.invert()).normalize();
     const reference = terrainReferences.find(item =>
       item.object === hit.object || item.object.getObjectById(hit.object.id) === hit.object
     ) ?? terrainReferences.find(item => {
@@ -103,9 +106,33 @@ export function createEarthTerrainReferenceCore({ THREE, earthSystem, scene, onR
     };
   }
 
+  function sampleSurfaceWithRegions(longitudeDeg, latitudeDeg) {
+    if (typeof originalSurfaceSample !== 'function') return null;
+    const baseSample = originalSurfaceSample.call(collisionSurface, longitudeDeg, latitudeDeg);
+    if (!baseSample?.localPosition || !baseSample?.terrainNormal) return baseSample;
+    bodyFixedFrame.updateWorldMatrix(true, false);
+    const fallback = {
+      worldPosition: baseSample.localPosition.clone().applyMatrix4(bodyFixedFrame.matrixWorld),
+      worldNormal: baseSample.terrainNormal.clone()
+        .transformDirection(bodyFixedFrame.matrixWorld).normalize()
+    };
+    const regionalHit = findRegionalTerrainHit(fallback);
+    if (!regionalHit) return baseSample;
+    return {
+      ...baseSample,
+      localPosition: regionalHit.localPosition,
+      terrainNormal: regionalHit.terrainNormal,
+      regionalReferenceId: regionalHit.regionalReferenceId,
+      regionalSurface: true
+    };
+  }
+
+  if (collisionSurface && typeof originalSurfaceSample === 'function') {
+    collisionSurface.sample = sampleSurfaceWithRegions;
+  }
+
   function resolveSurfacePosition({ latitudeDeg, longitudeDeg, elevationMeters = 0 }) {
-    const surface = earthSystem.getCollisionSurface?.();
-    const sample = surface?.sample?.(longitudeDeg, latitudeDeg);
+    const sample = collisionSurface?.sample?.(longitudeDeg, latitudeDeg);
     if (!sample?.localPosition || !sample?.terrainNormal) {
       throw new Error('A superfície terrestre ainda não consegue resolver esta coordenada.');
     }
@@ -113,19 +140,15 @@ export function createEarthTerrainReferenceCore({ THREE, earthSystem, scene, onR
     const elevationUnits = physicalScale?.metersToRenderUnits?.(elevationMeters) ?? elevationMeters;
     const localPosition = sample.localPosition.clone()
       .add(sample.terrainNormal.clone().multiplyScalar(elevationUnits));
-    earthSystem.group.updateWorldMatrix(true, false);
-    const worldPosition = localPosition.clone().applyMatrix4(earthSystem.group.matrixWorld);
+    bodyFixedFrame.updateWorldMatrix(true, false);
+    const worldPosition = localPosition.clone().applyMatrix4(bodyFixedFrame.matrixWorld);
     const worldNormal = sample.terrainNormal.clone()
-      .transformDirection(earthSystem.group.matrixWorld).normalize();
-    const fallback = { localPosition, worldPosition, worldNormal, sample };
-    const regionalHit = findRegionalTerrainHit(fallback);
-    if (!regionalHit) return fallback;
-    if (elevationUnits !== 0) {
-      const offset = regionalHit.worldNormal.clone().multiplyScalar(elevationUnits);
-      regionalHit.worldPosition.add(offset);
-      regionalHit.localPosition = earthSystem.group.worldToLocal(regionalHit.worldPosition.clone());
-    }
-    return { ...regionalHit, sample, regional: true };
+      .transformDirection(bodyFixedFrame.matrixWorld).normalize();
+    return {
+      localPosition, worldPosition, worldNormal, sample,
+      regional: Boolean(sample.regionalSurface),
+      regionalReferenceId: sample.regionalReferenceId ?? null
+    };
   }
 
   function attach(root, metadata) {
@@ -159,7 +182,7 @@ export function createEarthTerrainReferenceCore({ THREE, earthSystem, scene, onR
       collisionSearchDistanceMeters, destinationEnabled,
       sourceFormat: String(metadata.sourceFormat || 'runtime-object').toLowerCase()
     };
-    earthSystem.group.add(root);
+    bodyFixedFrame.add(root);
     const record = Object.freeze({
       id, name: String(metadata.name || id), ...geo, meshCount,
       sourceFormat: root.userData.earthTerrainReference.sourceFormat,
@@ -197,7 +220,7 @@ export function createEarthTerrainReferenceCore({ THREE, earthSystem, scene, onR
   function removeReference(id) {
     const record = references.get(String(id));
     if (!record) return false;
-    earthSystem.group.remove(record.object);
+    bodyFixedFrame.remove(record.object);
     record.object.traverse(object => {
       object.geometry?.dispose?.();
       const materials = Array.isArray(object.material) ? object.material : [object.material];
@@ -208,6 +231,7 @@ export function createEarthTerrainReferenceCore({ THREE, earthSystem, scene, onR
   }
   function dispose() {
     if (disposed) return;
+    if (collisionSurface && originalSurfaceSample) collisionSurface.sample = originalSurfaceSample;
     for (const id of [...references.keys()]) removeReference(id);
     disposed = true;
   }
