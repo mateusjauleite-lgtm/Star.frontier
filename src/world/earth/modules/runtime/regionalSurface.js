@@ -9,7 +9,14 @@ const FACE_MAP = Object.freeze([
   (u, v, out) => out.set(-u, v, -1)
 ]);
 
-// SphereGeometry maps longitude 0° to u=0.5 and increases u toward negative longitude.\n// Regional tiles must use the same convention to avoid mirrored imagery at handoff.\nexport function earthLongitudeToSphereUv(longitudeDeg) {\n  if (!Number.isFinite(longitudeDeg)) return null;\n  return THREE.MathUtils.euclideanModulo(0.5 - longitudeDeg / 360, 1);\n}\n\nexport function earthCubeFaceDirection(face, u, v, target = new THREE.Vector3()) {
+// SphereGeometry maps longitude 0° to u=0.5 and increases u toward negative longitude.
+// Regional tiles must use the same convention to avoid mirrored imagery at handoff.
+export function earthLongitudeToSphereUv(longitudeDeg) {
+  if (!Number.isFinite(longitudeDeg)) return null;
+  return THREE.MathUtils.euclideanModulo(0.5 - longitudeDeg / 360, 1);
+}
+
+export function earthCubeFaceDirection(face, u, v, target = new THREE.Vector3()) {
   const mapper = FACE_MAP[face];
   if (!mapper || !Number.isFinite(u) || !Number.isFinite(v)) return null;
   return mapper(u, v, target).normalize();
