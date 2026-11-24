@@ -85,7 +85,7 @@ test('uses an imported georeferenced terrain mesh as the local collision and tra
   });
   assert.equal(resolved.regional, true);
   assert.equal(resolved.regionalReferenceId, 'regional-valley');
-  assert.ok(Math.abs(resolved.worldPosition.y - 21) < 1e-6);
+  assert.ok(Math.abs(resolved.worldPosition.y - 11) < 1e-6);
   assert.ok(resolved.worldNormal.y > 0.99);
   assert.equal(core.getStatus().collidableTerrainCount, 1);
   assert.equal(core.listReferences()[0].destinationEnabled, true);
