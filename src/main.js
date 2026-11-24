@@ -1235,7 +1235,7 @@ async function init3D() {
     nearbyElevator,
     activeDeckIndex,
     characterModel,
-    terrestrialTransportBase: world.terrestrialTransportBase,
+    terrestrialTransportBase,
     alexiaCharacter,
     characterAnimator,
     characterWeaponController,
