@@ -4,18 +4,19 @@ const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;',
 
 export function createPlanetaryTransportTerminal({
   computer, root = globalThis.document?.body,
-  onRequestMapPick = () => {}, onDestinationConfirmed = () => {}, onOpenChange = () => {}
+  onRequestMapPick = () => {}, onDestinationConfirmed = () => {}, onOpenChange = () => {},
+  terminalId = 'planetary-transport-console', mode = 'catalog', onReturnToShip = () => {}
 } = {}) {
-  const terminalId = 'planetary-transport-console';
   if (!computer || !root || typeof computer.connectTerminal !== 'function' || typeof computer.dispatch !== 'function') {
     throw new TypeError('O terminal AURORA exige o Ship Computer e uma raiz visual.');
   }
   const doc = root.ownerDocument || document;
   injectStyles(doc);
-  let panel = doc.getElementById(PANEL_ID);
+  const panelId = PANEL_ID + '-' + terminalId;
+  let panel = doc.getElementById(panelId);
   if (!panel) {
     panel = doc.createElement('section');
-    panel.id = PANEL_ID;
+    panel.id = panelId;
     panel.className = 'aurora-transporter hidden';
     panel.setAttribute('aria-label', 'AURORA OS — Transporte planetário');
     root.appendChild(panel);
@@ -46,30 +47,46 @@ export function createPlanetaryTransportTerminal({
     const cost = Number(status?.energyCost || 0);
     const ready = Boolean(power.available && Number(power.energy) >= cost);
     const selected = destinations.find(item => item.id === selectedId);
+    const header = '<header class="aurora-tp-header"><div><span>AURORA OS // AURORA-7 // '+(mode === 'return' ? 'BASE BT-01' : 'DECK 2')+'</span><h2>TRANSPORTE PLANETÁRIO</h2><p>'+(mode === 'return' ? 'Terminal terrestre · conexão de retorno' : 'Catálogo de bases terrestres conectadas')+'</p></div>'+
+      '<div class="aurora-tp-head-actions"><b class="'+(ready ? 'online' : 'offline')+'">'+(ready ? 'EPS DISPONÍVEL' : 'EPS INDISPONÍVEL')+'</b><button type="button" data-tp-close aria-label="Fechar">×</button></div></header>';
+    if (mode === 'return') {
+      panel.innerHTML = header+
+        '<main class="aurora-tp-main"><section class="aurora-tp-card"><div class="aurora-tp-heading"><div><span>BASE TERRESTRE BRASIL · BT-01</span><h3>Retorno à nave</h3></div><b>LINK ATIVO</b></div>'+
+        '<p class="aurora-tp-note">O terminal está conectado ao Ship Computer da AURORA-7. A transferência será feita para a plataforma do Deck 2 e consumirá '+cost.toFixed(1)+' unidades de energia do barramento OPERATIONS EPS.</p>'+
+        '<div class="aurora-tp-selection"><div><span>DESTINO</span><b>Plataforma de transporte · Deck 2</b></div>'+
+        '<button type="button" class="aurora-tp-button" data-tp-return '+(ready ? '' : 'disabled')+'>RETORNAR À NAVE</button></div>'+
+        '<div class="aurora-tp-power"><span class="'+(ready ? 'online' : 'offline')+'">● '+(ready ? 'SISTEMA ENERGIZADO' : 'AGUARDANDO ENERGIA')+'</span><span>'+Number(power.energy || 0).toFixed(1)+' / '+cost.toFixed(1)+' EPS</span></div>'+
+        '</section></main><footer class="aurora-tp-footer"><span>BT-01 · JAÚ, SÃO PAULO, BRASIL</span><span>LINK AURORA-7: '+(connected ? 'CONECTADO' : 'OFFLINE')+'</span></footer>';
+      panel.querySelector('[data-tp-close]')?.addEventListener('click', close);
+      panel.querySelector('[data-tp-return]')?.addEventListener('click', () => {
+        const response = dispatch('returnToShip');
+        if (!response?.ok || !response.result?.ok) {
+          announce('Retorno recusado: '+(response?.result?.reason || response?.reason || 'falha de conexão'));
+          refresh();
+          return;
+        }
+        onReturnToShip(response.result);
+        close();
+      });
+      return;
+    }
+
     const rows = destinations.map(item =>
       '<button type="button" class="aurora-tp-destination '+(item.id === selectedId ? 'is-selected' : '')+'" data-tp-select="'+esc(item.id)+'">'+
-      '<span><b>'+esc(item.name)+'</b><small>'+esc(item.bodyId === 'earth' ? 'TERRA' : item.bodyId.toUpperCase())+' · DESTINO GEOGRÁFICO</small></span>'+
-      '<i>'+(item.id === selectedId ? 'SELECIONADO' : 'MARCAR')+'</i></button>'
+      '<span><b>'+esc(item.name)+'</b><small>'+esc(item.region || (item.bodyId === 'earth' ? 'TERRA' : item.bodyId.toUpperCase()))+' · BASE OPERACIONAL</small></span>'+
+      '<i>'+(item.id === selectedId ? 'SELECIONADA' : 'SELECIONAR')+'</i></button>'
     ).join('');
-
-    panel.innerHTML =
-      '<header class="aurora-tp-header"><div><span>AURORA OS // AURORA-7 // DECK 2</span><h2>TRANSPORTE PLANETÁRIO</h2><p>Seleção de destino e transferência de pessoal</p></div>'+
-      '<div class="aurora-tp-head-actions"><b class="'+(ready ? 'online' : 'offline')+'">'+(ready ? 'EPS DISPONÍVEL' : 'EPS INDISPONÍVEL')+'</b><button type="button" data-tp-close aria-label="Fechar">×</button></div></header>'+
+    panel.innerHTML = header+
       '<main class="aurora-tp-main"><section class="aurora-tp-card">'+
-      '<div class="aurora-tp-heading"><div><span>NAVEGAÇÃO TERRESTRE</span><h3>Destino de transporte</h3></div><b>'+destinations.length+' MARCADOS</b></div>'+
-      '<p class="aurora-tp-note">Marque um ponto diretamente na superfície 3D da Terra. O computador calcula a posição geográfica e prepara o local automaticamente.</p>'+
-      '<button type="button" class="aurora-tp-button mark" data-tp-mark>◎ MARCAR DESTINO NA TERRA</button>'+
-      '<div class="aurora-tp-list">'+(rows || '<p class="aurora-tp-empty">Nenhum destino marcado. Use o botão acima para escolher um ponto no globo.</p>')+'</div>'+
-      '<div class="aurora-tp-selection"><div><span>DESTINO SELECIONADO</span><b>'+(selected ? esc(selected.name) : 'Nenhum destino selecionado')+'</b></div>'+
-      '<button type="button" class="aurora-tp-button" data-tp-confirm '+(selected ? '' : 'disabled')+'>CONFIRMAR DESTINO</button></div>'+
+      '<div class="aurora-tp-heading"><div><span>CATÁLOGO DE ESTAÇÕES</span><h3>Escolha uma base terrestre</h3></div><b>'+destinations.length+' BASE(S)</b></div>'+
+      '<p class="aurora-tp-note">Selecione uma instalação física registrada no terreno da Terra. Depois de confirmar, dirija-se à plataforma do Deck 2 para iniciar o transporte.</p>'+
+      '<div class="aurora-tp-list">'+(rows || '<p class="aurora-tp-empty">Nenhuma base terrestre conectada.</p>')+'</div>'+
+      '<div class="aurora-tp-selection"><div><span>BASE SELECIONADA</span><b>'+(selected ? esc(selected.name) : 'Nenhuma base selecionada')+'</b></div>'+
+      '<button type="button" class="aurora-tp-button" data-tp-confirm '+(selected ? '' : 'disabled')+'>CONFIRMAR BASE</button></div>'+
       '<div class="aurora-tp-power"><span class="'+(ready ? 'online' : 'offline')+'">● '+(ready ? 'SISTEMA ENERGIZADO' : 'AGUARDANDO ENERGIA')+'</span><span>'+Number(power.energy || 0).toFixed(1)+' / '+cost.toFixed(1)+' EPS</span></div>'+
       '</section></main><footer class="aurora-tp-footer"><span>AURORA OS · TRANSPORTE</span><span>SHIP COMPUTER: CONECTADO</span></footer>';
 
     panel.querySelector('[data-tp-close]')?.addEventListener('click', close);
-    panel.querySelector('[data-tp-mark]')?.addEventListener('click', () => {
-      if (!present || !canInteract) return;
-      onRequestMapPick();
-    });
     panel.querySelectorAll('[data-tp-select]').forEach(button => button.addEventListener('click', () => {
       selectedId = button.dataset.tpSelect;
       render();
