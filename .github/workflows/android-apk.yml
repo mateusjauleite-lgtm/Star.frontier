@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - feature/lunar-world-core-2026-11-23
+      - feature/planetary-transport-terrain-reference-cores
       - feature/dilithium-inventory-refinery-transfer
       - feature/deflector-core-runtime
       - architecture/modules-skeleton
@@ -54,6 +55,7 @@ on:
       - feature/earth-blue-marble-visual-runtime-2026-11-22
       - feature/central-physical-scale-2026-11-22
       - feat/earth-global-gravity-rotation
+      - feature/lunar-world-core-2026-11-23
   workflow_dispatch:
 
 permissions:
