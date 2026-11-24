@@ -11,9 +11,16 @@ export function createGameplayFramePhases(getDependencies) {
 
   return {
     updateEnvironment(dt) {
-      const { earthSystem, camera, applyEarthSurfaceRotation, ship, updatePhaserWeapon } = getDependencies();
-  earthSystem?.update(dt, camera);
-  applyEarthSurfaceRotation(dt);
+      const { earthSystem, camera, applyEarthSurfaceRotation, solarSystemDynamics, solarSystemPresentation, scene, ship, updatePhaserWeapon } = getDependencies();
+      // Avança o relógio astronômico uma única vez e aplica o ângulo absoluto
+      // antes de atualizar atores ancorados à superfície terrestre.
+      const solarSnapshot = scene?.userData?.solarSystemSnapshot ?? null;
+      const solarFrame = scene?.userData?.solarSystemPresentationFrame ?? null;
+      if (Number.isFinite(solarFrame?.earthRotationAngleRad)) {
+        earthSystem?.setSurfaceRotationAngle?.(solarFrame.earthRotationAngleRad);
+      }
+      earthSystem?.update(dt, camera);
+      applyEarthSurfaceRotation();
   if (ship) ship.userData.earthCollisionResolved = false;
 
   updatePhaserWeapon(dt);
