@@ -1,4 +1,5 @@
 const finite = value => Number.isFinite(Number(value));
+const normalizeSearchText = value => String(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase();
 const normalizeDestination = input => {
   if (!input || typeof input !== 'object') throw new TypeError('Destino inválido.');
   const id = String(input.id || '').trim();
@@ -42,10 +43,10 @@ export function createPlanetaryTransportCore({
   }
   function unregisterDestination(id) { return destinations.delete(String(id)); }
   function findDestinations(query = '') {
-    const term = String(query).trim().toLocaleLowerCase();
+    const term = normalizeSearchText(query.trim());
     return [...destinations.values()].filter(destination =>
       !term || [destination.id, destination.name, destination.bodyId, ...destination.tags]
-        .some(value => value.toLocaleLowerCase().includes(term))
+        .some(value => normalizeSearchText(value).includes(term))
     );
   }
   function getDestination(id) { return destinations.get(String(id)) ?? null; }
