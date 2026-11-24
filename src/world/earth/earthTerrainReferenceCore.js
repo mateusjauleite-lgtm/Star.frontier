@@ -53,7 +53,55 @@ export function createEarthTerrainReferenceCore({ THREE, earthSystem, scene, onR
     throw new TypeError('EarthTerrainReferenceCore exige Three.js, EarthCore e cena.');
   }
   const references = new Map();
+  const terrainRaycaster = new THREE.Raycaster();
+  const inverseEarthQuaternion = new THREE.Quaternion();
   let disposed = false;
+
+  function findRegionalTerrainHit(fallback) {
+    const terrainReferences = [...references.values()].filter(reference =>
+      reference.surfaceRole === 'terrain' && reference.collisionEnabled
+    );
+    if (!terrainReferences.length) return null;
+    const physicalScale = earthSystem.getPhysicalScale?.();
+    const searchMeters = Math.max(100, ...terrainReferences.map(reference =>
+      reference.collisionSearchDistanceMeters
+    ));
+    const searchUnits = physicalScale?.metersToRenderUnits?.(searchMeters) ?? searchMeters;
+    const radialUp = fallback.worldNormal.clone().normalize();
+    const rayOrigin = fallback.worldPosition.clone().addScaledVector(radialUp, searchUnits);
+    terrainRaycaster.set(rayOrigin, radialUp.clone().negate());
+    terrainRaycaster.near = 0;
+    terrainRaycaster.far = searchUnits * 2;
+    const intersections = [];
+    for (const reference of terrainReferences) {
+      reference.object.updateWorldMatrix(true, true);
+      intersections.push(...terrainRaycaster.intersectObject(reference.object, true));
+    }
+    intersections.sort((a, b) => a.distance - b.distance);
+    const hit = intersections[0];
+    if (!hit?.point || !hit.face?.normal) return null;
+
+    earthSystem.group.updateWorldMatrix(true, false);
+    const worldPosition = hit.point.clone();
+    const localPosition = earthSystem.group.worldToLocal(worldPosition.clone());
+    const worldNormal = hit.face.normal.clone()
+      .applyMatrix3(new THREE.Matrix3().getNormalMatrix(hit.object.matrixWorld))
+      .normalize();
+    earthSystem.group.getWorldQuaternion(inverseEarthQuaternion);
+    const localNormal = worldNormal.clone().applyQuaternion(inverseEarthQuaternion.invert()).normalize();
+    const reference = terrainReferences.find(item =>
+      item.object === hit.object || item.object.getObjectById(hit.object.id) === hit.object
+    ) ?? terrainReferences.find(item => {
+      let parent = hit.object;
+      while (parent && parent !== item.object) parent = parent.parent;
+      return parent === item.object;
+    });
+    return {
+      localPosition, worldPosition, worldNormal, terrainNormal: localNormal,
+      regionalReferenceId: reference?.id ?? null,
+      source: 'georeferenced-regional-mesh'
+    };
+  }
 
   function resolveSurfacePosition({ latitudeDeg, longitudeDeg, elevationMeters = 0 }) {
     const surface = earthSystem.getCollisionSurface?.();
@@ -69,7 +117,15 @@ export function createEarthTerrainReferenceCore({ THREE, earthSystem, scene, onR
     const worldPosition = localPosition.clone().applyMatrix4(earthSystem.group.matrixWorld);
     const worldNormal = sample.terrainNormal.clone()
       .transformDirection(earthSystem.group.matrixWorld).normalize();
-    return { localPosition, worldPosition, worldNormal, sample };
+    const fallback = { localPosition, worldPosition, worldNormal, sample };
+    const regionalHit = findRegionalTerrainHit(fallback);
+    if (!regionalHit) return fallback;
+    if (elevationUnits !== 0) {
+      const offset = worldNormal.clone().multiplyScalar(elevationUnits);
+      regionalHit.worldPosition.add(offset);
+      regionalHit.localPosition = earthSystem.group.worldToLocal(regionalHit.worldPosition.clone());
+    }
+    return { ...regionalHit, sample, regional: true };
   }
 
   function attach(root, metadata) {
@@ -91,14 +147,23 @@ export function createEarthTerrainReferenceCore({ THREE, earthSystem, scene, onR
     root.position.copy(placement.localPosition);
     root.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), placement.sample.terrainNormal.clone().normalize());
     root.name = `EarthTerrainReference:${id}`;
+    const surfaceRole = metadata.surfaceRole === 'terrain' ? 'terrain' : 'overlay';
+    const collisionEnabled = surfaceRole === 'terrain' && metadata.collisionEnabled !== false;
+    const collisionSearchDistanceMeters = Number(metadata.collisionSearchDistanceMeters ?? 10000);
+    if (!finite(collisionSearchDistanceMeters) || collisionSearchDistanceMeters <= 0) {
+      throw new TypeError('collisionSearchDistanceMeters deve ser positivo.');
+    }
+    const destinationEnabled = metadata.destinationEnabled === true || surfaceRole === 'terrain';
     root.userData.earthTerrainReference = {
-      id, ...geo, metersPerModelUnit, meshCount,
+      id, ...geo, metersPerModelUnit, meshCount, surfaceRole, collisionEnabled,
+      collisionSearchDistanceMeters, destinationEnabled,
       sourceFormat: String(metadata.sourceFormat || 'runtime-object').toLowerCase()
     };
     earthSystem.group.add(root);
     const record = Object.freeze({
       id, name: String(metadata.name || id), ...geo, meshCount,
       sourceFormat: root.userData.earthTerrainReference.sourceFormat,
+      surfaceRole, collisionEnabled, collisionSearchDistanceMeters, destinationEnabled,
       object: root
     });
     references.set(id, record);
@@ -149,11 +214,15 @@ export function createEarthTerrainReferenceCore({ THREE, earthSystem, scene, onR
   return Object.freeze({
     attach, importFile, getReference, listReferences, removeReference, dispose,
     resolveSurfacePosition,
+    sampleTerrainSurface: resolveSurfacePosition,
     getStatus: () => ({
       state: disposed ? 'disposed' : 'ready',
       acceptedFormats: [...SUPPORTED_EXTENSIONS],
       referenceCount: references.size,
-      placementMode: 'georeferenced-surface-overlay',
+      terrainReferenceCount: [...references.values()].filter(item => item.surfaceRole === 'terrain').length,
+      collidableTerrainCount: [...references.values()].filter(item => item.collisionEnabled).length,
+      placementMode: 'georeferenced-regional-terrain-with-global-dem-fallback',
+      globalDemRemainsAuthoritativeOutsideRegionalMeshes: true,
       modifiesGlobalElevation: false
     })
   });
