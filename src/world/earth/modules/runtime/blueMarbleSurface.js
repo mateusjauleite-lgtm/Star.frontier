@@ -40,6 +40,8 @@ export function createBlueMarbleSurfaceRuntime({
         color: 0xffffff,
         roughness: 0.94,
         metalness: 0,
+        emissive: 0xffffff,
+        emissiveIntensity: 0.16,
         dithering: true
       });
       mesh = new THREE.Mesh(geometry, material);
@@ -78,6 +80,10 @@ export function createBlueMarbleSurfaceRuntime({
             Math.min(4, options.textureAnisotropy ?? 4)
           );
           material.map = loadedTexture;
+          // Low-level self-illumination keeps the Blue Marble geography readable
+          // on the night side and during close surface approach without replacing
+          // the single scene-level directional sunlight.
+          material.emissiveMap = loadedTexture;
           material.needsUpdate = true;
           textureState = 'ready';
           layers.surfaceVisual.state = textureState;
