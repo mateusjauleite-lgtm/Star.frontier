@@ -86,6 +86,7 @@ function createInitialBodies() {
 export function createSolarSystemDynamics({
   bodies = createInitialBodies(),
   gravitationalConstant = GRAVITATIONAL_CONSTANT_M3_KG_S2,
+  gravityKernel = null,
   timeScale = 1,
   maxSubstepSeconds = 60,
   maxSubstepsPerAdvance = 2048
@@ -135,6 +136,23 @@ export function createSolarSystemDynamics({
   let integratedSubsteps = 0;
 
   function accelerationFor(positions) {
+    if (gravityKernel?.acceleration) {
+      const accelerated = positions.map((position, index) => gravityKernel.acceleration({
+        position,
+        bodies: orderedStates
+          .filter((_, otherIndex) => otherIndex !== index)
+          .map((body, filteredIndex) => {
+            const otherIndex = filteredIndex >= index ? filteredIndex + 1 : filteredIndex;
+            return {
+              position: positions[otherIndex],
+              mu: gravitationalConstant * body.massKg
+            };
+          })
+      }));
+      if (accelerated.every(isVector)) return accelerated;
+    }
+
+    // Deterministic JS fallback for tests and environments without the C++/WASM kernel.
     const acceleration = positions.map(() => [0, 0, 0]);
     for (let i = 0; i < positions.length; i += 1) {
       for (let j = i + 1; j < positions.length; j += 1) {
