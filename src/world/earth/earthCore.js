@@ -84,6 +84,18 @@ export function createEarthCore(options = {}) {
     getSurfaceMesh() {
       return layers.surface ?? null;
     },
+    worldPositionToGeographic(worldPosition) {
+      if (!worldPosition?.isVector3) return null;
+      surfaceFrame.updateWorldMatrix(true, false);
+      const local = surfaceFrame.worldToLocal(worldPosition.clone());
+      const radius = local.length();
+      if (!Number.isFinite(radius) || radius < 1e-8) return null;
+      local.multiplyScalar(1 / radius);
+      return {
+        latitudeDeg: THREE.MathUtils.radToDeg(Math.asin(THREE.MathUtils.clamp(local.y, -1, 1))),
+        longitudeDeg: THREE.MathUtils.radToDeg(Math.atan2(local.z, local.x))
+      };
+    },
     setSurfaceRotationAngle(angleRad) {
       if (!Number.isFinite(angleRad)) return false;
       surfaceFrame.rotation.y = THREE.MathUtils.euclideanModulo(angleRad, Math.PI * 2);
