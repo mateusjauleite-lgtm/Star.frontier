@@ -187,13 +187,22 @@ export async function createGameWorld({
       });
       return { position: placement.worldPosition, normal: placement.worldNormal };
     },
-    getActors: () => ({ ship }),
-    moveActor: (actor, resolved) => {
+    getActors: () => ({ ship, character: characterModel.group }),
+    moveActor: (actor, resolved, { actor: actorId } = {}) => {
+      if (actorId === 'character') scene.attach(actor);
       actor.position.copy(resolved.position);
       actor.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), resolved.normal);
       actor.updateMatrixWorld(true);
       return true;
     },
+    consumePower: amount => state.requestOperationsPower?.(amount, 1) ?? 0,
+    getPowerStatus: () => ({
+      available: Boolean(state.warpCorePowerBusConnected && state.warpCoreEnabled !== false &&
+        state.warpCoreContainmentStable !== false && state.warpCoreMatrixEnabled !== false),
+      bus: 'OPERATIONS EPS',
+      energy: Math.max(0, Number(state.warpCoreOperationsBuffer) || 0)
+    }),
+    energyCost: 8,
     enabled: true
   });
 

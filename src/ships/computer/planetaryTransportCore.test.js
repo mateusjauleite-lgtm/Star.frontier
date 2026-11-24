@@ -37,3 +37,38 @@ test('rejeita coordenadas inválidas e altitude negativa', () => {
   core.registerDestination({ id: 'ok', latitudeDeg: 0, longitudeDeg: 0 });
   assert.equal(core.teleport('ok', { altitudeOffsetMeters: -1 }).reason, 'invalid-altitude');
 });
+
+
+test('exige energia disponível e consome o barramento antes do transporte', () => {
+  const actor = { position: null };
+  let consumed = 0;
+  const core = createPlanetaryTransportCore({
+    resolveDestination: destination => ({ position: { x: destination.longitudeDeg, y: 2, z: destination.latitudeDeg } }),
+    moveActor: (target, resolved) => { target.position = resolved.position; return true; },
+    getActors: () => ({ character: actor }),
+    energyCost: 8,
+    getPowerStatus: () => ({ available: true, energy: 20, bus: 'OPERATIONS EPS' }),
+    consumePower: amount => { consumed += amount; return amount; }
+  });
+  core.registerDestination({ id: 'jaú', name: 'Jaú', latitudeDeg: -22.29, longitudeDeg: -48.56 });
+  const result = core.teleport('jaú', { actor: 'character', altitudeOffsetMeters: 2.2 });
+  assert.equal(result.ok, true);
+  assert.equal(consumed, 8);
+  assert.deepEqual(actor.position, { x: -48.56, y: 2, z: -22.29 });
+  assert.equal(core.getStatus().power.bus, 'OPERATIONS EPS');
+});
+
+test('bloqueia transporte sem energia sem mover o personagem', () => {
+  let moved = false;
+  const core = createPlanetaryTransportCore({
+    resolveDestination: () => ({ position: { x: 1, y: 2, z: 3 } }),
+    moveActor: () => { moved = true; return true; },
+    getActors: () => ({ character: {} }),
+    energyCost: 8,
+    getPowerStatus: () => ({ available: true, energy: 2 }),
+    consumePower: () => 0
+  });
+  core.registerDestination({ id: 'site', latitudeDeg: 0, longitudeDeg: 0 });
+  assert.equal(core.teleport('site', { actor: 'character' }).reason, 'insufficient-power');
+  assert.equal(moved, false);
+});

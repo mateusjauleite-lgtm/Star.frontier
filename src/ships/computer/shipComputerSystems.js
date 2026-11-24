@@ -86,14 +86,28 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
 
   if (planetaryTransportCore) {
     computer.registerSystem('planetary-transport', {
-      name: 'Transporte planetário · Ferramenta de testes',
+      name: 'Transporte planetário · AURORA OS',
       commands: {
         status: () => planetaryTransportCore.getStatus(),
         search: payload => planetaryTransportCore.findDestinations(payload?.query || ''),
-        teleport: payload => planetaryTransportCore.teleport(payload?.destinationId, {
-          actor: payload?.actor || 'ship',
-          altitudeOffsetMeters: payload?.altitudeOffsetMeters ?? 100
-        })
+        registerCoordinate: (payload, context) => {
+          if (context?.terminalId !== 'planetary-transport-console') return { accepted: false, reason: 'transport-terminal-required' };
+          try {
+            return planetaryTransportCore.registerDestination({
+              id: payload?.id, name: payload?.name, bodyId: 'earth',
+              latitudeDeg: payload?.latitudeDeg, longitudeDeg: payload?.longitudeDeg,
+              elevationMeters: payload?.elevationMeters ?? 0, tags: ['manual-coordinate', 'earth']
+            });
+          } catch (error) {
+            return { accepted: false, reason: 'invalid-coordinate', message: String(error?.message || error) };
+          }
+        },
+        teleport: (payload, context) => {
+          if (context?.terminalId !== 'planetary-transport-console') return { ok: false, reason: 'transport-terminal-required' };
+          return planetaryTransportCore.teleport(payload?.destinationId, {
+            actor: 'character', altitudeOffsetMeters: payload?.altitudeOffsetMeters ?? 2.2
+          });
+        }
       },
       getStatus: () => planetaryTransportCore.getStatus().state
     });

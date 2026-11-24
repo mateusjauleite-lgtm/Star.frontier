@@ -27,6 +27,9 @@ export function createPlanetaryTransportCore({
   resolveDestination,
   moveActor,
   getActors = () => ({}),
+  consumePower = () => true,
+  getPowerStatus = () => null,
+  energyCost = 8,
   enabled = true
 } = {}) {
   if (typeof resolveDestination !== 'function' || typeof moveActor !== 'function') {
@@ -66,6 +69,16 @@ export function createPlanetaryTransportCore({
     const actors = getActors() || {};
     const target = actors[actor];
     if (!target) return { ok: false, reason: 'actor-unavailable' };
+    const requiredEnergy = Math.max(0, Number(energyCost) || 0);
+    const power = typeof getPowerStatus === 'function' ? getPowerStatus() : null;
+    if (power && !power.available) return { ok: false, reason: 'power-unavailable', power };
+    if (power && Number(power.energy) < requiredEnergy) {
+      return { ok: false, reason: 'insufficient-power', requiredEnergy, availableEnergy: Number(power.energy) || 0, power };
+    }
+    const delivered = consumePower(requiredEnergy, { destination, actor });
+    if (delivered === false || (typeof delivered === 'number' && delivered + 1e-9 < requiredEnergy)) {
+      return { ok: false, reason: 'insufficient-power', requiredEnergy, deliveredEnergy: Number(delivered) || 0, power };
+    }
     const moved = moveActor(target, resolved, { destination, actor });
     if (moved === false) return { ok: false, reason: 'actor-move-rejected' };
     lastTransfer = Object.freeze({
@@ -81,8 +94,10 @@ export function createPlanetaryTransportCore({
     getStatus() {
       return {
         state: active ? 'ready' : 'disabled',
-        mode: 'developer-test-only',
+        mode: 'georeferenced-character-transport',
         destinationCount: destinations.size,
+        energyCost: Math.max(0, Number(energyCost) || 0),
+        power: typeof getPowerStatus === 'function' ? getPowerStatus() : null,
         lastTransfer
       };
     }
