@@ -25,6 +25,10 @@ test('powered upward flight can exceed the low-altitude approach speed limit', (
   assert.equal(getConventionalFlightSpeedLimit(20, {
     throttle: true,
     climbAlignment: 0.1
+  }), 12000);
+  assert.equal(getConventionalFlightSpeedLimit(20, {
+    throttle: true,
+    climbAlignment: 0.02
   }), 4);
   assert.equal(getConventionalFlightSpeedLimit(20, {
     verticalSpeed: 25
