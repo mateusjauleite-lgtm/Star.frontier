@@ -1078,6 +1078,10 @@ async function startGame() {
     try { scene?.userData?.moonSystem?.dispose?.(); } catch (disposeError) {
       console.warn('Não foi possível encerrar os módulos da Lua:', disposeError);
     }
+    try { earthTerrainReferenceCore?.dispose?.(); } catch (disposeError) {
+      console.warn('Não foi possível encerrar as referências de terreno da Terra:', disposeError);
+    }
+    earthTerrainReferenceCore = null;
     try { earthSystem?.dispose?.(); } catch (disposeError) {
       console.warn('Não foi possível encerrar os módulos da Terra:', disposeError);
     }
@@ -1122,6 +1126,7 @@ async function startGame() {
     shipLandingGearContactPoints = [];
     stars = null;
     earthSystem = null;
+    earthTerrainReferenceCore = null;
     earthReferenceFrames = null;
     stationSystem = null;
     landingBaseSystem = null;
