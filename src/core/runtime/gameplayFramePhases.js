@@ -183,8 +183,11 @@ export function createGameplayFramePhases(getDependencies) {
     },
 
     updateWorld(dt) {
-      const { orbitSystem, asteroidSystem, lightingSystem, camera, shipVisual, THREE, state, updateShipSystems } = getDependencies();
+      const { orbitSystem, solarSystemDynamics, asteroidSystem, lightingSystem, camera, shipVisual, THREE, scene, state, updateShipSystems } = getDependencies();
       updateShipSystems?.(dt);
+      // A simulação astronômica avança em SI e publica um snapshot puro para a camada visual.
+      const solarSnapshot = solarSystemDynamics?.advance(dt) ?? null;
+      if (scene && solarSnapshot) scene.userData.solarSystemSnapshot = solarSnapshot;
       orbitSystem?.update(dt);
       asteroidSystem?.update(dt);
       const shipQuaternion = shipVisual?.getWorldQuaternion && THREE?.Quaternion
