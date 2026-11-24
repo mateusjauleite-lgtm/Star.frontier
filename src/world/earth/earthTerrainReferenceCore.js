@@ -121,7 +121,7 @@ export function createEarthTerrainReferenceCore({ THREE, earthSystem, scene, onR
     const regionalHit = findRegionalTerrainHit(fallback);
     if (!regionalHit) return fallback;
     if (elevationUnits !== 0) {
-      const offset = worldNormal.clone().multiplyScalar(elevationUnits);
+      const offset = regionalHit.worldNormal.clone().multiplyScalar(elevationUnits);
       regionalHit.worldPosition.add(offset);
       regionalHit.localPosition = earthSystem.group.worldToLocal(regionalHit.worldPosition.clone());
     }
