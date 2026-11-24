@@ -4,6 +4,7 @@ import { createDilithiumMatrix } from './engineering/dilithiumMatrix.js';
 import { createDilithiumProcessingPlant } from './engineering/dilithiumProcessingPlant.js';
 import { DECK_3_DEFLECTOR_APERTURE } from './engineering/deflectorAperture.js';
 import { createDeflectorInteriorStructure } from './engineering/deflectorInteriorStructure.js';
+import { createDeck2TransporterInstallation } from './transport/transportInstallation.js';
 
 // Estrutura física inicial da nave exploradora.
 // Escala de trabalho: 120 x 64 x 32 m. Sem consoles, máquinas ou mobiliário.
@@ -249,6 +250,11 @@ export function createStarshipInterior(options = {}) {
   const deflectorInterior = createDeflectorInteriorStructure();
   group.add(deflectorInterior);
 
+  // D2 — uma única plataforma de transporte e um console físico dedicado.
+  const transporterInstallation = createDeck2TransporterInstallation();
+  group.add(transporterInstallation.group);
+  collisionBoxes.push(...transporterInstallation.collisionBoxes);
+
   // D3 — convés aberto. Sem paredes ou anteparas internas.
 
   // D4 — hangar totalmente livre até a abertura externa.
@@ -261,6 +267,7 @@ export function createStarshipInterior(options = {}) {
     group,
     dilithiumPlant,
     dilithiumMatrix,
+    transporterInstallation,
     layout: STARSHIP_LAYOUT,
     collisionBoxes,
     dispose() {
@@ -270,6 +277,7 @@ export function createStarshipInterior(options = {}) {
         if (Array.isArray(object.material)) object.material.forEach(m => m.dispose());
         else object.material?.dispose();
       });
+      transporterInstallation.dispose();
       [floorMat, wallMat, bulkheadMat, trimMat, shaftMat].forEach(m => m.dispose());
     }
   };
