@@ -20,9 +20,9 @@ const normalizeDestination = input => {
 };
 
 /**
- * Test-only planetary transport service.
- * It resolves named, georeferenced destinations through the world provider;
- * it never invents surface coordinates or changes orbital/flight physics.
+ * Bidirectional character transport service.
+ * Georeferenced destinations resolve through the planetary surface provider;
+ * fixed return endpoints are supplied by the owning transport terminal.
  */
 export function createPlanetaryTransportCore({
   resolveDestination,
@@ -146,7 +146,7 @@ export function createPlanetaryTransportCore({
     getStatus() {
       return {
         state: active ? 'ready' : 'disabled',
-        mode: 'georeferenced-character-transport',
+        mode: 'bidirectional-georeferenced-character-transport',
         destinationCount: destinations.size,
         energyCost: Math.max(0, Number(energyCost) || 0),
         power: typeof getPowerStatus === 'function' ? getPowerStatus() : null,
