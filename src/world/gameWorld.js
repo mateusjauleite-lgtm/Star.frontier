@@ -1,5 +1,7 @@
 import { createEarthReferenceFrames } from './earth/earthReferenceFrames.js';
 import { createEarthCore } from './earth/earthCore.js';
+import { createEarthTerrainReferenceCore } from './earth/earthTerrainReferenceCore.js';
+import { createPlanetaryTransportCore } from '../ships/computer/planetaryTransportCore.js';
 import { createMoonCore } from './moon/moonCore.js';
 import { MOON_PLANETARY_PROFILE } from './moon/moonProfile.js';
 import { createStation } from './station.js';
@@ -49,6 +51,8 @@ export async function createGameWorld({
   let scene = new THREE.Scene();
   let renderer = null;
   let earthSystem = null;
+  let earthTerrainReferenceCore = null;
+  let planetaryTransportCore = null;
   let moonSystem = null;
   let shipFlightKernel = null;
   let gravityKernel = null;
@@ -67,6 +71,19 @@ export async function createGameWorld({
   const earthReferenceFrames = createEarthReferenceFrames({
     globalFrame: scene,
     terrestrialFrame: earthSystem.getSurfaceFrame()
+  });
+  earthTerrainReferenceCore = createEarthTerrainReferenceCore({
+    THREE, earthSystem, scene,
+    onReferenceRegistered: reference => planetaryTransportCore?.registerDestination({
+      id: reference.id,
+      name: reference.name,
+      bodyId: 'earth',
+      latitudeDeg: reference.latitudeDeg,
+      longitudeDeg: reference.longitudeDeg,
+      elevationMeters: reference.elevationMeters,
+      sourceId: reference.id,
+      tags: ['terrain-reference', reference.sourceFormat]
+    })
   });
 
   // A Lua possui grupo e referencial próprios; sua posição nunca é parentada à Terra.
@@ -161,6 +178,24 @@ export async function createGameWorld({
   const maneuveringFlames = explorationShip.maneuveringFlames;
   const maneuveringLights = explorationShip.maneuveringLights;
   scene.add(ship);
+  planetaryTransportCore = createPlanetaryTransportCore({
+    resolveDestination: (destination, { altitudeOffsetMeters }) => {
+      const placement = earthTerrainReferenceCore.resolveSurfacePosition({
+        latitudeDeg: destination.latitudeDeg,
+        longitudeDeg: destination.longitudeDeg,
+        elevationMeters: destination.elevationMeters + altitudeOffsetMeters
+      });
+      return { position: placement.worldPosition, normal: placement.worldNormal };
+    },
+    getActors: () => ({ ship }),
+    moveActor: (actor, resolved) => {
+      actor.position.copy(resolved.position);
+      actor.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), resolved.normal);
+      actor.updateMatrixWorld(true);
+      return true;
+    },
+    enabled: true
+  });
 
   await loadingStep(70, 'Carregando campo de asteroides...');
 
@@ -229,6 +264,8 @@ export async function createGameWorld({
     ship,
     stars,
     earthSystem,
+    earthTerrainReferenceCore,
+    planetaryTransportCore,
     moonSystem,
     earthReferenceFrames,
     stationSystem,
@@ -263,6 +300,9 @@ export async function createGameWorld({
     characterPhysics
   };
   } catch (error) {
+    try { earthTerrainReferenceCore?.dispose?.(); } catch (disposeError) {
+      console.warn('Falha ao liberar referências de terreno da Terra:', disposeError);
+    }
     try { moonSystem?.dispose?.(); } catch (disposeError) {
       console.warn('Falha ao liberar os módulos da Lua:', disposeError);
     }
