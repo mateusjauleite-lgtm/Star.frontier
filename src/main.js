@@ -1000,16 +1000,16 @@ async function startGame() {
       throw new Error('O Runtime não conseguiu inicializar seus sistemas.');
     }
     // Referencial próprio: posição local preservada, sem herdar a hierarquia do casco.
-  characterDeckFrame = new THREE.Group();
-  characterDeckFrame.name = 'character-deck-reference-frame';
-  scene.add(characterDeckFrame);
-  shipVisual.updateWorldMatrix(true, false);
-  characterDeckFrame.matrixAutoUpdate = false;
-  characterDeckFrame.matrix.copy(shipVisual.matrixWorld);
-  characterDeckFrame.matrixWorldNeedsUpdate = true;
-  characterDeckFrame.updateMatrixWorld(true);
-  if (characterModel?.group) characterDeckFrame.attach(characterModel.group);
-  characterEquipment.initialize();
+    characterDeckFrame = new THREE.Group();
+    characterDeckFrame.name = 'character-deck-reference-frame';
+    scene.add(characterDeckFrame);
+    shipVisual.updateWorldMatrix(true, false);
+    characterDeckFrame.matrixAutoUpdate = false;
+    characterDeckFrame.matrix.copy(shipVisual.matrixWorld);
+    characterDeckFrame.matrixWorldNeedsUpdate = true;
+    characterDeckFrame.updateMatrixWorld(true);
+    if (characterModel?.group) characterDeckFrame.attach(characterModel.group);
+    characterEquipment.initialize();
     if (characterInWorldFrame && characterModel?.group && characterDeckFrame) {
       scene.remove(characterModel.group);
       characterDeckFrame.add(characterModel.group);
