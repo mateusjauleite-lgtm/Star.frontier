@@ -239,6 +239,7 @@ export function createSolarSystemDynamics({
   }
 
   return Object.freeze({
+    gravityBackend: gravityKernel?.backend ?? 'javascript-fallback',
     get timeScale() { return currentTimeScale; },
     get paused() { return paused; },
     get simulationTimeSeconds() { return simulationTimeSeconds; },
