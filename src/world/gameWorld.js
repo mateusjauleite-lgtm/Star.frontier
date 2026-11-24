@@ -56,7 +56,8 @@ export async function createGameWorld({
 
   try {
   scene.background = new THREE.Color(0x020817);
-  scene.fog = new THREE.FogExp2(0x020817, 0.00055 / EARTH_WORLD_SCALE_FACTOR);
+  // Preserve visibility across interplanetary distances; local haze remains negligible in vacuum.
+  scene.fog = new THREE.FogExp2(0x020817, 0.00055 / (EARTH_WORLD_SCALE_FACTOR * 1000));
 
   earthSystem = createEarthCore({
     radius: EARTH_RENDER_RADIUS_UNITS,
