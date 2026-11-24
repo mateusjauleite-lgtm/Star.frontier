@@ -14,8 +14,14 @@ export function createGameplayFramePhases(getDependencies) {
       const { earthSystem, camera, applyEarthSurfaceRotation, solarSystemDynamics, solarSystemPresentation, scene, ship, updatePhaserWeapon } = getDependencies();
       // Avança o relógio astronômico uma única vez e aplica o ângulo absoluto
       // antes de atualizar atores ancorados à superfície terrestre.
-      const solarSnapshot = scene?.userData?.solarSystemSnapshot ?? null;
-      const solarFrame = scene?.userData?.solarSystemPresentationFrame ?? null;
+      const solarSnapshot = solarSystemDynamics?.advance(dt) ?? null;
+      const solarFrame = solarSnapshot
+        ? solarSystemPresentation?.getFrame(solarSnapshot) ?? null
+        : null;
+      if (scene && solarSnapshot) {
+        scene.userData.solarSystemSnapshot = solarSnapshot;
+        scene.userData.solarSystemPresentationFrame = solarFrame;
+      }
       if (Number.isFinite(solarFrame?.earthRotationAngleRad)) {
         earthSystem?.setSurfaceRotationAngle?.(solarFrame.earthRotationAngleRad);
       }
@@ -192,15 +198,9 @@ export function createGameplayFramePhases(getDependencies) {
     updateWorld(dt) {
       const { orbitSystem, solarSystemDynamics, solarSystemPresentation, asteroidSystem, lightingSystem, camera, shipVisual, THREE, scene, state, updateShipSystems } = getDependencies();
       updateShipSystems?.(dt);
-      // A simulação astronômica avança em SI e publica um snapshot puro para a camada visual.
-      const solarSnapshot = solarSystemDynamics?.advance(dt) ?? null;
-      const solarFrame = solarSnapshot
-        ? solarSystemPresentation?.getFrame(solarSnapshot) ?? null
-        : null;
-      if (scene && solarSnapshot) {
-        scene.userData.solarSystemSnapshot = solarSnapshot;
-        scene.userData.solarSystemPresentationFrame = solarFrame;
-      }
+      // Reutiliza o snapshot publicado na fase de ambiente; não avança o relógio duas vezes.
+      const solarSnapshot = scene?.userData?.solarSystemSnapshot ?? null;
+      const solarFrame = scene?.userData?.solarSystemPresentationFrame ?? null;
       orbitSystem?.update(dt);
       asteroidSystem?.update(dt);
       const shipQuaternion = shipVisual?.getWorldQuaternion && THREE?.Quaternion
