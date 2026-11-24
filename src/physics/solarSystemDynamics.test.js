@@ -32,6 +32,23 @@ test('two-body gravity conserves the expected direction and accelerates toward t
   assert.equal(probe.velocityMetersPerSecond[2], 0);
 });
 
+test('N-body acceleration delegates to the shared C++ gravity kernel when available', () => {
+  let calls = 0;
+  const kernel = {
+    backend: 'wasm-c++',
+    acceleration({ position, bodies }) {
+      calls += 1;
+      assert.equal(position.length, 3);
+      assert.ok(bodies.length >= 1);
+      return [0, 0, 0];
+    }
+  };
+  const dynamics = createSolarSystemDynamics({ gravityKernel: kernel });
+  dynamics.advance(0.01);
+  assert.equal(dynamics.gravityBackend, 'wasm-c++');
+  assert.ok(calls >= 6);
+});
+
 test('simulation clock supports pause and adjustable time scale', () => {
   const dynamics = createSolarSystemDynamics({ timeScale: 10 });
   dynamics.advance(2);
