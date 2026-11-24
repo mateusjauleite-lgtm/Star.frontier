@@ -1178,8 +1178,6 @@ async function init3D() {
     ship,
     stars,
     earthSystem,
-    earthTerrainReferenceCore,
-    planetaryTransportCore: worldPlanetaryTransportCore,
     earthReferenceFrames,
     solarSystemDynamics,
     solarSystemPresentation,
@@ -1211,7 +1209,7 @@ async function init3D() {
     characterPhysics
   } = world);
 
-  planetaryTransportCore = worldPlanetaryTransportCore;
+  planetaryTransportCore = world.planetaryTransportCore;
   alexiaInteractionMenu?.dispose?.();
   alexiaInteractionMenu = alexiaCharacter ? createCharacterInteractionMenu({
     root: document.body, camera, actor: alexiaCharacter.group,
