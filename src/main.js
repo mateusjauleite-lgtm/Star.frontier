@@ -1414,6 +1414,7 @@ function applyEarthSurfaceRotation(deltaSeconds) {
   };
 
   if (ship?.userData?.earthSurfaceAnchored) rotateObjectInWorld(ship);
+  if (characterInWorldFrame && characterWorldGrounded && characterModel?.group) rotateObjectInWorld(characterModel.group);
 }
 
 function updateFlight(dt) {
