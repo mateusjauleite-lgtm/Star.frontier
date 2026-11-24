@@ -83,6 +83,11 @@ export function createEarthCore(options = {}) {
     getSurfaceFrame() {
       return surfaceFrame;
     },
+    setSurfaceRotationAngle(angleRad) {
+      if (!Number.isFinite(angleRad)) return false;
+      surfaceFrame.rotation.y = THREE.MathUtils.euclideanModulo(angleRad, Math.PI * 2);
+      return true;
+    },
     // Shared physical query surface: the collision system consumes the same
     // elevation sampler that displaces the rendered Earth mesh.
     getCollisionSurface() {
