@@ -144,6 +144,10 @@ export function createSpaceLighting(scene, options = {}) {
   streaks.frustumCulled = false;
   streaks.visible = false;
   scene.add(streaks);
+  const solarObserver = new THREE.Vector3();
+  const solarDirection = new THREE.Vector3();
+  const sunRenderDistance = sunPosition.length();
+
   const cameraBackward = new THREE.Vector3(0, 0, 1);
   const shipBackward = new THREE.Vector3(0, 0, 1);
 
@@ -155,6 +159,19 @@ export function createSpaceLighting(scene, options = {}) {
       if (observerPosition) {
         stars.position.copy(observerPosition);
         streaks.position.copy(observerPosition);
+      }
+      // O Sol visual acompanha a direção calculada pela simulação astronômica.
+      // A distância é apenas de apresentação; a física mantém metros SI.
+      if (warp.solarDirection?.isVector3 && warp.solarDirection.lengthSq() > 1e-12) {
+        solarDirection.copy(warp.solarDirection).normalize();
+        solarObserver.copy(observerPosition || new THREE.Vector3());
+        const visualSunPosition = solarObserver.clone()
+          .addScaledVector(solarDirection, sunRenderDistance);
+        sun.position.copy(visualSunPosition);
+        sunLight.position.copy(visualSunPosition);
+        sunlight.position.copy(visualSunPosition);
+        sunlight.target.position.copy(solarObserver);
+        sunlight.target.updateMatrixWorld();
       }
       const active = Boolean(warp.warpActive);
       const exiting = warp.warpTransition === 'exiting';
