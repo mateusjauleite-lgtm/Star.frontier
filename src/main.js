@@ -1729,6 +1729,7 @@ function updateCharacterMovement(dt) {
   if (!characterModel || characterCore.snapshot().mode !== 'on-foot') return;
   syncCharacterDeckFrame();
   artificialGravityField.update(dt, state);
+  terrestrialTransportBase?.updatePlacement?.();
   updateTerrestrialTransportInteraction(dt);
   if (externalElevator?.moving && externalElevatorRiding) {
     characterAnimator?.play('idle');
