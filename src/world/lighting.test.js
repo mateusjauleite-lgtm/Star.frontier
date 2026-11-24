@@ -9,7 +9,7 @@ test('Sun stays well separated from Earth while preserving the original light di
   const originalDirection = new THREE.Vector3(-1760, 922, -2526).normalize();
   const actualDirection = lighting.sun.position.clone().normalize();
 
-  assert.equal(SUN_DISTANCE_SCALE, 10);
+  assert.equal(SUN_DISTANCE_SCALE, 12);
   assert.ok(lighting.sun.position.length() > 25000);
   assert.ok(actualDirection.dot(originalDirection) > 0.999999);
 
