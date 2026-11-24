@@ -8,7 +8,6 @@ import { createBlueMarbleSurfaceRuntime } from './modules/runtime/blueMarbleSurf
 import { createTerrainRuntime } from './modules/runtime/terrain.js';
 import { createOceansRuntime } from './modules/runtime/oceans.js';
 import { createBlueMarbleAtmosphereRuntime } from './modules/runtime/blueMarbleAtmosphere.js';
-import { createCloudsRuntime } from './modules/runtime/clouds.js';
 import { createBlueMarbleLightingRuntime } from './modules/runtime/blueMarbleLighting.js';
 import { createEarthInfrastructureRuntime } from './modules/runtime/infrastructure.js';
 import { createEarthPlanetaryProfile } from './planetaryProfile.js';
@@ -19,7 +18,6 @@ const RUNTIME_FACTORIES = Object.freeze({
   terrain: createTerrainRuntime,
   oceans: createOceansRuntime,
   atmosphere: createBlueMarbleAtmosphereRuntime,
-  clouds: createCloudsRuntime,
   lighting: createBlueMarbleLightingRuntime,
   infrastructure: createEarthInfrastructureRuntime
 });
