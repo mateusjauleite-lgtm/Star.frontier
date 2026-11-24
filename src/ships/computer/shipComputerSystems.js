@@ -89,7 +89,7 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
       name: 'Transporte planetário · AURORA OS',
       commands: {
         status: () => planetaryTransportCore.getStatus(),
-        search: payload => planetaryTransportCore.findDestinations(payload?.query || ''),
+        search: payload => planetaryTransportCore.findDestinations(payload?.query || '').filter(destination => destination.tags.includes('base')),
         registerCoordinate: (payload, context) => {
           if (context?.terminalId !== 'planetary-transport-console') return { accepted: false, reason: 'transport-terminal-required' };
           if (payload?.source !== 'surface-map-pick') return { accepted: false, reason: 'destination-must-be-picked-on-earth-surface' };
