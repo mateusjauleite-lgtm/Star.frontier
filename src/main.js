@@ -639,6 +639,7 @@ let selectedLandingSiteId = null;
 let shipFlightKernel = null;
 let gravityKernel = null;
 let characterInWorldFrame = false;
+let characterDeckFrame = null;
 const characterWorldVelocity = new THREE.Vector3();
 let characterWorldGrounded = false;
 let shipLandingAutopilot = null;
@@ -998,10 +999,20 @@ async function startGame() {
     if (!runtimeInitialized) {
       throw new Error('O Runtime não conseguiu inicializar seus sistemas.');
     }
-    characterEquipment.initialize();
-    if (characterInWorldFrame && characterModel?.group && shipVisual) {
+    // Referencial próprio: posição local preservada, sem herdar a hierarquia do casco.
+  characterDeckFrame = new THREE.Group();
+  characterDeckFrame.name = 'character-deck-reference-frame';
+  scene.add(characterDeckFrame);
+  shipVisual.updateWorldMatrix(true, false);
+  characterDeckFrame.matrixAutoUpdate = false;
+  characterDeckFrame.matrix.copy(shipVisual.matrixWorld);
+  characterDeckFrame.matrixWorldNeedsUpdate = true;
+  characterDeckFrame.updateMatrixWorld(true);
+  if (characterModel?.group) characterDeckFrame.attach(characterModel.group);
+  characterEquipment.initialize();
+    if (characterInWorldFrame && characterModel?.group && characterDeckFrame) {
       scene.remove(characterModel.group);
-      shipVisual.add(characterModel.group);
+      characterDeckFrame.add(characterModel.group);
       characterModel.group.position.set(0, 8.91, -18);
       characterModel.group.rotation.set(0, characterYaw, 0);
       characterInWorldFrame = false;
@@ -1348,8 +1359,16 @@ function updateFlight(dt) {
   return shipFlightController.update(dt);
 }
 
-/* CÂMERA DO PERSONAGEM — sempre dentro da nave */
+/* Referencial independente do personagem: acompanha a nave sem ser filho dela. */
+function syncCharacterDeckFrame() {
+  if (!characterDeckFrame || !shipVisual || characterInWorldFrame) return;
+  shipVisual.updateWorldMatrix(true, false);
+  characterDeckFrame.matrix.copy(shipVisual.matrixWorld);
+  characterDeckFrame.matrixWorldNeedsUpdate = true;
+  characterDeckFrame.updateMatrixWorld(true);
+}
 
+/* CÂMERA DO PERSONAGEM — limitada pela geometria interna da nave */
 function updateCharacterCamera() {
   if (!camera || !characterModel) return;
   const player = characterModel.group;
@@ -1388,6 +1407,23 @@ function updateCharacterCamera() {
       characterCameraInitialized = true;
     } else {
       camera.position.lerp(desired, 0.36);
+    }
+    // Impede que a câmera atravesse anteparas ou saia do casco em corredores/decks.
+    if (!characterInWorldFrame && shipVisual) {
+      shipVisual.updateWorldMatrix(true, true);
+      const rayDirection = desired.clone().sub(target);
+      const desiredDistance = rayDirection.length();
+      if (desiredDistance > 1e-4) {
+        rayDirection.normalize();
+        const raycaster = new THREE.Raycaster(target, rayDirection, 0.05, desiredDistance);
+        const obstruction = raycaster.intersectObject(shipVisual, true)
+          .find(hit => hit.distance > 0.12);
+        if (obstruction) {
+          const safeDistance = Math.max(0.45, obstruction.distance - 0.32);
+          const safePosition = target.clone().addScaledVector(rayDirection, safeDistance);
+          camera.position.lerp(safePosition, 0.8);
+        }
+      }
     }
     const lookTarget = target.addScaledVector(characterCameraForward, 1.4);
     lookTarget.addScaledVector(cameraUp, Math.sin(characterPitch) * 4.2);
@@ -1469,7 +1505,7 @@ function isCharacterPositionBlocked(position, deckIndex) {
 }
 
 function transferCharacterToWorldFrame() {
-  if (!characterModel?.group || !shipVisual || !scene || characterInWorldFrame) return false;
+  if (!characterModel?.group || !characterDeckFrame || !scene || characterInWorldFrame) return false;
   const player = characterModel.group;
   const launchPosition = player.getWorldPosition(new THREE.Vector3()).toArray();
   if (earthReferenceFrames) earthReferenceFrames.attachToGlobal(player);
@@ -1589,6 +1625,7 @@ function updateShipSystems(dt) {
 
 function updateCharacterMovement(dt) {
   if (!characterModel || characterCore.snapshot().mode !== 'on-foot') return;
+  syncCharacterDeckFrame();
   artificialGravityField.update(dt, state);
   if (externalElevator?.moving && externalElevatorRiding) {
     characterAnimator?.play('idle');
@@ -1962,7 +1999,7 @@ function activateExternalElevator() {
   } else if (externalElevator.phase === 'bottom') {
     if (!characterInWorldFrame) return false;
     // Reanexa o personagem à nave preservando a posição mundial no início da subida.
-    shipVisual.attach(characterModel.group);
+    characterDeckFrame.attach(characterModel.group);
     characterInWorldFrame = false;
     characterWorldGrounded = false;
     characterWorldVelocity.set(0, 0, 0);
