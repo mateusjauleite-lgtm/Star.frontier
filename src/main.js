@@ -86,6 +86,7 @@ shipComputer.registerTerminal({
   name: 'Terminal holográfico de gerenciamento',
   systems: ['navigation', 'sensors', 'engineering', 'power', 'shields', 'deflector']
 });
+shipComputer.registerTerminal({ id: 'planetary-transport-console', name: 'Console de Transporte Planetário · Testes', systems: ['planetary-transport'] });
 shipComputer.registerTerminal({ id: 'pilot-console', name: 'Console de pilotagem da Ponte', systems: ['navigation', 'propulsion', 'shields'] });
 shipComputer.registerTerminal({ id: 'engineering-console', name: 'Console de Engenharia · Deck 3', systems: ['engineering', 'propulsion', 'power', 'shields'] });
 shipComputer.registerTerminal({ id: 'refinery-console', name: 'Console da Refinaria · Deck 3', systems: ['refinery'] });
@@ -751,6 +752,7 @@ const shipFlightController = createShipFlightController({
 
 let launching = false;
 let shipComputerSystemsRegistered = false;
+let planetaryTransportCore = null;
 
 function registerComputerSubsystems(deflectorRuntime = null) {
   if (shipComputerSystemsRegistered) return;
@@ -763,7 +765,8 @@ function registerComputerSubsystems(deflectorRuntime = null) {
     shieldSystem: shipShieldSystem,
     refinerySystem: dilithiumRefinerySystem,
     deflectorRuntime,
-    warpCoreSystem: warpCorePowerSystem
+    warpCoreSystem: warpCorePowerSystem,
+    planetaryTransportCore
   });
   shipComputerSystemsRegistered = true;
 }
@@ -1175,6 +1178,8 @@ async function init3D() {
     ship,
     stars,
     earthSystem,
+    earthTerrainReferenceCore,
+    planetaryTransportCore: worldPlanetaryTransportCore,
     earthReferenceFrames,
     solarSystemDynamics,
     solarSystemPresentation,
@@ -1206,6 +1211,7 @@ async function init3D() {
     characterPhysics
   } = world);
 
+  planetaryTransportCore = worldPlanetaryTransportCore;
   alexiaInteractionMenu?.dispose?.();
   alexiaInteractionMenu = alexiaCharacter ? createCharacterInteractionMenu({
     root: document.body, camera, actor: alexiaCharacter.group,
