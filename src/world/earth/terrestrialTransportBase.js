@@ -14,7 +14,7 @@ export function createTerrestrialTransportBase({ THREE: Three = THREE, earthSyst
   if (!Three || !earthSystem?.getSurfaceFrame || !earthTerrainReferenceCore?.resolveSurfacePosition) {
     throw new TypeError('A BT-01 exige o referencial da Terra e o resolvedor DEM.');
   }
-  const placement = earthTerrainReferenceCore.resolveSurfacePosition({
+  let placement = earthTerrainReferenceCore.resolveSurfacePosition({
     latitudeDeg: TERRESTRIAL_BASE_PROFILE.latitudeDeg,
     longitudeDeg: TERRESTRIAL_BASE_PROFILE.longitudeDeg,
     elevationMeters: TERRESTRIAL_BASE_PROFILE.elevationMeters
@@ -23,7 +23,8 @@ export function createTerrestrialTransportBase({ THREE: Three = THREE, earthSyst
   root.name = 'Terrestrial-Transport-Base-BT-BR-01';
   root.position.copy(placement.localPosition);
   root.quaternion.setFromUnitVectors(new Three.Vector3(0, 1, 0), placement.sample.terrainNormal.clone().normalize());
-  root.userData.terrestrialBase = { ...TERRESTRIAL_BASE_PROFILE, placement: 'earth-dem-surface' };
+  let demAnchored = false;
+  root.userData.terrestrialBase = { ...TERRESTRIAL_BASE_PROFILE, placement: 'reference-sphere-pending-dem' };
 
   const dark = new Three.MeshStandardMaterial({ color: 0x172638, metalness: 0.82, roughness: 0.34 });
   const alloy = new Three.MeshStandardMaterial({ color: 0x9aabb9, metalness: 0.78, roughness: 0.3 });
@@ -95,6 +96,23 @@ export function createTerrestrialTransportBase({ THREE: Three = THREE, earthSyst
 
   earthSystem.getSurfaceFrame().add(root);
   root.updateMatrixWorld(true);
+
+  function updatePlacement() {
+    const terrainStatus = earthSystem.getStatus?.().terrain;
+    if (!terrainStatus?.sourceGridReady) return false;
+    const next = earthTerrainReferenceCore.resolveSurfacePosition({
+      latitudeDeg: TERRESTRIAL_BASE_PROFILE.latitudeDeg,
+      longitudeDeg: TERRESTRIAL_BASE_PROFILE.longitudeDeg,
+      elevationMeters: TERRESTRIAL_BASE_PROFILE.elevationMeters
+    });
+    root.position.copy(next.localPosition);
+    root.quaternion.setFromUnitVectors(new Three.Vector3(0, 1, 0), next.sample.terrainNormal.clone().normalize());
+    root.userData.terrestrialBase.placement = 'earth-dem-surface';
+    root.updateMatrixWorld(true);
+    placement = next;
+    demAnchored = true;
+    return true;
+  }
   const terminal = new Three.Vector3();
   const padCenter = new Three.Vector3();
   const getConsoleWorldPosition = target => {
@@ -106,7 +124,10 @@ export function createTerrestrialTransportBase({ THREE: Three = THREE, earthSyst
     return pad.getWorldPosition(target || padCenter);
   };
   return Object.freeze({
-    group: root, console, pad, placement, getConsoleWorldPosition, getPadWorldPosition,
+    group: root, console, pad, getConsoleWorldPosition, getPadWorldPosition,
+    updatePlacement, isDemAnchored: () => demAnchored,
+    getPlacement: () => placement,
+    getStatus: () => ({ id: TERRESTRIAL_BASE_PROFILE.id, state: demAnchored ? 'dem-anchored' : 'waiting-for-dem', region: TERRESTRIAL_BASE_PROFILE.region }),
     getProfile: () => TERRESTRIAL_BASE_PROFILE,
     dispose() {
       root.removeFromParent();
