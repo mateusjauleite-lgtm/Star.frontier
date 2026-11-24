@@ -239,6 +239,7 @@ let transporterInteractionAvailable = false;
 let transporterActionAvailable = false;
 let transporterDestinationId = null;
 let transporterTelemetryAccumulator = 0;
+let earthDestinationPickActive = false;
 const transporterConsolePosition = new THREE.Vector3(DECK_2_TRANSPORTER_LAYOUT.console.x, DECK_2_TRANSPORTER_LAYOUT.console.y, DECK_2_TRANSPORTER_LAYOUT.console.z);
 const transporterPlatformPosition = new THREE.Vector3(DECK_2_TRANSPORTER_LAYOUT.platform.x, DECK_2_TRANSPORTER_LAYOUT.platform.y + 0.4, DECK_2_TRANSPORTER_LAYOUT.platform.z);
 const shipManagementTerminalPosition = new THREE.Vector3(
@@ -1074,6 +1075,8 @@ async function startGame() {
     }
     loadingScreen?.classList.add('hidden');
     window.removeEventListener('resize', resize3D);
+    earthDestinationPickActive = false;
+    if (renderer?.domElement) renderer.domElement.style.cursor = '';
 
     try { scene?.userData?.moonSystem?.dispose?.(); } catch (disposeError) {
       console.warn('Não foi possível encerrar os módulos da Lua:', disposeError);
@@ -1232,8 +1235,8 @@ async function init3D() {
   transporterActionMenu?.dispose?.();
   planetaryTransportTerminal = createPlanetaryTransportTerminal({
     computer: shipComputer,
-    earthTerrainReferenceCore,
     root: $('game-screen'),
+    onRequestMapPick: beginEarthDestinationPick,
     onOpenChange: active => {
       transporterConsoleActive = active;
       if (active) characterControls?.reset?.();
@@ -1248,6 +1251,8 @@ async function init3D() {
     }
   });
   transporterActionMenu = createTransporterActionMenu({ root: document.body, onConfirm: executePlanetaryTransport });
+  earthDestinationPickActive = false;
+  renderer?.domElement?.addEventListener('pointerdown', handleEarthDestinationPick, true);
   transporterConsoleActive = false;
   transporterInteractionAvailable = false;
   transporterActionAvailable = false;
@@ -2381,6 +2386,66 @@ function updateTransporterConsoleInteraction(dt = 0) {
     if (button) { button.disabled = true; button.textContent = 'AÇÃO'; button.classList.remove('available'); }
     characterCore.setInteractionTarget(transporterDestinationId ? 'DESTINO CONFIRMADO · DIRIJA-SE À PLATAFORMA' : null);
     updateCharacterHUD();
+  }
+}
+
+function beginEarthDestinationPick() {
+  if (!renderer?.domElement || !earthSystem?.getSurfaceMesh?.()) {
+    toast('Superfície 3D da Terra indisponível para seleção.');
+    return false;
+  }
+  planetaryTransportTerminal?.suspend?.();
+  earthDestinationPickActive = true;
+  renderer.domElement.style.cursor = 'crosshair';
+  toast('Seleção ativa: toque em um ponto da superfície 3D da Terra.');
+  return true;
+}
+
+function handleEarthDestinationPick(event) {
+  if (!earthDestinationPickActive || !renderer?.domElement || !camera || !earthSystem) return;
+  if (event.pointerType === 'mouse' && event.button !== 0) return;
+  event.preventDefault();
+  event.stopPropagation();
+  event.stopImmediatePropagation?.();
+
+  const rect = renderer.domElement.getBoundingClientRect();
+  if (!rect.width || !rect.height) return;
+  const pointer = new THREE.Vector2(
+    ((event.clientX - rect.left) / rect.width) * 2 - 1,
+    -((event.clientY - rect.top) / rect.height) * 2 + 1
+  );
+  const raycaster = new THREE.Raycaster();
+  camera.updateMatrixWorld(true);
+  raycaster.setFromCamera(pointer, camera);
+  const surface = earthSystem.getSurfaceMesh?.();
+  if (!surface) return;
+  surface.updateWorldMatrix(true, false);
+  const hit = raycaster.intersectObject(surface, false)[0];
+  if (!hit?.point) {
+    toast('Toque diretamente sobre a superfície visível da Terra.');
+    return;
+  }
+
+  const frame = earthSystem.getSurfaceFrame?.();
+  if (!frame) {
+    toast('Referencial geográfico terrestre indisponível.');
+    return;
+  }
+  frame.updateWorldMatrix(true, false);
+  const local = frame.worldToLocal(hit.point.clone());
+  if (local.lengthSq() < 1e-10) {
+    toast('Não foi possível calcular a posição geográfica desse ponto.');
+    return;
+  }
+  local.normalize();
+  const latitudeDeg = THREE.MathUtils.radToDeg(Math.asin(THREE.MathUtils.clamp(local.y, -1, 1)));
+  const longitudeDeg = THREE.MathUtils.radToDeg(Math.atan2(local.z, local.x));
+
+  earthDestinationPickActive = false;
+  renderer.domElement.style.cursor = '';
+  const result = planetaryTransportTerminal?.registerMapDestination?.({ latitudeDeg, longitudeDeg });
+  if (!result?.ok) {
+    toast('Não foi possível registrar esse ponto. Tente marcar outra região.');
   }
 }
 
