@@ -350,11 +350,11 @@ export function createEarthRegionalSurfaceRuntime({
       cameraInsideSurface = signedAltitude < -0.5;
       // Start loading regional elevation well before the final descent. The
       // global ETOPO sampler remains the immediate fallback while DEM tiles load.
-      demActive = !cameraInsideSurface && signedAltitude <= radius * .5;
+      demActive = signedAltitude <= radius * .5;
       const cameraForwardWorld = context.camera.getWorldDirection(new THREE.Vector3());
       const forwardLocal = surface.worldToLocal(cameraWorld.clone().add(cameraForwardWorld))
         .sub(cameraLocal).normalize();
-      let selected = !cameraInsideSurface && altitude <= radius * 1.5
+      let selected = altitude <= radius * 1.5
         ? selectEarthQuadtreeTiles(cameraLocal, radius, {
           maxLevel,
           maxTiles,
@@ -365,7 +365,7 @@ export function createEarthRegionalSurfaceRuntime({
         : [];
       // If the camera basis and Earth-local frame temporarily disagree, keep
       // horizon-visible terrain selected rather than showing no regional mesh.
-      if (!cameraInsideSurface && altitude <= radius * 1.5 && selected.length === 0) {
+      if (altitude <= radius * 1.5 && selected.length === 0) {
         selected = selectEarthQuadtreeTiles(cameraLocal, radius, {
           maxLevel: Math.min(maxLevel, 8),
           maxTiles
