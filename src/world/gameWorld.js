@@ -1,5 +1,7 @@
 import { createEarthReferenceFrames } from './earth/earthReferenceFrames.js';
 import { createEarthCore } from './earth/earthCore.js';
+import { createMoonCore } from './moon/moonCore.js';
+import { MOON_PLANETARY_PROFILE } from './moon/moonProfile.js';
 import { createStation } from './station.js';
 import { createShipLandingAutopilot } from '../ships/flight/landingAutopilot.js';
 import { loadShipFlightKernel } from '../ships/flight/shipFlightKernel.js';
@@ -47,6 +49,7 @@ export async function createGameWorld({
   let scene = new THREE.Scene();
   let renderer = null;
   let earthSystem = null;
+  let moonSystem = null;
   let shipFlightKernel = null;
   let gravityKernel = null;
   let solarSystemDynamics = null;
@@ -64,6 +67,16 @@ export async function createGameWorld({
     globalFrame: scene,
     terrestrialFrame: earthSystem.getSurfaceFrame()
   });
+
+  // A Lua possui grupo e referencial próprios; sua posição nunca é parentada à Terra.
+  // O runtime astronômico atualiza a transformação a partir do estado N-body em SI.
+  moonSystem = createMoonCore({
+    earthSystem,
+    visualUnitsPerMeter: 1,
+    visualRadiusUnits: MOON_PLANETARY_PROFILE.physical.meanRadiusMeters
+  });
+  scene.add(moonSystem.group);
+  scene.userData.moonSystem = moonSystem;
 
   const camera = new THREE.PerspectiveCamera(
     70,
@@ -123,7 +136,16 @@ export async function createGameWorld({
         .normalize().toArray();
     },
     gravityKernel,
-    gravitationalParameter: earthSystem.getPlanetaryProfile().physical.gravitationalParameterM3S2
+    gravitationalParameter: earthSystem.getPlanetaryProfile().physical.gravitationalParameterM3S2,
+    getAdditionalGravityBodies: () => {
+      if (!moonSystem) return [];
+      moonSystem.group.updateWorldMatrix(true, false);
+      const moonCenter = moonSystem.group.getWorldPosition(new THREE.Vector3()).toArray();
+      return [{
+        position: moonCenter,
+        mu: MOON_PLANETARY_PROFILE.physical.gravitationalParameterM3S2
+      }];
+    }
   });
   earthSystem.setPlanetaryGravitySystem(planetaryGravitySystem);
   const shipLandingAutopilot = createShipLandingAutopilot(shipFlightKernel);
@@ -201,6 +223,7 @@ export async function createGameWorld({
     ship,
     stars,
     earthSystem,
+    moonSystem,
     earthReferenceFrames,
     stationSystem,
     shipFlightKernel,
@@ -234,6 +257,9 @@ export async function createGameWorld({
     characterPhysics
   };
   } catch (error) {
+    try { moonSystem?.dispose?.(); } catch (disposeError) {
+      console.warn('Falha ao liberar os módulos da Lua:', disposeError);
+    }
     try { earthSystem?.dispose?.(); } catch (disposeError) {
       console.warn('Falha ao liberar os módulos da Terra:', disposeError);
     }
