@@ -1092,6 +1092,10 @@ async function startGame() {
     try { scene?.userData?.moonSystem?.dispose?.(); } catch (disposeError) {
       console.warn('Não foi possível encerrar os módulos da Lua:', disposeError);
     }
+    try { terrestrialTransportBase?.dispose?.(); } catch (disposeError) {
+      console.warn('Não foi possível encerrar a Base Terrestre Brasil:', disposeError);
+    }
+    terrestrialTransportBase = null;
     try { earthTerrainReferenceCore?.dispose?.(); } catch (disposeError) {
       console.warn('Não foi possível encerrar as referências de terreno da Terra:', disposeError);
     }
