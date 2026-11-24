@@ -48,7 +48,7 @@ export async function createGameWorld({
   let earthSystem = null;
   let shipFlightKernel = null;
   let gravityKernel = null;
-  const solarSystemDynamics = createSolarSystemDynamics();
+  let solarSystemDynamics = null;
 
   try {
   scene.background = new THREE.Color(0x020817);
@@ -106,6 +106,7 @@ export async function createGameWorld({
   const shieldVisual = explorationShip.shieldVisual;
   shipFlightKernel = await loadShipFlightKernel();
   gravityKernel = await loadGravityKernel();
+  solarSystemDynamics = createSolarSystemDynamics({ gravityKernel });
   const planetaryGravitySystem = createPlanetaryGravitySystem({
     getEarthCenter: () => earthSystem.group.getWorldPosition(new THREE.Vector3()).toArray(),
     getEarthSpinAxis: () => {
