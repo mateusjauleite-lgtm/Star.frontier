@@ -126,6 +126,11 @@ export async function createGameWorld({
     anchorBodyId: 'earth',
     sunBodyId: 'sun'
   });
+  // Publica a posição inicial da Lua antes de registrar seu campo gravitacional,
+  // evitando um corpo temporariamente situado na origem da cena durante o boot.
+  moonSystem.applyAstronomicalState(
+    solarSystemPresentation.getFrame(solarSystemDynamics.getSnapshot())
+  );
   const planetaryGravitySystem = createPlanetaryGravitySystem({
     getEarthCenter: () => earthSystem.group.getWorldPosition(new THREE.Vector3()).toArray(),
     getEarthSpinAxis: () => {
