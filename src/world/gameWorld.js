@@ -193,6 +193,10 @@ export async function createGameWorld({
   scene.add(ship);
   planetaryTransportCore = createPlanetaryTransportCore({
     resolveDestination: (destination, { altitudeOffsetMeters }) => {
+      if (destination.id === TERRESTRIAL_BASE_PROFILE.id) {
+        terrestrialTransportBase.updatePlacement();
+        if (!terrestrialTransportBase.isDemAnchored()) return null;
+      }
       const placement = earthTerrainReferenceCore.resolveSurfacePosition({
         latitudeDeg: destination.latitudeDeg,
         longitudeDeg: destination.longitudeDeg,
