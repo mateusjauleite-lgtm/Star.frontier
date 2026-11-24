@@ -2426,24 +2426,15 @@ function handleEarthDestinationPick(event) {
     return;
   }
 
-  const frame = earthSystem.getSurfaceFrame?.();
-  if (!frame) {
-    toast('Referencial geográfico terrestre indisponível.');
-    return;
-  }
-  frame.updateWorldMatrix(true, false);
-  const local = frame.worldToLocal(hit.point.clone());
-  if (local.lengthSq() < 1e-10) {
+  const coordinates = earthSystem.worldPositionToGeographic?.(hit.point);
+  if (!coordinates) {
     toast('Não foi possível calcular a posição geográfica desse ponto.');
     return;
   }
-  local.normalize();
-  const latitudeDeg = THREE.MathUtils.radToDeg(Math.asin(THREE.MathUtils.clamp(local.y, -1, 1)));
-  const longitudeDeg = THREE.MathUtils.radToDeg(Math.atan2(local.z, local.x));
 
   earthDestinationPickActive = false;
   renderer.domElement.style.cursor = '';
-  const result = planetaryTransportTerminal?.registerMapDestination?.({ latitudeDeg, longitudeDeg });
+  const result = planetaryTransportTerminal?.registerMapDestination?.(coordinates);
   if (!result?.ok) {
     toast('Não foi possível registrar esse ponto. Tente marcar outra região.');
   }
