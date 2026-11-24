@@ -92,11 +92,12 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
         search: payload => planetaryTransportCore.findDestinations(payload?.query || ''),
         registerCoordinate: (payload, context) => {
           if (context?.terminalId !== 'planetary-transport-console') return { accepted: false, reason: 'transport-terminal-required' };
+          if (payload?.source !== 'surface-map-pick') return { accepted: false, reason: 'destination-must-be-picked-on-earth-surface' };
           try {
             const destination = planetaryTransportCore.registerDestination({
               id: payload?.id, name: payload?.name, bodyId: 'earth',
               latitudeDeg: payload?.latitudeDeg, longitudeDeg: payload?.longitudeDeg,
-              elevationMeters: payload?.elevationMeters ?? 0, tags: ['manual-coordinate', 'earth']
+              elevationMeters: payload?.elevationMeters ?? 0, tags: ['surface-map-pick', 'earth']
             });
             const preview = planetaryTransportCore.previewDestination(destination.id, { altitudeOffsetMeters: 2.2 });
             if (!preview.ok) {
