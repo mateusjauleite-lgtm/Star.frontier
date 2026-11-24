@@ -768,6 +768,7 @@ function registerComputerSubsystems(deflectorRuntime = null) {
     warpCoreSystem: warpCorePowerSystem,
     planetaryTransportCore
   });
+  if (planetaryTransportCore) shipComputer.connectTerminal('planetary-transport-console', 'PILOTO');
   shipComputerSystemsRegistered = true;
 }
 
