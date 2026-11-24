@@ -649,6 +649,7 @@ const shipLandingTelemetry = createShipLandingMetricTelemetryAdapter({
   deckRadiusMeters: 146
 });
 let orbitSystem;
+let solarSystemDynamics = null;
 let asteroidSystem;
 let lightingSystem;
 let starshipInterior;
@@ -960,7 +961,7 @@ async function startGame() {
               ship?.position,
               shipYaw?.rotation.y ?? 0
             ),
-            orbitSystem, asteroidSystem, lightingSystem, renderer, scene, $
+            orbitSystem, solarSystemDynamics, asteroidSystem, lightingSystem, renderer, scene, $
           }))
         }
       });
@@ -1171,6 +1172,7 @@ async function init3D() {
     stars,
     earthSystem,
     earthReferenceFrames,
+    solarSystemDynamics,
     stationSystem,
     shipFlightKernel,
     gravityKernel,
