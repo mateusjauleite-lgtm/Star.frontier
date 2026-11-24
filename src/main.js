@@ -1060,6 +1060,9 @@ async function startGame() {
     loadingScreen?.classList.add('hidden');
     window.removeEventListener('resize', resize3D);
 
+    try { scene?.userData?.moonSystem?.dispose?.(); } catch (disposeError) {
+      console.warn('Não foi possível encerrar os módulos da Lua:', disposeError);
+    }
     try { earthSystem?.dispose?.(); } catch (disposeError) {
       console.warn('Não foi possível encerrar os módulos da Terra:', disposeError);
     }
