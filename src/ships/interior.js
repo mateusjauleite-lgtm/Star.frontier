@@ -277,7 +277,6 @@ export function createStarshipInterior(options = {}) {
         if (Array.isArray(object.material)) object.material.forEach(m => m.dispose());
         else object.material?.dispose();
       });
-      transporterInstallation.dispose();
       [floorMat, wallMat, bulkheadMat, trimMat, shaftMat].forEach(m => m.dispose());
     }
   };
