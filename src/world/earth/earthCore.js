@@ -81,6 +81,9 @@ export function createEarthCore(options = {}) {
     getSurfaceFrame() {
       return surfaceFrame;
     },
+    getSurfaceMesh() {
+      return layers.surface ?? null;
+    },
     setSurfaceRotationAngle(angleRad) {
       if (!Number.isFinite(angleRad)) return false;
       surfaceFrame.rotation.y = THREE.MathUtils.euclideanModulo(angleRad, Math.PI * 2);
