@@ -1,6 +1,7 @@
 /**
- * Lifecycle registry for optional Earth update modules.
- * Definitions are inert until a reviewed runtime implementation is attached.
+ * Lifecycle registry for Earth modules.
+ * Initialization is transactional: a failed module is disposed and already
+ * attached modules are rolled back in reverse dependency order.
  */
 export function createEarthUpdatePipeline(definitions = []) {
   const entries = new Map();
@@ -9,10 +10,30 @@ export function createEarthUpdatePipeline(definitions = []) {
     if (!definition?.id || entries.has(definition.id)) {
       throw new Error('Earth module definitions require unique ids.');
     }
+    if (!Array.isArray(definition.dependsOn)) {
+      throw new TypeError(`Earth module "${definition.id}" must declare dependsOn as an array.`);
+    }
     entries.set(definition.id, { definition, runtime: null });
   }
 
   let disposed = false;
+
+  const disposeRuntime = runtime => {
+    try {
+      runtime?.dispose?.();
+    } catch (error) {
+      console.warn('[Earth] Module disposal failed:', error);
+    }
+  };
+
+  const disposeAttached = () => {
+    const attached = [...entries.values()].reverse();
+    for (const entry of attached) {
+      if (!entry.runtime) continue;
+      disposeRuntime(entry.runtime);
+      entry.runtime = null;
+    }
+  };
 
   return {
     attach(id, runtime) {
@@ -25,8 +46,17 @@ export function createEarthUpdatePipeline(definitions = []) {
       );
       if (!dependenciesReady) return false;
 
+      // Register before initialize so rollback can always see the active runtime.
       entry.runtime = runtime;
-      runtime.initialize?.();
+      try {
+        runtime.initialize?.();
+      } catch (error) {
+        disposeRuntime(runtime);
+        entry.runtime = null;
+        disposeAttached();
+        disposed = true;
+        throw new Error(`Unable to initialize Earth module "${id}".`, { cause: error });
+      }
       return true;
     },
 
@@ -40,9 +70,7 @@ export function createEarthUpdatePipeline(definitions = []) {
     dispose() {
       if (disposed) return;
       disposed = true;
-      for (const { runtime } of entries.values()) {
-        runtime?.dispose?.();
-      }
+      disposeAttached();
     },
 
     getStatus() {
