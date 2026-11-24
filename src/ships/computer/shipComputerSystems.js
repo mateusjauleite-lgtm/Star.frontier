@@ -93,11 +93,17 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
         registerCoordinate: (payload, context) => {
           if (context?.terminalId !== 'planetary-transport-console') return { accepted: false, reason: 'transport-terminal-required' };
           try {
-            return planetaryTransportCore.registerDestination({
+            const destination = planetaryTransportCore.registerDestination({
               id: payload?.id, name: payload?.name, bodyId: 'earth',
               latitudeDeg: payload?.latitudeDeg, longitudeDeg: payload?.longitudeDeg,
               elevationMeters: payload?.elevationMeters ?? 0, tags: ['manual-coordinate', 'earth']
             });
+            const preview = planetaryTransportCore.previewDestination(destination.id, { altitudeOffsetMeters: 2.2 });
+            if (!preview.ok) {
+              planetaryTransportCore.unregisterDestination(destination.id);
+              return { accepted: false, reason: preview.reason, message: preview.message || 'A coordenada não possui uma superfície terrestre resolvível.' };
+            }
+            return destination;
           } catch (error) {
             return { accepted: false, reason: 'invalid-coordinate', message: String(error?.message || error) };
           }

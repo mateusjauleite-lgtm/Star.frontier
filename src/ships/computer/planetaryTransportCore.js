@@ -53,6 +53,22 @@ export function createPlanetaryTransportCore({
     );
   }
   function getDestination(id) { return destinations.get(String(id)) ?? null; }
+  function previewDestination(id, { altitudeOffsetMeters = 0 } = {}) {
+    const destination = getDestination(id);
+    if (!destination) return { ok: false, reason: 'destination-not-found' };
+    if (!finite(altitudeOffsetMeters) || Number(altitudeOffsetMeters) < 0) {
+      return { ok: false, reason: 'invalid-altitude' };
+    }
+    try {
+      const resolved = resolveDestination(destination, { altitudeOffsetMeters: Number(altitudeOffsetMeters) });
+      if (!resolved?.position || ![resolved.position.x, resolved.position.y, resolved.position.z].every(finite)) {
+        return { ok: false, reason: 'destination-unresolved' };
+      }
+      return { ok: true, destination, position: resolved.position, normal: resolved.normal ?? null };
+    } catch (error) {
+      return { ok: false, reason: 'destination-unresolved', message: String(error?.message || error) };
+    }
+  }
   function teleport(id, { actor = 'ship', altitudeOffsetMeters = 100 } = {}) {
     if (!active) return { ok: false, reason: 'transport-disabled' };
     const destination = getDestination(id);
@@ -89,7 +105,7 @@ export function createPlanetaryTransportCore({
   }
   return Object.freeze({
     registerDestination, unregisterDestination, findDestinations, getDestination,
-    teleport,
+    previewDestination, teleport,
     setEnabled(value) { active = Boolean(value); return active; },
     getStatus() {
       return {

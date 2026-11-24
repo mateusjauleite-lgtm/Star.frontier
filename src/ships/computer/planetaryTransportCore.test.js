@@ -72,3 +72,23 @@ test('bloqueia transporte sem energia sem mover o personagem', () => {
   assert.equal(core.teleport('site', { actor: 'character' }).reason, 'insufficient-power');
   assert.equal(moved, false);
 });
+
+
+test('pré-visualiza a coordenada geográfica sem mover o ator nem consumir energia', () => {
+  const actor = { position: null };
+  let moved = false;
+  let consumed = 0;
+  const core = createPlanetaryTransportCore({
+    resolveDestination: destination => ({ position: { x: destination.longitudeDeg, y: 4, z: destination.latitudeDeg } }),
+    moveActor: () => { moved = true; return true; },
+    getActors: () => ({ character: actor }),
+    consumePower: amount => { consumed += amount; return amount; },
+    getPowerStatus: () => ({ available: true, energy: 20 })
+  });
+  core.registerDestination({ id: 'preview', latitudeDeg: -22, longitudeDeg: -48 });
+  const preview = core.previewDestination('preview', { altitudeOffsetMeters: 2.2 });
+  assert.equal(preview.ok, true);
+  assert.deepEqual(preview.position, { x: -48, y: 4, z: -22 });
+  assert.equal(moved, false);
+  assert.equal(consumed, 0);
+});

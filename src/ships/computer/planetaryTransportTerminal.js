@@ -88,7 +88,7 @@ export function createPlanetaryTransportTerminal({ computer, root = globalThis.d
       e.preventDefault();
       const f=new FormData(e.currentTarget);
       const latitudeDeg=Number(f.get('latitude')), longitudeDeg=Number(f.get('longitude'));
-      const id=('coordinate-'+latitudeDeg.toFixed(5)+'-'+longitudeDeg.toFixed(5)).replace(/-/g,'m').replace(/\\./g,'p');
+      const id=('coordinate-'+latitudeDeg.toFixed(5)+'-'+longitudeDeg.toFixed(5)).replace(/-/g,'m').replace(/\./g,'p');
       const result=dispatch('registerCoordinate',{id,name:String(f.get('name')||'').trim(),latitudeDeg,longitudeDeg,elevationMeters:Number(f.get('elevation'))});
       if(!result.ok||!result.result?.id){announce(result.result?.message||result.reason||'Coordenadas inválidas.');return;}
       query='';selectedId=result.result.id;refresh();announce('Coordenadas validadas e destino registrado.');
