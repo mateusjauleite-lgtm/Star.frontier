@@ -88,7 +88,8 @@ export async function createGameWorld({
         sourceId: reference.id,
         tags: ['terrain-reference', reference.surfaceRole, reference.sourceFormat]
       });
-    }
+    },
+    onReferenceRemoved: reference => planetaryTransportCore?.unregisterDestination(reference.id)
   });
 
   // A Lua possui grupo e referencial próprios; sua posição nunca é parentada à Terra.
