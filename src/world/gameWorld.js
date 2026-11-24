@@ -16,6 +16,7 @@ import { createCharacterWeaponController } from '../character/characterWeaponCon
 import { createCharacterPhysics } from '../character/characterPhysics.js';
 import { loadGravityKernel } from '../physics/gravityKernel.js';
 import { createPlanetaryGravitySystem } from '../physics/planetaryGravitySystem.js';
+import { createSolarSystemDynamics } from '../physics/solarSystemDynamics.js';
 import { createShipOrbitalTelemetrySource } from '../ships/flight/orbitalTelemetrySource.js';
 import {
   EARTH_RENDER_RADIUS_UNITS,
@@ -47,6 +48,7 @@ export async function createGameWorld({
   let earthSystem = null;
   let shipFlightKernel = null;
   let gravityKernel = null;
+  const solarSystemDynamics = createSolarSystemDynamics();
 
   try {
   scene.background = new THREE.Color(0x020817);
@@ -197,6 +199,7 @@ export async function createGameWorld({
     shipFlightKernel,
     gravityKernel,
     planetaryGravitySystem,
+    solarSystemDynamics,
     orbitalTelemetrySource: createShipOrbitalTelemetrySource({ THREE, earthSystem, ship, shipVisual }),
     shipLandingAutopilot,
     shipLandingGear,
