@@ -17,6 +17,7 @@ import { createCharacterPhysics } from '../character/characterPhysics.js';
 import { loadGravityKernel } from '../physics/gravityKernel.js';
 import { createPlanetaryGravitySystem } from '../physics/planetaryGravitySystem.js';
 import { createSolarSystemDynamics } from '../physics/solarSystemDynamics.js';
+import { createSolarSystemPresentationAdapter } from './solarSystemPresentation.js';
 import { createShipOrbitalTelemetrySource } from '../ships/flight/orbitalTelemetrySource.js';
 import {
   EARTH_RENDER_RADIUS_UNITS,
@@ -107,6 +108,11 @@ export async function createGameWorld({
   shipFlightKernel = await loadShipFlightKernel();
   gravityKernel = await loadGravityKernel();
   solarSystemDynamics = createSolarSystemDynamics({ gravityKernel });
+  const solarSystemPresentation = createSolarSystemPresentationAdapter(THREE, {
+    visualUnitsPerMeter: EARTH_RENDER_RADIUS_UNITS / 6_371_008.8,
+    anchorBodyId: 'earth',
+    sunBodyId: 'sun'
+  });
   const planetaryGravitySystem = createPlanetaryGravitySystem({
     getEarthCenter: () => earthSystem.group.getWorldPosition(new THREE.Vector3()).toArray(),
     getEarthSpinAxis: () => {
@@ -201,6 +207,7 @@ export async function createGameWorld({
     gravityKernel,
     planetaryGravitySystem,
     solarSystemDynamics,
+    solarSystemPresentation,
     orbitalTelemetrySource: createShipOrbitalTelemetrySource({ THREE, earthSystem, ship, shipVisual }),
     shipLandingAutopilot,
     shipLandingGear,
