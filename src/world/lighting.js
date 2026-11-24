@@ -2,9 +2,9 @@ import * as THREE from 'three';
 
 // Referencial espacial fixo do sistema. O Sol fica dez vezes mais distante
 // sem alterar a direção da luz em relação à Terra.
-export const SUN_DISTANCE_SCALE = 10;
+export const SUN_DISTANCE_SCALE = 12;
 const SUN_POSITION_BASE = new THREE.Vector3(-1760, 922, -2526).multiplyScalar(SUN_DISTANCE_SCALE);
-const SUN_RADIUS = 1200;
+const SUN_RADIUS = 1800;
 const STAR_FIELD_RADIUS = 6500;
 const STAR_FIELD_COUNT = 8800;
 
