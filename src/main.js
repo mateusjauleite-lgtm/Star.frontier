@@ -643,6 +643,7 @@ let renderer;
 let ship;
 let stars;
 let earthSystem;
+let earthTerrainReferenceCore = null;
 let earthReferenceFrames = null;
 let lastEarthSurfaceRotationY = null;
 let stationSystem;
