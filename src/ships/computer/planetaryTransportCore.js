@@ -14,6 +14,7 @@ const normalizeDestination = input => {
     id, name, bodyId: String(input.bodyId || 'earth'),
     latitudeDeg, longitudeDeg, elevationMeters,
     sourceId: input.sourceId ? String(input.sourceId) : null,
+    region: input.region ? String(input.region) : null,
     tags: Object.freeze(Array.isArray(input.tags) ? input.tags.map(String) : [])
   });
 };
