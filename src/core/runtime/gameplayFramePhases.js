@@ -37,6 +37,8 @@ export function createGameplayFramePhases(getDependencies) {
   } else {
     updateFlight(dt);
   }
+  // Reaplica o referencial após qualquer deslocamento da nave neste mesmo frame.
+  syncCharacterDeckFrame?.();
   // O controlador ativo atualiza a câmera depois do movimento e antes da renderização.
   if (cameraRuntime?.updateActive) cameraRuntime.updateActive();
   else if (characterCore.snapshot().mode === 'on-foot') updateCharacterCamera();
