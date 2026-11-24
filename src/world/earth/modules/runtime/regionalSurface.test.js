@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import {
-  earthCubeFaceDirection,
+  earthCubeFaceDirection,\n  earthLongitudeToSphereUv,
   earthDirectionToLatLon,
   createEarthQuadtreeNode,
   getEarthQuadtreeChildren,
@@ -120,4 +120,14 @@ test('regional selection prioritizes tiles inside the camera view cone', () => {
   });
   assert.ok(tiles.length > 0);
   assert.ok(tiles.length <= 24);
+});
+
+
+test('regional tiles use the same longitude UV convention as the global SphereGeometry', () => {
+  assert.equal(earthLongitudeToSphereUv(0), 0.5);
+  assert.equal(earthLongitudeToSphereUv(90), 0.25);
+  assert.equal(earthLongitudeToSphereUv(-90), 0.75);
+  assert.equal(earthLongitudeToSphereUv(180), 0);
+  assert.equal(earthLongitudeToSphereUv(-180), 0);
+  assert.equal(earthLongitudeToSphereUv(Number.NaN), null);
 });
