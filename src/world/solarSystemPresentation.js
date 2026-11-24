@@ -39,7 +39,9 @@ export function createSolarSystemPresentationAdapter(THREE, {
       relativePositions: Object.freeze(relativePositions),
       earthRotationAngleRad: anchor.rotationAngleRad,
       earthRotationAxis: [...anchor.rotationAxis],
-      earthVelocityMetersPerSecond: [...anchor.velocityMetersPerSecond]
+      earthVelocityMetersPerSecond: [...anchor.velocityMetersPerSecond],
+      moonRotationAngleRad: bodies.find(body => body.id === 'moon')?.rotationAngleRad ?? 0,
+      moonRotationAxis: [...(bodies.find(body => body.id === 'moon')?.rotationAxis ?? [0, 1, 0])]
     });
   }
 
