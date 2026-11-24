@@ -50,7 +50,7 @@ test('manual maneuver input applies lateral and vertical thrust', () => {
     lateralInput: -1,
     verticalInput: 1
   });
-  assert.deepEqual(acceleration, [-14, 18, 0]);
+  assert.deepEqual(acceleration, [-14, 32, 0]);
 });
 
 test('world velocity integration is bounded and uses SI seconds', () => {
