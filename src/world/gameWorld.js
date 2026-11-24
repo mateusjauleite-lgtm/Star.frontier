@@ -205,7 +205,7 @@ export async function createGameWorld({
       if (actorId === 'character' && destination?.id === 'ship-deck-2') {
         shipVisual.updateWorldMatrix(true, false);
         shipVisual.attach(actor);
-        actor.position.copy(shipVisual.worldToLocal(resolved.position.clone()));
+        actor.position.copy(shipVisual.worldToLocal(resolved.position?.isVector3 ? resolved.position.clone() : new THREE.Vector3(resolved.position.x, resolved.position.y, resolved.position.z)));
         actor.quaternion.identity();
       } else {
         if (actorId === 'character') scene.attach(actor);
