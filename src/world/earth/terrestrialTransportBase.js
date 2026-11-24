@@ -62,7 +62,7 @@ export function createTerrestrialTransportBase({ THREE: Three = THREE, earthSyst
 
   const pad = new Three.Group();
   pad.name = 'BT01-Transporter-Pad';
-  pad.position.set(8.2, 0.52, 0);
+  pad.position.set(8.2, -0.55, 0);
   root.add(pad);
   addCylinder(pad, 'BT01-Pad-Foundation', 7.2, 7.5, 0.62, [0, 0, 0], dark, 64);
   addCylinder(pad, 'BT01-Pad-Upper-Ring', 6.8, 6.8, 0.16, [0, 0.38, 0], alloy, 64);
