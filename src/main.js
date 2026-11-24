@@ -947,7 +947,7 @@ async function startGame() {
           ...createGameplayFramePhases(() => ({
             cameraRuntime: cameraRuntimeSystem.service,
             earthSystem, camera, applyEarthSurfaceRotation, ship, updatePhaserWeapon,
-            characterCore, updateCharacterMovement, updateCharacterWeapon,
+            characterCore, syncCharacterDeckFrame, updateCharacterMovement, updateCharacterWeapon,
             updateExternalElevatorAnimation, updateElevatorInteraction,
             updatePilotInteraction, updateShipManagementInteraction, updateEngineeringConsoleInteraction, updateRefineryConsoleInteraction, updateDeflectorConsoleInteraction, updateExternalElevatorInteraction, updateAlexiaInteraction,
             updateCharacterCamera, updateFlight, updateCamera, updateShipSystems,
