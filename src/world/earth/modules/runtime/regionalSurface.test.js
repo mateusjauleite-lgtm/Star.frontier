@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import {
-  earthCubeFaceDirection,\n  earthLongitudeToSphereUv,
+  earthCubeFaceDirection,
+  earthLongitudeToSphereUv,
   earthDirectionToLatLon,
   createEarthQuadtreeNode,
   getEarthQuadtreeChildren,
