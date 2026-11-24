@@ -103,6 +103,7 @@ export function createBlueMarbleSurfaceRuntime({
       if (!mesh || disposed) return;
       // A orientação angular é definida pelo relógio astronômico em EarthCore.
       // Não integre a rotação aqui: isso criaria um segundo relógio independente.
+      const step = Math.min(Math.max(delta || 0, 0), 0.1);
       lodCheckElapsed += step;
       if (lodCheckElapsed < 0.35) return;
       lodCheckElapsed = 0;
