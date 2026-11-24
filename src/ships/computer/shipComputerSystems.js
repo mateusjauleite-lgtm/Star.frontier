@@ -7,7 +7,7 @@ const PROPULSION_INPUTS = new Set(['throttle', 'braking', 'warpDriveButton', 'ma
 const CONTROL_AUTHORITIES = new Set(['bridge', 'engineering', 'automatic']);
 const WARP_EXIT_MODES = new Set(['smooth', 'direct']);
 
-export function registerShipComputerSystems(computer, { state, getShip, getShipYaw, getPitchAngle, getAsteroids, shieldSystem = null, refinerySystem = null, deflectorRuntime = null, warpCoreSystem = null }) {
+export function registerShipComputerSystems(computer, { state, getShip, getShipYaw, getPitchAngle, getAsteroids, shieldSystem = null, refinerySystem = null, deflectorRuntime = null, warpCoreSystem = null, planetaryTransportCore = null }) {
   if (!computer || !state || typeof getShip !== 'function' || typeof getShipYaw !== 'function' || typeof getPitchAngle !== 'function' || typeof getAsteroids !== 'function') {
     throw new TypeError('Dependências dos sistemas do computador incompletas.');
   }
@@ -83,6 +83,21 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
     state.maneuver = { left: false, right: false, up: false, down: false };
   };
   const requireEngineering = context => context?.terminalId === 'engineering-console';
+
+  if (planetaryTransportCore) {
+    computer.registerSystem('planetary-transport', {
+      name: 'Transporte planetário · Ferramenta de testes',
+      commands: {
+        status: () => planetaryTransportCore.getStatus(),
+        search: payload => planetaryTransportCore.findDestinations(payload?.query || ''),
+        teleport: payload => planetaryTransportCore.teleport(payload?.destinationId, {
+          actor: payload?.actor || 'ship',
+          altitudeOffsetMeters: payload?.altitudeOffsetMeters ?? 100
+        })
+      },
+      getStatus: () => planetaryTransportCore.getStatus().state
+    });
+  }
 
   computer.registerSystem('navigation', {
     name: 'Navegação',
