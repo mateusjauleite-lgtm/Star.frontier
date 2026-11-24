@@ -15,18 +15,14 @@ export function createSpaceLighting(scene, options = {}) {
     : 1;
   const sunPosition = SUN_POSITION_BASE.clone().multiplyScalar(worldScaleFactor);
   const sunRadius = SUN_RADIUS * worldScaleFactor;
-  const ambientLight = new THREE.HemisphereLight(0x9acfff, 0x111827, 0.75);
+  const ambientLight = new THREE.HemisphereLight(0x9acfff, 0x111827, 0.22);
   scene.add(ambientLight);
-
-  const sunLight = new THREE.PointLight(0xffd6a0, 260, 40000 * worldScaleFactor, 1.15);
-  sunLight.position.copy(sunPosition);
-  scene.add(sunLight);
 
   const sunlight = new THREE.DirectionalLight(0xffe0b5, 2.0);
   sunlight.position.copy(sunPosition);
   scene.add(sunlight);
 
-  const fillLight = new THREE.DirectionalLight(0x5caaff, 0.35);
+  const fillLight = new THREE.DirectionalLight(0x5caaff, 0.12);
   fillLight.position.set(100 * worldScaleFactor, 20 * worldScaleFactor, 80 * worldScaleFactor);
   scene.add(fillLight);
 
@@ -168,7 +164,6 @@ export function createSpaceLighting(scene, options = {}) {
         const visualSunPosition = solarObserver.clone()
           .addScaledVector(solarDirection, sunRenderDistance);
         sun.position.copy(visualSunPosition);
-        sunLight.position.copy(visualSunPosition);
         sunlight.position.copy(visualSunPosition);
         sunlight.target.position.copy(solarObserver);
         sunlight.target.updateMatrixWorld();
@@ -238,7 +233,7 @@ export function createSpaceLighting(scene, options = {}) {
       }
     },
     dispose() {
-      scene.remove(ambientLight, sunLight, sunlight, fillLight, sun, stars, streaks);
+      scene.remove(ambientLight, sunlight, fillLight, sun, stars, streaks);
       starGeometry.dispose();
       stars.material.dispose();
       streakGeometry.dispose();
