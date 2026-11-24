@@ -5,7 +5,7 @@
 This layer introduces two cooperating services without replacing the global Earth elevation model:
 
 - `PlanetaryTransportCore` stores named, georeferenced destinations and moves a selected actor only after the world resolver returns a valid position. It is explicitly developer-test-only.
-- `EarthTerrainReferenceCore` imports GLB/GLTF, OBJ and FBX meshes, validates their geometry and georeference, and attaches them to the Earth body-fixed frame at a sampled terrain location.
+- `EarthTerrainReferenceCore` imports GLB/GLTF, OBJ and FBX meshes, validates their geometry and georeference, and attaches them to the Earth body-fixed frame at a sampled terrain location. Explicit `surfaceRole: 'terrain'` references can also provide regional raycast collision and override the global DEM sample locally; ordinary scene props remain non-collidable overlays.
 
 ## Coordinate contract
 
@@ -13,7 +13,7 @@ Every imported reference requires latitude and longitude in degrees and elevatio
 
 ## Important limits
 
-Imported meshes are regional overlays and test assets. They do not replace ETOPO/DEM, modify global elevation, generate continents, or automatically become landing sites. A later terrain-authoring pipeline can explicitly bake approved regional data into a terrain tile/DEM source. A destination is searchable only after it has been registered with the transport core.
+Imported meshes remain regional references and do not replace ETOPO/DEM or modify global elevation. A reference declared with `surfaceRole: 'terrain'` is sampled as a local collision surface by raycasting the imported geometry; outside its coverage, queries fall back to the authoritative global DEM. These terrain references are automatically registered as transport destinations, so a player can be transferred directly to the region without a landing base or transporter installation there. Ordinary props default to `surfaceRole: 'overlay'`, remain visual-only, and do not become destinations. Seam blending and baking approved regional data into DEM tiles remain later terrain-authoring work.
 
 ## Safety and lifecycle
 
