@@ -2869,7 +2869,9 @@ const characterControls = registerCharacterControls({
       const up = characterWorldGrounded
         ? new THREE.Vector3(0, 1, 0).applyQuaternion(player.getWorldQuaternion(new THREE.Quaternion())).normalize()
         : earthCenter ? worldPosition.sub(earthCenter).normalize() : new THREE.Vector3(0, 1, 0);
-      earthReferenceFrames?.rotateAroundWorldAxis(player, up, yawDelta);
+      const previousGroundYaw = groundCameraYaw;
+      groundCameraYaw += yawDelta;
+      earthReferenceFrames?.rotateAroundWorldAxis(player, up, groundCameraYaw - previousGroundYaw);
     } else if (characterModel?.group) {
       characterModel.group.rotation.y = characterYaw;
     }
