@@ -2525,7 +2525,7 @@ function updateTransporterPlatformInteraction() {
       button.classList.remove('hidden');
       button.disabled = false;
       button.dataset.interaction = 'transporter';
-      button.textContent = '◎ TELETRANSPORTE';
+      button.textContent = '◎ PLATAFORMA';
       button.classList.add('available');
     }
     characterCore.setInteractionTarget('PLATAFORMA · DESTINO RECEBIDO · PRONTA');
