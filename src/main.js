@@ -3137,7 +3137,7 @@ registerHeldFlightControls({
   },
   onWarpRejected: reason => toast(reason === 'dilithium-unavailable'
     ? 'Dilítio refinado insuficiente para iniciar a dobra.'
-    : 'O Ship Computer recusou o comando de dobra.')
+    : 'O Ship Computer recusou o comando de propulsão.')
 });
 document.querySelectorAll('[data-warp-stage]').forEach(button => {
   button.addEventListener('click', () => {
@@ -3282,13 +3282,21 @@ function updateShipLandingGuidance(dt) {
     platformWorldQuaternion.x, platformWorldQuaternion.y,
     platformWorldQuaternion.z, platformWorldQuaternion.w
   ];
-  const actuation = guidance ? calculateLandingActuationAcceleration({
-    desiredVelocityMetersPerSecond: guidance.desiredVelocityMetersPerSecond,
-    currentVelocityMetersPerSecond: telemetry.velocityMetersPerSecond,
-    platformWorldQuaternion: platformQuaternion,
-    proportionalGain: 2.4,
-    maximumAcceleration: 12
-  }) : null;
+  const verticalClosingSpeed = Math.max(0, -telemetry.velocityMetersPerSecond[1]);
+  const requiredBrakingDistance = verticalClosingSpeed > 0.25
+    ? (verticalClosingSpeed * verticalClosingSpeed) / (2 * 18) + 2
+    : 0;
+  const safeBrakingEnvelope = Boolean(guidance &&
+    guidance.altitudeMeters >= requiredBrakingDistance);
+  const actuation = guidance && telemetry.velocitySampleValid && safeBrakingEnvelope
+    ? calculateLandingActuationAcceleration({
+      desiredVelocityMetersPerSecond: guidance.desiredVelocityMetersPerSecond,
+      currentVelocityMetersPerSecond: telemetry.velocityMetersPerSecond,
+      platformWorldQuaternion: platformQuaternion,
+      proportionalGain: 2.4,
+      maximumAcceleration: 18
+    })
+    : null;
   state.landingAutopilotControlAccelerationWorld = actuation;
   state.landingAutopilotActive = Boolean(guidance && actuation);
   ship.userData.landingTelemetry = telemetry;
@@ -3301,7 +3309,13 @@ function updateShipLandingGuidance(dt) {
     coordinateFrame: telemetry.coordinateFrame
   };
   ship.userData.landingGuidance = guidance;
-  ship.userData.landingAutopilotState = guidance && actuation ? 'closed-loop-actuation' : 'guidance-unavailable';
+  ship.userData.landingAutopilotState = guidance && actuation
+    ? 'closed-loop-actuation'
+    : guidance && !telemetry.velocitySampleValid
+      ? 'sampling-velocity'
+      : guidance && !safeBrakingEnvelope
+        ? 'unsafe-descent-envelope'
+        : 'guidance-unavailable';
   if (guidance) {
     guidance.backend = shipFlightKernel.backend;
     guidance.actuationEnabled = Boolean(actuation);
@@ -3309,6 +3323,15 @@ function updateShipLandingGuidance(dt) {
     guidance.gearClearanceMeters = telemetry.minimumGearClearanceMeters;
     guidance.allGearInsideDeck = telemetry.allGearInsideDeck;
     guidance.scaleValidation = telemetry.scaleValidation;
+  }
+  if (guidance && !telemetry.velocitySampleValid) {
+    $('landing-status').textContent = 'Piloto automático: calibrando a velocidade relativa antes de aplicar os propulsores.';
+  } else if (guidance && !safeBrakingEnvelope) {
+    $('landing-status').textContent = 'Pouso automático em espera: velocidade vertical alta para a altitude atual. Use FREAR manualmente até entrar no envelope seguro.';
+  } else if (guidance && actuation) {
+    $('landing-status').textContent = 'Piloto automático ativo · ' + guidance.phase.toUpperCase() +
+      ' · altitude ' + guidance.altitudeMeters.toFixed(1) + ' m · descida ' +
+      Math.max(0, -telemetry.velocityMetersPerSecond[1]).toFixed(1) + ' m/s.';
   }
 }
 
