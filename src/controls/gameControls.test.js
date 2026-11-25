@@ -20,7 +20,7 @@ function element() {
   };
 }
 
-test('held flight controls set and release throttle state', () => {
+test('propulsor principal alterna entre ligado e desligado com toques', () => {
   const buttons = new Map(['throttle-btn', 'brake-btn', 'nitro-btn'].map(id => [id, element()]));
   const windowListeners = new Map();
   const document = { getElementById: id => buttons.get(id) || null };
@@ -29,12 +29,14 @@ test('held flight controls set and release throttle state', () => {
 
   registerHeldFlightControls({ document, window, state });
   const throttle = buttons.get('throttle-btn');
-  throttle.fire('pointerdown', { pointerId: 7, pointerType: 'touch' });
+  throttle.fire('click');
   assert.equal(state.throttle, true);
   assert.equal(throttle.classes.has('active'), true);
-  throttle.fire('pointerup', { pointerId: 7 });
+  assert.equal(throttle.attributes['aria-pressed'], 'true');
+  throttle.fire('click');
   assert.equal(state.throttle, false);
   assert.equal(throttle.classes.has('active'), false);
+  assert.equal(throttle.attributes['aria-pressed'], 'false');
 });
 
 test('camera cycle control preserves the three existing camera modes', () => {
