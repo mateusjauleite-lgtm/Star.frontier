@@ -283,11 +283,12 @@ export function createShipFlightController(dependencies = {}) {
     // do casco e impedem que a superfície o oculte parcialmente.
     const hullClearanceSamples = typeof shipVisual.localToWorld === 'function' &&
       typeof new THREE.Vector3().clone === 'function' ? [
-      new THREE.Vector3(0, -15.0, 0),
-      new THREE.Vector3(0, -10.8, -35),
-      new THREE.Vector3(0, -10.8, 35),
-      new THREE.Vector3(-18, -10.6, 0),
-      new THREE.Vector3(18, -10.6, 0)
+      new THREE.Vector3(0, -15.2, 0),
+      new THREE.Vector3(0, -3.0, -48),
+      new THREE.Vector3(0, -10.85, 35),
+      new THREE.Vector3(0, -12.7, 39),
+      new THREE.Vector3(-18, -11.4, 0),
+      new THREE.Vector3(18, -11.4, 0)
     ] : [];
     for (const localPoint of hullClearanceSamples) {
       const pointWorld = shipVisual.localToWorld(localPoint.clone());
