@@ -2,7 +2,8 @@ import * as THREE from 'three';
 
 export const DECK_2_TRANSPORTER_LAYOUT = Object.freeze({
   platform: Object.freeze({ x: -12, y: 3.12, z: 27 }),
-  console: Object.freeze({ x: -3.2, y: 3.12, z: 27.2 }),
+  // Console no lado oposto ao elevador, mantendo distância segura da plataforma.
+  console: Object.freeze({ x: -21.5, y: 3.12, z: 27.2 }),
   platformRadius: 2.55,
   emitterCount: 6
 });
@@ -107,7 +108,7 @@ export function createDeck2TransporterInstallation() {
   };
   root.userData.collisionBoxes = [
     { x: -12, y: 3.55, z: 27, halfX: 2.65, halfY: 0.25, halfZ: 2.65 },
-    { x: -3.2, y: 3.7, z: 27.2, halfX: 0.62, halfY: 0.85, halfZ: 0.48 }
+    { x: -21.5, y: 3.7, z: 27.2, halfX: 0.62, halfY: 0.85, halfZ: 0.48 }
   ];
 
   root.traverse(object => {
