@@ -47,23 +47,20 @@ test('near-surface selection is bounded by the regional tile budget', () => {
   assert.ok(tiles.every(tile => tile.level <= 12));
 });
 
-test('horizon fallback can still select regional tiles when the camera view cone rejects all tiles', () => {
+test('near-surface ground anchor remains selected when the camera view cone points away from terrain', () => {
   const camera = new THREE.Vector3(0, 0, 601);
   const lookingAway = new THREE.Vector3(0, 0, 1);
-  const rejected = selectEarthQuadtreeTiles(camera, 600, {
+  const selected = selectEarthQuadtreeTiles(camera, 600, {
     maxLevel: 8,
     maxTiles: 24,
     cameraForwardLocal: lookingAway,
     cameraFovDeg: 40,
     cameraAspect: 1
   });
-  const horizonFallback = selectEarthQuadtreeTiles(camera, 600, {
-    maxLevel: 8,
-    maxTiles: 24
-  });
-  assert.equal(rejected.length, 0);
-  assert.ok(horizonFallback.length > 0);
-  assert.ok(horizonFallback.length <= 24);
+  const anchor = getEarthQuadtreeNodeForDirection(camera, 8);
+  assert.ok(selected.some(tile => tile.key === anchor.key));
+  assert.ok(selected.length > 0);
+  assert.ok(selected.length <= 24);
 });
 
 test('regional tile UVs use the same north-to-v=1 orientation as the globe texture', () => {
@@ -143,8 +140,7 @@ test('keeps the ground-anchor tile when a third-person camera looks toward the h
     cameraAspect: 1.8
   });
   const anchor = getEarthQuadtreeNodeForDirection(camera, 12);
-  assert.ok(tiles.some(tile => tile.face === anchor.face &&
-    tile.level === anchor.level && tile.x === anchor.x && tile.y === anchor.y));
+  assert.ok(tiles.some(tile => tile.key === anchor.key));
   assert.ok(tiles.length <= 24);
 });
 
