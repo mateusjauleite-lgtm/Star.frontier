@@ -218,6 +218,8 @@ let characterPhysics = null;
 let shieldVisual = null;
 let characterYaw = 0;
 let characterPitch = 0;
+// A câmera terrestre mantém inclinação própria; não reutiliza a mira da nave/convés.
+let groundCameraPitch = 0;
 const characterForward = new THREE.Vector3();
 const characterRight = new THREE.Vector3();
 const characterMove = new THREE.Vector3();
@@ -1496,11 +1498,12 @@ function updateCharacterCamera() {
   }
   camera.up.copy(cameraUp);
   const target = characterCameraWorldPosition.clone().addScaledVector(cameraUp, 1.25);
+  const cameraPitch = characterInWorldFrame ? groundCameraPitch : characterPitch;
 
   if (characterCameraMode === 'first-person') {
     characterCameraOffset.copy(cameraUp).multiplyScalar(1.62);
     camera.position.copy(characterCameraWorldPosition).add(characterCameraOffset);
-    characterLookEuler.set(characterPitch, 0, 0, 'YXZ');
+    characterLookEuler.set(cameraPitch, 0, 0, 'YXZ');
     camera.quaternion.copy(characterCameraWorldQuaternion).multiply(
       new THREE.Quaternion().setFromEuler(characterLookEuler)
     );
@@ -1535,7 +1538,7 @@ function updateCharacterCamera() {
       }
     }
     const lookTarget = target.addScaledVector(characterCameraForward, 1.4);
-    lookTarget.addScaledVector(cameraUp, Math.sin(characterPitch) * 4.2);
+    lookTarget.addScaledVector(cameraUp, Math.sin(cameraPitch) * 4.2);
     camera.lookAt(lookTarget);
   }
 }
@@ -2769,6 +2772,7 @@ function bindStick(id, key) {
   const knob = element.querySelector('.knob');
   let pointer = null;
   const hasPropulsion = () => Number(state.fuel) > 0 || Number(state.refinedDilithium) > 0 || state.maneuveringAssist !== false;
+  const isCharacterWalking = () => characterCore.snapshot().mode === 'on-foot' && !shipManagementTerminal.getSnapshot().open;
   const reset = () => {
     state[key].x = 0;
     state[key].y = 0;
@@ -2777,6 +2781,7 @@ function bindStick(id, key) {
   };
 
   const moveStick = event => {
+    if (key === 'move' && isCharacterWalking()) { reset(); return; }
     const rect = element.getBoundingClientRect();
     const max = Math.max(1, rect.width * 0.34);
     let x = event.clientX - rect.left - rect.width / 2;
@@ -2797,6 +2802,7 @@ function bindStick(id, key) {
 
   element.addEventListener('pointerdown', event => {
     if (pointer !== null || (event.pointerType === 'mouse' && event.button !== 0)) return;
+    if (key === 'move' && isCharacterWalking()) return;
     if (key === 'move' && !hasPropulsion()) {
       element.classList.add('no-propulsion');
       return;
@@ -2843,9 +2849,16 @@ const characterControls = registerCharacterControls({
     toast(aiming ? 'Mira ativada.' : 'Arma abaixada.');
   },
   onAimLook: (dx, dy) => {
-    const yawDelta = -dx * 0.005;
+    const terrestrialCamera = characterInWorldFrame;
+    // A câmera no solo usa sensibilidade própria, cerca de 3x menor que a câmera interna.
+    const yawDelta = -dx * (terrestrialCamera ? 0.00165 : 0.005);
+    const pitchDelta = dy * (terrestrialCamera ? 0.00135 : 0.004);
     characterYaw += yawDelta;
-    characterPitch = THREE.MathUtils.clamp(characterPitch - dy * 0.004, -0.65, 0.65);
+    if (terrestrialCamera) {
+      groundCameraPitch = THREE.MathUtils.clamp(groundCameraPitch - pitchDelta, -0.65, 0.65);
+    } else {
+      characterPitch = THREE.MathUtils.clamp(characterPitch - pitchDelta, -0.65, 0.65);
+    }
     // A guinada exterior gira ao redor da normal local, nunca do Y global.
     if (characterModel?.group && characterInWorldFrame) {
       const player = characterModel.group;
