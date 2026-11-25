@@ -67,7 +67,7 @@ export function createShipLandingMetricTelemetryAdapter({
     modelMetersPerUnit,coordinateFrame:'platform-local-metric',
     source:'ship-model-and-platform-world-matrices',
     scaleValidation:'metric-proxy-calibrated-render-scale-pending',
-    actuationEnabled:false
+    actuationEnabled:true
    };
   },
   reset(){previousPosition=null;}
@@ -100,7 +100,7 @@ export function createShipLandingTelemetryAdapter({metersPerRenderUnit}={}){
     shipForwardLocal:[dot(forward,east),dot(forward,up),dot(forward,north)].map(cleanZero),
     shipUpLocal:[dot(shipUp,east),dot(shipUp,up),dot(shipUp,north)].map(cleanZero),
     targetNorthLocal:[0,0,1],metersPerRenderUnit,
-    source:'live-threejs-world-transform',actuationEnabled:false,
+    source:'live-threejs-world-transform',actuationEnabled:true,
     scaleValidation:'pending-ship-metric-frame'
    };
   },
@@ -157,7 +157,7 @@ export function createShipLandingAutopilot(shipKernel){
     surfaceNormal:state.surfaceNormal,shipForward:state.shipForwardLocal,shipUp:state.shipUpLocal,targetNorth:state.targetNorthLocal,
     maximumDescentSpeed:state.maximumDescentSpeed??1.5,lateralGain:state.lateralGain??0.08,verticalGain:state.verticalGain??0.15
    });
-   return guidance?{...guidance,targetId,authority:'guidance-only',actuationEnabled:false,
+   return guidance?{...guidance,targetId,authority:'closed-loop-actuation',actuationEnabled:true,
     coordinateFrame:state.coordinateFrame??'earth-local-tangent',telemetrySource:state.source,scaleValidation:state.scaleValidation}:null;
   },
   cancel(){active=false;targetId=null;},
