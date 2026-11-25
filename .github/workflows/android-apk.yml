@@ -34,6 +34,7 @@ on:
       - feature/earth-blue-marble-visual-runtime-2026-11-22
       - fix/earth-true-3d-relief-cleanup-2026-11-22
       - fix/terrestrial-camera-controls
+      - fix/earth-terrestrial-exploration-zone
       - feature/central-physical-scale-2026-11-22
       - feature/earth-scale-mineral-field-labels-2026-11-22
   pull_request:
