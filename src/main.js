@@ -2426,7 +2426,9 @@ function updateTransporterConsoleInteraction(dt = 0) {
     return;
   }
   const distanceSquared = characterModel.group.position.distanceToSquared(transporterConsolePosition);
-  const visible = distanceSquared <= 8 ** 2;
+  // Depois do despacho, mantenha o link lógico ativo até a plataforma concluir
+  // a transferência; o raio de interação do console continua restrito a 3,6 unidades.
+  const visible = distanceSquared <= 8 ** 2 || Boolean(transporterDispatchBuffer.getPending());
   const available = distanceSquared <= 3.6 ** 2;
   transporterInteractionAvailable = available;
   planetaryTransportTerminal?.setPresence(visible, available);
