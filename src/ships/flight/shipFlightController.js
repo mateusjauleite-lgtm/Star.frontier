@@ -281,13 +281,13 @@ export function createShipFlightController(dependencies = {}) {
     // a nave inclinada, a popa ou a proa pode atravessar o relevo mesmo com as
     // sapatas ainda acima dele. Estes pontos acompanham a parte inferior real
     // do casco e impedem que a superfície o oculte parcialmente.
-    const hullClearanceSamples = [
+    const hullClearanceSamples = typeof shipVisual.localToWorld === 'function' ? [
       new THREE.Vector3(0, -15.0, 0),
       new THREE.Vector3(0, -10.8, -35),
       new THREE.Vector3(0, -10.8, 35),
       new THREE.Vector3(-18, -10.6, 0),
       new THREE.Vector3(18, -10.6, 0)
-    ];
+    ] : [];
     for (const localPoint of hullClearanceSamples) {
       const pointWorld = shipVisual.localToWorld(localPoint.clone());
       const terrain = earthCollisionSurface?.sampleWorldPosition?.(pointWorld);
