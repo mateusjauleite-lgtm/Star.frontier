@@ -2855,7 +2855,6 @@ const characterControls = registerCharacterControls({
     const yawDelta = -dx * (terrestrialCamera ? 0.00165 : 0.005);
     const pitchDelta = dy * (terrestrialCamera ? 0.00135 : 0.004);
     if (terrestrialCamera) {
-      groundCameraYaw += yawDelta;
       groundCameraPitch = THREE.MathUtils.clamp(groundCameraPitch - pitchDelta, -0.65, 0.65);
     } else {
       characterYaw += yawDelta;
