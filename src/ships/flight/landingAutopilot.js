@@ -153,10 +153,17 @@ export function createShipLandingAutopilot(shipKernel){
   arm(site){if(!site||typeof site.id!=='string'||!site.id)return false;targetId=site.id;active=true;return true;},
   update(state){
    if(!active||!state)return null;
+   const surfaceNormal=normalize(state.surfaceNormal);
+   const relativePosition=vector3(state.positionMeters)&&vector3(state.targetPositionMeters)
+    ?state.positionMeters.map((value,index)=>value-state.targetPositionMeters[index]):null;
+   const altitude=surfaceNormal&&relativePosition?dot(relativePosition,surfaceNormal):0;
+   // Faster high-altitude approach, with a braking-distance ceiling for the
+   // 18 m/s² landing controller; the final flare remains deliberately gentle.
+   const adaptiveDescentSpeed=clamp(Math.sqrt(Math.max(0,altitude-5)*36),1.5,40);
    const guidance=shipKernel?.calculateLandingGuidanceMeters?.({
     position:state.positionMeters,velocity:state.velocityMetersPerSecond,targetPosition:state.targetPositionMeters,
     surfaceNormal:state.surfaceNormal,shipForward:state.shipForwardLocal,shipUp:state.shipUpLocal,targetNorth:state.targetNorthLocal,
-    maximumDescentSpeed:state.maximumDescentSpeed??1.5,lateralGain:state.lateralGain??0.08,verticalGain:state.verticalGain??0.15
+    maximumDescentSpeed:state.maximumDescentSpeed??adaptiveDescentSpeed,lateralGain:state.lateralGain??0.08,verticalGain:state.verticalGain??0.15
    });
    return guidance?{...guidance,targetId,authority:'closed-loop-actuation',actuationEnabled:true,
     coordinateFrame:state.coordinateFrame??'earth-local-tangent',telemetrySource:state.source,scaleValidation:state.scaleValidation}:null;
