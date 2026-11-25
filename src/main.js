@@ -2514,8 +2514,9 @@ function updateTerrestrialTransportInteraction(dt = 0) {
 
 function updateTransporterPlatformInteraction() {
   const previous = transporterActionAvailable;
-  const pending = transporterDispatchBuffer.getPending();
-  const valid = Boolean(pending && transporterDestinationId === pending.destinationId && characterModel && characterCore.snapshot().mode === 'on-foot' &&
+  // A presença física da plataforma é independente do despacho do console.
+  // O destino só é exigido no momento de executar a transferência.
+  const valid = Boolean(characterModel && characterCore.snapshot().mode === 'on-foot' &&
     !characterInWorldFrame && !nearbyElevator && activeDeckIndex === 1);
   const available = valid && characterModel.group.position.distanceToSquared(transporterPlatformPosition) <= DECK_2_TRANSPORTER_LAYOUT.platformInteractionRadius ** 2;
   transporterActionAvailable = Boolean(available);
@@ -2528,7 +2529,10 @@ function updateTransporterPlatformInteraction() {
       button.textContent = '◎ PLATAFORMA';
       button.classList.add('available');
     }
-    characterCore.setInteractionTarget('PLATAFORMA · DESTINO RECEBIDO · PRONTA');
+    const pending = transporterDispatchBuffer.getPending();
+    characterCore.setInteractionTarget(pending && transporterDestinationId === pending.destinationId
+      ? 'PLATAFORMA · DESTINO RECEBIDO · PRONTA'
+      : 'PLATAFORMA · SEM DESTINO DEFINIDO');
   } else if (previous) {
     const button = $('character-action-btn');
     if (button) {
@@ -2545,8 +2549,11 @@ function updateTransporterPlatformInteraction() {
 
 function executePlanetaryTransport() {
   const packet = transporterDispatchBuffer.getPending();
-  if (!packet || packet.destinationId !== transporterDestinationId || !planetaryTransportTerminal || !characterModel ||
-      !transporterActionAvailable || characterCore.snapshot().mode !== 'on-foot') return false;
+  if (!packet || packet.destinationId !== transporterDestinationId) {
+    toast('Nenhum destino definido. Use o console de transporte para selecionar uma base.');
+    return false;
+  }
+  if (!planetaryTransportTerminal || !characterModel || !transporterActionAvailable || characterCore.snapshot().mode !== 'on-foot') return false;
   const response = planetaryTransportTerminal.dispatch('teleport', {
     destinationId: packet.destinationId, actor: 'character', altitudeOffsetMeters: 2.2
   });
