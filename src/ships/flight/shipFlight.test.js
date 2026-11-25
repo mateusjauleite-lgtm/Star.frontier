@@ -45,7 +45,7 @@ test('Ship Core landing guidance rejects invalid SI vectors',()=>{
   position:[0,0,0],targetPosition:[0,0,0],surfaceNormal:[0,0,0]
  }),null);
 });
-test('Ship landing autopilot orchestrates the C++ guidance interface without movement authority',()=>{
+test('Ship landing autopilot connects C++ guidance to closed-loop actuation',()=>{
  const kernel=createShipFlightKernel();
  const autopilot=createShipLandingAutopilot(kernel);
  const site=getLandingSite('earth-salar-test-candidate');
@@ -56,7 +56,8 @@ test('Ship landing autopilot orchestrates the C++ guidance interface without mov
  });
  assert.equal(result.phase,'approach');
  assert.equal(result.targetId,site.id);
- assert.equal(result.authority,'guidance-only');
+ assert.equal(result.authority,'closed-loop-actuation');
+  assert.equal(result.actuationEnabled,true);
  autopilot.cancel();assert.equal(autopilot.snapshot().active,false);
 });
 
