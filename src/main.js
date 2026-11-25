@@ -27,6 +27,7 @@ import { saveState as save, loadState as load } from './core/storage.js';
 import { createShipComputer } from './ships/computer/shipComputer.js';
 import { createPlanetaryTransportTerminal, createTransporterActionMenu } from './ships/computer/planetaryTransportTerminal.js';
 import { DECK_2_TRANSPORTER_LAYOUT } from './ships/transport/transportInstallation.js';
+import { createTransporterDispatchBuffer } from './ships/transport/transporterDispatchBuffer.js';
 import { createShipManagementTerminalController, SHIP_MANAGEMENT_TERMINAL_LOCAL_POSITION, SHIP_MANAGEMENT_TERMINAL_DISPLAY_RADIUS, SHIP_MANAGEMENT_TERMINAL_INTERACTION_RADIUS } from './ships/computer/managementTerminal/managementTerminalController.js';
 import { createShipManagementTerminalRenderer } from './ships/computer/managementTerminal/managementTerminalRenderer.js';
 import { createShipManagementHologram, createRefineryHologram } from './ships/computer/managementTerminal/shipManagementHologram.js';
@@ -243,6 +244,7 @@ let transporterConsoleActive = false;
 let transporterInteractionAvailable = false;
 let transporterActionAvailable = false;
 let transporterDestinationId = null;
+const transporterDispatchBuffer = createTransporterDispatchBuffer();
 let transporterTelemetryAccumulator = 0;
 let earthDestinationPickActive = false;
 const transporterConsolePosition = new THREE.Vector3(DECK_2_TRANSPORTER_LAYOUT.console.x, DECK_2_TRANSPORTER_LAYOUT.console.y, DECK_2_TRANSPORTER_LAYOUT.console.z);
@@ -675,6 +677,7 @@ let lightingSystem;
 let starshipInterior;
 let externalElevator = null;
 let externalElevatorRiding = false;
+const externalElevatorRidingOffset = new THREE.Vector3();
 let externalElevatorActionAvailable = false;
 let nearbyElevator = false;
 let activeDeckIndex = 0;
@@ -1255,11 +1258,12 @@ async function init3D() {
     computer: shipComputer, root: $('game-screen'),
     onOpenChange: active => { transporterConsoleActive = active; if (active) characterControls?.reset?.(); updateCharacterHUD(); },
     onDestinationConfirmed: destination => {
-      transporterDestinationId = destination.id;
+      const packet = transporterDispatchBuffer.queue(destination);
+      transporterDestinationId = packet.destinationId;
       transporterActionAvailable = false;
-      characterCore.setInteractionTarget('BASE CONFIRMADA · DIRIJA-SE À PLATAFORMA');
+      characterCore.setInteractionTarget('DESTINO ENVIADO · PLATAFORMA AGUARDANDO');
       updateCharacterHUD();
-      toast('Base BT-01 confirmada. Dirija-se à plataforma de transporte.');
+      toast('Destino registrado e enviado. A plataforma está aguardando a confirmação física.');
     }
   });
   terrestrialTransportTerminal = createPlanetaryTransportTerminal({
@@ -1269,6 +1273,7 @@ async function init3D() {
     onReturnToShip: () => {
       terrestrialTransportConsoleActive = false;
       transporterDestinationId = null;
+      transporterDispatchBuffer.clear();
       transporterActionAvailable = false;
       characterInWorldFrame = false;
       characterWorldGrounded = false;
@@ -2050,9 +2055,9 @@ function updateExternalElevatorAnimation(dt) {
   if (externalElevatorRiding && !characterInWorldFrame && characterModel?.group) {
     const feetY = externalElevator.group.position.y + externalElevator.platform.position.y + 0.21;
     characterModel.group.position.set(
-      EXTERNAL_ELEVATOR_CONFIG.x,
+      EXTERNAL_ELEVATOR_CONFIG.x + externalElevatorRidingOffset.x,
       feetY,
-      EXTERNAL_ELEVATOR_CONFIG.z
+      EXTERNAL_ELEVATOR_CONFIG.z + externalElevatorRidingOffset.z
     );
     characterModel.group.rotation.y = characterYaw;
     characterPhysics?.reset(feetY);
@@ -2075,7 +2080,7 @@ function updateExternalElevatorAnimation(dt) {
     characterWorldVelocity.set(0, 0, 0);
     const deckY = starshipInterior.layout.decks[3].y;
     const feetY = deckY + 0.21;
-    characterModel.group.position.set(EXTERNAL_ELEVATOR_CONFIG.x, feetY, EXTERNAL_ELEVATOR_CONFIG.z);
+    characterModel.group.position.set(EXTERNAL_ELEVATOR_CONFIG.x + externalElevatorRidingOffset.x, feetY, EXTERNAL_ELEVATOR_CONFIG.z + externalElevatorRidingOffset.z);
     characterPhysics?.reset(feetY);
     characterCore.setGrounded(true);
     characterAnimator?.play('idle', { restart: true });
@@ -2090,10 +2095,15 @@ function activateExternalElevator() {
 
   if (externalElevator.phase === 'top') {
     if (characterInWorldFrame || activeDeckIndex !== 3) return false;
-    externalElevatorRiding = true;
     const deckY = starshipInterior.layout.decks[3].y;
-    characterModel.group.position.set(EXTERNAL_ELEVATOR_CONFIG.x, deckY + 0.21, EXTERNAL_ELEVATOR_CONFIG.z);
-    characterPhysics?.reset(deckY + 0.21);
+    const dx = characterModel.group.position.x - EXTERNAL_ELEVATOR_CONFIG.x;
+    const dz = characterModel.group.position.z - EXTERNAL_ELEVATOR_CONFIG.z;
+    if (dx * dx + dz * dz > EXTERNAL_ELEVATOR_CONFIG.platformHalfSize ** 2) {
+      toast('Entre na área da plataforma antes de iniciar a descida.');
+      return false;
+    }
+    externalElevatorRidingOffset.set(dx, 0, dz);
+    externalElevatorRiding = true;
     if (!externalElevator.begin('down')) {
       externalElevatorRiding = false;
       return false;
@@ -2103,13 +2113,18 @@ function activateExternalElevator() {
     if (!characterInWorldFrame) return false;
     // Reanexa o personagem à nave preservando a posição mundial no início da subida.
     characterDeckFrame.attach(characterModel.group);
+    externalElevatorRidingOffset.set(
+      characterModel.group.position.x - EXTERNAL_ELEVATOR_CONFIG.x,
+      0,
+      characterModel.group.position.z - EXTERNAL_ELEVATOR_CONFIG.z
+    );
     characterInWorldFrame = false;
     characterWorldGrounded = false;
     characterWorldVelocity.set(0, 0, 0);
     characterCore.setGrounded(false);
     externalElevatorRiding = true;
     const feetY = externalElevator.group.position.y + externalElevator.platform.position.y + 0.21;
-    characterModel.group.position.set(EXTERNAL_ELEVATOR_CONFIG.x, feetY, EXTERNAL_ELEVATOR_CONFIG.z);
+    characterModel.group.position.set(EXTERNAL_ELEVATOR_CONFIG.x + externalElevatorRidingOffset.x, feetY, EXTERNAL_ELEVATOR_CONFIG.z + externalElevatorRidingOffset.z);
     characterPhysics?.reset(feetY);
     if (!externalElevator.begin('up')) {
       externalElevatorRiding = false;
@@ -2144,7 +2159,7 @@ function updateExternalElevatorInteraction() {
     const dx = p.x - EXTERNAL_ELEVATOR_CONFIG.x;
     const dz = p.z - EXTERNAL_ELEVATOR_CONFIG.z;
     const deckY = starshipInterior.layout.decks[3].y;
-    available = dx * dx + dz * dz <= EXTERNAL_ELEVATOR_CONFIG.interactionRadius ** 2 &&
+    available = dx * dx + dz * dz <= EXTERNAL_ELEVATOR_CONFIG.platformHalfSize ** 2 &&
       Math.abs(p.y - (deckY + 0.21)) <= 2.0;
   } else if (externalElevator.phase === 'bottom' && characterInWorldFrame) {
     characterModel.group.getWorldPosition(pilotPlayerWorldPosition);
@@ -2152,7 +2167,7 @@ function updateExternalElevatorInteraction() {
     const offset = pilotPlayerWorldPosition.clone().sub(surface.center);
     const normalDistance = offset.dot(surface.normal);
     const planarDistance = offset.addScaledVector(surface.normal, -normalDistance).length();
-    available = planarDistance <= EXTERNAL_ELEVATOR_CONFIG.interactionRadius &&
+    available = planarDistance <= EXTERNAL_ELEVATOR_CONFIG.platformHalfSize &&
       Math.abs(normalDistance) <= 3.2;
   }
 
@@ -2429,7 +2444,7 @@ function updateTransporterConsoleInteraction(dt = 0) {
   } else if (previousAvailable || previousActive) {
     const button = $('character-action-btn');
     if (button) { button.disabled = true; button.textContent = 'AÇÃO'; button.classList.remove('available'); }
-    characterCore.setInteractionTarget(transporterDestinationId ? 'DESTINO CONFIRMADO · DIRIJA-SE À PLATAFORMA' : null);
+    characterCore.setInteractionTarget(transporterDispatchBuffer.getPending() ? 'DESTINO ENVIADO · DIRIJA-SE À PLATAFORMA' : null);
     updateCharacterHUD();
   }
 }
@@ -2494,14 +2509,15 @@ function updateTerrestrialTransportInteraction(dt = 0) {
 
 function updateTransporterPlatformInteraction() {
   const previous = transporterActionAvailable;
-  const valid = Boolean(transporterDestinationId && characterModel && characterCore.snapshot().mode === 'on-foot' &&
+  const pending = transporterDispatchBuffer.getPending();
+  const valid = Boolean(pending && transporterDestinationId === pending.destinationId && characterModel && characterCore.snapshot().mode === 'on-foot' &&
     !characterInWorldFrame && !nearbyElevator && activeDeckIndex === 1);
   const available = valid && characterModel.group.position.distanceToSquared(transporterPlatformPosition) <= 2.9 ** 2;
   transporterActionAvailable = Boolean(available);
   if (available) {
     const button = $('character-action-btn');
     if (button) { button.disabled = false; button.textContent = '◎ TELETRANSPORTE'; button.classList.add('available'); }
-    characterCore.setInteractionTarget('PLATAFORMA DE TELETRANSPORTE');
+    characterCore.setInteractionTarget('PLATAFORMA · DESTINO RECEBIDO · PRONTA');
   } else if (previous) {
     const button = $('character-action-btn');
     if (button) { button.disabled = true; button.textContent = 'AÇÃO'; button.classList.remove('available'); }
@@ -2511,10 +2527,11 @@ function updateTransporterPlatformInteraction() {
 }
 
 function executePlanetaryTransport() {
-  if (!transporterDestinationId || !planetaryTransportTerminal || !characterModel ||
+  const packet = transporterDispatchBuffer.getPending();
+  if (!packet || packet.destinationId !== transporterDestinationId || !planetaryTransportTerminal || !characterModel ||
       !transporterActionAvailable || characterCore.snapshot().mode !== 'on-foot') return false;
   const response = planetaryTransportTerminal.dispatch('teleport', {
-    destinationId: transporterDestinationId, actor: 'character', altitudeOffsetMeters: 2.2
+    destinationId: packet.destinationId, actor: 'character', altitudeOffsetMeters: 2.2
   });
   const result = response?.ok ? response.result : null;
   if (!result?.ok) {
@@ -2529,6 +2546,7 @@ function executePlanetaryTransport() {
     return false;
   }
   transporterDestinationId = null;
+  transporterDispatchBuffer.clear();
   transporterActionAvailable = false;
   planetaryTransportTerminal.close();
   transporterConsoleActive = false;
