@@ -169,12 +169,20 @@ export function selectEarthQuadtreeTiles(cameraLocalPosition, radius, {
   // otherwise discard the ground under the character and expose empty space.
   if (altitude <= radius * .01) {
     const groundAnchor = getEarthQuadtreeNodeForDirection(direction, targetLevel);
-    const covered = groundAnchor && leaves.some(node => {
-      if (node.face !== groundAnchor.face || node.level > groundAnchor.level) return false;
-      const shift = groundAnchor.level - node.level;
-      return (groundAnchor.x >> shift) === node.x && (groundAnchor.y >> shift) === node.y;
-    });
-    if (groundAnchor && !covered) {
+    // A coarse ancestor tile is not sufficient here: it can cover the anchor
+    // geographically while still leaving the character without local detail.
+    // Replace that ancestor with the high-resolution anchor tile so the ground
+    // directly beneath the observer is always represented at targetLevel.
+    const exactAnchorPresent = groundAnchor && leaves.some(node =>
+      node.key === groundAnchor.key
+    );
+    if (groundAnchor && !exactAnchorPresent) {
+      const ancestorIndex = leaves.findIndex(node => {
+        if (node.face !== groundAnchor.face || node.level >= groundAnchor.level) return false;
+        const shift = groundAnchor.level - node.level;
+        return (groundAnchor.x >> shift) === node.x && (groundAnchor.y >> shift) === node.y;
+      });
+      if (ancestorIndex >= 0) leaves.splice(ancestorIndex, 1);
       if (leaves.length >= maxTiles) leaves.pop();
       leaves.push(groundAnchor);
     }
