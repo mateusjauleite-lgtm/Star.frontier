@@ -18,6 +18,9 @@ export function createGameplayFramePhases(getDependencies) {
       const solarFrame = solarSnapshot
         ? solarSystemPresentation?.getFrame(solarSnapshot) ?? null
         : null;
+      if (Number.isFinite(solarSnapshot?.simulationTimeSeconds)) {
+        earthTimeCore?.syncSimulationSeconds?.(solarSnapshot.simulationTimeSeconds);
+      }
       if (scene && solarSnapshot) {
         scene.userData.solarSystemSnapshot = solarSnapshot;
         scene.userData.solarSystemPresentationFrame = solarFrame;
