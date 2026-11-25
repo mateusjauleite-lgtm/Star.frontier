@@ -3327,7 +3327,7 @@ function updateShipLandingGuidance(dt) {
   if (guidance && !telemetry.velocitySampleValid) {
     $('landing-status').textContent = 'Piloto automático: calibrando a velocidade relativa antes de aplicar os propulsores.';
   } else if (guidance && !safeBrakingEnvelope) {
-    $('landing-status').textContent = 'Pouso automático em espera: velocidade vertical alta para a altitude atual. Use FREAR manualmente até entrar no envelope seguro.';
+    $('landing-status').textContent = 'Pouso automático em espera: velocidade vertical alta para a altitude atual. Use MANOBRA ↑ para reduzir a velocidade vertical antes de tentar novamente.';
   } else if (guidance && actuation) {
     $('landing-status').textContent = 'Piloto automático ativo · ' + guidance.phase.toUpperCase() +
       ' · altitude ' + guidance.altitudeMeters.toFixed(1) + ' m · descida ' +
