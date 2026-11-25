@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { EARTH_AXIAL_TILT_DEGREES } from '../../physics/planetaryGravitySystem.js';
 import { EARTH_REFERENCE_POLICY, EARTH_REFERENCE_SOURCES } from './references/index.js';
 import { EARTH_UPDATE_MODULES } from './modules/index.js';
 import { createEarthUpdatePipeline } from './earthUpdatePipeline.js';
@@ -7,7 +8,6 @@ import { createBlueMarbleSurfaceRuntime } from './modules/runtime/blueMarbleSurf
 import { createTerrainRuntime } from './modules/runtime/terrain.js';
 import { createOceansRuntime } from './modules/runtime/oceans.js';
 import { createBlueMarbleAtmosphereRuntime } from './modules/runtime/blueMarbleAtmosphere.js';
-import { createCloudsRuntime } from './modules/runtime/clouds.js';
 import { createBlueMarbleLightingRuntime } from './modules/runtime/blueMarbleLighting.js';
 import { createEarthInfrastructureRuntime } from './modules/runtime/infrastructure.js';
 import { createEarthPlanetaryProfile } from './planetaryProfile.js';
@@ -18,7 +18,6 @@ const RUNTIME_FACTORIES = Object.freeze({
   terrain: createTerrainRuntime,
   oceans: createOceansRuntime,
   atmosphere: createBlueMarbleAtmosphereRuntime,
-  clouds: createCloudsRuntime,
   lighting: createBlueMarbleLightingRuntime,
   infrastructure: createEarthInfrastructureRuntime
 });
@@ -46,10 +45,11 @@ export function createEarthCore(options = {}) {
   // Frame terrestre compartilhado pela superfície, pelo relevo e pelos atores no solo.
   const surfaceFrame = new THREE.Group();
   surfaceFrame.name = 'StarFrontier-Earth-Terrestrial-Frame';
-  surfaceFrame.rotation.z = THREE.MathUtils.degToRad(11.5);
+  surfaceFrame.rotation.z = THREE.MathUtils.degToRad(EARTH_AXIAL_TILT_DEGREES);
   group.add(surfaceFrame);
 
   const layers = {};
+  let planetaryGravitySystem = null;
   const context = { group, surfaceFrame, options: settings, layers };
   const updatePipeline = createEarthUpdatePipeline(EARTH_UPDATE_MODULES);
   let disposed = false;
@@ -72,8 +72,19 @@ export function createEarthCore(options = {}) {
     getPhysicalScale() {
       return planetaryProfile.physicalScale;
     },
+    setPlanetaryGravitySystem(system) {
+      planetaryGravitySystem = system ?? null;
+    },
+    getPlanetaryGravitySystem() {
+      return planetaryGravitySystem;
+    },
     getSurfaceFrame() {
       return surfaceFrame;
+    },
+    setSurfaceRotationAngle(angleRad) {
+      if (!Number.isFinite(angleRad)) return false;
+      surfaceFrame.rotation.y = THREE.MathUtils.euclideanModulo(angleRad, Math.PI * 2);
+      return true;
     },
     // Shared physical query surface: the collision system consumes the same
     // elevation sampler that displaces the rendered Earth mesh.

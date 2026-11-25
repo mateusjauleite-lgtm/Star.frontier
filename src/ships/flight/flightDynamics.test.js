@@ -26,7 +26,7 @@ function makeState(overrides = {}) {
 test('propulsor principal acelera em m/s e consome combustível comum', () => {
   const state = makeState({ throttle: true, speed: 10 });
   advanceShipFlightDynamics(state, 0.04);
-  assert.equal(state.speed, 19.6);
+  assert.equal(state.speed, 26.8);
   assert.ok(state.fuel < 100);
   assert.equal(state.refinedDilithium, 100);
 });

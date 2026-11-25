@@ -2,7 +2,7 @@ export const EARTH_STANDARD_GRAVITY_MPS2 = 9.80665;
 export const SPEED_OF_LIGHT_MPS = 299792458;
 export const CONVENTIONAL_MAX_SPEED_MPS = 12000;
 export const MANEUVER_LATERAL_ACCELERATION_MPS2 = 14;
-export const MANEUVER_VERTICAL_ACCELERATION_MPS2 = 18;
+export const MANEUVER_VERTICAL_ACCELERATION_MPS2 = 32;
 export const MANEUVER_ASSIST_MAX_ALTITUDE_METERS = 25000;
 
 export function getConventionalSpeedLimit(altitudeMeters) {
@@ -12,6 +12,19 @@ export function getConventionalSpeedLimit(altitudeMeters) {
   if (altitudeMeters <= 10000) return 60;
   if (altitudeMeters <= 100000) return 300;
   return CONVENTIONAL_MAX_SPEED_MPS;
+}
+
+export function getConventionalFlightSpeedLimit(altitudeMeters, {
+  throttle = false,
+  climbAlignment = 0,
+  verticalSpeed = 0
+} = {}) {
+  const poweredClimb = Boolean(throttle) &&
+    Number.isFinite(climbAlignment) && climbAlignment > 0.05;
+  const alreadyAscending = Number.isFinite(verticalSpeed) && verticalSpeed > 0.5;
+  return poweredClimb || alreadyAscending
+    ? CONVENTIONAL_MAX_SPEED_MPS
+    : getConventionalSpeedLimit(altitudeMeters);
 }
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
@@ -36,9 +49,8 @@ export function calculateManeuveringAcceleration({
     altitudeMeters <= MANEUVER_ASSIST_MAX_ALTITUDE_METERS;
 
   if (assistActive) {
-    for (let axis = 0; axis < 3; axis += 1) {
-      acceleration[axis] -= gravityAcceleration[axis];
-    }
+    // Assistência reduz a velocidade radial, mas nunca cancela a gravidade.
+    // A sustentação precisa vir de empuxo real aplicado pelos controles da nave.
     const damping = clamp(-radialVelocity * 2.5, -30, 30);
     for (let axis = 0; axis < 3; axis += 1) {
       acceleration[axis] += radialUp[axis] * damping;
@@ -60,7 +72,7 @@ export function integrateWorldVelocity(velocity, acceleration, deltaSeconds, max
       !Number.isFinite(deltaSeconds) || deltaSeconds < 0) return null;
   const next = velocity.map((value, axis) => value + acceleration[axis] * deltaSeconds);
   const speed = Math.hypot(...next);
-  if (speed > maximumSpeed && speed > 0) {
+  if (maximumSpeed > 0 && speed > maximumSpeed && speed > 0) {
     const factor = maximumSpeed / speed;
     return next.map(value => value * factor);
   }

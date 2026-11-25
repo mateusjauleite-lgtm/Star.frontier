@@ -15,6 +15,9 @@ import { createCharacterAnimator } from '../character/characterAnimator.js';
 import { createCharacterWeaponController } from '../character/characterWeaponController.js';
 import { createCharacterPhysics } from '../character/characterPhysics.js';
 import { loadGravityKernel } from '../physics/gravityKernel.js';
+import { createPlanetaryGravitySystem } from '../physics/planetaryGravitySystem.js';
+import { createSolarSystemDynamics } from '../physics/solarSystemDynamics.js';
+import { createSolarSystemPresentationAdapter } from './solarSystemPresentation.js';
 import { createShipOrbitalTelemetrySource } from '../ships/flight/orbitalTelemetrySource.js';
 import {
   EARTH_RENDER_RADIUS_UNITS,
@@ -46,6 +49,7 @@ export async function createGameWorld({
   let earthSystem = null;
   let shipFlightKernel = null;
   let gravityKernel = null;
+  let solarSystemDynamics = null;
 
   try {
   scene.background = new THREE.Color(0x020817);
@@ -103,6 +107,25 @@ export async function createGameWorld({
   const shieldVisual = explorationShip.shieldVisual;
   shipFlightKernel = await loadShipFlightKernel();
   gravityKernel = await loadGravityKernel();
+  solarSystemDynamics = createSolarSystemDynamics({ gravityKernel });
+  const solarSystemPresentation = createSolarSystemPresentationAdapter(THREE, {
+    visualUnitsPerMeter: EARTH_RENDER_RADIUS_UNITS / 6_371_008.8,
+    anchorBodyId: 'earth',
+    sunBodyId: 'sun'
+  });
+  const planetaryGravitySystem = createPlanetaryGravitySystem({
+    getEarthCenter: () => earthSystem.group.getWorldPosition(new THREE.Vector3()).toArray(),
+    getEarthSpinAxis: () => {
+      const rotationState = earthSystem.getSurfaceRotationState();
+      if (!rotationState?.localAxis) return [0, 1, 0];
+      return rotationState.localAxis.clone()
+        .applyQuaternion(earthSystem.group.getWorldQuaternion(new THREE.Quaternion()))
+        .normalize().toArray();
+    },
+    gravityKernel,
+    gravitationalParameter: earthSystem.getPlanetaryProfile().physical.gravitationalParameterM3S2
+  });
+  earthSystem.setPlanetaryGravitySystem(planetaryGravitySystem);
   const shipLandingAutopilot = createShipLandingAutopilot(shipFlightKernel);
   shipLandingTelemetry?.reset?.();
   const engineFlames = explorationShip.engineFlames;
@@ -116,12 +139,14 @@ export async function createGameWorld({
   const asteroidSystem = createAsteroidField(scene, {
     count: 24,
     center: ASTEROID_FIELD_CENTER,
-    spread: ASTEROID_FIELD_SPREAD
+    spread: ASTEROID_FIELD_SPREAD,
+    gravitySystem: planetaryGravitySystem
   });
   const asteroids = asteroidSystem.asteroids;
 
   await loadingStep(84, 'Carregando estação orbital e observatório...');
 
+  // Exceção explícita da simulação: a estação permanece fixa e não recebe aceleração gravitacional.
   const stationSystem = createStation({ position: STATION_WORLD_POSITION });
   scene.add(stationSystem.group);
 
@@ -162,7 +187,8 @@ export async function createGameWorld({
 
   const orbitSystem = createOrbitSystem({
     center: EARTH_WORLD_CENTER,
-    radius: EARTH_ORBIT_RADIUS_UNITS
+    radius: EARTH_ORBIT_RADIUS_UNITS,
+    gravitySystem: planetaryGravitySystem
   });
   scene.add(orbitSystem.group);
 
@@ -179,6 +205,9 @@ export async function createGameWorld({
     stationSystem,
     shipFlightKernel,
     gravityKernel,
+    planetaryGravitySystem,
+    solarSystemDynamics,
+    solarSystemPresentation,
     orbitalTelemetrySource: createShipOrbitalTelemetrySource({ THREE, earthSystem, ship, shipVisual }),
     shipLandingAutopilot,
     shipLandingGear,

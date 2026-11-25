@@ -1,8 +1,9 @@
 /**
- * Owns manual flight, SI propulsion, local gravity compensation and collision responses.
+ * Owns manual flight, SI propulsion, response to the Earth-owned gravity field and collisions.
  */
 import { STATION_WORLD_POSITION } from '../../world/earth/worldScale.js';
-import { calculateManeuveringAcceleration, getConventionalSpeedLimit, integrateWorldVelocity, projectRadialVelocity, SPEED_OF_LIGHT_MPS } from '../systems/maneuveringThrusterSystem.js';
+import { EARTH_GRAVITATIONAL_PARAMETER_M3_S2 } from '../../physics/planetaryGravitySystem.js';
+import { calculateManeuveringAcceleration, getConventionalFlightSpeedLimit, integrateWorldVelocity, projectRadialVelocity, SPEED_OF_LIGHT_MPS } from '../systems/maneuveringThrusterSystem.js';
 import { calculateAuxiliaryStabilizationAcceleration } from '../systems/auxiliaryThrusterSystem.js';
 
 export function createShipFlightController(dependencies = {}) {
@@ -46,6 +47,7 @@ export function createShipFlightController(dependencies = {}) {
     const shipPitch = getShipPitch();
     const shipVisual = getShipVisual();
     if (!ship || !shipYaw || !shipPitch || !shipVisual) return false;
+    const earthSystem = getEarthSystem?.();
 
     const safeDt = THREE.MathUtils.clamp(
       Number.isFinite(deltaSeconds) ? deltaSeconds : 0, 0, 0.04
@@ -60,6 +62,10 @@ export function createShipFlightController(dependencies = {}) {
       Object.values(state.maneuver || {}).some(Boolean);
 
     if (manualOverride && ship.userData.earthSurfaceAnchored) {
+      const launchPosition = ship.getWorldPosition(new THREE.Vector3()).toArray();
+      const inheritedRotationVelocity = earthSystem?.getPlanetaryGravitySystem?.()
+        ?.surfaceVelocityAt?.(launchPosition);
+      if (inheritedRotationVelocity) state.gravityVelocity = inheritedRotationVelocity;
       ship.userData.earthSurfaceAnchored = false;
     }
     if (manualOverride && getLandingAutopilot()?.snapshot?.().active) {
@@ -91,11 +97,9 @@ export function createShipFlightController(dependencies = {}) {
     // Referencial SI: o mundo usa 1 unidade visual por metro.
     ship.parent?.updateWorldMatrix(true, false);
     const currentWorldPosition = ship.getWorldPosition(new THREE.Vector3());
-    const earthSystem = getEarthSystem?.();
     const earthCenter = earthSystem?.group?.getWorldPosition(new THREE.Vector3());
     const planetaryProfile = earthSystem?.getPlanetaryProfile?.();
     const earthRadius = Number(planetaryProfile?.render?.visualRadiusUnits) || 6371008.8;
-    const surfaceGravity = Number(planetaryProfile?.physical?.standardGravityMps2) || 9.80665;
     let altitudeMeters = Infinity;
     let gravityAcceleration = [0, 0, 0];
     let radialUp = new THREE.Vector3(0, 1, 0);
@@ -109,28 +113,29 @@ export function createShipFlightController(dependencies = {}) {
       // velocidade de avanço de aproximação radial real ao planeta.
       state.distanceToEarthCenterMeters = distance;
       state.distanceToEarthSurfaceMeters = altitudeMeters;
-      state.conventionalSpeedLimit = getConventionalSpeedLimit(altitudeMeters);
       // O campo de dobra fica bloqueado dentro do envelope planetário e de aproximação.
       state.warpSafetyLock = altitudeMeters < earthRadius * 3;
-      if (altitudeMeters <= 250000 && distance > 1) {
-        const mu = surfaceGravity * earthRadius * earthRadius;
-        const acceleration = getGravityKernel?.()?.acceleration?.({
-          position: currentWorldPosition.toArray(),
-          bodies: [{ position: earthCenter.toArray(), mu }]
-        });
+      if (distance > 1) {
+        const worldPosition = currentWorldPosition.toArray();
+        const acceleration = earthSystem?.getPlanetaryGravitySystem?.()
+          ?.accelerationAt?.(worldPosition) ?? getGravityKernel?.()?.acceleration?.({
+            position: worldPosition,
+            bodies: [{
+              position: earthCenter.toArray(),
+              mu: EARTH_GRAVITATIONAL_PARAMETER_M3_S2
+            }]
+          });
         if (acceleration) gravityAcceleration = acceleration;
         else {
-          const factor = -mu / Math.pow(distance, 3);
+          const factor = -EARTH_GRAVITATIONAL_PARAMETER_M3_S2 / Math.pow(distance, 3);
           gravityAcceleration = radial.toArray().map(value => value * factor);
         }
-      } else {
-        state.gravityVelocity = [0, 0, 0];
       }
     } else {
       state.altitudeMeters = Infinity;
       state.distanceToEarthCenterMeters = Infinity;
       state.distanceToEarthSurfaceMeters = Infinity;
-      state.conventionalSpeedLimit = getConventionalSpeedLimit(Infinity);
+      state.conventionalSpeedLimit = getConventionalFlightSpeedLimit(Infinity);
       state.warpSafetyLock = false;
     }
 
@@ -147,6 +152,11 @@ export function createShipFlightController(dependencies = {}) {
     const radialVelocity = projectRadialVelocity(currentGravityVelocity, [radialUp.x, radialUp.y, radialUp.z]);
     // Velocidade vertical radial: gravidade mais a projeção do avanço da nave.
     state.verticalSpeedMps = radialVelocity + (Number(state.speed) || 0) * forwardVector.dot(radialUp);
+    state.conventionalSpeedLimit = getConventionalFlightSpeedLimit(altitudeMeters, {
+      throttle: Boolean(state.throttle),
+      climbAlignment: forwardVector.dot(radialUp),
+      verticalSpeed: state.verticalSpeedMps
+    });
     const maneuverAcceleration = calculateManeuveringAcceleration({
       gravityAcceleration,
       radialUp: [radialUp.x, radialUp.y, radialUp.z],
@@ -164,12 +174,12 @@ export function createShipFlightController(dependencies = {}) {
       enabled: true
     });
     state.auxiliaryThrustersActive = Math.hypot(...auxiliaryAcceleration) > 0.1;
-    if (earthCenter && altitudeMeters <= 250000 && !state.warpDriveActive && !(state.warpTransition === 'exiting' && Number(state.warpSpeedC) > 0)) {
+    if (earthCenter && !state.warpDriveActive && !(state.warpTransition === 'exiting' && Number(state.warpSpeedC) > 0)) {
       state.gravityVelocity = integrateWorldVelocity(
         currentGravityVelocity,
         gravityAcceleration.map((value, axis) => value + maneuverAcceleration[axis] + auxiliaryAcceleration[axis]),
         safeDt,
-        300
+        0
       ) || currentGravityVelocity;
     }
     const warpDriveActive = advanceFlightDynamics(state, safeDt);

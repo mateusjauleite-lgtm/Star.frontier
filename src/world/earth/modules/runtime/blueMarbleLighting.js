@@ -1,38 +1,25 @@
-import * as THREE from 'three';
-
-/** One neutral solar key and a restrained night-side fill for the new Earth. */
-export function createBlueMarbleLightingRuntime({ group, options, layers }) {
-  let sunlight = null;
-  let nightFill = null;
+/**
+ * Solar illumination is owned by the scene-level space lighting system.
+ * This Earth module intentionally contributes no second directional source;
+ * it only publishes the ownership contract for status/diagnostics.
+ */
+export function createBlueMarbleLightingRuntime({ layers }) {
   let disposed = false;
-
   return {
     initialize() {
-      sunlight = new THREE.DirectionalLight(0xffffff, 1.85);
-      sunlight.position.set(
-        -options.radius * 5,
-        options.radius * 1.8,
-        options.radius * 4
-      );
-      sunlight.name = 'Earth-Blue-Marble-Sunlight';
-      if (layers.surface) sunlight.target = layers.surface;
-      group.add(sunlight);
-
-      nightFill = new THREE.AmbientLight(0x142b48, 0.12);
-      nightFill.name = 'Earth-Blue-Marble-NightFill';
-      group.add(nightFill);
-
-      layers.lighting = { sunlight, nightFill };
+      layers.lighting = {
+        owner: 'scene-space-lighting',
+        directSolarSource: 'single-scene-directional-light',
+        nightFillOwner: 'scene-space-lighting'
+      };
     },
     update() {},
     dispose() {
       if (disposed) return;
       disposed = true;
-      if (sunlight) {
-        group.remove(sunlight);
-        if (sunlight.target) group.remove(sunlight.target);
+      if (layers.lighting?.owner === 'scene-space-lighting') {
+        delete layers.lighting;
       }
-      if (nightFill) group.remove(nightFill);
     }
   };
 }

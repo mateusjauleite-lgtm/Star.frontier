@@ -2,9 +2,9 @@ import * as THREE from 'three';
 
 // Referencial espacial fixo do sistema. O Sol fica dez vezes mais distante
 // sem alterar a direção da luz em relação à Terra.
-export const SUN_DISTANCE_SCALE = 10;
+export const SUN_DISTANCE_SCALE = 12;
 const SUN_POSITION_BASE = new THREE.Vector3(-1760, 922, -2526).multiplyScalar(SUN_DISTANCE_SCALE);
-const SUN_RADIUS = 1200;
+const SUN_RADIUS = 1800;
 const STAR_FIELD_RADIUS = 6500;
 const STAR_FIELD_COUNT = 8800;
 
@@ -15,18 +15,14 @@ export function createSpaceLighting(scene, options = {}) {
     : 1;
   const sunPosition = SUN_POSITION_BASE.clone().multiplyScalar(worldScaleFactor);
   const sunRadius = SUN_RADIUS * worldScaleFactor;
-  const ambientLight = new THREE.HemisphereLight(0x9acfff, 0x111827, 0.75);
+  const ambientLight = new THREE.HemisphereLight(0x9acfff, 0x111827, 0.22);
   scene.add(ambientLight);
-
-  const sunLight = new THREE.PointLight(0xffd6a0, 260, 40000 * worldScaleFactor, 1.15);
-  sunLight.position.copy(sunPosition);
-  scene.add(sunLight);
 
   const sunlight = new THREE.DirectionalLight(0xffe0b5, 2.0);
   sunlight.position.copy(sunPosition);
   scene.add(sunlight);
 
-  const fillLight = new THREE.DirectionalLight(0x5caaff, 0.35);
+  const fillLight = new THREE.DirectionalLight(0x5caaff, 0.12);
   fillLight.position.set(100 * worldScaleFactor, 20 * worldScaleFactor, 80 * worldScaleFactor);
   scene.add(fillLight);
 
@@ -144,6 +140,10 @@ export function createSpaceLighting(scene, options = {}) {
   streaks.frustumCulled = false;
   streaks.visible = false;
   scene.add(streaks);
+  const solarObserver = new THREE.Vector3();
+  const solarDirection = new THREE.Vector3();
+  const sunRenderDistance = sunPosition.length();
+
   const cameraBackward = new THREE.Vector3(0, 0, 1);
   const shipBackward = new THREE.Vector3(0, 0, 1);
 
@@ -155,6 +155,18 @@ export function createSpaceLighting(scene, options = {}) {
       if (observerPosition) {
         stars.position.copy(observerPosition);
         streaks.position.copy(observerPosition);
+      }
+      // O Sol visual acompanha a direção calculada pela simulação astronômica.
+      // A distância é apenas de apresentação; a física mantém metros SI.
+      if (warp.solarDirection?.isVector3 && warp.solarDirection.lengthSq() > 1e-12) {
+        solarDirection.copy(warp.solarDirection).normalize();
+        solarObserver.copy(observerPosition || new THREE.Vector3());
+        const visualSunPosition = solarObserver.clone()
+          .addScaledVector(solarDirection, sunRenderDistance);
+        sun.position.copy(visualSunPosition);
+        sunlight.position.copy(visualSunPosition);
+        sunlight.target.position.copy(solarObserver);
+        sunlight.target.updateMatrixWorld();
       }
       const active = Boolean(warp.warpActive);
       const exiting = warp.warpTransition === 'exiting';
@@ -221,7 +233,7 @@ export function createSpaceLighting(scene, options = {}) {
       }
     },
     dispose() {
-      scene.remove(ambientLight, sunLight, sunlight, fillLight, sun, stars, streaks);
+      scene.remove(ambientLight, sunlight, fillLight, sun, stars, streaks);
       starGeometry.dispose();
       stars.material.dispose();
       streakGeometry.dispose();

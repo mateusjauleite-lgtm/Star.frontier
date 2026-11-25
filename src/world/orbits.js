@@ -5,9 +5,11 @@ import * as THREE from 'three';
 export function createOrbitSystem(options = {}) {
   const center = options.center ?? [0, 0, -240];
   const radius = options.radius ?? 177;
+  const gravitySystem = options.gravitySystem ?? null;
   const group = new THREE.Group();
   group.name = 'StarFrontier-Orbits';
   group.position.set(...center);
+  group.rotation.z = THREE.MathUtils.degToRad(gravitySystem?.axialTiltDegrees ?? 0);
 
   const orbit = new THREE.Mesh(
     new THREE.TorusGeometry(radius, 0.12, 8, 192),
@@ -52,6 +54,7 @@ export function createOrbitSystem(options = {}) {
 
   let angle = 2.45;
   const speed = options.angularSpeed ?? 0.012;
+  let orbitalVelocity = null;
 
   const placeSatellite = () => {
     satellite.position.set(
@@ -62,12 +65,29 @@ export function createOrbitSystem(options = {}) {
     satellite.rotation.y = -angle + Math.PI / 2;
   };
   placeSatellite();
+  if (gravitySystem) {
+    orbitalVelocity = gravitySystem.circularOrbitVelocity(
+      satellite.getWorldPosition(new THREE.Vector3()).toArray()
+    );
+  }
 
   return {
     group,
     update(delta) {
-      angle += Math.min(Math.max(delta || 0, 0), 0.1) * speed;
-      placeSatellite();
+      const dt = Math.min(Math.max(delta || 0, 0), 0.04);
+      if (gravitySystem && orbitalVelocity && dt > 0) {
+        const currentPosition = satellite.getWorldPosition(new THREE.Vector3()).toArray();
+        const next = gravitySystem.integrate(currentPosition, orbitalVelocity, dt);
+        if (next) {
+          const worldPosition = new THREE.Vector3(...next.position);
+          group.updateWorldMatrix(true, false);
+          satellite.position.copy(group.worldToLocal(worldPosition));
+          orbitalVelocity = next.velocity;
+        }
+      } else {
+        angle += dt * speed;
+        placeSatellite();
+      }
     },
     dispose() {
       group.traverse(object => {

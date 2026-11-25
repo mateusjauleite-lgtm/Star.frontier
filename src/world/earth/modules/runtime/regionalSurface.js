@@ -9,6 +9,13 @@ const FACE_MAP = Object.freeze([
   (u, v, out) => out.set(-u, v, -1)
 ]);
 
+// SphereGeometry maps longitude 0° to u=0.5 and increases u toward negative longitude.
+// Regional tiles must use the same convention to avoid mirrored imagery at handoff.
+export function earthLongitudeToSphereUv(longitudeDeg) {
+  if (!Number.isFinite(longitudeDeg)) return null;
+  return THREE.MathUtils.euclideanModulo(0.5 - longitudeDeg / 360, 1);
+}
+
 export function earthCubeFaceDirection(face, u, v, target = new THREE.Vector3()) {
   const mapper = FACE_MAP[face];
   if (!mapper || !Number.isFinite(u) || !Number.isFinite(v)) return null;
@@ -172,7 +179,7 @@ export function createEarthQuadtreeTileGeometry(node, radius, {
       positions[vertex++] = direction.x * finalRadius;
       positions[vertex++] = direction.y * finalRadius;
       positions[vertex++] = direction.z * finalRadius;
-      uvs[index * 2] = (geographic.longitudeDeg + 180) / 360;
+      uvs[index * 2] = earthLongitudeToSphereUv(geographic.longitudeDeg);
       // Match SphereGeometry's north-at-v=1 convention and TextureLoader flipY.
       uvs[index * 2 + 1] = (geographic.latitudeDeg + 90) / 180;
     }
@@ -343,11 +350,11 @@ export function createEarthRegionalSurfaceRuntime({
       cameraInsideSurface = signedAltitude < -0.5;
       // Start loading regional elevation well before the final descent. The
       // global ETOPO sampler remains the immediate fallback while DEM tiles load.
-      demActive = !cameraInsideSurface && signedAltitude <= radius * .5;
+      demActive = signedAltitude <= radius * .5;
       const cameraForwardWorld = context.camera.getWorldDirection(new THREE.Vector3());
       const forwardLocal = surface.worldToLocal(cameraWorld.clone().add(cameraForwardWorld))
         .sub(cameraLocal).normalize();
-      let selected = !cameraInsideSurface && altitude <= radius * 1.5
+      let selected = altitude <= radius * 1.5
         ? selectEarthQuadtreeTiles(cameraLocal, radius, {
           maxLevel,
           maxTiles,
@@ -358,7 +365,7 @@ export function createEarthRegionalSurfaceRuntime({
         : [];
       // If the camera basis and Earth-local frame temporarily disagree, keep
       // horizon-visible terrain selected rather than showing no regional mesh.
-      if (!cameraInsideSurface && altitude <= radius * 1.5 && selected.length === 0) {
+      if (altitude <= radius * 1.5 && selected.length === 0) {
         selected = selectEarthQuadtreeTiles(cameraLocal, radius, {
           maxLevel: Math.min(maxLevel, 8),
           maxTiles

@@ -11,16 +11,30 @@ export function createGameplayFramePhases(getDependencies) {
 
   return {
     updateEnvironment(dt) {
-      const { earthSystem, camera, applyEarthSurfaceRotation, ship, updatePhaserWeapon } = getDependencies();
-  earthSystem?.update(dt, camera);
-  applyEarthSurfaceRotation(dt);
+      const { earthSystem, camera, applyEarthSurfaceRotation, solarSystemDynamics, solarSystemPresentation, scene, ship, updatePhaserWeapon } = getDependencies();
+      // Avança o relógio astronômico uma única vez e aplica o ângulo absoluto
+      // antes de atualizar atores ancorados à superfície terrestre.
+      const solarSnapshot = solarSystemDynamics?.advance(dt) ?? null;
+      const solarFrame = solarSnapshot
+        ? solarSystemPresentation?.getFrame(solarSnapshot) ?? null
+        : null;
+      if (scene && solarSnapshot) {
+        scene.userData.solarSystemSnapshot = solarSnapshot;
+        scene.userData.solarSystemPresentationFrame = solarFrame;
+      }
+      if (Number.isFinite(solarFrame?.earthRotationAngleRad)) {
+        earthSystem?.setSurfaceRotationAngle?.(solarFrame.earthRotationAngleRad);
+      }
+      earthSystem?.update(dt, camera);
+      applyEarthSurfaceRotation();
   if (ship) ship.userData.earthCollisionResolved = false;
 
   updatePhaserWeapon(dt);
     },
 
     updateCharacterMode(dt) {
-      const { characterCore, updateCharacterMovement, updateCharacterWeapon, updateExternalElevatorAnimation, updateElevatorInteraction, updateAlexiaInteraction, updatePilotInteraction, updateShipManagementInteraction, updateEngineeringConsoleInteraction, updateRefineryConsoleInteraction, updateDeflectorConsoleInteraction, updateExternalElevatorInteraction, updateCharacterCamera, updateFlight, updateCamera, cameraRuntime, state } = getDependencies();
+      const { characterCore, syncCharacterDeckFrame, updateCharacterMovement, updateCharacterWeapon, updateExternalElevatorAnimation, updateElevatorInteraction, updateAlexiaInteraction, updatePilotInteraction, updateShipManagementInteraction, updateEngineeringConsoleInteraction, updateRefineryConsoleInteraction, updateDeflectorConsoleInteraction, updateExternalElevatorInteraction, updateCharacterCamera, updateFlight, updateCamera, cameraRuntime, state } = getDependencies();
+  syncCharacterDeckFrame?.();
   if (characterCore.snapshot().mode === 'on-foot') {
     updateCharacterMovement(dt);
     updateCharacterWeapon(dt);
@@ -36,6 +50,8 @@ export function createGameplayFramePhases(getDependencies) {
   } else {
     updateFlight(dt);
   }
+  // Reaplica o referencial após qualquer deslocamento da nave neste mesmo frame.
+  syncCharacterDeckFrame?.();
   // O controlador ativo atualiza a câmera depois do movimento e antes da renderização.
   if (cameraRuntime?.updateActive) cameraRuntime.updateActive();
   else if (characterCore.snapshot().mode === 'on-foot') updateCharacterCamera();
@@ -180,8 +196,11 @@ export function createGameplayFramePhases(getDependencies) {
     },
 
     updateWorld(dt) {
-      const { orbitSystem, asteroidSystem, lightingSystem, camera, shipVisual, THREE, state, updateShipSystems } = getDependencies();
+      const { orbitSystem, solarSystemDynamics, solarSystemPresentation, asteroidSystem, lightingSystem, camera, shipVisual, THREE, scene, state, updateShipSystems } = getDependencies();
       updateShipSystems?.(dt);
+      // Reutiliza o snapshot publicado na fase de ambiente; não avança o relógio duas vezes.
+      const solarSnapshot = scene?.userData?.solarSystemSnapshot ?? null;
+      const solarFrame = scene?.userData?.solarSystemPresentationFrame ?? null;
       orbitSystem?.update(dt);
       asteroidSystem?.update(dt);
       const shipQuaternion = shipVisual?.getWorldQuaternion && THREE?.Quaternion
@@ -194,7 +213,8 @@ export function createGameplayFramePhases(getDependencies) {
         warpTargetSpeed: Number(state?.warpTargetSpeed) || 0,
         warpStage: state?.warpCurrentStage || 0,
         warpTransition: state?.warpTransition || 'idle',
-        cameraQuaternion: camera?.quaternion
+        cameraQuaternion: camera?.quaternion,
+        solarDirection: solarFrame?.sunDirection
       });
     },
 

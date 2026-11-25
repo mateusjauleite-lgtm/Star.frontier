@@ -37,9 +37,11 @@ export function createBlueMarbleSurfaceRuntime({
         initial.height
       );
       material = new THREE.MeshStandardMaterial({
-        color: 0x123b68,
+        color: 0xffffff,
         roughness: 0.94,
         metalness: 0,
+        emissive: 0xffffff,
+        emissiveIntensity: 0.16,
         dithering: true
       });
       mesh = new THREE.Mesh(geometry, material);
@@ -78,14 +80,23 @@ export function createBlueMarbleSurfaceRuntime({
             Math.min(4, options.textureAnisotropy ?? 4)
           );
           material.map = loadedTexture;
+          // Low-level self-illumination keeps the Blue Marble geography readable
+          // on the night side and during close surface approach without replacing
+          // the single scene-level directional sunlight.
+          material.emissiveMap = loadedTexture;
           material.needsUpdate = true;
           textureState = 'ready';
           layers.surfaceVisual.state = textureState;
+          console.info('[Earth] Blue Marble texture loaded:', {
+            width: loadedTexture.image?.width ?? null,
+            height: loadedTexture.image?.height ?? null
+          });
         },
         undefined,
         error => {
           textureState = 'fallback';
           textureError = error?.message ?? 'NASA Blue Marble texture could not be loaded';
+          console.warn('[Earth] Blue Marble texture failed to load:', textureError);
           if (layers.surfaceVisual) {
             layers.surfaceVisual.state = textureState;
             layers.surfaceVisual.error = textureError;
@@ -96,8 +107,9 @@ export function createBlueMarbleSurfaceRuntime({
 
     update(delta, context) {
       if (!mesh || disposed) return;
+      // A orientação angular é definida pelo relógio astronômico em EarthCore.
+      // Não integre a rotação aqui: isso criaria um segundo relógio independente.
       const step = Math.min(Math.max(delta || 0, 0), 0.1);
-      surfaceFrame.rotation.y += step * 0.012;
       lodCheckElapsed += step;
       if (lodCheckElapsed < 0.35) return;
       lodCheckElapsed = 0;

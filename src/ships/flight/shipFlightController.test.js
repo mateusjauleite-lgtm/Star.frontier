@@ -5,6 +5,7 @@ import { createShipFlightController } from './shipFlightController.js';
 function vector(x = 0, y = 0, z = 0) {
   return {
     x, y, z,
+    toArray() { return [this.x, this.y, this.z]; },
     set(nx, ny, nz) { this.x = nx; this.y = ny; this.z = nz; return this; },
     copy(other) { this.x = other.x; this.y = other.y; this.z = other.z; return this; },
     addScaledVector(other, scale) { this.x += other.x * scale; this.y += other.y * scale; this.z += other.z * scale; return this; },
