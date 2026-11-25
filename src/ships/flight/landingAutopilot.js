@@ -101,7 +101,7 @@ export function createShipLandingTelemetryAdapter({metersPerRenderUnit}={}){
     shipForwardLocal:[dot(forward,east),dot(forward,up),dot(forward,north)].map(cleanZero),
     shipUpLocal:[dot(shipUp,east),dot(shipUp,up),dot(shipUp,north)].map(cleanZero),
     targetNorthLocal:[0,0,1],metersPerRenderUnit,
-    source:'live-threejs-world-transform',actuationEnabled:true,
+    source:'live-threejs-world-transform',actuationEnabled:false,
     scaleValidation:'pending-ship-metric-frame'
    };
   },
@@ -162,7 +162,7 @@ export function createShipLandingAutopilot(shipKernel){
     coordinateFrame:state.coordinateFrame??'earth-local-tangent',telemetrySource:state.source,scaleValidation:state.scaleValidation}:null;
   },
   cancel(){active=false;targetId=null;},
-  snapshot(){return {active,targetId,authority:'closed-loop-actuation',actuationEnabled:true};}
+  snapshot(){return {active,targetId,authority:active?'closed-loop-actuation':'standby',actuationEnabled:active};}
  };
 }
 
