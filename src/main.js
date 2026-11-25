@@ -3225,7 +3225,7 @@ $('landing-btn')?.addEventListener('click', () => {
     state.warpDriveButton = false;
     ship.userData.landingAutopilotState = 'armed-closed-loop';
     shipAudio.playLandingAlert();
-    $('landing-status').textContent = 'Piloto automático ativo: alinhando a nave e controlando aproximação, descida e frenagem. Toque novamente em POUSO para cancelar.';
+    $('landing-status').textContent = 'Piloto automático ativo: controlando aproximação, velocidade vertical e frenagem pelos propulsores de manobra. Toque novamente em POUSO para cancelar.';
     $('landing-btn').textContent = '✕ CANCELAR PILOTO';
     $('landing-btn').classList.add('guidance-active');
     toast('Piloto automático de pouso ativado.');
