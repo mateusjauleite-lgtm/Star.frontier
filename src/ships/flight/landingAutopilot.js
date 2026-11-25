@@ -146,7 +146,7 @@ export function calculateLandingGuidance({currentPosition,currentVelocity=[0,0,0
  return {altitudeUnits:altitude,lateralErrorUnits:lateralDistance,desiredVelocity,phase};
 }
 
-/** C++ Ship Core orchestration; guidance never directly moves the rendered ship. */
+/** C++ Ship Core guidance; the runtime maps its velocity target into bounded propulsion actuation. */
 export function createShipLandingAutopilot(shipKernel){
  let active=false,targetId=null;
  return {
