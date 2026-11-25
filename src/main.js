@@ -218,7 +218,8 @@ let characterPhysics = null;
 let shieldVisual = null;
 let characterYaw = 0;
 let characterPitch = 0;
-// A câmera terrestre mantém inclinação própria; não reutiliza a mira da nave/convés.
+// A câmera terrestre mantém orientação própria, separada da câmera da nave/convés.
+let groundCameraYaw = 0;
 let groundCameraPitch = 0;
 const characterForward = new THREE.Vector3();
 const characterRight = new THREE.Vector3();
@@ -2853,10 +2854,11 @@ const characterControls = registerCharacterControls({
     // A câmera no solo usa sensibilidade própria, cerca de 3x menor que a câmera interna.
     const yawDelta = -dx * (terrestrialCamera ? 0.00165 : 0.005);
     const pitchDelta = dy * (terrestrialCamera ? 0.00135 : 0.004);
-    characterYaw += yawDelta;
     if (terrestrialCamera) {
+      groundCameraYaw += yawDelta;
       groundCameraPitch = THREE.MathUtils.clamp(groundCameraPitch - pitchDelta, -0.65, 0.65);
     } else {
+      characterYaw += yawDelta;
       characterPitch = THREE.MathUtils.clamp(characterPitch - pitchDelta, -0.65, 0.65);
     }
     // A guinada exterior gira ao redor da normal local, nunca do Y global.
