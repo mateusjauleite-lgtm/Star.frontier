@@ -77,8 +77,8 @@ export function createDeck2TransporterInstallation() {
   // Rampa baixa alinhada à abertura frontal: acesso caminhável sem atravessar colunas.
   const entryRamp = new THREE.Mesh(new THREE.BoxGeometry(2.65, 0.12, 1.65), brushedMetal);
   entryRamp.name = 'Transporter-Platform-Entry-Ramp';
-  entryRamp.position.set(0, 0.13, 3.55);
-  entryRamp.rotation.x = -0.08;
+  entryRamp.position.set(0, 0.21625, 3.55);
+  entryRamp.rotation.x = 0.08;
   platform.add(entryRamp);
 
   cylinder(emitters, 'Transporter-Emitter-Upper-Hub', 1.12, 1.12, 0.14, darkMetal, 3.9);
@@ -124,9 +124,10 @@ export function createDeck2TransporterInstallation() {
     terminalId: 'planetary-transport-console',
     systemId: 'planetary-transport'
   };
+  // A plataforma e a rampa são superfícies caminháveis, não paredes sólidas.
+  // A altura do piso é resolvida pelo controlador de movimento do personagem.
+  // Mantém apenas o pedestal do console como obstáculo físico.
   root.userData.collisionBoxes = [
-    { x: DECK_2_TRANSPORTER_LAYOUT.platform.x, y: 3.55, z: DECK_2_TRANSPORTER_LAYOUT.platform.z, halfX: 3.52, halfY: 0.25, halfZ: 3.52 },
-    { x: DECK_2_TRANSPORTER_LAYOUT.platform.x, y: 3.28, z: DECK_2_TRANSPORTER_LAYOUT.platform.z + 3.55, halfX: 1.38, halfY: 0.12, halfZ: 0.88 },
     { x: DECK_2_TRANSPORTER_LAYOUT.console.x, y: DECK_2_TRANSPORTER_LAYOUT.console.y + 0.58, z: DECK_2_TRANSPORTER_LAYOUT.console.z, halfX: 0.62, halfY: 0.85, halfZ: 0.48 }
   ];
 
