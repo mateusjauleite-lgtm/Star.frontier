@@ -66,7 +66,7 @@ export function createShipLandingMetricTelemetryAdapter({
     maximumGearClearanceMeters:Math.max(...gear.map(point=>point.clearanceMeters)),
     modelMetersPerUnit,coordinateFrame:'platform-local-metric',
     source:'ship-model-and-platform-world-matrices',
-    scaleValidation:'metric-proxy-calibrated-render-scale-pending',
+    scaleValidation:'platform-local-metric-frame',
     actuationEnabled:true
    };
   },
@@ -161,7 +161,7 @@ export function createShipLandingAutopilot(shipKernel){
     coordinateFrame:state.coordinateFrame??'earth-local-tangent',telemetrySource:state.source,scaleValidation:state.scaleValidation}:null;
   },
   cancel(){active=false;targetId=null;},
-  snapshot(){return {active,targetId,authority:'guidance-only',actuationEnabled:false};}
+  snapshot(){return {active,targetId,authority:'closed-loop-actuation',actuationEnabled:true};}
  };
 }
 
