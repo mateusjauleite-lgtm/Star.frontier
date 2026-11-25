@@ -40,6 +40,7 @@ import { createDeflectorTerminalRenderer } from './ships/computer/deflectorTermi
 import { registerShipComputerSystems } from './ships/computer/shipComputerSystems.js';
 import { advanceShipFlightDynamics } from './ships/flight/flightDynamics.js';
 import { createShipFlightController } from './ships/flight/shipFlightController.js';
+import { calculateLandingActuationAcceleration } from './ships/flight/landingAutopilotActuation.js';
 import { createArtificialGravityField } from './ships/systems/artificialGravityField.js';
 import { createShipShieldSystem } from './ships/systems/shieldSystem.js';
 import { createDilithiumRefinerySystem } from './ships/systems/dilithiumRefinerySystem.js';
@@ -1463,6 +1464,7 @@ function updateFlight(dt) {
     moveStick.classList.toggle('no-propulsion', !hasPropulsion);
     moveStick.setAttribute('aria-disabled', String(!hasPropulsion));
   }
+  updateShipLandingGuidance(dt);
   return shipFlightController.update(dt);
 }
 
@@ -3149,6 +3151,9 @@ registerFlightSelectionGuards({ document });
 function cancelLandingGuidance(reason = 'cancelled') {
   shipLandingAutopilot?.cancel?.();
   shipLandingTelemetry.reset();
+  state.landingAutopilotActive = false;
+  state.landingAutopilotVelocityInitialized = false;
+  state.landingAutopilotControlAccelerationWorld = null;
   selectedLandingSiteId = null;
   if (ship) {
     ship.userData.landingGuidance = null;
@@ -3212,12 +3217,18 @@ $('landing-btn')?.addEventListener('click', () => {
       return;
     }
     shipLandingTelemetry.reset();
-    ship.userData.landingAutopilotState = 'armed-guidance-only';
+    state.landingAutopilotActive = true;
+    state.landingAutopilotVelocityInitialized = false;
+    state.landingAutopilotControlAccelerationWorld = [0, 0, 0];
+    state.throttle = false;
+    state.braking = false;
+    state.warpDriveButton = false;
+    ship.userData.landingAutopilotState = 'armed-closed-loop';
     shipAudio.playLandingAlert();
-    $('landing-status').textContent = 'Telemetria conectada. A orientação calcula a aproximação, mas não comanda a propulsão nesta versão.';
-    $('landing-btn').textContent = '✕ CANCELAR GUIA';
+    $('landing-status').textContent = 'Piloto automático ativo: alinhando a nave e controlando aproximação, descida e frenagem. Toque novamente em POUSO para cancelar.';
+    $('landing-btn').textContent = '✕ CANCELAR PILOTO';
     $('landing-btn').classList.add('guidance-active');
-    toast('Guia de pouso ativada. Propulsão automática permanece bloqueada.');
+    toast('Piloto automático de pouso ativado.');
     return;
   }
 
@@ -3229,6 +3240,8 @@ function updateShipLandingGuidance(dt) {
   if (!ship || !shipVisual || !shipLandingAutopilot?.snapshot?.().active) return;
   const platform = landingBaseSystem?.platform;
   if (!platform || !shipFlightKernel) {
+    state.landingAutopilotActive = false;
+    state.landingAutopilotControlAccelerationWorld = null;
     ship.userData.landingGuidance = null;
     ship.userData.landingAutopilotState = 'waiting-for-landing-platform';
     return;
@@ -3242,7 +3255,7 @@ function updateShipLandingGuidance(dt) {
   const shipOriginPlatformLocal = platform.worldToLocal(shipOriginWorld.clone());
   const platformWorldQuaternion = platform.getWorldQuaternion(new THREE.Quaternion());
   const shipWorldQuaternion = shipVisual.getWorldQuaternion(new THREE.Quaternion());
-  const shipRotationRelativeToPlatform = platformWorldQuaternion
+  const shipRotationRelativeToPlatform = platformWorldQuaternion.clone()
     .invert().multiply(shipWorldQuaternion).normalize();
 
   const telemetry = shipLandingTelemetry.sample({
@@ -3257,12 +3270,27 @@ function updateShipLandingGuidance(dt) {
     dt: Math.max(dt, 1 / 240)
   });
   if (!telemetry) {
+    state.landingAutopilotActive = false;
+    state.landingAutopilotControlAccelerationWorld = null;
     ship.userData.landingGuidance = null;
     ship.userData.landingAutopilotState = 'invalid-metric-telemetry';
     return;
   }
 
   const guidance = shipLandingAutopilot.update(telemetry);
+  const platformQuaternion = [
+    platformWorldQuaternion.x, platformWorldQuaternion.y,
+    platformWorldQuaternion.z, platformWorldQuaternion.w
+  ];
+  const actuation = guidance ? calculateLandingActuationAcceleration({
+    desiredVelocityMetersPerSecond: guidance.desiredVelocityMetersPerSecond,
+    currentVelocityMetersPerSecond: telemetry.velocityMetersPerSecond,
+    platformWorldQuaternion: platformQuaternion,
+    proportionalGain: 2.4,
+    maximumAcceleration: 12
+  }) : null;
+  state.landingAutopilotControlAccelerationWorld = actuation;
+  state.landingAutopilotActive = Boolean(guidance && actuation);
   ship.userData.landingTelemetry = telemetry;
   ship.userData.landingGearMetricDiagnostics = {
     contactPoints: telemetry.contactPointsMeters,
@@ -3273,10 +3301,10 @@ function updateShipLandingGuidance(dt) {
     coordinateFrame: telemetry.coordinateFrame
   };
   ship.userData.landingGuidance = guidance;
-  ship.userData.landingAutopilotState = guidance ? 'guidance-only' : 'guidance-unavailable';
+  ship.userData.landingAutopilotState = guidance && actuation ? 'closed-loop-actuation' : 'guidance-unavailable';
   if (guidance) {
     guidance.backend = shipFlightKernel.backend;
-    guidance.actuationEnabled = false;
+    guidance.actuationEnabled = Boolean(actuation);
     guidance.coordinateFrame = telemetry.coordinateFrame;
     guidance.gearClearanceMeters = telemetry.minimumGearClearanceMeters;
     guidance.allGearInsideDeck = telemetry.allGearInsideDeck;
