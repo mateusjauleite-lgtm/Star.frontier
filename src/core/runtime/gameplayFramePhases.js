@@ -11,7 +11,7 @@ export function createGameplayFramePhases(getDependencies) {
 
   return {
     updateEnvironment(dt) {
-      const { earthSystem, camera, applyEarthSurfaceRotation, solarSystemDynamics, solarSystemPresentation, scene, ship, updatePhaserWeapon } = getDependencies();
+      const { earthSystem, camera, applyEarthSurfaceRotation, solarSystemDynamics, solarSystemPresentation, earthTimeCore, scene, ship, updatePhaserWeapon } = getDependencies();
       // Avança o relógio astronômico uma única vez e aplica o ângulo absoluto
       // antes de atualizar atores ancorados à superfície terrestre.
       const solarSnapshot = solarSystemDynamics?.advance(dt) ?? null;
@@ -228,8 +228,8 @@ export function createGameplayFramePhases(getDependencies) {
     },
 
     updateHud() {
-      const { $, state, ship, getActivePilotHudProfile, updateNavigationSensorMap } = getDependencies();
-      const activeProfile = getActivePilotHudProfile?.();
+      const { $, state, ship, earthTimeCore, getActivePilotHudProfile, updateNavigationSensorMap } = getDependencies();
+      const activeProfile = getActivePilotHudProfile?.();\n      const earthClock = earthTimeCore?.getSnapshot?.();\n      const localClock = $('character-earth-time');\n      const utcClock = $('character-earth-utc');\n      if (localClock && earthClock) localClock.textContent = earthClock.local + ' · JAÚ';\n      if (utcClock && earthClock) utcClock.textContent = 'UTC ' + earthClock.utc;
       if (activeProfile) {
         $('hud')?.setAttribute('data-active-hud-profile', activeProfile);
         $('flight-controls')?.setAttribute('data-active-hud-profile', activeProfile);
