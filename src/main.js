@@ -1305,6 +1305,7 @@ async function init3D() {
   terrestrialTransportInteractionAvailable = false;
   transporterActionAvailable = false;
   transporterDestinationId = null;
+  transporterDispatchBuffer.clear();
   alexiaInteractionMenu?.dispose?.();
   alexiaInteractionMenu = alexiaCharacter ? createCharacterInteractionMenu({
     root: document.body, camera, actor: alexiaCharacter.group,
