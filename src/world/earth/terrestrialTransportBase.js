@@ -32,6 +32,8 @@ export function createTerrestrialTransportBase({ THREE: Three = THREE, earthSyst
   const blue = new Three.MeshStandardMaterial({ color: 0x167fc0, emissive: 0x063b70, emissiveIntensity: 0.9, metalness: 0.45, roughness: 0.28 });
   const glow = new Three.MeshBasicMaterial({ color: 0x56d9ff, transparent: true, opacity: 0.72 });
   const green = new Three.MeshBasicMaterial({ color: 0x71e6ba });
+  const concrete = new Three.MeshStandardMaterial({ color: 0x56636a, metalness: 0.08, roughness: 0.94 });
+  const marking = new Three.MeshBasicMaterial({ color: 0xf0c76a });
 
   const addBox = (parent, name, size, position, material) => {
     const mesh = new Three.Mesh(new Three.BoxGeometry(...size), material);
@@ -52,6 +54,14 @@ export function createTerrestrialTransportBase({ THREE: Three = THREE, earthSyst
     return mesh;
   };
 
+  // Área de chegada: laje métrica ampla, sem alterar o ponto geodésico da base.
+  // O topo fica praticamente no nível do DEM; a fundação do edifício permanece acima.
+  addBox(root, 'BT01-Arrival-Apron', [40, 0.18, 30], [0, -0.055, 0], concrete);
+  addBox(root, 'BT01-Arrival-Outline-Front', [34, 0.025, 0.14], [0, 0.05, 13.4], marking);
+  addBox(root, 'BT01-Arrival-Outline-Rear', [34, 0.025, 0.14], [0, 0.05, -13.4], marking);
+  addBox(root, 'BT01-Arrival-Outline-Port', [0.14, 0.025, 26.8], [-17, 0.05, 0], marking);
+  addBox(root, 'BT01-Arrival-Outline-Starboard', [0.14, 0.025, 26.8], [17, 0.05, 0], marking);
+
   // Complexo modular ancorado ao relevo DEM: pátio, edifício de operações e plataforma.
   addBox(root, 'BT01-Reinforced-Foundation', [25, 0.48, 19], [0, 0.28, 0], dark);
   addBox(root, 'BT01-Operations-Hall', [13, 5.2, 9], [-4.5, 3.1, -1.3], white);
@@ -65,6 +75,9 @@ export function createTerrestrialTransportBase({ THREE: Three = THREE, earthSyst
   pad.name = 'BT01-Transporter-Pad';
   pad.position.set(8.2, -0.55, 0);
   root.add(pad);
+  // Caminho físico entre a plataforma de transporte e a entrada do edifício.
+  const approach = addBox(root, 'BT01-Arrival-Walkway', [2.6, 0.07, 6.8], [-1.9, 0.09, 2.05], alloy);
+  approach.rotation.y = -0.897;
   addCylinder(pad, 'BT01-Pad-Foundation', 7.2, 7.5, 0.62, [0, 0, 0], dark, 64);
   addCylinder(pad, 'BT01-Pad-Upper-Ring', 6.8, 6.8, 0.16, [0, 0.38, 0], alloy, 64);
   addCylinder(pad, 'BT01-Pad-Deck', 6.3, 6.3, 0.12, [0, 0.51, 0], dark, 64);
@@ -135,7 +148,7 @@ export function createTerrestrialTransportBase({ THREE: Three = THREE, earthSyst
         if (!object.isMesh) return;
         object.geometry?.dispose?.();
       });
-      [dark, alloy, white, blue, glow, green].forEach(material => material.dispose());
+      [dark, alloy, white, blue, glow, green, concrete, marking].forEach(material => material.dispose());
     }
   });
 }

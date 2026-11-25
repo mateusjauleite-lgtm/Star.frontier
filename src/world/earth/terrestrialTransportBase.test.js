@@ -31,5 +31,10 @@ test('BT-01 waits for the global DEM and then anchors its structure to the sampl
   assert.equal(base.group.position.x, 17);
   assert.equal(base.getProfile().id, TERRESTRIAL_BASE_PROFILE.id);
   assert.equal(base.getProfile().region, 'Jaú, São Paulo, Brasil');
+  assert.equal(base.getProfile().latitudeDeg, -22.2964);
+  assert.equal(base.getProfile().longitudeDeg, -48.5570);
+  assert.ok(base.group.getObjectByName('BT01-Arrival-Apron'));
+  assert.ok(base.group.getObjectByName('BT01-Arrival-Walkway'));
+  assert.equal(base.pad.parent, base.group);
   base.dispose();
 });
