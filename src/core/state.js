@@ -52,6 +52,9 @@ export const state = {
   camera: 2,
   throttle: false,
   braking: false,
+  landingAutopilotActive: false,
+  landingAutopilotVelocityInitialized: false,
+  landingAutopilotControlAccelerationWorld: null,
   warpDriveButton: false,
   warpDriveActive: false,
   warpStage: 5,
@@ -100,6 +103,9 @@ export function resetTransientState() {
   state.aim = { x: 0, y: 0 };
   state.view = { x: 0, y: 0 };
   state.throttle = false;
+  state.landingAutopilotActive = false;
+  state.landingAutopilotVelocityInitialized = false;
+  state.landingAutopilotControlAccelerationWorld = null;
   state.maneuver = { left: false, right: false, up: false, down: false };
   state.gravityVelocity = [0, 0, 0];
   state.warpSpeedC = 0;
