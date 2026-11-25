@@ -229,7 +229,12 @@ export function createGameplayFramePhases(getDependencies) {
 
     updateHud() {
       const { $, state, ship, earthTimeCore, getActivePilotHudProfile, updateNavigationSensorMap } = getDependencies();
-      const activeProfile = getActivePilotHudProfile?.();\n      const earthClock = earthTimeCore?.getSnapshot?.();\n      const localClock = $('character-earth-time');\n      const utcClock = $('character-earth-utc');\n      if (localClock && earthClock) localClock.textContent = earthClock.local + ' · JAÚ';\n      if (utcClock && earthClock) utcClock.textContent = 'UTC ' + earthClock.utc;
+      const activeProfile = getActivePilotHudProfile?.();
+      const earthClock = earthTimeCore?.getSnapshot?.();
+      const localClock = $('character-earth-time');
+      const utcClock = $('character-earth-utc');
+      if (localClock && earthClock) localClock.textContent = earthClock.local + ' · JAÚ';
+      if (utcClock && earthClock) utcClock.textContent = 'UTC ' + earthClock.utc;
       if (activeProfile) {
         $('hud')?.setAttribute('data-active-hud-profile', activeProfile);
         $('flight-controls')?.setAttribute('data-active-hud-profile', activeProfile);
