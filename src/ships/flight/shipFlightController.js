@@ -147,6 +147,15 @@ export function createShipFlightController(dependencies = {}) {
     const maneuver = state.maneuver || {};
     const lateralInput = (maneuver.right ? 1 : 0) - (maneuver.left ? 1 : 0);
     const verticalInput = (maneuver.up ? 1 : 0) - (maneuver.down ? 1 : 0);
+    if (state.landingAutopilotActive && !state.landingAutopilotVelocityInitialized) {
+      const inheritedVelocity = Array.isArray(state.gravityVelocity) && state.gravityVelocity.length === 3
+        ? state.gravityVelocity : [0, 0, 0];
+      state.gravityVelocity = inheritedVelocity.map((value, axis) =>
+        value + forwardVector.getComponent(axis) * (Number(state.speed) || 0)
+      );
+      state.speed = 0;
+      state.landingAutopilotVelocityInitialized = true;
+    }
     const currentGravityVelocity = Array.isArray(state.gravityVelocity) && state.gravityVelocity.length === 3
       ? state.gravityVelocity : [0, 0, 0];
     const radialVelocity = projectRadialVelocity(currentGravityVelocity, [radialUp.x, radialUp.y, radialUp.z]);
@@ -164,7 +173,7 @@ export function createShipFlightController(dependencies = {}) {
       lateralInput,
       verticalInput,
       altitudeMeters,
-      assistEnabled: state.maneuveringAssist !== false,
+      assistEnabled: state.maneuveringAssist !== false && !state.landingAutopilotActive,
       radialVelocity
     });
     const auxiliaryAcceleration = calculateAuxiliaryStabilizationAcceleration({
@@ -175,14 +184,31 @@ export function createShipFlightController(dependencies = {}) {
     });
     state.auxiliaryThrustersActive = Math.hypot(...auxiliaryAcceleration) > 0.1;
     if (earthCenter && !state.warpDriveActive && !(state.warpTransition === 'exiting' && Number(state.warpSpeedC) > 0)) {
+      const landingControl = state.landingAutopilotActive &&
+        Array.isArray(state.landingAutopilotControlAccelerationWorld) &&
+        state.landingAutopilotControlAccelerationWorld.length === 3 &&
+        state.landingAutopilotControlAccelerationWorld.every(Number.isFinite)
+        ? state.landingAutopilotControlAccelerationWorld
+        : null;
+      const totalAcceleration = gravityAcceleration.map((value, axis) => {
+        const uncontrolled = value + maneuverAcceleration[axis] + auxiliaryAcceleration[axis];
+        return landingControl
+          ? uncontrolled + landingControl[axis] - value - auxiliaryAcceleration[axis]
+          : uncontrolled;
+      });
       state.gravityVelocity = integrateWorldVelocity(
         currentGravityVelocity,
-        gravityAcceleration.map((value, axis) => value + maneuverAcceleration[axis] + auxiliaryAcceleration[axis]),
+        totalAcceleration,
         safeDt,
         0
       ) || currentGravityVelocity;
     }
     const warpDriveActive = advanceFlightDynamics(state, safeDt);
+    const throttleButton = getElement('throttle-btn');
+    if (throttleButton) {
+      throttleButton.classList.toggle('active', Boolean(state.throttle));
+      throttleButton.setAttribute('aria-pressed', String(Boolean(state.throttle)));
+    }
     const warpTravelActive = warpDriveActive || (state.warpTransition === 'exiting' && Number(state.warpSpeedC) > 0);
 
     shipAudio.updateFlight({
