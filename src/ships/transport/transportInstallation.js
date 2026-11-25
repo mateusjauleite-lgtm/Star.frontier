@@ -56,7 +56,9 @@ export function createDeck2TransporterInstallation() {
   platform.add(emitters);
   const emitterRadius = 2.82;
   for (let i = 0; i < DECK_2_TRANSPORTER_LAYOUT.emitterCount; i += 1) {
-    // Deixa o quadrante frontal (+Z) livre para a entrada do personagem.\n    if (i === 1 || i === 2) continue;\n    const angle = (Math.PI * 2 * i) / DECK_2_TRANSPORTER_LAYOUT.emitterCount;
+    // Deixa o quadrante frontal (+Z) livre para a entrada do personagem.
+    if (i === 1 || i === 2) continue;
+    const angle = (Math.PI * 2 * i) / DECK_2_TRANSPORTER_LAYOUT.emitterCount;
     const x = Math.cos(angle) * emitterRadius;
     const z = Math.sin(angle) * emitterRadius;
     const post = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.05, 3.45, 10), gold);
@@ -72,7 +74,14 @@ export function createDeck2TransporterInstallation() {
     lens.position.set(x, 3.902, z);
     emitters.add(lens);
   }
-  // Rampa baixa alinhada à abertura frontal: acesso caminhável sem atravessar colunas.\n  const entryRamp = new THREE.Mesh(new THREE.BoxGeometry(2.65, 0.12, 1.65), brushedMetal);\n  entryRamp.name = 'Transporter-Platform-Entry-Ramp';\n  entryRamp.position.set(0, 0.13, 3.55);\n  entryRamp.rotation.x = -0.08;\n  platform.add(entryRamp);\n\n  cylinder(emitters, 'Transporter-Emitter-Upper-Hub', 1.12, 1.12, 0.14, darkMetal, 3.9);
+  // Rampa baixa alinhada à abertura frontal: acesso caminhável sem atravessar colunas.
+  const entryRamp = new THREE.Mesh(new THREE.BoxGeometry(2.65, 0.12, 1.65), brushedMetal);
+  entryRamp.name = 'Transporter-Platform-Entry-Ramp';
+  entryRamp.position.set(0, 0.13, 3.55);
+  entryRamp.rotation.x = -0.08;
+  platform.add(entryRamp);
+
+  cylinder(emitters, 'Transporter-Emitter-Upper-Hub', 1.12, 1.12, 0.14, darkMetal, 3.9);
   cylinder(emitters, 'Transporter-Emitter-Upper-Blue-Hub', 0.82, 0.82, 0.035, blue, 3.99);
 
   // Console físico único, ao lado da plataforma e voltado para a área de operação.
@@ -116,7 +125,8 @@ export function createDeck2TransporterInstallation() {
     systemId: 'planetary-transport'
   };
   root.userData.collisionBoxes = [
-    { x: DECK_2_TRANSPORTER_LAYOUT.platform.x, y: 3.55, z: DECK_2_TRANSPORTER_LAYOUT.platform.z, halfX: 3.52, halfY: 0.25, halfZ: 3.52 },\n    { x: DECK_2_TRANSPORTER_LAYOUT.platform.x, y: 3.28, z: DECK_2_TRANSPORTER_LAYOUT.platform.z + 3.55, halfX: 1.38, halfY: 0.12, halfZ: 0.88 },
+    { x: DECK_2_TRANSPORTER_LAYOUT.platform.x, y: 3.55, z: DECK_2_TRANSPORTER_LAYOUT.platform.z, halfX: 3.52, halfY: 0.25, halfZ: 3.52 },
+    { x: DECK_2_TRANSPORTER_LAYOUT.platform.x, y: 3.28, z: DECK_2_TRANSPORTER_LAYOUT.platform.z + 3.55, halfX: 1.38, halfY: 0.12, halfZ: 0.88 },
     { x: DECK_2_TRANSPORTER_LAYOUT.console.x, y: DECK_2_TRANSPORTER_LAYOUT.console.y + 0.58, z: DECK_2_TRANSPORTER_LAYOUT.console.z, halfX: 0.62, halfY: 0.85, halfZ: 0.48 }
   ];
 
