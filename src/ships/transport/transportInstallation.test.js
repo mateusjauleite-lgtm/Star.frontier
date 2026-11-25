@@ -16,7 +16,10 @@ test('Deck 2 contains exactly one transporter platform and one control console',
   assert.equal(platform.getObjectByName('Transporter-Emitter-Array').children.filter(child =>
     child.name.startsWith('Transporter-Emitter-Column-')
   ).length, 6);
-  assert.equal(collisionBoxes.length, 3);
+  assert.equal(collisionBoxes.length, 1, 'somente o console deve bloquear a circulação');
+  const ramp = platform.getObjectByName('Transporter-Platform-Entry-Ramp');
+  assert.ok(ramp.position.y > 0.21, 'a rampa deve subir suavemente em direção ao piso da plataforma');
+  assert.ok(ramp.rotation.x > 0, 'a extremidade interna da rampa deve ficar mais alta que a entrada');
   assert.equal(DECK_2_TRANSPORTER_LAYOUT.platformRadius, 3.45);
   assert.equal(group.userData.interaction.terminalId, 'planetary-transport-console');
   assert.deepEqual(platform.position.toArray(), [
