@@ -675,7 +675,7 @@ const shipLandingTelemetry = createShipLandingMetricTelemetryAdapter({
 });
 let orbitSystem;
 let solarSystemDynamics = null;
-let solarSystemPresentation = null;
+let solarSystemPresentation = null;\nlet earthTimeCore = null;
 let asteroidSystem;
 let lightingSystem;
 let starshipInterior;
@@ -996,7 +996,7 @@ async function startGame() {
               ship?.position,
               shipYaw?.rotation.y ?? 0
             ),
-            orbitSystem, solarSystemDynamics, solarSystemPresentation, asteroidSystem, lightingSystem, renderer, scene, $
+            orbitSystem, solarSystemDynamics, solarSystemPresentation, earthTimeCore, asteroidSystem, lightingSystem, renderer, scene, $
           }))
         }
       });
