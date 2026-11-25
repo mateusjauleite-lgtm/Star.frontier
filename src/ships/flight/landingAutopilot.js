@@ -68,7 +68,7 @@ export function createShipLandingMetricTelemetryAdapter({
     modelMetersPerUnit,coordinateFrame:'platform-local-metric',
     source:'ship-model-and-platform-world-matrices',
     scaleValidation:'platform-local-metric-frame',
-    actuationEnabled:true
+    actuationEnabled:false
    };
   },
   reset(){previousPosition=null;}
