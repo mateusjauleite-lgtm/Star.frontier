@@ -1587,6 +1587,28 @@ function isCharacterInsideDeck(position, deckIndex) {
     isD4BeyondExitAperture(position);
 }
 
+function getCharacterWalkableFloorY(position, deckIndex) {
+  const deck = starshipInterior?.layout?.decks?.[deckIndex];
+  if (!deck) return 0;
+  const deckFloorY = deck.y + 0.21;
+  if (deck.id !== 'D2') return deckFloorY;
+
+  const platform = DECK_2_TRANSPORTER_LAYOUT.platform;
+  const localX = position.x - platform.x;
+  const localZ = position.z - platform.z;
+  const radius = Math.hypot(localX, localZ);
+
+  // Face superior real do disco central da plataforma (não o volume da base).
+  if (radius <= 3.10) return platform.y + 0.3425 + 0.21;
+
+  // Rampa frontal: transição contínua do piso do convés até a face superior.
+  if (Math.abs(localX) <= 1.325 && localZ >= 2.725 && localZ <= 4.375) {
+    const rampTopY = 0.27625 - 0.08 * (localZ - 3.55);
+    return platform.y + rampTopY + 0.21;
+  }
+  return deckFloorY;
+}
+
 function isCharacterPositionBlocked(position, deckIndex) {
   const deck = starshipInterior?.layout?.decks?.[deckIndex];
   if (!deck || !isCharacterInsideDeck(position, deckIndex)) return true;
@@ -1597,7 +1619,7 @@ function isCharacterPositionBlocked(position, deckIndex) {
   if (deck.id === 'D4' && position.z >= 27 && Math.abs(position.x) <= 10.4) return false;
 
   const playerRadius = 0.48;
-  const feetY = deck.y + 0.21;
+  const feetY = getCharacterWalkableFloorY(position, deckIndex);
   for (const wall of starshipInterior.collisionBoxes || []) {
     if (feetY + 1.8 < wall.y - wall.halfY || feetY > wall.y + wall.halfY) continue;
 
@@ -1889,7 +1911,7 @@ function updateCharacterMovement(dt) {
     deck.copy(previousDeckPosition);
     movedHorizontally = false;
   }
-  const floorY = starshipInterior.layout.decks[activeDeckIndex].y + 0.21;
+  const floorY = getCharacterWalkableFloorY(deck, activeDeckIndex);
   if (characterControls.consumeJump()) {
     if (characterPhysics?.jump()) {
       characterAnimator?.play('jump', { restart: true });
@@ -2518,7 +2540,13 @@ function updateTransporterPlatformInteraction() {
   // O destino só é exigido no momento de executar a transferência.
   const valid = Boolean(characterModel && characterCore.snapshot().mode === 'on-foot' &&
     !characterInWorldFrame && !nearbyElevator && activeDeckIndex === 1);
-  const available = valid && characterModel.group.position.distanceToSquared(transporterPlatformPosition) <= DECK_2_TRANSPORTER_LAYOUT.platformInteractionRadius ** 2;
+  const playerPosition = characterModel.group.position;
+  const platformDx = playerPosition.x - transporterPlatformPosition.x;
+  const platformDz = playerPosition.z - transporterPlatformPosition.z;
+  const platformFloorY = getCharacterWalkableFloorY(playerPosition, activeDeckIndex);
+  const available = valid &&
+    platformDx * platformDx + platformDz * platformDz <= DECK_2_TRANSPORTER_LAYOUT.platformInteractionRadius ** 2 &&
+    Math.abs(playerPosition.y - platformFloorY) <= 0.85;
   transporterActionAvailable = Boolean(available);
   if (available) {
     const button = $('character-action-btn');
