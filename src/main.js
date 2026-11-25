@@ -1224,6 +1224,7 @@ async function init3D() {
     earthReferenceFrames,
     solarSystemDynamics,
     solarSystemPresentation,
+    earthTimeCore,
     stationSystem,
     shipFlightKernel,
     gravityKernel,
