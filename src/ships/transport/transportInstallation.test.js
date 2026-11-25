@@ -24,3 +24,12 @@ test('Deck 2 contains exactly one transporter platform and one control console',
   ]);
   installation.dispose();
 });
+
+test('destination console and transporter platform have independent action ranges', () => {
+  const separation = Math.hypot(
+    DECK_2_TRANSPORTER_LAYOUT.console.x - DECK_2_TRANSPORTER_LAYOUT.platform.x,
+    DECK_2_TRANSPORTER_LAYOUT.console.z - DECK_2_TRANSPORTER_LAYOUT.platform.z
+  );
+  assert.ok(separation > 3.6 + 2.9, 'console and platform action ranges must not overlap');
+  assert.ok(separation > 8, 'the destination console must be physically separated from the platform');
+});
