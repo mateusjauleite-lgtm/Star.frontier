@@ -1046,7 +1046,7 @@ select:focus {
   font-size: 17px;
   pointer-events: auto;
 }
-.character-status {
+.character-earth-clock {\n  position: absolute;\n  top: 92px;\n  left: max(18px, env(safe-area-inset-left));\n  display: flex;\n  flex-direction: column;\n  gap: 2px;\n  padding: 6px 9px;\n  border: 1px solid rgba(67,217,255,.28);\n  border-radius: 7px;\n  background: rgba(3,12,26,.66);\n  color: #d9f5ff;\n  font: 600 10px/1.25 system-ui, sans-serif;\n  letter-spacing: .035em;\n  pointer-events: none;\n  font-variant-numeric: tabular-nums;\n}\n.character-earth-clock small { color: rgba(190,218,232,.72); font-size: 9px; font-weight: 500; }\n@media (orientation: landscape) and (max-height: 600px) {\n  .character-earth-clock { top: 78px; padding: 4px 7px; font-size: 9px; }\n  .character-earth-clock small { font-size: 8px; }\n}\n\n.character-status {
   display: flex;
   gap: 12px;
   width: min(100%, 390px);
