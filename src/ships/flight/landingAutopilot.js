@@ -51,12 +51,13 @@ export function createShipLandingMetricTelemetryAdapter({
      clearanceMeters:cleanZero(position[1]-deckHeightMeters),
      radialDistanceMeters:cleanZero(Math.hypot(position[0],position[2]))});
    }
+   const velocitySampleValid=Boolean(previousPosition);
    const velocity=previousPosition
     ?positionMeters.map((v,i)=>cleanZero((v-previousPosition[i])/dt))
     :[0,0,0];
    previousPosition=[...positionMeters];
    return {
-    positionMeters,velocityMetersPerSecond:velocity,
+    positionMeters,velocityMetersPerSecond:velocity,velocitySampleValid,
     targetPositionMeters:[0,SHIP_LANDING_TARGET_HEIGHT_METERS,0],
     surfaceNormal:[0,1,0],
     shipForwardLocal:toAxes(forwardPlatform),shipUpLocal:toAxes(upPlatform),
