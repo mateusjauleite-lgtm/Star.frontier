@@ -31,6 +31,14 @@ test('propulsor principal acelera em m/s e consome combustível comum', () => {
   assert.equal(state.refinedDilithium, 100);
 });
 
+test('propulsor travado desliga ao esgotar combustível e a nave volta a desacelerar', () => {
+  const state = makeState({ throttle: true, fuel: 0, speed: 10 });
+  advanceShipFlightDynamics(state, 0.04);
+  assert.equal(state.throttle, false);
+  assert.equal(state.throttleShutdownReason, 'fuel-depleted');
+  assert.ok(state.speed < 10);
+});
+
 test('limite de aproximação prevalece sobre o limite de espaço aberto', () => {
   const state = makeState({ throttle: true, speed: 55, conventionalSpeedLimit: 60 });
   advanceShipFlightDynamics(state, 0.04);
