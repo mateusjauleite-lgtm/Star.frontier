@@ -2003,7 +2003,9 @@ function updateElevatorButtons() {
   down.classList.toggle('hidden', !nearbyElevator || activeDeckIndex === 3);
   up.disabled = !nearbyElevator || activeDeckIndex === 0;
   down.disabled = !nearbyElevator || activeDeckIndex === 3;
-  action.classList.toggle('hidden', nearbyElevator);
+  // O botão de ação também pertence à plataforma de transporte.
+  // O elevador só pode ocultá-lo quando a plataforma não tiver uma ação válida.
+  action.classList.toggle('hidden', nearbyElevator && !transporterActionAvailable);
 }
 
 function updateElevatorInteraction() {
@@ -2519,12 +2521,24 @@ function updateTransporterPlatformInteraction() {
   transporterActionAvailable = Boolean(available);
   if (available) {
     const button = $('character-action-btn');
-    if (button) { button.disabled = false; button.textContent = '◎ TELETRANSPORTE'; button.classList.add('available'); }
+    if (button) {
+      button.classList.remove('hidden');
+      button.disabled = false;
+      button.dataset.interaction = 'transporter';
+      button.textContent = '◎ TELETRANSPORTE';
+      button.classList.add('available');
+    }
     characterCore.setInteractionTarget('PLATAFORMA · DESTINO RECEBIDO · PRONTA');
   } else if (previous) {
     const button = $('character-action-btn');
-    if (button) { button.disabled = true; button.textContent = 'AÇÃO'; button.classList.remove('available'); }
-    characterCore.setInteractionTarget(transporterDestinationId ? 'DESTINO CONFIRMADO · DIRIJA-SE À PLATAFORMA' : null);
+    if (button) {
+      button.disabled = true;
+      button.dataset.interaction = '';
+      button.textContent = 'AÇÃO';
+      button.classList.remove('available');
+    }
+    updateElevatorButtons();
+    characterCore.setInteractionTarget(transporterDestinationId ? 'DESTINO ENVIADO · DIRIJA-SE À PLATAFORMA' : null);
   }
   if (previous !== transporterActionAvailable) updateCharacterHUD();
 }
