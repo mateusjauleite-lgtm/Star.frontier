@@ -2430,8 +2430,8 @@ function updateTransporterConsoleInteraction(dt = 0) {
   const distanceSquared = characterModel.group.position.distanceToSquared(transporterConsolePosition);
   // Depois do despacho, mantenha o link lógico ativo até a plataforma concluir
   // a transferência; o raio de interação do console continua restrito a 3,6 unidades.
-  const visible = distanceSquared <= 8 ** 2 || Boolean(transporterDispatchBuffer.getPending());
-  const available = distanceSquared <= 3.6 ** 2;
+  const visible = distanceSquared <= DECK_2_TRANSPORTER_LAYOUT.consoleVisibilityRadius ** 2 || Boolean(transporterDispatchBuffer.getPending());
+  const available = distanceSquared <= DECK_2_TRANSPORTER_LAYOUT.consoleInteractionRadius ** 2;
   transporterInteractionAvailable = available;
   planetaryTransportTerminal?.setPresence(visible, available);
   if (transporterConsoleActive) {
@@ -2517,7 +2517,7 @@ function updateTransporterPlatformInteraction() {
   const pending = transporterDispatchBuffer.getPending();
   const valid = Boolean(pending && transporterDestinationId === pending.destinationId && characterModel && characterCore.snapshot().mode === 'on-foot' &&
     !characterInWorldFrame && !nearbyElevator && activeDeckIndex === 1);
-  const available = valid && characterModel.group.position.distanceToSquared(transporterPlatformPosition) <= 2.9 ** 2;
+  const available = valid && characterModel.group.position.distanceToSquared(transporterPlatformPosition) <= DECK_2_TRANSPORTER_LAYOUT.platformInteractionRadius ** 2;
   transporterActionAvailable = Boolean(available);
   if (available) {
     const button = $('character-action-btn');
