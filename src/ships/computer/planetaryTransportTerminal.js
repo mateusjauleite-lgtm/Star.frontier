@@ -204,5 +204,5 @@ export function createTransporterActionMenu({ root = globalThis.document?.body, 
   primary.addEventListener('click', () => { primary.classList.add('hidden'); confirm.classList.remove('hidden'); });
   menu.querySelector('[data-tp-no]').addEventListener('click', close);
   menu.querySelector('[data-tp-yes]').addEventListener('click', () => { close(); onConfirm(); });
-  return Object.freeze({ open(destinationName = 'DESTINO CONFIRMADO') { const destination = menu.querySelector('[data-tp-platform-destination]'); if (destination) destination.textContent = String(destinationName || 'DESTINO CONFIRMADO'); primary.classList.remove('hidden'); confirm.classList.add('hidden'); menu.classList.remove('hidden'); }, close, dispose() { close(); menu.remove(); }, isOpen: () => !menu.classList.contains('hidden') });
+  return Object.freeze({ open(destinationName = 'SEM DESTINO DEFINIDO') { const destination = menu.querySelector('[data-tp-platform-destination]'); if (destination) destination.textContent = String(destinationName || 'SEM DESTINO DEFINIDO'); primary.classList.remove('hidden'); confirm.classList.add('hidden'); menu.classList.remove('hidden'); }, close, dispose() { close(); menu.remove(); }, isOpen: () => !menu.classList.contains('hidden') });
 }
