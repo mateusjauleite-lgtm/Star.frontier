@@ -675,7 +675,8 @@ const shipLandingTelemetry = createShipLandingMetricTelemetryAdapter({
 });
 let orbitSystem;
 let solarSystemDynamics = null;
-let solarSystemPresentation = null;\nlet earthTimeCore = null;
+let solarSystemPresentation = null;
+let earthTimeCore = null;
 let asteroidSystem;
 let lightingSystem;
 let starshipInterior;
