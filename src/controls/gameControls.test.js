@@ -55,6 +55,29 @@ test('camera cycle control preserves the three existing camera modes', () => {
 });
 
 
+test('propulsor envia comandos de ligar e desligar ao Ship Computer', () => {
+  const throttle = element();
+  const document = { getElementById: id => id === 'throttle-btn' ? throttle : null };
+  const window = { addEventListener() {} };
+  const state = { throttle: false };
+  const commands = [];
+  registerHeldFlightControls({
+    document, window, state,
+    dispatchPropulsionCommand: payload => {
+      commands.push(payload);
+      return { accepted: true };
+    }
+  });
+  throttle.fire('click');
+  throttle.fire('click');
+  assert.deepEqual(commands, [
+    { control: 'throttle', active: true },
+    { control: 'throttle', active: false }
+  ]);
+  assert.equal(state.throttle, false);
+  assert.equal(throttle.attributes['aria-pressed'], 'false');
+});
+
 test('botão de dobra alterna o comando travado e sincroniza estado visual', () => {
   const warp = element();
   const buttons = new Map([['warp-drive-btn', warp]]);
