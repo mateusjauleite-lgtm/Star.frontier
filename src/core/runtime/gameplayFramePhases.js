@@ -25,6 +25,8 @@ export function createGameplayFramePhases(getDependencies) {
       if (Number.isFinite(solarFrame?.earthRotationAngleRad)) {
         earthSystem?.setSurfaceRotationAngle?.(solarFrame.earthRotationAngleRad);
       }
+      // A transformação lunar é derivada do snapshot astronômico, não de uma órbita visual local.
+      scene?.userData?.moonSystem?.applyAstronomicalState?.(solarFrame);
       earthSystem?.update(dt, camera);
       applyEarthSurfaceRotation();
   if (ship) ship.userData.earthCollisionResolved = false;

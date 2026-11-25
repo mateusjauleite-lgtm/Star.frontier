@@ -23,7 +23,8 @@ export function createPlanetaryGravitySystem({
   getEarthCenter = () => [0, 0, 0],
   getEarthSpinAxis = () => [0, 1, 0],
   gravityKernel = null,
-  gravitationalParameter = EARTH_GRAVITATIONAL_PARAMETER_M3_S2
+  gravitationalParameter = EARTH_GRAVITATIONAL_PARAMETER_M3_S2,
+  getAdditionalGravityBodies = () => []
 } = {}) {
   if (typeof getEarthCenter !== 'function' || typeof getEarthSpinAxis !== 'function') {
     throw new TypeError('Earth gravity requires world-space center and spin-axis providers.');
@@ -37,17 +38,36 @@ export function createPlanetaryGravitySystem({
     return finiteVector(position) ? { position: [...position], mu: gravitationalParameter } : null;
   }
 
+  function gravityBodies() {
+    const earth = earthBody();
+    if (!earth) return [];
+    const additional = getAdditionalGravityBodies();
+    const bodies = [earth];
+    if (Array.isArray(additional)) {
+      for (const body of additional) {
+        if (finiteVector(body?.position) && Number.isFinite(body?.mu) && body.mu > 0) {
+          bodies.push({ position: [...body.position], mu: body.mu });
+        }
+      }
+    }
+    return bodies;
+  }
+
   function accelerationAt(position) {
     if (!finiteVector(position)) return null;
-    const body = earthBody();
-    if (!body) return null;
-    const delta = position.map((value, axis) => value - body.position[axis]);
-    const radiusSquared = dot(delta, delta);
-    if (!Number.isFinite(radiusSquared) || radiusSquared <= 1e-12) return null;
-    const result = gravityKernel?.acceleration?.({ position: [...position], bodies: [body] });
+    const bodies = gravityBodies();
+    if (!bodies.length) return null;
+    const result = gravityKernel?.acceleration?.({ position: [...position], bodies });
     if (finiteVector(result)) return [...result];
-    const factor = -gravitationalParameter / (radiusSquared * Math.sqrt(radiusSquared));
-    return delta.map(value => value * factor);
+    let acceleration = [0, 0, 0];
+    for (const body of bodies) {
+      const delta = position.map((value, axis) => value - body.position[axis]);
+      const radiusSquared = dot(delta, delta);
+      if (!Number.isFinite(radiusSquared) || radiusSquared <= 1e-12) continue;
+      const factor = -body.mu / (radiusSquared * Math.sqrt(radiusSquared));
+      acceleration = acceleration.map((value, axis) => value + delta[axis] * factor);
+    }
+    return finiteVector(acceleration) ? acceleration : null;
   }
 
   function circularOrbitVelocity(position) {
@@ -94,6 +114,7 @@ export function createPlanetaryGravitySystem({
     rotationAngularVelocity: EARTH_SIDEREAL_ROTATION_RAD_S,
     axialTiltDegrees: EARTH_AXIAL_TILT_DEGREES,
     earthBody,
+    gravityBodies,
     accelerationAt,
     circularOrbitVelocity,
     surfaceVelocityAt,
