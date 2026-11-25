@@ -3199,7 +3199,7 @@ $('landing-btn')?.addEventListener('click', () => {
   if (shipLandingAutopilot?.snapshot?.().active) {
     cancelLandingGuidance('standby');
     shipAudio.playConsole();
-    if ($('landing-status')) $('landing-status').textContent = 'Orientação cancelada. O trem de pouso mantém seu estado atual.';
+    if ($('landing-status')) $('landing-status').textContent = 'Piloto automático cancelado. O trem de pouso mantém seu estado atual.';
     toast('Guia de pouso cancelada.');
     return;
   }
@@ -3359,7 +3359,7 @@ $('landing-select-btn')?.addEventListener('click', () => {
     button.classList.remove('gear-deployed','gear-deploying','gear-retracted','guidance-active');
   }
   const status = $('landing-status');
-  if (status) status.textContent = 'Destino marcado: Salar de Uyuni · UY04. Ative a guia quando estiver pronto. A orientação calcula a aproximação, mas ainda não comanda a propulsão.';
+  if (status) status.textContent = 'Destino marcado: Salar de Uyuni · UY04. Abra o trem de pouso e ative POUSO para iniciar aproximação, descida e frenagem automáticas.';
   closeLandingPanel();
   toast('Destino UY04 marcado. Telemetria pronta para conexão.');
 });
