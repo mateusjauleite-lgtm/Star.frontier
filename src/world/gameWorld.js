@@ -314,6 +314,7 @@ export async function createGameWorld({
     planetaryGravitySystem,
     solarSystemDynamics,
     solarSystemPresentation,
+    earthTimeCore,
     orbitalTelemetrySource: createShipOrbitalTelemetrySource({ THREE, earthSystem, ship, shipVisual }),
     shipLandingAutopilot,
     shipLandingGear,
