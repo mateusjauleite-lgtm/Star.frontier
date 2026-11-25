@@ -1,5 +1,8 @@
 import { createEarthReferenceFrames } from './earth/earthReferenceFrames.js';
 import { createEarthCore } from './earth/earthCore.js';
+import { createEarthTerrainReferenceCore } from './earth/earthTerrainReferenceCore.js';
+import { createTerrestrialTransportBase, TERRESTRIAL_BASE_PROFILE } from './earth/terrestrialTransportBase.js';
+import { createPlanetaryTransportCore } from '../ships/computer/planetaryTransportCore.js';
 import { createMoonCore } from './moon/moonCore.js';
 import { MOON_PLANETARY_PROFILE } from './moon/moonProfile.js';
 import { createStation } from './station.js';
@@ -49,6 +52,9 @@ export async function createGameWorld({
   let scene = new THREE.Scene();
   let renderer = null;
   let earthSystem = null;
+  let earthTerrainReferenceCore = null;
+  let terrestrialTransportBase = null;
+  let planetaryTransportCore = null;
   let moonSystem = null;
   let shipFlightKernel = null;
   let gravityKernel = null;
@@ -67,6 +73,30 @@ export async function createGameWorld({
   const earthReferenceFrames = createEarthReferenceFrames({
     globalFrame: scene,
     terrestrialFrame: earthSystem.getSurfaceFrame()
+  });
+  earthTerrainReferenceCore = createEarthTerrainReferenceCore({
+    THREE, earthSystem, scene,
+    onReferenceRegistered: reference => {
+      // Apenas regiões declaradas como terreno (ou destinos explicitamente habilitados)
+      // entram no catálogo de transporte; objetos de cenário continuam sendo overlays.
+      if (!reference.destinationEnabled) return;
+      planetaryTransportCore?.registerDestination({
+        id: reference.id,
+        name: reference.name,
+        bodyId: 'earth',
+        latitudeDeg: reference.latitudeDeg,
+        longitudeDeg: reference.longitudeDeg,
+        elevationMeters: reference.elevationMeters,
+        sourceId: reference.id,
+        tags: ['terrain-reference', reference.surfaceRole, reference.sourceFormat]
+      });
+    },
+    onReferenceRemoved: reference => planetaryTransportCore?.unregisterDestination(reference.id)
+  });
+  // Primeira instalação permanente: construída no referencial fixo da Terra,
+  // usando a amostra DEM real de Jaú para posicionar e orientar toda a estrutura.
+  terrestrialTransportBase = createTerrestrialTransportBase({
+    THREE, earthSystem, earthTerrainReferenceCore
   });
 
   // A Lua possui grupo e referencial próprios; sua posição nunca é parentada à Terra.
@@ -161,6 +191,48 @@ export async function createGameWorld({
   const maneuveringFlames = explorationShip.maneuveringFlames;
   const maneuveringLights = explorationShip.maneuveringLights;
   scene.add(ship);
+  planetaryTransportCore = createPlanetaryTransportCore({
+    resolveDestination: (destination, { altitudeOffsetMeters }) => {
+      if (destination.id === TERRESTRIAL_BASE_PROFILE.id) {
+        terrestrialTransportBase.updatePlacement();
+        if (!terrestrialTransportBase.isDemAnchored()) return null;
+      }
+      const placement = earthTerrainReferenceCore.resolveSurfacePosition({
+        latitudeDeg: destination.latitudeDeg,
+        longitudeDeg: destination.longitudeDeg,
+        elevationMeters: destination.elevationMeters + altitudeOffsetMeters
+      });
+      return { position: placement.worldPosition, normal: placement.worldNormal };
+    },
+    getActors: () => ({ ship, character: characterModel.group }),
+    moveActor: (actor, resolved, { actor: actorId, destination } = {}) => {
+      if (actorId === 'character' && destination?.id === 'ship-deck-2') {
+        shipVisual.updateWorldMatrix(true, false);
+        shipVisual.attach(actor);
+        actor.position.copy(shipVisual.worldToLocal(resolved.position?.isVector3 ? resolved.position.clone() : new THREE.Vector3(resolved.position.x, resolved.position.y, resolved.position.z)));
+        actor.quaternion.identity();
+      } else {
+        if (actorId === 'character') scene.attach(actor);
+        actor.position.copy(resolved.position);
+        actor.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), resolved.normal);
+      }
+      actor.updateMatrixWorld(true);
+      return true;
+    },
+    consumePower: amount => state.requestOperationsPower?.(amount, 1) ?? 0,
+    getPowerStatus: () => ({
+      available: Boolean(state.warpCorePowerBusConnected && state.warpCoreEnabled !== false &&
+        state.warpCoreContainmentStable !== false && state.warpCoreMatrixEnabled !== false),
+      bus: 'OPERATIONS EPS',
+      energy: Math.max(0, Number(state.warpCoreOperationsBuffer) || 0)
+    }),
+    energyCost: 8,
+    enabled: true
+  });
+  planetaryTransportCore.registerDestination({
+    ...TERRESTRIAL_BASE_PROFILE,
+    tags: ['base', 'transporter', 'brazil', 'jau', 'earth']
+  });
 
   await loadingStep(70, 'Carregando campo de asteroides...');
 
@@ -229,6 +301,9 @@ export async function createGameWorld({
     ship,
     stars,
     earthSystem,
+    earthTerrainReferenceCore,
+    terrestrialTransportBase,
+    planetaryTransportCore,
     moonSystem,
     earthReferenceFrames,
     stationSystem,
@@ -263,6 +338,12 @@ export async function createGameWorld({
     characterPhysics
   };
   } catch (error) {
+    try { terrestrialTransportBase?.dispose?.(); } catch (disposeError) {
+      console.warn('Falha ao liberar a Base Terrestre Brasil:', disposeError);
+    }
+    try { earthTerrainReferenceCore?.dispose?.(); } catch (disposeError) {
+      console.warn('Falha ao liberar referências de terreno da Terra:', disposeError);
+    }
     try { moonSystem?.dispose?.(); } catch (disposeError) {
       console.warn('Falha ao liberar os módulos da Lua:', disposeError);
     }

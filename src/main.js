@@ -25,6 +25,8 @@ const DILITHIUM_ORE_ITEM_ID = 'ore.dilithium.raw';
 import { isPilotConsoleInRange, attachCharacterToPilotConsole, returnCharacterToDeck } from './ships/bridge/commandBridge.js';
 import { saveState as save, loadState as load } from './core/storage.js';
 import { createShipComputer } from './ships/computer/shipComputer.js';
+import { createPlanetaryTransportTerminal, createTransporterActionMenu } from './ships/computer/planetaryTransportTerminal.js';
+import { DECK_2_TRANSPORTER_LAYOUT } from './ships/transport/transportInstallation.js';
 import { createShipManagementTerminalController, SHIP_MANAGEMENT_TERMINAL_LOCAL_POSITION, SHIP_MANAGEMENT_TERMINAL_DISPLAY_RADIUS, SHIP_MANAGEMENT_TERMINAL_INTERACTION_RADIUS } from './ships/computer/managementTerminal/managementTerminalController.js';
 import { createShipManagementTerminalRenderer } from './ships/computer/managementTerminal/managementTerminalRenderer.js';
 import { createShipManagementHologram, createRefineryHologram } from './ships/computer/managementTerminal/shipManagementHologram.js';
@@ -86,6 +88,8 @@ shipComputer.registerTerminal({
   name: 'Terminal holográfico de gerenciamento',
   systems: ['navigation', 'sensors', 'engineering', 'power', 'shields', 'deflector']
 });
+shipComputer.registerTerminal({ id: 'planetary-transport-console', name: 'AURORA OS · Transporte Planetário · Deck 2', systems: ['planetary-transport'] });
+shipComputer.registerTerminal({ id: 'terrestrial-transport-console', name: 'Terminal Terrestre · Base BT-01', systems: ['planetary-transport'] });
 shipComputer.registerTerminal({ id: 'pilot-console', name: 'Console de pilotagem da Ponte', systems: ['navigation', 'propulsion', 'shields'] });
 shipComputer.registerTerminal({ id: 'engineering-console', name: 'Console de Engenharia · Deck 3', systems: ['engineering', 'propulsion', 'power', 'shields'] });
 shipComputer.registerTerminal({ id: 'refinery-console', name: 'Console da Refinaria · Deck 3', systems: ['refinery'] });
@@ -229,6 +233,20 @@ const PHASER_FLASH_SECONDS = 0.16;
 let pilotInteractionAvailable = false;
 let shipManagementInteractionAvailable = false;
 let engineeringInteractionAvailable = false;
+let planetaryTransportTerminal = null;
+let terrestrialTransportTerminal = null;
+let terrestrialTransportBase = null;
+let terrestrialTransportConsoleActive = false;
+let terrestrialTransportInteractionAvailable = false;
+let transporterActionMenu = null;
+let transporterConsoleActive = false;
+let transporterInteractionAvailable = false;
+let transporterActionAvailable = false;
+let transporterDestinationId = null;
+let transporterTelemetryAccumulator = 0;
+let earthDestinationPickActive = false;
+const transporterConsolePosition = new THREE.Vector3(DECK_2_TRANSPORTER_LAYOUT.console.x, DECK_2_TRANSPORTER_LAYOUT.console.y, DECK_2_TRANSPORTER_LAYOUT.console.z);
+const transporterPlatformPosition = new THREE.Vector3(DECK_2_TRANSPORTER_LAYOUT.platform.x, DECK_2_TRANSPORTER_LAYOUT.platform.y + 0.4, DECK_2_TRANSPORTER_LAYOUT.platform.z);
 const shipManagementTerminalPosition = new THREE.Vector3(
   SHIP_MANAGEMENT_TERMINAL_LOCAL_POSITION.x,
   SHIP_MANAGEMENT_TERMINAL_LOCAL_POSITION.y,
@@ -631,6 +649,7 @@ let renderer;
 let ship;
 let stars;
 let earthSystem;
+let earthTerrainReferenceCore = null;
 let earthReferenceFrames = null;
 let lastEarthSurfaceRotationY = null;
 let stationSystem;
@@ -751,6 +770,7 @@ const shipFlightController = createShipFlightController({
 
 let launching = false;
 let shipComputerSystemsRegistered = false;
+let planetaryTransportCore = null;
 
 function registerComputerSubsystems(deflectorRuntime = null) {
   if (shipComputerSystemsRegistered) return;
@@ -763,7 +783,14 @@ function registerComputerSubsystems(deflectorRuntime = null) {
     shieldSystem: shipShieldSystem,
     refinerySystem: dilithiumRefinerySystem,
     deflectorRuntime,
-    warpCoreSystem: warpCorePowerSystem
+    warpCoreSystem: warpCorePowerSystem,
+    planetaryTransportCore,
+    getShipTransporterPosition: () => {
+      if (!shipVisual) return null;
+      shipVisual.updateWorldMatrix(true, false);
+      const localPosition = new THREE.Vector3(DECK_2_TRANSPORTER_LAYOUT.platform.x, DECK_2_TRANSPORTER_LAYOUT.platform.y + 0.4, DECK_2_TRANSPORTER_LAYOUT.platform.z);
+      return { position: shipVisual.localToWorld(localPosition), normal: new THREE.Vector3(0, 1, 0).transformDirection(shipVisual.matrixWorld).normalize() };
+    }
   });
   shipComputerSystemsRegistered = true;
 }
@@ -951,7 +978,7 @@ async function startGame() {
             earthSystem, camera, applyEarthSurfaceRotation, ship, updatePhaserWeapon,
             characterCore, syncCharacterDeckFrame, updateCharacterMovement, updateCharacterWeapon,
             updateExternalElevatorAnimation, updateElevatorInteraction,
-            updatePilotInteraction, updateShipManagementInteraction, updateEngineeringConsoleInteraction, updateRefineryConsoleInteraction, updateDeflectorConsoleInteraction, updateExternalElevatorInteraction, updateAlexiaInteraction,
+            updatePilotInteraction, updateShipManagementInteraction, updateEngineeringConsoleInteraction, updateRefineryConsoleInteraction, updateDeflectorConsoleInteraction, updateTransporterConsoleInteraction, updateTransporterPlatformInteraction, updateExternalElevatorInteraction, updateAlexiaInteraction,
             updateCharacterCamera, updateFlight, updateCamera, updateShipSystems,
             setLandingBaseSystem: value => { landingBaseSystem = value; },
             updateShipLandingGuidance, THREE, shipVisual, shipEarthContactPoints,
@@ -1059,10 +1086,20 @@ async function startGame() {
     }
     loadingScreen?.classList.add('hidden');
     window.removeEventListener('resize', resize3D);
+    earthDestinationPickActive = false;
+    if (renderer?.domElement) renderer.domElement.style.cursor = '';
 
     try { scene?.userData?.moonSystem?.dispose?.(); } catch (disposeError) {
       console.warn('Não foi possível encerrar os módulos da Lua:', disposeError);
     }
+    try { terrestrialTransportBase?.dispose?.(); } catch (disposeError) {
+      console.warn('Não foi possível encerrar a Base Terrestre Brasil:', disposeError);
+    }
+    terrestrialTransportBase = null;
+    try { earthTerrainReferenceCore?.dispose?.(); } catch (disposeError) {
+      console.warn('Não foi possível encerrar as referências de terreno da Terra:', disposeError);
+    }
+    earthTerrainReferenceCore = null;
     try { earthSystem?.dispose?.(); } catch (disposeError) {
       console.warn('Não foi possível encerrar os módulos da Terra:', disposeError);
     }
@@ -1107,6 +1144,7 @@ async function startGame() {
     shipLandingGearContactPoints = [];
     stars = null;
     earthSystem = null;
+    earthTerrainReferenceCore = null;
     earthReferenceFrames = null;
     stationSystem = null;
     landingBaseSystem = null;
@@ -1175,6 +1213,7 @@ async function init3D() {
     ship,
     stars,
     earthSystem,
+    earthTerrainReferenceCore,
     earthReferenceFrames,
     solarSystemDynamics,
     solarSystemPresentation,
@@ -1200,12 +1239,67 @@ async function init3D() {
     nearbyElevator,
     activeDeckIndex,
     characterModel,
+    terrestrialTransportBase,
     alexiaCharacter,
     characterAnimator,
     characterWeaponController,
     characterPhysics
   } = world);
 
+  planetaryTransportCore = world.planetaryTransportCore;
+  terrestrialTransportBase = world.terrestrialTransportBase;
+  planetaryTransportTerminal?.destroy?.();
+  terrestrialTransportTerminal?.destroy?.();
+  transporterActionMenu?.dispose?.();
+  planetaryTransportTerminal = createPlanetaryTransportTerminal({
+    computer: shipComputer, root: $('game-screen'),
+    onOpenChange: active => { transporterConsoleActive = active; if (active) characterControls?.reset?.(); updateCharacterHUD(); },
+    onDestinationConfirmed: destination => {
+      transporterDestinationId = destination.id;
+      transporterActionAvailable = false;
+      characterCore.setInteractionTarget('BASE CONFIRMADA · DIRIJA-SE À PLATAFORMA');
+      updateCharacterHUD();
+      toast('Base BT-01 confirmada. Dirija-se à plataforma de transporte.');
+    }
+  });
+  terrestrialTransportTerminal = createPlanetaryTransportTerminal({
+    computer: shipComputer, root: $('game-screen'),
+    terminalId: 'terrestrial-transport-console', mode: 'return',
+    onOpenChange: active => { terrestrialTransportConsoleActive = active; if (active) characterControls?.reset?.(); updateCharacterHUD(); },
+    onReturnToShip: () => {
+      terrestrialTransportConsoleActive = false;
+      transporterDestinationId = null;
+      transporterActionAvailable = false;
+      characterInWorldFrame = false;
+      characterWorldGrounded = false;
+      characterWorldVelocity.set(0, 0, 0);
+      if (characterDeckFrame && characterModel?.group) {
+        shipVisual?.updateWorldMatrix(true, false);
+        if (shipVisual) {
+          characterDeckFrame.matrix.copy(shipVisual.matrixWorld);
+          characterDeckFrame.matrixWorldNeedsUpdate = true;
+          characterDeckFrame.updateMatrixWorld(true);
+        }
+        characterDeckFrame.attach(characterModel.group);
+        characterModel.group.position.set(DECK_2_TRANSPORTER_LAYOUT.platform.x, DECK_2_TRANSPORTER_LAYOUT.platform.y + 0.4, DECK_2_TRANSPORTER_LAYOUT.platform.z);
+        characterModel.group.rotation.set(0, characterYaw, 0);
+      }
+      characterCore.setGrounded(true);
+      characterPhysics?.reset(characterModel?.group?.position?.y ?? 0);
+      characterAnimator?.play('idle', { restart: true });
+      characterCameraInitialized = false;
+      updateCharacterHUD();
+      toast('Retorno concluído. Você está na plataforma do Deck 2.');
+    }
+  });
+  transporterActionMenu = createTransporterActionMenu({ root: document.body, onConfirm: executePlanetaryTransport });
+  earthDestinationPickActive = false;
+  transporterConsoleActive = false;
+  transporterInteractionAvailable = false;
+  terrestrialTransportConsoleActive = false;
+  terrestrialTransportInteractionAvailable = false;
+  transporterActionAvailable = false;
+  transporterDestinationId = null;
   alexiaInteractionMenu?.dispose?.();
   alexiaInteractionMenu = alexiaCharacter ? createCharacterInteractionMenu({
     root: document.body, camera, actor: alexiaCharacter.group,
@@ -1634,6 +1728,8 @@ function updateCharacterMovement(dt) {
   if (!characterModel || characterCore.snapshot().mode !== 'on-foot') return;
   syncCharacterDeckFrame();
   artificialGravityField.update(dt, state);
+  terrestrialTransportBase?.updatePlacement?.();
+  updateTerrestrialTransportInteraction(dt);
   if (externalElevator?.moving && externalElevatorRiding) {
     characterAnimator?.play('idle');
     characterAnimator?.update(dt);
@@ -2297,7 +2393,160 @@ function toggleDeflectorConsole() {
   }
 }
 
+function updateTransporterConsoleInteraction(dt = 0) {
+  const previousAvailable = transporterInteractionAvailable;
+  const previousActive = transporterConsoleActive;
+  const valid = Boolean(characterModel && shipVisual && characterCore.snapshot().mode === 'on-foot' &&
+    !characterInWorldFrame && !nearbyElevator && activeDeckIndex === 1);
+  if (!valid) {
+    transporterInteractionAvailable = false;
+    planetaryTransportTerminal?.setPresence(false, false);
+    if ((previousAvailable || previousActive) && !nearbyElevator) {
+      const button = $('character-action-btn');
+      if (button) { button.disabled = true; button.textContent = 'AÇÃO'; button.classList.remove('available'); }
+      characterCore.setInteractionTarget(null);
+      updateCharacterHUD();
+    }
+    return;
+  }
+  const distanceSquared = characterModel.group.position.distanceToSquared(transporterConsolePosition);
+  const visible = distanceSquared <= 8 ** 2;
+  const available = distanceSquared <= 3.6 ** 2;
+  transporterInteractionAvailable = available;
+  planetaryTransportTerminal?.setPresence(visible, available);
+  if (transporterConsoleActive) {
+    transporterTelemetryAccumulator += Math.max(0, Number(dt) || 0);
+    if (transporterTelemetryAccumulator >= 0.2) {
+      transporterTelemetryAccumulator = 0;
+      planetaryTransportTerminal?.refresh?.();
+    }
+  } else transporterTelemetryAccumulator = 0;
+  if (available || transporterConsoleActive) {
+    const button = $('character-action-btn');
+    if (button) { button.disabled = false; button.textContent = transporterConsoleActive ? '◎ FECHAR AURORA OS' : '◎ AURORA OS'; button.classList.add('available'); }
+    characterCore.setInteractionTarget(transporterConsoleActive ? 'AURORA OS · TRANSPORTE CONECTADO' : 'CONSOLE AURORA OS · TRANSPORTE PLANETÁRIO');
+    if (previousAvailable !== available || previousActive !== transporterConsoleActive) updateCharacterHUD();
+  } else if (previousAvailable || previousActive) {
+    const button = $('character-action-btn');
+    if (button) { button.disabled = true; button.textContent = 'AÇÃO'; button.classList.remove('available'); }
+    characterCore.setInteractionTarget(transporterDestinationId ? 'DESTINO CONFIRMADO · DIRIJA-SE À PLATAFORMA' : null);
+    updateCharacterHUD();
+  }
+}
+
+
+function togglePlanetaryTransportConsole() {
+  if (transporterConsoleActive) { planetaryTransportTerminal?.close(); return; }
+  if (!transporterInteractionAvailable || !planetaryTransportTerminal?.open('PILOTO')) {
+    toast('Aproxime-se do console de transporte no Deck 2.');
+  }
+}
+
+function toggleTerrestrialTransportConsole() {
+  if (terrestrialTransportConsoleActive) { terrestrialTransportTerminal?.close(); return; }
+  if (!terrestrialTransportInteractionAvailable || !terrestrialTransportTerminal?.open('OPERADOR BT-01')) {
+    toast('Aproxime-se do terminal da Base Terrestre BT-01.');
+  }
+}
+
+function updateTerrestrialTransportInteraction(dt = 0) {
+  const previousAvailable = terrestrialTransportInteractionAvailable;
+  const previousActive = terrestrialTransportConsoleActive;
+  const valid = Boolean(characterModel && characterInWorldFrame && characterWorldGrounded &&
+    characterCore.snapshot().mode === 'on-foot' && terrestrialTransportBase);
+  if (!valid) {
+    terrestrialTransportInteractionAvailable = false;
+    terrestrialTransportTerminal?.setPresence(false, false);
+    if (previousAvailable || previousActive) {
+      const button = $('character-action-btn');
+      if (button) { button.disabled = true; button.textContent = 'AÇÃO'; button.classList.remove('available'); }
+      if (!transporterActionAvailable) characterCore.setInteractionTarget(null);
+      updateCharacterHUD();
+    }
+    return;
+  }
+  characterModel.group.updateWorldMatrix(true, false);
+  const playerPosition = characterModel.group.getWorldPosition(new THREE.Vector3());
+  const consolePosition = terrestrialTransportBase.getConsoleWorldPosition(new THREE.Vector3());
+  const distanceSquared = playerPosition.distanceToSquared(consolePosition);
+  const visible = distanceSquared <= 10 ** 2;
+  const available = distanceSquared <= 3.8 ** 2;
+  terrestrialTransportInteractionAvailable = available;
+  terrestrialTransportTerminal?.setPresence(visible, available);
+  if (terrestrialTransportConsoleActive) {
+    transporterTelemetryAccumulator += Math.max(0, Number(dt) || 0);
+    if (transporterTelemetryAccumulator >= 0.2) {
+      transporterTelemetryAccumulator = 0;
+      terrestrialTransportTerminal?.refresh?.();
+    }
+  }
+  if (available || terrestrialTransportConsoleActive) {
+    const button = $('character-action-btn');
+    if (button) { button.disabled = false; button.textContent = terrestrialTransportConsoleActive ? '◎ FECHAR TERMINAL BT-01' : '◎ TERMINAL BT-01'; button.classList.add('available'); }
+    characterCore.setInteractionTarget(terrestrialTransportConsoleActive ? 'TERMINAL TERRESTRE · CONECTADO' : 'TERMINAL DE TRANSPORTE · BT-01');
+  } else if (previousAvailable || previousActive) {
+    const button = $('character-action-btn');
+    if (button) { button.disabled = true; button.textContent = 'AÇÃO'; button.classList.remove('available'); }
+    characterCore.setInteractionTarget('BASE TERRESTRE BRASIL · BT-01');
+  }
+  if (previousAvailable !== available || previousActive !== terrestrialTransportConsoleActive) updateCharacterHUD();
+}
+
+function updateTransporterPlatformInteraction() {
+  const previous = transporterActionAvailable;
+  const valid = Boolean(transporterDestinationId && characterModel && characterCore.snapshot().mode === 'on-foot' &&
+    !characterInWorldFrame && !nearbyElevator && activeDeckIndex === 1);
+  const available = valid && characterModel.group.position.distanceToSquared(transporterPlatformPosition) <= 2.9 ** 2;
+  transporterActionAvailable = Boolean(available);
+  if (available) {
+    const button = $('character-action-btn');
+    if (button) { button.disabled = false; button.textContent = '◎ TELETRANSPORTE'; button.classList.add('available'); }
+    characterCore.setInteractionTarget('PLATAFORMA DE TELETRANSPORTE');
+  } else if (previous) {
+    const button = $('character-action-btn');
+    if (button) { button.disabled = true; button.textContent = 'AÇÃO'; button.classList.remove('available'); }
+    characterCore.setInteractionTarget(transporterDestinationId ? 'DESTINO CONFIRMADO · DIRIJA-SE À PLATAFORMA' : null);
+  }
+  if (previous !== transporterActionAvailable) updateCharacterHUD();
+}
+
+function executePlanetaryTransport() {
+  if (!transporterDestinationId || !planetaryTransportTerminal || !characterModel ||
+      !transporterActionAvailable || characterCore.snapshot().mode !== 'on-foot') return false;
+  const response = planetaryTransportTerminal.dispatch('teleport', {
+    destinationId: transporterDestinationId, actor: 'character', altitudeOffsetMeters: 2.2
+  });
+  const result = response?.ok ? response.result : null;
+  if (!result?.ok) {
+    const reason = result?.reason || response?.reason || 'transport-failed';
+    const messages = {
+      'power-unavailable': 'Energia da Engenharia indisponível. Verifique o núcleo e o barramento EPS.',
+      'insufficient-power': 'Energia insuficiente no barramento de operações da Engenharia.',
+      'destination-not-found': 'O destino não está mais registrado.',
+      'destination-unresolved': 'Não foi possível resolver a superfície terrestre nessa coordenada.'
+    };
+    toast(messages[reason] || 'Transporte recusado pelo Ship Computer: ' + reason);
+    return false;
+  }
+  transporterDestinationId = null;
+  transporterActionAvailable = false;
+  planetaryTransportTerminal.close();
+  transporterConsoleActive = false;
+  characterInWorldFrame = true;
+  characterWorldGrounded = false;
+  characterWorldVelocity.set(0, 0, 0);
+  characterCore.setGrounded(false);
+  characterPhysics?.reset(characterModel.group.position.y);
+  characterAnimator?.play('idle', { restart: true });
+  characterCore.setInteractionTarget('LOCAL DE TRANSPORTE TERRESTRE');
+  updateCharacterHUD();
+  toast('Teletransporte concluído. Você chegou ao destino terrestre.');
+  return true;
+}
+
 function updatePilotInteraction() {
+  if (terrestrialTransportInteractionAvailable || terrestrialTransportConsoleActive) return;
+  if (transporterInteractionAvailable || transporterConsoleActive || transporterActionAvailable) return;
   if (matrixInteractionAvailable || matrixConsoleActive) return;
   if (refineryInteractionAvailable || refineryConsoleActive) return;
   if (!characterModel || !shipVisual || characterCore.snapshot().mode !== 'on-foot') return;
@@ -2571,6 +2820,9 @@ function updateCharacterWeapon(dt) {
 
 $('character-action-btn')?.addEventListener('click', () => {
   if (nearbyAlexiaInteraction) { alexiaInteractionMenu?.open?.(); return; }
+  if (transporterActionAvailable) { transporterActionMenu?.open?.(); return; }
+  if (terrestrialTransportInteractionAvailable || terrestrialTransportConsoleActive) { toggleTerrestrialTransportConsole(); return; }
+  if (transporterInteractionAvailable || transporterConsoleActive) { togglePlanetaryTransportConsole(); return; }
   if (externalElevatorActionAvailable) activateExternalElevator();
   else if (matrixInteractionAvailable || matrixConsoleActive) toggleDilithiumMatrixConsole();
   else if (refineryInteractionAvailable || refineryConsoleActive) toggleRefineryConsole();
@@ -2580,6 +2832,8 @@ $('character-action-btn')?.addEventListener('click', () => {
 });
 window.addEventListener('keydown', event => {
   if (event.key === 'Escape' && !$('inventory-modal')?.classList.contains('hidden')) { closeInventory(); return; }
+  if (event.key === 'Escape' && transporterActionMenu?.isOpen?.()) { transporterActionMenu.close(); return; }
+  if (event.key === 'Escape' && transporterConsoleActive) { planetaryTransportTerminal?.close(); return; }
   if (event.key === 'Escape' && matrixConsoleActive) { matrixTerminal?.close(); return; }
   if (event.key === 'Escape' && refineryConsoleActive) { refineryTerminal?.close(); return; }
   if (event.key === 'Escape' && deflectorConsoleActive) { deflectorTerminal?.close(); return; }

@@ -7,7 +7,7 @@ const PROPULSION_INPUTS = new Set(['throttle', 'braking', 'warpDriveButton', 'ma
 const CONTROL_AUTHORITIES = new Set(['bridge', 'engineering', 'automatic']);
 const WARP_EXIT_MODES = new Set(['smooth', 'direct']);
 
-export function registerShipComputerSystems(computer, { state, getShip, getShipYaw, getPitchAngle, getAsteroids, shieldSystem = null, refinerySystem = null, deflectorRuntime = null, warpCoreSystem = null }) {
+export function registerShipComputerSystems(computer, { state, getShip, getShipYaw, getPitchAngle, getAsteroids, shieldSystem = null, refinerySystem = null, deflectorRuntime = null, warpCoreSystem = null, planetaryTransportCore = null, getShipTransporterPosition = null }) {
   if (!computer || !state || typeof getShip !== 'function' || typeof getShipYaw !== 'function' || typeof getPitchAngle !== 'function' || typeof getAsteroids !== 'function') {
     throw new TypeError('Dependências dos sistemas do computador incompletas.');
   }
@@ -83,6 +83,58 @@ export function registerShipComputerSystems(computer, { state, getShip, getShipY
     state.maneuver = { left: false, right: false, up: false, down: false };
   };
   const requireEngineering = context => context?.terminalId === 'engineering-console';
+
+  if (planetaryTransportCore) {
+    computer.registerSystem('planetary-transport', {
+      name: 'Transporte planetário · AURORA OS',
+      commands: {
+        status: () => planetaryTransportCore.getStatus(),
+        search: payload => planetaryTransportCore.findDestinations(payload?.query || '').filter(destination => destination.tags.includes('base')),
+        registerCoordinate: (payload, context) => {
+          if (context?.terminalId !== 'planetary-transport-console') return { accepted: false, reason: 'transport-terminal-required' };
+          if (payload?.source !== 'surface-map-pick') return { accepted: false, reason: 'destination-must-be-picked-on-earth-surface' };
+          try {
+            const destination = planetaryTransportCore.registerDestination({
+              id: payload?.id, name: payload?.name, bodyId: 'earth',
+              latitudeDeg: payload?.latitudeDeg, longitudeDeg: payload?.longitudeDeg,
+              elevationMeters: payload?.elevationMeters ?? 0, tags: ['surface-map-pick', 'earth']
+            });
+            const preview = planetaryTransportCore.previewDestination(destination.id, { altitudeOffsetMeters: 2.2 });
+            if (!preview.ok) {
+              planetaryTransportCore.unregisterDestination(destination.id);
+              return { accepted: false, reason: preview.reason, message: preview.message || 'A coordenada não possui uma superfície terrestre resolvível.' };
+            }
+            return destination;
+          } catch (error) {
+            return { accepted: false, reason: 'invalid-coordinate', message: String(error?.message || error) };
+          }
+        },
+        teleport: (payload, context) => {
+          if (context?.terminalId !== 'planetary-transport-console') return { ok: false, reason: 'transport-terminal-required' };
+          return planetaryTransportCore.teleport(payload?.destinationId, {
+            actor: 'character', altitudeOffsetMeters: payload?.altitudeOffsetMeters ?? 2.2
+          });
+        },
+        returnToShip: (_payload, context) => {
+          if (context?.terminalId !== 'terrestrial-transport-console') {
+            return { ok: false, reason: 'terrestrial-terminal-required' };
+          }
+          if (typeof getShipTransporterPosition !== 'function') {
+            return { ok: false, reason: 'ship-return-position-unavailable' };
+          }
+          const target = getShipTransporterPosition();
+          if (!target?.position) return { ok: false, reason: 'ship-return-position-unavailable' };
+          return planetaryTransportCore.transferToPosition({
+            id: 'ship-deck-2',
+            name: 'Plataforma de transporte · Deck 2',
+            position: target.position,
+            normal: target.normal
+          }, { actor: 'character' });
+        }
+      },
+      getStatus: () => planetaryTransportCore.getStatus().state
+    });
+  }
 
   computer.registerSystem('navigation', {
     name: 'Navegação',
