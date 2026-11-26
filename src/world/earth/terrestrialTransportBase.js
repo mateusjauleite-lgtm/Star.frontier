@@ -78,7 +78,7 @@ export function createTerrestrialTransportBase({ THREE: Three = THREE, earthSyst
   pad.position.set(0, -0.55, 0);
   root.add(pad);
   // Caminho físico entre a plataforma de transporte e a entrada do edifício.
-  const approach = addBox(root, 'BT01-Arrival-Walkway', [2.6, 0.07, 6.8], [-4.5, 0.09, -3.0], alloy);
+  addBox(root, 'BT01-Arrival-Walkway', [2.6, 0.07, 6.8], [-4.5, 0.09, -3.0], alloy);
   addCylinder(pad, 'BT01-Pad-Foundation', 7.2, 7.5, 0.62, [0, 0, 0], dark, 64);
   addCylinder(pad, 'BT01-Pad-Upper-Ring', 6.8, 6.8, 0.16, [0, 0.38, 0], alloy, 64);
   addCylinder(pad, 'BT01-Pad-Deck', 6.3, 6.3, 0.12, [0, 0.51, 0], dark, 64);
