@@ -10,6 +10,7 @@ import { registerGameRuntimeSystems } from './core/runtime/systems/registerGameR
 import { createGameplayFramePhases } from './core/runtime/gameplayFramePhases.js';
 import { registerGameWorldEntities } from './core/entities/GameEntityBindings.js';
 import { createGameWorld } from './world/gameWorld.js';
+import { GRAPHICS_QUALITY_LEVELS, getGraphicsQualityProfile, normalizeGraphicsQuality } from './ui/graphicsQuality.js';
 import { createShipLandingMetricTelemetryAdapter, SHIP_MODEL_METERS_PER_UNIT } from './ships/flight/landingAutopilot.js';
 import { EXTERNAL_ELEVATOR_CONFIG } from './ships/externalElevator.js';
 import { getLandingSite } from './ships/flight/landingSites.js';
@@ -460,7 +461,7 @@ const panelText = {
   ],
   settings: [
     'Configurações',
-    'Ajuste a qualidade gráfica e a sensibilidade.'
+    'Ajuste gráficos, sensibilidade e velocidade do relógio astronômico.'
   ]
 };
 
@@ -546,17 +547,24 @@ function renderPanel(key) {
       <div class="field-row">
         <label for="quality">Qualidade gráfica</label>
         <select id="quality">
-          <option ${state.settings.quality === 'Baixa' ? 'selected' : ''}>Baixa</option>
-          <option ${state.settings.quality === 'Média' ? 'selected' : ''}>Média</option>
-          <option ${state.settings.quality === 'Alta' ? 'selected' : ''}>Alta</option>
+          ${GRAPHICS_QUALITY_LEVELS.map(level => `<option value="${level}" ${normalizeGraphicsQuality(state.settings.quality) === level ? 'selected' : ''}>${level}</option>`).join('')}
         </select>
       </div>
       <div class="field-row">
-        <label for="sens">Sensibilidade</label>
+        <label for="sens">Sensibilidade da câmera</label>
         <input id="sens" type="range" min=".5" max="2" step=".1"
           value="${state.settings.sensitivity}">
       </div>
-      <small>As alterações são salvas neste dispositivo.</small>
+      <div class="field-row">
+        <label for="time-scale">Velocidade do tempo astronômico</label>
+        <select id="time-scale">
+          <option value="1" ${Number(state.settings.simulationTimeScale) === 1 ? 'selected' : ''}>1× · Normal</option>
+          <option value="10" ${Number(state.settings.simulationTimeScale) === 10 ? 'selected' : ''}>10×</option>
+          <option value="60" ${Number(state.settings.simulationTimeScale) === 60 ? 'selected' : ''}>60×</option>
+          <option value="300" ${Number(state.settings.simulationTimeScale) === 300 ? 'selected' : ''}>300×</option>
+        </select>
+      </div>
+      <small>O tempo astronômico não acelera a física da nave ou do personagem. O antialiasing é definido ao iniciar a partida.</small>
     `);
   }
 
@@ -629,12 +637,18 @@ function renderPanel(key) {
   });
 
   $('quality')?.addEventListener('change', event => {
-    state.settings.quality = event.target.value;
-    save();
+    state.settings.quality = normalizeGraphicsQuality(event.target.value);
+    applyGraphicsSettings();
   });
 
   $('sens')?.addEventListener('input', event => {
     state.settings.sensitivity = Number(event.target.value);
+    save();
+  });
+
+  $('time-scale')?.addEventListener('change', event => {
+    state.settings.simulationTimeScale = Number(event.target.value);
+    solarSystemDynamics?.setTimeScale?.(state.settings.simulationTimeScale);
     save();
   });
 }
@@ -646,6 +660,92 @@ document.querySelectorAll('[data-panel]').forEach(button => {
 });
 
 renderPanel('play');
+
+let fpsWindowStart = 0;
+let fpsWindowFrames = 0;
+let lastMeasuredFps = null;
+
+function updateFPS() {
+  const now = performance.now();
+  if (!fpsWindowStart) fpsWindowStart = now;
+  fpsWindowFrames++;
+  const elapsed = now - fpsWindowStart;
+  if (elapsed < 500) return;
+  lastMeasuredFps = Math.round(fpsWindowFrames * 1000 / elapsed);
+  fpsWindowFrames = 0;
+  fpsWindowStart = now;
+  const readout = $('pause-fps-value');
+  if (readout) readout.textContent = String(lastMeasuredFps);
+}
+
+function syncPauseSettingsControls() {
+  const quality = $('pause-quality');
+  const sensitivity = $('pause-sens');
+  const timeScale = $('pause-time-scale');
+  if (quality) quality.value = normalizeGraphicsQuality(state.settings.quality);
+  if (sensitivity) sensitivity.value = String(state.settings.sensitivity ?? 1);
+  if (timeScale) timeScale.value = String(state.settings.simulationTimeScale ?? 1);
+}
+
+function applyTextureAnisotropy(root, activeRenderer, profile) {
+  if (!root?.traverse || !activeRenderer?.capabilities) return;
+  const maximum = activeRenderer.capabilities.getMaxAnisotropy?.() ?? 1;
+  const anisotropy = Math.max(1, Math.min(maximum, profile.textureAnisotropy));
+  const textureSlots = ['map', 'aoMap', 'lightMap', 'bumpMap', 'normalMap', 'displacementMap', 'roughnessMap', 'metalnessMap', 'alphaMap', 'emissiveMap'];
+  root.traverse(object => {
+    const materials = Array.isArray(object.material) ? object.material : [object.material];
+    for (const material of materials) {
+      if (!material) continue;
+      for (const slot of textureSlots) {
+        const texture = material[slot];
+        if (!texture || texture.anisotropy === anisotropy) continue;
+        texture.anisotropy = anisotropy;
+        texture.needsUpdate = true;
+      }
+    }
+  });
+}
+
+function applyGraphicsSettings() {
+  state.settings.quality = normalizeGraphicsQuality(state.settings.quality);
+  const profile = getGraphicsQualityProfile(state.settings.quality);
+  if (solarSystemDynamics?.setTimeScale) {
+    const scale = Number(state.settings.simulationTimeScale);
+    solarSystemDynamics.setTimeScale(Number.isFinite(scale) && scale >= 0 ? scale : 1);
+  }
+  if (renderer) {
+    renderer.setPixelRatio(Math.min(devicePixelRatio || 1, profile.pixelRatioCap));
+    renderer.setSize(innerWidth, innerHeight);
+    applyTextureAnisotropy(scene, renderer, profile);
+    earthSystem?.setGraphicsQuality?.(profile);
+  }
+  save();
+  return profile;
+}
+
+document.addEventListener('change', event => {
+  if (event.target?.id === 'pause-quality') {
+    state.settings.quality = normalizeGraphicsQuality(event.target.value);
+    applyGraphicsSettings();
+    syncPauseSettingsControls();
+    return;
+  }
+  if (event.target?.id === 'pause-time-scale') {
+    state.settings.simulationTimeScale = Number(event.target.value);
+    solarSystemDynamics?.setTimeScale?.(state.settings.simulationTimeScale);
+    save();
+    const menuSelect = $('time-scale');
+    if (menuSelect) menuSelect.value = String(state.settings.simulationTimeScale);
+  }
+});
+
+document.addEventListener('input', event => {
+  if (event.target?.id !== 'pause-sens') return;
+  state.settings.sensitivity = Number(event.target.value);
+  save();
+  const menuSlider = $('sens');
+  if (menuSlider) menuSlider.value = String(state.settings.sensitivity);
+});
 
 /* MOTOR 3D */
 
@@ -922,7 +1022,7 @@ async function startGame() {
         refinery: dilithiumRefinerySystem,
         warpCore: warpCorePowerSystem,
         mining: miningRuntimeSystem,
-        pauseMenu: { document, state, resetInputs: resetTransientState },
+        pauseMenu: { document, state, resetInputs: resetTransientState, onSettingsOpened: syncPauseSettingsControls },
         character: {
           core: characterCore,
           resetTransientState,
@@ -992,6 +1092,7 @@ async function startGame() {
             updateShipLandingGuidance, THREE, shipVisual, shipEarthContactPoints,
             shipLandingGearContactPoints, forwardVector, state,
             getActivePilotHudProfile: () => activePilotHudProfile,
+            updateFPS,
             updateNavigationSensorMap: () => navigationSensorMap.update(
               state.deflectorCoreTelemetry?.sensors,
               ship?.position,
@@ -1254,6 +1355,10 @@ async function init3D() {
     characterWeaponController,
     characterPhysics
   } = world);
+
+  state.settings.quality = normalizeGraphicsQuality(state.settings.quality);
+  applyGraphicsSettings();
+  syncPauseSettingsControls();
 
   planetaryTransportCore = world.planetaryTransportCore;
   terrestrialTransportBase = world.terrestrialTransportBase;
@@ -2860,8 +2965,9 @@ const characterControls = registerCharacterControls({
   onAimLook: (dx, dy) => {
     const terrestrialCamera = characterInWorldFrame;
     // A câmera no solo usa sensibilidade própria, cerca de 3x menor que a câmera interna.
-    const yawDelta = -dx * (terrestrialCamera ? 0.00165 : 0.005);
-    const pitchDelta = dy * (terrestrialCamera ? 0.00135 : 0.004);
+    const sensitivity = THREE.MathUtils.clamp(Number(state.settings?.sensitivity) || 1, 0.5, 2);
+    const yawDelta = -dx * (terrestrialCamera ? 0.00165 : 0.005) * sensitivity;
+    const pitchDelta = dy * (terrestrialCamera ? 0.00135 : 0.004) * sensitivity;
     if (terrestrialCamera) {
       groundCameraPitch = THREE.MathUtils.clamp(groundCameraPitch - pitchDelta, -0.65, 0.65);
     } else {
