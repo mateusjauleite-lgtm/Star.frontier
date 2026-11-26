@@ -131,14 +131,15 @@ export function createTerrestrialTransportBase({ THREE: Three = THREE, earthSyst
   const baseCollisionUp = new Three.Vector3();
   const baseCollisionDown = new Three.Vector3();
   const baseCollisionNormalMatrix = new Three.Matrix3();
+  const baseWorldQuaternion = new Three.Quaternion();
 
   // Consulta somente faces superiores reais da geometria visível da BT-01.
   // Não cria plano auxiliar nem collider invisível separado da estrutura.
   function sampleCollisionSurface(worldPosition) {
     if (!worldPosition?.isVector3) return null;
     root.updateWorldMatrix(true, true);
-    root.getWorldQuaternion(root.quaternion.clone());
-    baseCollisionUp.set(0, 1, 0).applyQuaternion(root.getWorldQuaternion(new Three.Quaternion())).normalize();
+    root.getWorldQuaternion(baseWorldQuaternion);
+    baseCollisionUp.set(0, 1, 0).applyQuaternion(baseWorldQuaternion).normalize();
     baseCollisionDown.copy(baseCollisionUp).negate();
     const rayOrigin = worldPosition.clone().addScaledVector(baseCollisionUp, 20);
     baseCollisionRaycaster.set(rayOrigin, baseCollisionDown);
