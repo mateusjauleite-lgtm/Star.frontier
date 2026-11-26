@@ -561,7 +561,7 @@ function renderPanel(key) {
           <option value="300" ${Number(state.settings.simulationTimeScale) === 300 ? 'selected' : ''}>300×</option>
         </select>
       </div>
-      <small>O tempo astronômico não acelera a física da nave ou do personagem.</small>
+      <small>O tempo astronômico não acelera a física da nave ou do personagem. O antialiasing é definido ao iniciar a partida.</small>
     `);
   }
 
