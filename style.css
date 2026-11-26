@@ -1440,8 +1440,8 @@ select:focus {
 }
 .character-aim-area {
   position: absolute;
-  /* A região de olhar nunca invade o joystick esquerdo, inclusive em telas estreitas. */
-  inset: 15% 0 0 max(164px, 42%);
+  /* Arrasto da câmera restrito à metade direita da tela. */
+  inset: 0 0 0 50%;
   z-index: 1;
   pointer-events: auto;
   touch-action: none;
@@ -2140,13 +2140,18 @@ body {
   position: absolute;
   right: max(18px, env(safe-area-inset-right));
   bottom: max(150px, calc(env(safe-area-inset-bottom) + 138px));
+  z-index: 3;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 12px;
+  /* O grupo não bloqueia a tela; cada botão recebe o próprio toque. */
   pointer-events: none;
 }
 .character-movement-btn {
+  position: relative;
+  z-index: 4;
+  pointer-events: auto;
   width: 64px;
   height: 64px;
   border: 1px solid rgba(67,217,255,.62);
