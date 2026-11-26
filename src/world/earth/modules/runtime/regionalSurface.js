@@ -334,6 +334,23 @@ export function createEarthRegionalSurfaceRuntime({
   }
 
   return {
+    setQuality({ maxLevel: nextMaxLevel, maxTiles: nextMaxTiles, buildPerUpdate: nextBuildPerUpdate } = {}) {
+      const level = Number(nextMaxLevel);
+      const tiles = Number(nextMaxTiles);
+      const build = Number(nextBuildPerUpdate);
+      if (!Number.isInteger(level) || level < 0 || level > 16 ||
+          !Number.isInteger(tiles) || tiles < 6 || tiles > 256 ||
+          !Number.isInteger(build) || build < 1 || build > 16) return false;
+      const changed = level !== maxLevel || tiles !== maxTiles || build !== buildPerUpdate;
+      if (!changed) return true;
+      maxLevel = level;
+      maxTiles = tiles;
+      buildPerUpdate = build;
+      // Force a fresh tile selection; old tiles remain visible until the new
+      // quality generation is complete, avoiding a temporary hole in terrain.
+      lastSelection = [];
+      return true;
+    },
     update(delta, context) {
       if (disposed || !surface || !context?.camera) return;
       elapsed += Math.min(Math.max(delta || 0, 0), .1);
