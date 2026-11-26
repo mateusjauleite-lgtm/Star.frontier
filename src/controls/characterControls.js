@@ -14,8 +14,11 @@ export function registerCharacterControls({
   const sprintButton = get('character-sprint-btn');
   const phaserButton = get('character-phaser-btn');
   const aimButton = get('character-aim-btn');
+  const aimStick = get('character-aim-stick');
+  const aimKnob = aimStick?.querySelector('.character-aim-knob');
 
   let moveInput = { x: 0, y: 0 };
+  let aimInput = { x: 0, y: 0 };
   let sprintHeld = false;
   let jumpQueued = false;
   let movePointer = null;
@@ -123,40 +126,51 @@ export function registerCharacterControls({
 
   aimButton?.addEventListener('click', onToggleAim);
 
-  const aimArea = get('character-aim-area');
-  if (aimArea) {
-    aimArea.addEventListener('pointerdown', event => {
-      // Never let the camera-look surface claim a touch that begins on the movement stick.
-      const stickRect = characterStick?.getBoundingClientRect?.();
-      const startsOverMoveStick = stickRect &&
-        event.clientX >= stickRect.left && event.clientX <= stickRect.right &&
-        event.clientY >= stickRect.top && event.clientY <= stickRect.bottom;
-      if (startsOverMoveStick || event.target?.closest?.('#character-move-stick')) return;
+  if (aimStick) {
+    const updateAimStick = event => {
+      if (!isOnFoot()) { aimInput = { x: 0, y: 0 }; return; }
+      const rect = aimStick.getBoundingClientRect();
+      const max = Math.max(1, rect.width * 0.34);
+      let x = event.clientX - rect.left - rect.width / 2;
+      let y = event.clientY - rect.top - rect.height / 2;
+      const length = Math.hypot(x, y);
+      if (length > max) { x *= max / length; y *= max / length; }
+      aimInput = { x: x / max, y: y / max };
+      if (aimKnob) aimKnob.style.transform = `translate(-50%,-50%) translate(${x}px,${y}px)`;
+    };
+    aimStick.addEventListener('pointerdown', event => {
+      if (!isOnFoot() || aimPointer !== null) return;
       event.preventDefault();
+      event.stopPropagation?.();
       aimPointer = event.pointerId;
-      previousAimX = event.clientX;
-      previousAimY = event.clientY;
-      aimArea.setPointerCapture(aimPointer);
+      aimStick.classList.add('is-active');
+      aimStick.setPointerCapture(aimPointer);
+      updateAimStick(event);
     });
-    aimArea.addEventListener('pointermove', event => {
+    aimStick.addEventListener('pointermove', event => {
       if (aimPointer !== event.pointerId) return;
       event.preventDefault();
-      const dx = event.clientX - previousAimX;
-      const dy = event.clientY - previousAimY;
-      previousAimX = event.clientX;
-      previousAimY = event.clientY;
-      onAimLook(dx, dy);
+      event.stopPropagation?.();
+      updateAimStick(event);
     });
     const endAim = event => {
-      if (aimPointer === event.pointerId) aimPointer = null;
+      if (aimPointer !== event.pointerId) return;
+      aimPointer = null;
+      aimInput = { x: 0, y: 0 };
+      aimStick.classList.remove('is-active');
+      if (aimKnob) aimKnob.style.transform = 'translate(-50%,-50%)';
     };
-    ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type => {
-      aimArea.addEventListener(type, endAim);
-    });
+    ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type => aimStick.addEventListener(type, endAim));
   }
 
   return {
     getMoveInput: () => ({ ...moveInput }),
+    getAimInput: () => ({ ...aimInput }),
+    updateAim: dt => {
+      if (!isOnFoot()) { aimInput = { x: 0, y: 0 }; return; }
+      const delta = Math.min(Math.max(Number(dt) || 0, 0), 0.05) * 240;
+      if (delta > 0 && (Math.abs(aimInput.x) + Math.abs(aimInput.y)) > 0.04) onAimLook(aimInput.x * delta, aimInput.y * delta);
+    },
     isSprinting: () => sprintHeld,
     consumeJump: () => {
       const queued = jumpQueued;
@@ -167,6 +181,9 @@ export function registerCharacterControls({
     reset: () => {
       movePointer = null;
       aimPointer = null;
+      aimInput = { x: 0, y: 0 };
+      aimStick?.classList.remove('is-active');
+      if (aimKnob) aimKnob.style.transform = 'translate(-50%,-50%)';
       setMoveInput(0, 0);
       jumpQueued = false;
       stopSprint();
