@@ -490,7 +490,16 @@
             <label for="pause-sens">Sensibilidade da câmera</label>
             <input id="pause-sens" type="range" min=".5" max="2" step=".1" value="1">
           </div>
-          <small>As alterações são salvas neste dispositivo.</small>
+          <div class="field-row">
+            <label for="pause-time-scale">Velocidade do tempo astronômico</label>
+            <select id="pause-time-scale">
+              <option value="1">1× · Normal</option>
+              <option value="10">10×</option>
+              <option value="60">60×</option>
+              <option value="300">300×</option>
+            </select>
+          </div>
+          <small>Afeta o relógio astronômico, não a física da nave ou do personagem. As alterações são salvas neste dispositivo.</small>
           <button id="pause-settings-back-btn" class="secondary" type="button">VOLTAR</button>
         </section>
       </div>
