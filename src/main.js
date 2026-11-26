@@ -1787,7 +1787,7 @@ function sampleTerrestrialWalkableSurface(worldPosition) {
   // permanece o sampler DEM global da Terra.
   const baseContact = terrestrialTransportBase?.sampleCollisionSurface?.(worldPosition);
   if (baseContact?.worldPosition && baseContact?.worldNormal) return baseContact;
-  return sampleTerrestrialWalkableSurface(worldPosition) ?? null;
+  return earthSystem?.getCollisionSurface?.()?.sampleWorldPosition?.(worldPosition) ?? null;
 }
 
 function updateCharacterWorldPhysics(deltaSeconds) {
