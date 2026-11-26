@@ -21,9 +21,10 @@ export function registerAimControls({ document, THREE, state, getCameraInput = (
       const dy = event.clientY - previousTouchY;
       previousTouchX = event.clientX;
       previousTouchY = event.clientY;
+      const sensitivity = THREE.MathUtils.clamp(Number(state.settings?.sensitivity) || 1, 0.5, 2);
       const nextView = {
-        x: THREE.MathUtils.clamp(state.view.x - dy * 0.004, -1.45, 1.45),
-        y: THREE.MathUtils.euclideanModulo(state.view.y - dx * 0.004 + Math.PI, Math.PI * 2) - Math.PI
+        x: THREE.MathUtils.clamp(state.view.x - dy * 0.004 * sensitivity, -1.45, 1.45),
+        y: THREE.MathUtils.euclideanModulo(state.view.y - dx * 0.004 * sensitivity + Math.PI, Math.PI * 2) - Math.PI
       };
       const cameraInput = getCameraInput?.();
       if (cameraInput) cameraInput.setView(nextView.x, nextView.y);
