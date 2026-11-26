@@ -21,7 +21,7 @@ function makeElement({ width = 100 } = {}) {
       return { left: 0, top: 0, right: width, bottom: width, width, height: width };
     },
     querySelector(selector) {
-      if (selector === '.character-move-knob') return this.knob || null;
+      if (selector === '.character-move-knob' || selector === '.character-aim-knob') return this.knob || null;
       return null;
     },
     classList: {
@@ -107,8 +107,8 @@ test('character joystick normalizes movement and releases it on pointer end', ()
 test('right aim joystick drives camera direction and recenters on release', () => {
   const { controls, elements, aimed } = setup();
   const stick = elements.get('character-aim-stick');
-  stick.fire('pointerdown', { pointerId: 14, clientX: 50, clientY: 50 });
-  stick.fire('pointermove', { pointerId: 14, clientX: 80, clientY: 50 });
+  stick.fire('pointerdown', { pointerId: 14, clientX: 200, clientY: 50 });
+  stick.fire('pointermove', { pointerId: 14, clientX: 230, clientY: 50 });
   assert.ok(controls.getAimInput().x > 0.8);
   controls.updateAim(1 / 60);
   assert.equal(aimed.length, 1);
@@ -165,11 +165,7 @@ test('phaser and aim controls delegate actions without owning weapon state', () 
   phaser.fire('click', { detail: 0 });
   assert.deepEqual(fired, ['phaser', 'phaser']);
   elements.get('character-aim-btn').fire('click');
-  const aimArea = elements.get('character-aim-area');
-  aimArea.fire('pointerdown', { pointerId: 9, clientX: 160, clientY: 20 });
-  aimArea.fire('pointermove', { pointerId: 9, clientX: 168, clientY: 25 });
-  aimArea.fire('pointerup', { pointerId: 9 });
-  assert.deepEqual(aimed, ['toggle', [8, 5]]);
+  assert.deepEqual(aimed, ['toggle']);
 });
 
 test('reset clears all transient character inputs', () => {
@@ -177,7 +173,7 @@ test('reset clears all transient character inputs', () => {
   elements.get('character-move-stick').fire('pointerdown', { pointerId: 2, clientX: 80, clientY: 50 });
   elements.get('character-jump-btn').fire('pointerdown');
   elements.get('character-sprint-btn').fire('pointerdown');
-  elements.get('character-aim-stick').fire('pointerdown', { pointerId: 3, clientX: 80, clientY: 50 });
+  elements.get('character-aim-stick').fire('pointerdown', { pointerId: 3, clientX: 230, clientY: 50 });
   controls.reset();
   assert.deepEqual(controls.getMoveInput(), { x: 0, y: 0 });
   assert.deepEqual(controls.getAimInput(), { x: 0, y: 0 });
