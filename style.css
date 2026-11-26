@@ -1507,8 +1507,8 @@ select:focus {
 .character-aim-stick.is-active { border-color: rgba(67,217,255,.95); }
 .character-aim-knob {
   position: absolute;
-  left: calc(50% - 21px);
-  top: calc(50% - 21px);
+  left: 50%;
+  top: 50%;
   width: 42px;
   height: 42px;
   border-radius: 50%;
@@ -1576,7 +1576,8 @@ select:focus {
   .character-equipment span { font-size: 8px; }
   .character-equipment b { font-size: 10px; }
   .character-move-stick, .character-aim-stick { width: 88px; height: 88px; }
-  .character-move-knob, .character-aim-knob { width: 36px; height: 36px; left: calc(50% - 18px); top: calc(50% - 18px); }
+  .character-move-knob { width: 36px; height: 36px; left: calc(50% - 18px); top: calc(50% - 18px); }
+  .character-aim-knob { width: 36px; height: 36px; left: 50%; top: 50%; }
   .character-action-btn { min-width: 66px; min-height: 48px; }
 }
 
