@@ -227,9 +227,6 @@ const characterRight = new THREE.Vector3();
 const characterMove = new THREE.Vector3();
 const characterLookEuler = new THREE.Euler(0, 0, 0, 'YXZ');
 let characterFootstepTimer = 0;
-let characterAnimationTestRemaining = 0;
-let characterAnimationTestIndex = -1;
-const characterAnimationTestPoses = ['walk', 'run', 'jump', 'fall', 'land', 'sit', 'stand', 'idle'];
 let characterStaminaAccumulator = 0;
 let characterStaminaHudTimer = 0;
 let phaserChargeRemaining = 0;
@@ -1879,6 +1876,7 @@ function updateShipSystems(dt) {
 
 function updateCharacterMovement(dt) {
   if (!characterModel || characterCore.snapshot().mode !== 'on-foot') return;
+  characterControls?.updateAim(dt);
   syncCharacterDeckFrame();
   // A gravidade artificial pertence somente ao referencial interno da nave.
   // No exterior, o personagem usa exclusivamente a gravidade planetária.
@@ -2067,12 +2065,7 @@ function updateCharacterMovement(dt) {
     characterCore.setGrounded(physicsState.grounded);
   }
 
-  if (characterAnimationTestRemaining > 0) {
-    characterAnimationTestRemaining = Math.max(0, characterAnimationTestRemaining - dt);
-  }
-  if (characterAnimationTestRemaining > 0) {
-    // Mantém a pose de teste sem alterar a física nem o deslocamento do personagem.
-  } else if (!physicsState?.grounded) {
+  if (!physicsState?.grounded) {
     characterAnimator?.play(physicsState.velocityY > 0 ? 'jump' : 'fall');
   } else if (physicsState.justLanded) {
     characterAnimator?.play('land', { restart: true });
@@ -2083,11 +2076,6 @@ function updateCharacterMovement(dt) {
   }
 
   characterAnimator?.update(dt);
-  const animationButton = $('character-animation-btn');
-  if (animationButton) {
-    animationButton.classList.toggle('is-active', characterAnimationTestRemaining > 0);
-    if (characterAnimationTestRemaining <= 0) animationButton.querySelector('small').textContent = 'ANIMAÇÃO';
-  }
   if (characterJumpButton) characterJumpButton.disabled = !characterPhysics?.grounded;
   if (characterSprintButton) characterSprintButton.disabled = characterCore.snapshot().stamina <= 0;
 }
@@ -3000,19 +2988,6 @@ const characterControls = registerCharacterControls({
 });
 const characterJumpButton = characterControls.jumpButton;
 const characterSprintButton = characterControls.sprintButton;
-const characterAnimationButton = $('character-animation-btn');
-
-characterAnimationButton?.addEventListener('click', () => {
-  if (characterCore.snapshot().mode !== 'on-foot' || !characterAnimator) return;
-  characterAnimationTestIndex = (characterAnimationTestIndex + 1) % characterAnimationTestPoses.length;
-  const pose = characterAnimationTestPoses[characterAnimationTestIndex];
-  characterAnimationTestRemaining = pose === 'idle' ? 1.1 : 1.45;
-  characterAnimator.play(pose, { restart: true });
-  characterAnimationButton.classList.add('is-active');
-  characterAnimationButton.querySelector('small').textContent = pose.toUpperCase();
-  toast('Teste de animação: ' + pose.toUpperCase());
-});
-
 function updateCharacterWeapon(dt) {
   const equipped = isPhaserEquipped();
   if (!equipped) characterWeaponController?.reset();
