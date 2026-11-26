@@ -100,6 +100,16 @@ test('character joystick normalizes movement and releases it on pointer end', ()
   assert.deepEqual(controls.getMoveInput(), { x: 0, y: 0 });
 });
 
+test('movement joystick touch does not invoke camera look', () => {
+  const { controls, elements, aimed } = setup();
+  const stick = elements.get('character-move-stick');
+  stick.fire('pointerdown', { pointerId: 12, clientX: 80, clientY: 50 });
+  stick.fire('pointermove', { pointerId: 12, clientX: 90, clientY: 50 });
+  assert.ok(controls.getMoveInput().x > 0);
+  assert.deepEqual(aimed, []);
+  stick.fire('pointerup', { pointerId: 12 });
+});
+
 test('jump is queued only while on foot and grounded, then consumed once', () => {
   const { controls, elements, setOnFoot, setGrounded } = setup();
   const jump = elements.get('character-jump-btn');
