@@ -103,6 +103,14 @@ test('character joystick normalizes movement and releases it on pointer end', ()
   assert.deepEqual(controls.getMoveInput(), { x: 0, y: 0 });
 });
 
+test('camera-look surface rejects touches inside movement joystick bounds', () => {
+  const { elements, aimed } = setup();
+  const aimArea = elements.get('character-aim-area');
+  aimArea.fire('pointerdown', { pointerId: 14, clientX: 80, clientY: 50 });
+  aimArea.fire('pointermove', { pointerId: 14, clientX: 95, clientY: 55 });
+  assert.deepEqual(aimed, []);
+});
+
 test('movement joystick touch does not invoke camera look', () => {
   const { controls, elements, aimed } = setup();
   const stick = elements.get('character-move-stick');
