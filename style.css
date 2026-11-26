@@ -1251,7 +1251,8 @@ select:focus {
 }
 .character-aim-area {
   position: absolute;
-  inset: 15% 0 0 34%;
+  /* Mantém a zona de olhar afastada do joystick esquerdo em telas estreitas. */
+  inset: 15% 0 0 42%;
   pointer-events: auto;
   touch-action: none;
 }
