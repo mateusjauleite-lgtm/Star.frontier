@@ -552,7 +552,16 @@ function renderPanel(key) {
         <input id="sens" type="range" min=".5" max="2" step=".1"
           value="${state.settings.sensitivity}">
       </div>
-      <small>As alterações são salvas neste dispositivo.</small>
+      <div class="field-row">
+        <label for="time-scale">Velocidade do tempo astronômico</label>
+        <select id="time-scale">
+          <option value="1" ${Number(state.settings.simulationTimeScale) === 1 ? 'selected' : ''}>1× · Normal</option>
+          <option value="10" ${Number(state.settings.simulationTimeScale) === 10 ? 'selected' : ''}>10×</option>
+          <option value="60" ${Number(state.settings.simulationTimeScale) === 60 ? 'selected' : ''}>60×</option>
+          <option value="300" ${Number(state.settings.simulationTimeScale) === 300 ? 'selected' : ''}>300×</option>
+        </select>
+      </div>
+      <small>O tempo astronômico não acelera a física da nave ou do personagem.</small>
     `);
   }
 
@@ -633,6 +642,12 @@ function renderPanel(key) {
     state.settings.sensitivity = Number(event.target.value);
     save();
   });
+
+  $('time-scale')?.addEventListener('change', event => {
+    state.settings.simulationTimeScale = Number(event.target.value);
+    solarSystemDynamics?.setTimeScale?.(state.settings.simulationTimeScale);
+    save();
+  });
 }
 
 document.querySelectorAll('[data-panel]').forEach(button => {
@@ -646,8 +661,10 @@ renderPanel('play');
 function syncPauseSettingsControls() {
   const quality = $('pause-quality');
   const sensitivity = $('pause-sens');
+  const timeScale = $('pause-time-scale');
   if (quality) quality.value = normalizeGraphicsQuality(state.settings.quality);
   if (sensitivity) sensitivity.value = String(state.settings.sensitivity ?? 1);
+  if (timeScale) timeScale.value = String(state.settings.simulationTimeScale ?? 1);
 }
 
 function applyTextureAnisotropy(root, activeRenderer, profile) {
@@ -672,6 +689,10 @@ function applyTextureAnisotropy(root, activeRenderer, profile) {
 function applyGraphicsSettings() {
   state.settings.quality = normalizeGraphicsQuality(state.settings.quality);
   const profile = getGraphicsQualityProfile(state.settings.quality);
+  if (solarSystemDynamics?.setTimeScale) {
+    const scale = Number(state.settings.simulationTimeScale);
+    solarSystemDynamics.setTimeScale(Number.isFinite(scale) && scale >= 0 ? scale : 1);
+  }
   if (renderer) {
     renderer.setPixelRatio(Math.min(devicePixelRatio || 1, profile.pixelRatioCap));
     renderer.setSize(innerWidth, innerHeight);
@@ -683,10 +704,20 @@ function applyGraphicsSettings() {
 }
 
 document.addEventListener('change', event => {
-  if (event.target?.id !== 'pause-quality') return;
-  state.settings.quality = normalizeGraphicsQuality(event.target.value);
-  applyGraphicsSettings();
-  syncPauseSettingsControls();
+  if (event.target?.id === 'pause-quality') {
+    state.settings.quality = normalizeGraphicsQuality(event.target.value);
+    applyGraphicsSettings();
+    syncPauseSettingsControls();
+    return;
+  }
+  if (event.target?.id === 'pause-time-scale') {
+    state.settings.simulationTimeScale = Number(event.target.value);
+    solarSystemDynamics?.setTimeScale?.(state.settings.simulationTimeScale);
+    save();
+    const menuSelect = $('time-scale');
+    if (menuSelect) menuSelect.value = String(state.settings.simulationTimeScale);
+    return;
+  }
 });
 
 document.addEventListener('input', event => {
