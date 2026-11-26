@@ -154,6 +154,10 @@ export async function createGameWorld({
   shipFlightKernel = await loadShipFlightKernel();
   gravityKernel = await loadGravityKernel();
   solarSystemDynamics = createSolarSystemDynamics({ gravityKernel });
+  const initialTimeScale = Number(state.settings?.simulationTimeScale);
+  solarSystemDynamics.setTimeScale(
+    Number.isFinite(initialTimeScale) && initialTimeScale >= 0 ? initialTimeScale : 1
+  );
   const solarSystemPresentation = createSolarSystemPresentationAdapter(THREE, {
     visualUnitsPerMeter: EARTH_RENDER_RADIUS_UNITS / 6_371_008.8,
     anchorBodyId: 'earth',
