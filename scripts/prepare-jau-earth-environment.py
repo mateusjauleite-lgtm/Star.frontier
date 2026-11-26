@@ -81,7 +81,7 @@ def main():
     water = np.where(classes == 80, 255, 0).astype(np.uint8)
 
     dz_drow, dz_dcol = np.gradient(dem, args.resolution_m, args.resolution_m)
-    nx, ny, nz = -dz_dcol, -dz_drow, np.ones_like(dem)
+    nx, ny, nz = -dz_dcol, dz_drow, np.ones_like(dem)
     length = np.sqrt(nx * nx + ny * ny + nz * nz)
     normal = np.stack(((nx / length + 1) * 127.5,
                        (ny / length + 1) * 127.5,
