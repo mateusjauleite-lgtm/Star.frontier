@@ -658,6 +658,23 @@ document.querySelectorAll('[data-panel]').forEach(button => {
 
 renderPanel('play');
 
+let fpsWindowStart = 0;
+let fpsWindowFrames = 0;
+let lastMeasuredFps = null;
+
+function updateFPS() {
+  const now = performance.now();
+  if (!fpsWindowStart) fpsWindowStart = now;
+  fpsWindowFrames++;
+  const elapsed = now - fpsWindowStart;
+  if (elapsed < 500) return;
+  lastMeasuredFps = Math.round(fpsWindowFrames * 1000 / elapsed);
+  fpsWindowFrames = 0;
+  fpsWindowStart = now;
+  const readout = $('pause-fps-value');
+  if (readout) readout.textContent = String(lastMeasuredFps);
+}
+
 function syncPauseSettingsControls() {
   const quality = $('pause-quality');
   const sensitivity = $('pause-sens');
@@ -1072,6 +1089,7 @@ async function startGame() {
             updateShipLandingGuidance, THREE, shipVisual, shipEarthContactPoints,
             shipLandingGearContactPoints, forwardVector, state,
             getActivePilotHudProfile: () => activePilotHudProfile,
+            updateFPS,
             updateNavigationSensorMap: () => navigationSensorMap.update(
               state.deflectorCoreTelemetry?.sensors,
               ship?.position,
