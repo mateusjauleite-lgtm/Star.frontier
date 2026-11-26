@@ -1767,7 +1767,9 @@ function updateShipSystems(dt) {
 function updateCharacterMovement(dt) {
   if (!characterModel || characterCore.snapshot().mode !== 'on-foot') return;
   syncCharacterDeckFrame();
-  artificialGravityField.update(dt, state);
+  // A gravidade artificial pertence somente ao referencial interno da nave.
+  // No exterior, o personagem usa exclusivamente a gravidade planetária.
+  if (!characterInWorldFrame) artificialGravityField.update(dt, state);
   terrestrialTransportBase?.updatePlacement?.();
   updateTerrestrialTransportInteraction(dt);
   if (externalElevator?.moving && externalElevatorRiding) {
@@ -1821,18 +1823,18 @@ function updateCharacterMovement(dt) {
         if (contact) {
           const normal = contact.worldNormal.clone().normalize();
           const groundedPosition = contact.worldPosition.clone().addScaledVector(normal, 0.21);
+          // Mantém o ator no frame terrestre; a posição candidata é convertida
+          // de mundo para local pelo EarthReferenceFrames.
+          earthReferenceFrames?.attachToSurface(player);
           earthReferenceFrames?.setWorldPosition(player, groundedPosition);
           earthReferenceFrames?.alignToSurface(player, normal, forward);
           characterWorldGrounded = true;
-          characterCore.setGrounded(true);
-        } else {
-          earthReferenceFrames?.attachToGlobal(player);
-          earthReferenceFrames?.setWorldPosition(player, candidate);
-          characterWorldGrounded = false;
           characterWorldVelocity.set(0, 0, 0);
-          characterCore.setGrounded(false);
+          characterCore.setGrounded(true);
+          worldMoving = true;
         }
-        worldMoving = true;
+        // Sem amostra válida de contato, rejeita apenas este passo. Não solta o
+        // personagem para gravidade livre por uma falha pontual do sampler.
       }
     }
 
