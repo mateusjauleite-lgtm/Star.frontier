@@ -225,6 +225,7 @@ export function createGameplayFramePhases(getDependencies) {
     render() {
       const { renderer, scene, camera } = getDependencies();
   renderer.render(scene, camera);
+  getDependencies().updateFPS?.();
     },
 
     updateHud() {
