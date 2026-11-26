@@ -102,7 +102,13 @@ def main():
         'regionId': 'earth-surface-jau-sp-br', 'center': {'latitudeDeg': LATITUDE, 'longitudeDeg': LONGITUDE},
         'radiusKm': args.radius_km, 'resolutionMeters': args.resolution_m,
         'width': width, 'height': height, 'crs': target_crs,
-        'transform': list(affine)[:6], 'boundsProjectedMeters': [left, bottom, right, top],\n        'coverageWgs84': {\n            'west': min(transform(target_crs, 'EPSG:4326', [left, right], [bottom, top])[0]),\n            'east': max(transform(target_crs, 'EPSG:4326', [left, right], [bottom, top])[0]),\n            'south': min(transform(target_crs, 'EPSG:4326', [left, right], [bottom, top])[1]),\n            'north': max(transform(target_crs, 'EPSG:4326', [left, right], [bottom, top])[1])\n        },
+        'transform': list(affine)[:6], 'boundsProjectedMeters': [left, bottom, right, top],
+        'coverageWgs84': {
+            'west': min(transform(target_crs, 'EPSG:4326', [left, right], [bottom, top])[0]),
+            'east': max(transform(target_crs, 'EPSG:4326', [left, right], [bottom, top])[0]),
+            'south': min(transform(target_crs, 'EPSG:4326', [left, right], [bottom, top])[1]),
+            'north': max(transform(target_crs, 'EPSG:4326', [left, right], [bottom, top])[1])
+        },
         'landCoverSource': 'ESA WorldCover 2021 v200', 'landCoverLicense': 'CC-BY-4.0',
         'landCoverAttribution': '© ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by ESA WorldCover consortium',
         'demSource': 'User-supplied DEM; record exact product, version, license and vertical datum before packaging',
