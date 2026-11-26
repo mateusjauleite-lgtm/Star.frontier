@@ -18,7 +18,7 @@ function makeElement({ width = 100 } = {}) {
     },
     setPointerCapture() {},
     getBoundingClientRect() {
-      return { left: 0, top: 0, width, height: width };
+      return { left: 0, top: 0, right: width, bottom: width, width, height: width };
     },
     querySelector(selector) {
       if (selector === '.character-move-knob') return this.knob || null;
@@ -56,6 +56,9 @@ function setup() {
   const elements = new Map(ids.map(id => [id, makeElement()]));
   const knob = makeElement();
   elements.get('character-move-stick').knob = knob;
+  elements.get('character-aim-area').getBoundingClientRect = () => ({
+    left: 150, top: 0, right: 250, bottom: 100, width: 100, height: 100
+  });
   const document = { getElementById: id => elements.get(id) || null };
   const windowListeners = new Map();
   const window = {
@@ -149,8 +152,8 @@ test('phaser and aim controls delegate actions without owning weapon state', () 
   assert.deepEqual(fired, ['phaser', 'phaser']);
   elements.get('character-aim-btn').fire('click');
   const aimArea = elements.get('character-aim-area');
-  aimArea.fire('pointerdown', { pointerId: 9, clientX: 10, clientY: 20 });
-  aimArea.fire('pointermove', { pointerId: 9, clientX: 18, clientY: 25 });
+  aimArea.fire('pointerdown', { pointerId: 9, clientX: 160, clientY: 20 });
+  aimArea.fire('pointermove', { pointerId: 9, clientX: 168, clientY: 25 });
   aimArea.fire('pointerup', { pointerId: 9 });
   assert.deepEqual(aimed, ['toggle', [8, 5]]);
 });
