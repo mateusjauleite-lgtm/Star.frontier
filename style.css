@@ -1228,7 +1228,8 @@ select:focus {
 }
 .character-aim-area {
   position: absolute;
-  inset: 15% 0 0 34%;
+  inset: 15% 0 0 max(164px, 34%);
+  z-index: 1;
   pointer-events: auto;
   touch-action: none;
 }
@@ -1278,6 +1279,7 @@ select:focus {
   border-radius: 50%;
   background: radial-gradient(circle, rgba(67,217,255,.14), rgba(3,12,26,.76));
   box-shadow: inset 0 0 18px rgba(67,217,255,.1);
+  z-index: 2;
   pointer-events: auto;
   touch-action: none;
 }
