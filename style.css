@@ -1352,6 +1352,8 @@ select:focus {
 }
 
 .character-top-actions {
+  position: relative;
+  z-index: 8;
   display: flex;
   align-items: flex-start;
   gap: 7px;
@@ -1438,14 +1440,6 @@ select:focus {
   z-index: 6;
   pointer-events: none;
 }
-.character-aim-area {
-  position: absolute;
-  /* Arrasto da câmera restrito à metade direita da tela. */
-  inset: 0 0 0 50%;
-  z-index: 1;
-  pointer-events: auto;
-  touch-action: none;
-}
 .character-aim-reticle {
   position: absolute;
   left: 50%;
@@ -1496,6 +1490,44 @@ select:focus {
   pointer-events: auto;
   touch-action: none;
 }
+.character-aim-stick {
+  position: absolute;
+  right: max(18px, env(safe-area-inset-right));
+  bottom: max(18px, env(safe-area-inset-bottom));
+  width: 104px;
+  height: 104px;
+  border: 2px solid rgba(67,217,255,.5);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(67,217,255,.14), rgba(3,12,26,.76));
+  box-shadow: inset 0 0 18px rgba(67,217,255,.1);
+  z-index: 2;
+  pointer-events: auto;
+  touch-action: none;
+}
+.character-aim-stick.is-active { border-color: rgba(67,217,255,.95); }
+.character-aim-knob {
+  position: absolute;
+  left: calc(50% - 21px);
+  top: calc(50% - 21px);
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,.7);
+  background: linear-gradient(145deg,#43d9ff,#1264a6);
+  transform: translate(-50%,-50%);
+  pointer-events: none;
+}
+.character-aim-stick small {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 8px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 8px;
+  font-weight: bold;
+  pointer-events: none;
+}
 .character-move-knob {
   position: absolute;
   left: calc(50% - 21px);
@@ -1543,8 +1575,8 @@ select:focus {
   .character-equipment { max-width: 155px; margin-top: 4px; padding: 5px 7px; gap: 2px; }
   .character-equipment span { font-size: 8px; }
   .character-equipment b { font-size: 10px; }
-  .character-move-stick { width: 88px; height: 88px; }
-  .character-move-knob { width: 36px; height: 36px; left: calc(50% - 18px); top: calc(50% - 18px); }
+  .character-move-stick, .character-aim-stick { width: 88px; height: 88px; }
+  .character-move-knob, .character-aim-knob { width: 36px; height: 36px; left: calc(50% - 18px); top: calc(50% - 18px); }
   .character-action-btn { min-width: 66px; min-height: 48px; }
 }
 
@@ -2139,13 +2171,15 @@ body {
 .character-action-cluster {
   position: absolute;
   right: max(18px, env(safe-area-inset-right));
-  bottom: max(150px, calc(env(safe-area-inset-bottom) + 138px));
+  bottom: max(145px, calc(env(safe-area-inset-bottom) + 138px));
   z-index: 3;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(2, 54px);
+  grid-auto-rows: 54px;
   align-items: center;
-  gap: 12px;
-  /* O grupo não bloqueia a tela; cada botão recebe o próprio toque. */
+  justify-items: center;
+  gap: 8px;
+  /* Cada ação tem sua própria área de toque; o grupo não bloqueia o cenário. */
   pointer-events: none;
 }
 .character-movement-btn {
