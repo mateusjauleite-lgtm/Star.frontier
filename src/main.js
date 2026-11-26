@@ -550,6 +550,7 @@ function renderPanel(key) {
           ${GRAPHICS_QUALITY_LEVELS.map(level => `<option value="${level}" ${normalizeGraphicsQuality(state.settings.quality) === level ? 'selected' : ''}>${level}</option>`).join('')}
         </select>
       </div>
+      <small>Os perfis ajustam resolução, filtragem e nível de detalhe do terreno visível.</small>
       <div class="field-row">
         <label for="sens">Sensibilidade da câmera</label>
         <input id="sens" type="range" min=".5" max="2" step=".1"
