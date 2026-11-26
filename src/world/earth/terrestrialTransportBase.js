@@ -56,28 +56,29 @@ export function createTerrestrialTransportBase({ THREE: Three = THREE, earthSyst
 
   // Área de chegada: laje métrica ampla, sem alterar o ponto geodésico da base.
   // O topo fica praticamente no nível do DEM; a fundação do edifício permanece acima.
-  addBox(root, 'BT01-Arrival-Apron', [40, 0.18, 30], [0, -0.055, 0], concrete);
-  addBox(root, 'BT01-Arrival-Outline-Front', [34, 0.025, 0.14], [0, 0.05, 13.4], marking);
-  addBox(root, 'BT01-Arrival-Outline-Rear', [34, 0.025, 0.14], [0, 0.05, -13.4], marking);
-  addBox(root, 'BT01-Arrival-Outline-Port', [0.14, 0.025, 26.8], [-17, 0.05, 0], marking);
-  addBox(root, 'BT01-Arrival-Outline-Starboard', [0.14, 0.025, 26.8], [17, 0.05, 0], marking);
+  addBox(root, 'BT01-Arrival-Apron', [44, 0.18, 42], [0, -0.055, 0], concrete);
+  addBox(root, 'BT01-Arrival-Outline-Front', [38, 0.025, 0.14], [0, 0.05, 19.4], marking);
+  addBox(root, 'BT01-Arrival-Outline-Rear', [38, 0.025, 0.14], [0, 0.05, -19.4], marking);
+  addBox(root, 'BT01-Arrival-Outline-Port', [0.14, 0.025, 38.8], [-19, 0.05, 0], marking);
+  addBox(root, 'BT01-Arrival-Outline-Starboard', [0.14, 0.025, 38.8], [19, 0.05, 0], marking);
 
   // Complexo modular ancorado ao relevo DEM: pátio, edifício de operações e plataforma.
-  addBox(root, 'BT01-Reinforced-Foundation', [25, 0.48, 19], [0, 0.28, 0], dark);
-  addBox(root, 'BT01-Operations-Hall', [13, 5.2, 9], [-4.5, 3.1, -1.3], white);
-  addBox(root, 'BT01-Operations-Roof', [13.8, 0.42, 9.8], [-4.5, 5.9, -1.3], alloy);
-  addBox(root, 'BT01-Front-Window-Band', [10.5, 1.25, 0.08], [-4.5, 3.65, 3.27], blue);
-  addBox(root, 'BT01-Side-Window-Band', [0.08, 1.25, 6.8], [2.04, 3.65, -1.3], blue);
-  addBox(root, 'BT01-Entry-Canopy', [5.4, 0.22, 2.2], [-4.5, 2.7, 5.25], alloy);
-  addBox(root, 'BT01-Entry-Portal', [3.1, 2.8, 0.22], [-4.5, 1.7, 4.15], dark);
+  addBox(root, 'BT01-Reinforced-Foundation', [25, 0.48, 19], [-4.5, 0.28, -11], dark);
+  addBox(root, 'BT01-Operations-Hall', [13, 5.2, 9], [-4.5, 3.1, -11], white);
+  addBox(root, 'BT01-Operations-Roof', [13.8, 0.42, 9.8], [-4.5, 5.9, -11], alloy);
+  addBox(root, 'BT01-Front-Window-Band', [10.5, 1.25, 0.08], [-4.5, 3.65, -6.43], blue);
+  addBox(root, 'BT01-Side-Window-Band', [0.08, 1.25, 6.8], [2.04, 3.65, -11], blue);
+  addBox(root, 'BT01-Entry-Canopy', [5.4, 0.22, 2.2], [-4.5, 2.7, -5.4], alloy);
+  addBox(root, 'BT01-Entry-Portal', [3.1, 2.8, 0.22], [-4.5, 1.7, -6.3], dark);
 
   const pad = new Three.Group();
   pad.name = 'BT01-Transporter-Pad';
-  pad.position.set(8.2, -0.55, 0);
+  // O centro da plataforma coincide com a coordenada geodésica usada pelo transporte.
+  // Assim, a chegada ocorre sobre o pad, sem deslocar o destino nem a Terra.
+  pad.position.set(0, -0.55, 0);
   root.add(pad);
   // Caminho físico entre a plataforma de transporte e a entrada do edifício.
-  const approach = addBox(root, 'BT01-Arrival-Walkway', [2.6, 0.07, 6.8], [-1.9, 0.09, 2.05], alloy);
-  approach.rotation.y = -0.897;
+  const approach = addBox(root, 'BT01-Arrival-Walkway', [2.6, 0.07, 6.8], [-4.5, 0.09, -3.0], alloy);
   addCylinder(pad, 'BT01-Pad-Foundation', 7.2, 7.5, 0.62, [0, 0, 0], dark, 64);
   addCylinder(pad, 'BT01-Pad-Upper-Ring', 6.8, 6.8, 0.16, [0, 0.38, 0], alloy, 64);
   addCylinder(pad, 'BT01-Pad-Deck', 6.3, 6.3, 0.12, [0, 0.51, 0], dark, 64);
