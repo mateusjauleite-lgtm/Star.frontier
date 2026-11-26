@@ -466,6 +466,14 @@ export function createTerrainRuntime({ options, layers }) {
         segments: options.regionalSurfaceSegments ?? 24,
         buildPerUpdate: 2
       });
+      layers.terrain.setGraphicsQuality = profile => {
+        if (!profile || !regionalSurfaceRuntime) return false;
+        return regionalSurfaceRuntime.setQuality({
+          maxLevel: profile.terrainMaxLevel,
+          maxTiles: profile.terrainMaxTiles,
+          buildPerUpdate: profile.terrainBuildPerUpdate
+        });
+      };
       layers.terrain.regionalSurface = regionalSurfaceRuntime.getStatus();
       layers.terrain.regionalDem = regionalDemProvider.getStatus();
 
