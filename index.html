@@ -170,7 +170,6 @@
 
       <!-- CONTROLES DO PERSONAGEM: independentes dos controles da nave -->
       <div id="character-controls" class="character-controls">
-        <div id="character-aim-area" class="character-aim-area" aria-label="Arraste para olhar ao redor"></div>
         <div id="character-aim-reticle" class="character-aim-reticle" aria-hidden="true"><i></i><b></b><i></i></div>
         <div id="character-move-stick" data-hud-editable="move" class="character-move-stick" aria-label="Movimentar personagem">
           <span class="character-move-knob"></span>
@@ -179,10 +178,13 @@
         <div class="character-action-cluster" data-hud-editable="action" aria-label="Ações de movimento">
           <button id="character-jump-btn" class="character-movement-btn jump-btn" type="button" aria-label="Pular">↑<small>PULAR</small></button>
           <button id="character-sprint-btn" class="character-movement-btn sprint-btn" type="button" aria-label="Correr">»<small>CORRER</small></button>
-          <button id="character-animation-btn" class="character-movement-btn animation-btn" type="button" aria-label="Testar animação">✦<small>ANIMAÇÃO</small></button>
-          <button id="character-aim-btn" class="character-movement-btn aim-btn" type="button" aria-label="Ativar mira" disabled>⌖<small>MIRAR</small></button>
+          <button id="character-aim-btn" class="character-movement-btn aim-btn" type="button" aria-label="Ativar mira" disabled>⌖<small>MIRA</small></button>
           <button id="character-phaser-btn" class="character-movement-btn phaser-btn" type="button" aria-label="Disparar Phaser" disabled>⚡<small>PHASER</small><i id="phaser-charge-fill"></i></button>
 
+        </div>
+        <div id="character-aim-stick" class="character-aim-stick" aria-label="Joystick de mira e câmera">
+          <span class="character-aim-knob"></span>
+          <small>OLHAR</small>
         </div>
       </div>
     </div>
