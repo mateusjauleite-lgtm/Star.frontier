@@ -464,7 +464,7 @@ export function createTerrainRuntime({ options, layers }) {
         maxLevel: options.regionalSurfaceMaxLevel ?? 12,
         maxTiles: options.regionalSurfaceMaxTiles ?? 48,
         segments: options.regionalSurfaceSegments ?? 24,
-        buildPerUpdate: 2
+        buildPerUpdate: options.regionalSurfaceBuildPerUpdate ?? 2
       });
       layers.terrain.setGraphicsQuality = profile => {
         if (!profile || !regionalSurfaceRuntime) return false;
