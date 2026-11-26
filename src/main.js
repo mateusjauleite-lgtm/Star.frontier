@@ -10,6 +10,7 @@ import { registerGameRuntimeSystems } from './core/runtime/systems/registerGameR
 import { createGameplayFramePhases } from './core/runtime/gameplayFramePhases.js';
 import { registerGameWorldEntities } from './core/entities/GameEntityBindings.js';
 import { createGameWorld } from './world/gameWorld.js';
+import { GRAPHICS_QUALITY_LEVELS, getGraphicsQualityProfile, normalizeGraphicsQuality } from './ui/graphicsQuality.js';
 import { createShipLandingMetricTelemetryAdapter, SHIP_MODEL_METERS_PER_UNIT } from './ships/flight/landingAutopilot.js';
 import { EXTERNAL_ELEVATOR_CONFIG } from './ships/externalElevator.js';
 import { getLandingSite } from './ships/flight/landingSites.js';
@@ -543,13 +544,11 @@ function renderPanel(key) {
       <div class="field-row">
         <label for="quality">Qualidade gráfica</label>
         <select id="quality">
-          <option ${state.settings.quality === 'Baixa' ? 'selected' : ''}>Baixa</option>
-          <option ${state.settings.quality === 'Média' ? 'selected' : ''}>Média</option>
-          <option ${state.settings.quality === 'Alta' ? 'selected' : ''}>Alta</option>
+          ${GRAPHICS_QUALITY_LEVELS.map(level => `<option value="${level}" ${normalizeGraphicsQuality(state.settings.quality) === level ? 'selected' : ''}>${level}</option>`).join('')}
         </select>
       </div>
       <div class="field-row">
-        <label for="sens">Sensibilidade</label>
+        <label for="sens">Sensibilidade da câmera</label>
         <input id="sens" type="range" min=".5" max="2" step=".1"
           value="${state.settings.sensitivity}">
       </div>
@@ -626,8 +625,8 @@ function renderPanel(key) {
   });
 
   $('quality')?.addEventListener('change', event => {
-    state.settings.quality = event.target.value;
-    save();
+    state.settings.quality = normalizeGraphicsQuality(event.target.value);
+    applyGraphicsSettings();
   });
 
   $('sens')?.addEventListener('input', event => {
@@ -643,6 +642,60 @@ document.querySelectorAll('[data-panel]').forEach(button => {
 });
 
 renderPanel('play');
+
+function syncPauseSettingsControls() {
+  const quality = $('pause-quality');
+  const sensitivity = $('pause-sens');
+  if (quality) quality.value = normalizeGraphicsQuality(state.settings.quality);
+  if (sensitivity) sensitivity.value = String(state.settings.sensitivity ?? 1);
+}
+
+function applyTextureAnisotropy(root, activeRenderer, profile) {
+  if (!root?.traverse || !activeRenderer?.capabilities) return;
+  const maximum = activeRenderer.capabilities.getMaxAnisotropy?.() ?? 1;
+  const anisotropy = Math.max(1, Math.min(maximum, profile.textureAnisotropy));
+  const textureSlots = ['map', 'aoMap', 'lightMap', 'bumpMap', 'normalMap', 'displacementMap', 'roughnessMap', 'metalnessMap', 'alphaMap', 'emissiveMap'];
+  root.traverse(object => {
+    const materials = Array.isArray(object.material) ? object.material : [object.material];
+    for (const material of materials) {
+      if (!material) continue;
+      for (const slot of textureSlots) {
+        const texture = material[slot];
+        if (!texture || texture.anisotropy === anisotropy) continue;
+        texture.anisotropy = anisotropy;
+        texture.needsUpdate = true;
+      }
+    }
+  });
+}
+
+function applyGraphicsSettings() {
+  state.settings.quality = normalizeGraphicsQuality(state.settings.quality);
+  const profile = getGraphicsQualityProfile(state.settings.quality);
+  if (renderer) {
+    renderer.setPixelRatio(Math.min(devicePixelRatio || 1, profile.pixelRatioCap));
+    renderer.setSize(innerWidth, innerHeight);
+    applyTextureAnisotropy(scene, renderer, profile);
+    earthSystem?.setGraphicsQuality?.(profile);
+  }
+  save();
+  return profile;
+}
+
+document.addEventListener('change', event => {
+  if (event.target?.id !== 'pause-quality') return;
+  state.settings.quality = normalizeGraphicsQuality(event.target.value);
+  applyGraphicsSettings();
+  syncPauseSettingsControls();
+});
+
+document.addEventListener('input', event => {
+  if (event.target?.id !== 'pause-sens') return;
+  state.settings.sensitivity = Number(event.target.value);
+  save();
+  const menuSlider = $('sens');
+  if (menuSlider) menuSlider.value = String(state.settings.sensitivity);
+});
 
 /* MOTOR 3D */
 
@@ -918,7 +971,7 @@ async function startGame() {
         refinery: dilithiumRefinerySystem,
         warpCore: warpCorePowerSystem,
         mining: miningRuntimeSystem,
-        pauseMenu: { document, state, resetInputs: resetTransientState },
+        pauseMenu: { document, state, resetInputs: resetTransientState, onSettingsOpened: syncPauseSettingsControls },
         character: {
           core: characterCore,
           resetTransientState,
@@ -1249,6 +1302,10 @@ async function init3D() {
     characterWeaponController,
     characterPhysics
   } = world);
+
+  state.settings.quality = normalizeGraphicsQuality(state.settings.quality);
+  applyGraphicsSettings();
+  syncPauseSettingsControls();
 
   planetaryTransportCore = world.planetaryTransportCore;
   terrestrialTransportBase = world.terrestrialTransportBase;
@@ -2843,9 +2900,10 @@ const characterControls = registerCharacterControls({
     toast(aiming ? 'Mira ativada.' : 'Arma abaixada.');
   },
   onAimLook: (dx, dy) => {
-    const yawDelta = -dx * 0.005;
+    const sensitivity = THREE.MathUtils.clamp(Number(state.settings?.sensitivity) || 1, 0.5, 2);
+    const yawDelta = -dx * 0.005 * sensitivity;
     characterYaw += yawDelta;
-    characterPitch = THREE.MathUtils.clamp(characterPitch - dy * 0.004, -0.65, 0.65);
+    characterPitch = THREE.MathUtils.clamp(characterPitch - dy * 0.004 * sensitivity, -0.65, 0.65);
     // A guinada exterior gira ao redor da normal local, nunca do Y global.
     if (characterModel?.group && characterInWorldFrame) {
       const player = characterModel.group;
