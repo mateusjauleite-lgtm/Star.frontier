@@ -17,7 +17,7 @@ export const JAU_REGIONAL_ENVIRONMENT_PROFILE = Object.freeze({
   targetResolutionMeters: 10,
   projectedCrs: 'EPSG:32722',
   scope: 'regional',
-  dataState: 'profile-only'
+  dataState: 'preparation-pipeline-ready'
 });
 
 const finite = value => Number.isFinite(Number(value));
