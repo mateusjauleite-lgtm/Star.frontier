@@ -51,14 +51,15 @@ function setup() {
     'character-sprint-btn',
     'character-phaser-btn',
     'character-aim-btn',
-    'character-aim-area'
+    'character-aim-stick'
   ];
   const elements = new Map(ids.map(id => [id, makeElement()]));
   const knob = makeElement();
   elements.get('character-move-stick').knob = knob;
-  elements.get('character-aim-area').getBoundingClientRect = () => ({
+  elements.get('character-aim-stick').getBoundingClientRect = () => ({
     left: 150, top: 0, right: 250, bottom: 100, width: 100, height: 100
   });
+  elements.get('character-aim-stick').knob = makeElement();
   const document = { getElementById: id => elements.get(id) || null };
   const windowListeners = new Map();
   const window = {
@@ -103,12 +104,17 @@ test('character joystick normalizes movement and releases it on pointer end', ()
   assert.deepEqual(controls.getMoveInput(), { x: 0, y: 0 });
 });
 
-test('camera-look surface rejects touches inside movement joystick bounds', () => {
-  const { elements, aimed } = setup();
-  const aimArea = elements.get('character-aim-area');
-  aimArea.fire('pointerdown', { pointerId: 14, clientX: 80, clientY: 50 });
-  aimArea.fire('pointermove', { pointerId: 14, clientX: 95, clientY: 55 });
-  assert.deepEqual(aimed, []);
+test('right aim joystick drives camera direction and recenters on release', () => {
+  const { controls, elements, aimed } = setup();
+  const stick = elements.get('character-aim-stick');
+  stick.fire('pointerdown', { pointerId: 14, clientX: 50, clientY: 50 });
+  stick.fire('pointermove', { pointerId: 14, clientX: 80, clientY: 50 });
+  assert.ok(controls.getAimInput().x > 0.8);
+  controls.updateAim(1 / 60);
+  assert.equal(aimed.length, 1);
+  assert.ok(aimed[0][0] > 0);
+  stick.fire('pointerup', { pointerId: 14 });
+  assert.deepEqual(controls.getAimInput(), { x: 0, y: 0 });
 });
 
 test('movement joystick touch does not invoke camera look', () => {
@@ -171,8 +177,10 @@ test('reset clears all transient character inputs', () => {
   elements.get('character-move-stick').fire('pointerdown', { pointerId: 2, clientX: 80, clientY: 50 });
   elements.get('character-jump-btn').fire('pointerdown');
   elements.get('character-sprint-btn').fire('pointerdown');
+  elements.get('character-aim-stick').fire('pointerdown', { pointerId: 3, clientX: 80, clientY: 50 });
   controls.reset();
   assert.deepEqual(controls.getMoveInput(), { x: 0, y: 0 });
+  assert.deepEqual(controls.getAimInput(), { x: 0, y: 0 });
   assert.equal(controls.isSprinting(), false);
   assert.equal(controls.consumeJump(), false);
 });
