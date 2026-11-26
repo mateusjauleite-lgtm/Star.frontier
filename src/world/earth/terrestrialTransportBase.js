@@ -127,6 +127,35 @@ export function createTerrestrialTransportBase({ THREE: Three = THREE, earthSyst
     demAnchored = true;
     return true;
   }
+  const baseCollisionRaycaster = new Three.Raycaster();
+  const baseCollisionUp = new Three.Vector3();
+  const baseCollisionDown = new Three.Vector3();
+  const baseCollisionNormalMatrix = new Three.Matrix3();
+
+  // Consulta somente faces superiores reais da geometria visível da BT-01.
+  // Não cria plano auxiliar nem collider invisível separado da estrutura.
+  function sampleCollisionSurface(worldPosition) {
+    if (!worldPosition?.isVector3) return null;
+    root.updateWorldMatrix(true, true);
+    root.getWorldQuaternion(root.quaternion.clone());
+    baseCollisionUp.set(0, 1, 0).applyQuaternion(root.getWorldQuaternion(new Three.Quaternion())).normalize();
+    baseCollisionDown.copy(baseCollisionUp).negate();
+    const rayOrigin = worldPosition.clone().addScaledVector(baseCollisionUp, 20);
+    baseCollisionRaycaster.set(rayOrigin, baseCollisionDown);
+    baseCollisionRaycaster.near = 0;
+    baseCollisionRaycaster.far = 40;
+    const hits = baseCollisionRaycaster.intersectObject(root, true);
+    for (const hit of hits) {
+      if (!hit.face?.normal || !hit.object?.matrixWorld) continue;
+      const normal = hit.face.normal.clone()
+        .applyMatrix3(baseCollisionNormalMatrix.getNormalMatrix(hit.object.matrixWorld))
+        .normalize();
+      if (normal.dot(baseCollisionUp) < 0.55) continue;
+      return { worldPosition: hit.point.clone(), worldNormal: normal, source: 'terrestrial-base-mesh' };
+    }
+    return null;
+  }
+
   const terminal = new Three.Vector3();
   const padCenter = new Three.Vector3();
   const getConsoleWorldPosition = target => {
@@ -143,7 +172,7 @@ export function createTerrestrialTransportBase({ THREE: Three = THREE, earthSyst
     return pad.localToWorld(new Three.Vector3(0, 0.57, 0), target || new Three.Vector3());
   };
   return Object.freeze({
-    group: root, console, pad, getConsoleWorldPosition, getPadWorldPosition, getArrivalWorldPosition,
+    group: root, console, pad, getConsoleWorldPosition, getPadWorldPosition, getArrivalWorldPosition, sampleCollisionSurface,
     updatePlacement, isDemAnchored: () => demAnchored,
     getPlacement: () => placement,
     getStatus: () => ({ id: TERRESTRIAL_BASE_PROFILE.id, state: demAnchored ? 'dem-anchored' : 'waiting-for-dem', region: TERRESTRIAL_BASE_PROFILE.region }),
