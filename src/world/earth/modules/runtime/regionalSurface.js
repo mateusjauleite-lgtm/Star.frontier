@@ -400,8 +400,9 @@ export function createEarthRegionalSurfaceRuntime({
       maxLevel = level;
       maxTiles = tiles;
       buildPerUpdate = build;
-      // Keep the current surface visible until the replacement tile generation is ready.
+      // Force a new selection even when the new profile has no visible regional tiles.
       lastSelection = [];
+      lastDemActive = null;
       return true;
     },
     update(delta, context) {
