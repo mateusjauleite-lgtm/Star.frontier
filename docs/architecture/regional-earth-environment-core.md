@@ -70,4 +70,4 @@ Required attribution: © ESA WorldCover project 2021 / Contains modified Coperni
 
 ## Current implementation state
 
-The code contract defines the 5 km Jaú footprint and validates that a dataset covers the entire footprint. The source rasters and runtime visual integration are not yet committed. No terrain appearance or physical behavior has been changed by this contract.
+The code contract defines the 5 km Jaú footprint and validates that a dataset covers the entire footprint. An offline preparation script now converts an ESA WorldCover GeoTIFF plus a DEM GeoTIFF into albedo, water-mask, roughness, normal and ambient-occlusion PNG assets with a metadata sidecar. The input rasters must still be acquired and processed, and the resulting assets are not yet wired into the Three.js runtime. No terrain appearance or physical behavior has been changed yet.
