@@ -1904,7 +1904,7 @@ function updateCharacterMovement(dt) {
       const worldPosition = player.getWorldPosition(new THREE.Vector3());
       const worldQuaternion = player.getWorldQuaternion(new THREE.Quaternion());
       let up = new THREE.Vector3(0, 1, 0).applyQuaternion(worldQuaternion).normalize();
-      const currentTerrain = earthSystem?.getCollisionSurface?.()?.sampleWorldPosition?.(worldPosition);
+      const currentTerrain = sampleTerrestrialWalkableSurface(worldPosition);
       if (currentTerrain?.worldNormal) up.copy(currentTerrain.worldNormal).normalize();
 
       const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(worldQuaternion).projectOnPlane(up).normalize();
