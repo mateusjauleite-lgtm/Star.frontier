@@ -132,6 +132,10 @@ export function createTerrestrialTransportBase({ THREE: Three = THREE, earthSyst
   const baseCollisionDown = new Three.Vector3();
   const baseCollisionNormalMatrix = new Three.Matrix3();
   const baseWorldQuaternion = new Three.Quaternion();
+  const walkableBaseMeshes = new Set([
+    'BT01-Arrival-Apron', 'BT01-Reinforced-Foundation', 'BT01-Operations-Roof',
+    'BT01-Arrival-Walkway', 'BT01-Pad-Deck'
+  ]);
 
   // Consulta somente faces superiores reais da geometria visível da BT-01.
   // Não cria plano auxiliar nem collider invisível separado da estrutura.
@@ -147,6 +151,7 @@ export function createTerrestrialTransportBase({ THREE: Three = THREE, earthSyst
     baseCollisionRaycaster.far = 40;
     const hits = baseCollisionRaycaster.intersectObject(root, true);
     for (const hit of hits) {
+      if (!walkableBaseMeshes.has(hit.object?.name)) continue;
       if (!hit.face?.normal || !hit.object?.matrixWorld) continue;
       const normal = hit.face.normal.clone()
         .applyMatrix3(baseCollisionNormalMatrix.getNormalMatrix(hit.object.matrixWorld))
