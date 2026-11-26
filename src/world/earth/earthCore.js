@@ -84,6 +84,9 @@ export function createEarthCore(options = {}) {
     getSurfaceMesh() {
       return layers.surface ?? null;
     },
+    setGraphicsQuality(profile) {
+      return layers.terrain?.setGraphicsQuality?.(profile) ?? false;
+    },
     worldPositionToGeographic(worldPosition) {
       if (!worldPosition?.isVector3) return null;
       surfaceFrame.updateWorldMatrix(true, false);
