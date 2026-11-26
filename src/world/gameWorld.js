@@ -24,6 +24,7 @@ import { createPlanetaryGravitySystem } from '../physics/planetaryGravitySystem.
 import { createSolarSystemDynamics } from '../physics/solarSystemDynamics.js';
 import { createEarthTimeCore } from './earthTimeCore.js';
 import { createSolarSystemPresentationAdapter } from './solarSystemPresentation.js';
+import { getGraphicsQualityProfile, normalizeGraphicsQuality } from '../ui/graphicsQuality.js';
 import { createShipOrbitalTelemetrySource } from '../ships/flight/orbitalTelemetrySource.js';
 import {
   EARTH_RENDER_RADIUS_UNITS,
@@ -61,6 +62,7 @@ export async function createGameWorld({
   let gravityKernel = null;
   let solarSystemDynamics = null;
   const earthTimeCore = createEarthTimeCore({ timeZone: 'America/Sao_Paulo' });
+  const graphicsProfile = getGraphicsQualityProfile(normalizeGraphicsQuality(state.settings?.quality));
 
   try {
   scene.background = new THREE.Color(0x020817);
@@ -69,7 +71,10 @@ export async function createGameWorld({
 
   earthSystem = createEarthCore({
     radius: EARTH_RENDER_RADIUS_UNITS,
-    position: EARTH_WORLD_CENTER
+    position: EARTH_WORLD_CENTER,
+    regionalSurfaceMaxLevel: graphicsProfile.terrainMaxLevel,
+    regionalSurfaceMaxTiles: graphicsProfile.terrainMaxTiles,
+    regionalSurfaceBuildPerUpdate: graphicsProfile.terrainBuildPerUpdate
   });
   scene.add(earthSystem.group);
   const earthReferenceFrames = createEarthReferenceFrames({
@@ -119,16 +124,13 @@ export async function createGameWorld({
   );
 
   renderer = new THREE.WebGLRenderer({
-    antialias: state.settings.quality !== 'Baixa',
+    antialias: graphicsProfile.id !== 'Suave',
     powerPreference: 'high-performance',
     logarithmicDepthBuffer: true
   });
 
   renderer.setPixelRatio(
-    Math.min(
-      viewport.devicePixelRatio,
-      state.settings.quality === 'Alta' ? 1.7 : 1.25
-    )
+    Math.min(viewport.devicePixelRatio, graphicsProfile.pixelRatioCap)
   );
 
   renderer.setSize(viewport.width, viewport.height);
@@ -154,6 +156,10 @@ export async function createGameWorld({
   shipFlightKernel = await loadShipFlightKernel();
   gravityKernel = await loadGravityKernel();
   solarSystemDynamics = createSolarSystemDynamics({ gravityKernel });
+  const initialTimeScale = Number(state.settings?.simulationTimeScale);
+  solarSystemDynamics.setTimeScale(
+    Number.isFinite(initialTimeScale) && initialTimeScale >= 0 ? initialTimeScale : 1
+  );
   const solarSystemPresentation = createSolarSystemPresentationAdapter(THREE, {
     visualUnitsPerMeter: EARTH_RENDER_RADIUS_UNITS / 6_371_008.8,
     anchorBodyId: 'earth',
