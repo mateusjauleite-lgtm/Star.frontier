@@ -36,5 +36,11 @@ test('BT-01 waits for the global DEM and then anchors its structure to the sampl
   assert.ok(base.group.getObjectByName('BT01-Arrival-Apron'));
   assert.ok(base.group.getObjectByName('BT01-Arrival-Walkway'));
   assert.equal(base.pad.parent, base.group);
+  // The transporter coordinate is the local origin: landing there places the
+  // character above the pad, while the operations hall stays clear behind it.
+  assert.equal(base.pad.position.x, 0);
+  assert.equal(base.pad.position.z, 0);
+  const hall = base.group.getObjectByName('BT01-Operations-Hall');
+  assert.ok(hall.position.z + 9 / 2 < 0, 'operations hall must not cover the arrival point');
   base.dispose();
 });
