@@ -51,8 +51,9 @@ export function registerAimControls({ document, THREE, state, getCameraInput = (
     let y = event.clientY - rect.top - rect.height / 2;
     const length = Math.hypot(x, y);
     if (length > max) { x *= max / length; y *= max / length; }
-    const aimX = THREE.MathUtils.clamp(x / max, -1, 1);
-    const aimY = THREE.MathUtils.clamp(y / max, -1, 1);
+    const sensitivity = THREE.MathUtils.clamp(Number(state.settings?.sensitivity) || 1, 0.5, 2);
+    const aimX = THREE.MathUtils.clamp(x / max * sensitivity, -1, 1);
+    const aimY = THREE.MathUtils.clamp(y / max * sensitivity, -1, 1);
     const cameraInput = getCameraInput?.();
     if (cameraInput) {
       cameraInput.setAim(aimX, aimY);
