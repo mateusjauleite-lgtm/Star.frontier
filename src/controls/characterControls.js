@@ -61,6 +61,7 @@ export function registerCharacterControls({
     characterStick.addEventListener('pointerdown', event => {
       if (!isOnFoot()) return;
       event.preventDefault();
+      event.stopPropagation?.();
       movePointer = event.pointerId;
       characterStick.setPointerCapture(movePointer);
       moveStick(event);
@@ -68,6 +69,7 @@ export function registerCharacterControls({
     characterStick.addEventListener('pointermove', event => {
       if (movePointer !== event.pointerId) return;
       event.preventDefault();
+      event.stopPropagation?.();
       moveStick(event);
     });
     const endMove = event => {
@@ -124,6 +126,12 @@ export function registerCharacterControls({
   const aimArea = get('character-aim-area');
   if (aimArea) {
     aimArea.addEventListener('pointerdown', event => {
+      // Never let the camera-look surface claim a touch that begins on the movement stick.
+      const stickRect = characterStick?.getBoundingClientRect?.();
+      const startsOverMoveStick = stickRect &&
+        event.clientX >= stickRect.left && event.clientX <= stickRect.right &&
+        event.clientY >= stickRect.top && event.clientY <= stickRect.bottom;
+      if (startsOverMoveStick || event.target?.closest?.('#character-move-stick')) return;
       event.preventDefault();
       aimPointer = event.pointerId;
       previousAimX = event.clientX;
