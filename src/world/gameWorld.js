@@ -203,8 +203,10 @@ export async function createGameWorld({
         // A chegada usa o topo real do deck da BT-01, não uma segunda
         // resolução geográfica independente que possa divergir da estrutura.
         const placement = terrestrialTransportBase.getPlacement();
+        const surfaceFrame = earthSystem.getSurfaceFrame();
+        surfaceFrame.updateWorldMatrix(true, false);
         const normal = placement.sample.terrainNormal.clone()
-          .transformDirection(earthSystem.getSurfaceFrame().matrixWorld).normalize();
+          .transformDirection(surfaceFrame.matrixWorld).normalize();
         return {
           position: terrestrialTransportBase.getArrivalWorldPosition(),
           normal
