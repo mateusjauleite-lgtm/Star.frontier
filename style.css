@@ -653,23 +653,212 @@ select:focus {
 }
 
 #game-menu-modal .modal-card {
-  width: min(100%, 360px);
-  padding: 22px;
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  background: var(--panel);
-  text-align: center;
-  box-shadow: 0 15px 45px rgba(0, 0, 0, 0.45);
+  width: min(100%, 620px);
+  max-height: min(90vh, 620px);
+  overflow-y: auto;
+  padding: clamp(16px, 3vw, 26px);
+  border: 1px solid rgba(83, 190, 255, 0.34);
+  border-radius: 18px;
+  background: linear-gradient(145deg, rgba(8, 25, 45, 0.98), rgba(4, 12, 25, 0.98));
+  text-align: left;
+  box-shadow: 0 18px 55px rgba(0, 0, 0, 0.52), inset 0 1px rgba(255,255,255,.035);
 }
 
-#game-menu-modal h2 {
+#game-menu-modal .aurora-pause-header {
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid rgba(104, 180, 222, 0.18);
+}
+
+#game-menu-modal .aurora-pause-eyebrow {
+  color: #78a9c6;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1.7px;
+}
+
+#game-menu-modal .aurora-pause-header h2 {
+  margin: 7px 0 4px;
+  color: #6ee7ff;
+  font-size: clamp(23px, 4vw, 30px);
+  letter-spacing: 2px;
+}
+
+#game-menu-modal .aurora-pause-header p {
+  margin: 0;
+  color: #9bb4c8;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+#game-menu-modal .aurora-pause-app-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+#game-menu-modal .aurora-pause-app {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  width: 100%;
+  min-width: 0;
+  min-height: 142px;
+  margin: 0;
+  padding: 13px;
+  border: 1px solid rgba(94, 174, 216, 0.24);
+  border-radius: 12px;
+  background: linear-gradient(145deg, rgba(13, 42, 67, 0.82), rgba(7, 22, 40, 0.96));
+  color: #e5f5ff;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
+
+#game-menu-modal .aurora-pause-app:active {
+  border-color: #6ee7ff;
+  background: linear-gradient(145deg, rgba(18, 76, 111, .95), rgba(7, 29, 51, .98));
+}
+
+#game-menu-modal .aurora-pause-app-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  margin-bottom: 10px;
+  border: 1px solid rgba(101, 207, 245, 0.28);
+  border-radius: 9px;
+  background: rgba(27, 110, 151, 0.2);
+  color: #6ee7ff;
+  font-size: 19px;
+}
+
+#game-menu-modal .aurora-pause-app b {
+  display: block;
+  max-width: 100%;
+  color: #e5f5ff;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+#game-menu-modal .aurora-pause-app small {
+  display: block;
+  margin-top: 5px;
+  color: #8ba9bf;
+  font-size: 10px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+#game-menu-modal .aurora-pause-open {
+  margin-top: auto;
+  padding-top: 12px;
+  color: #70dfff;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+#game-menu-modal .aurora-pause-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 18px;
+  padding-top: 13px;
+  border-top: 1px solid rgba(104, 180, 222, 0.15);
+}
+
+#game-menu-modal .aurora-pause-footer > span {
+  color: #7898af;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+#game-menu-modal .aurora-resume-btn {
+  width: auto;
+  min-width: 132px;
+  min-height: 42px;
+  margin: 0;
+  padding: 9px 14px;
+  white-space: normal;
+}
+
+#game-menu-modal #pause-settings-panel h2 {
   color: var(--cyan);
 }
 
-#game-menu-modal button {
+#game-menu-modal #pause-settings-panel button {
   width: 100%;
-  min-height: 46px;
   margin: 6px 0;
+}
+
+@media (max-width: 520px) {
+  #game-menu-modal {
+    padding: 10px;
+  }
+
+  #game-menu-modal .modal-card {
+    max-height: 92vh;
+    padding: 16px;
+  }
+
+  #game-menu-modal .aurora-pause-app-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  #game-menu-modal .aurora-pause-app {
+    min-height: 88px;
+    display: grid;
+    grid-template-columns: 36px minmax(0, 1fr);
+    column-gap: 10px;
+    align-items: center;
+  }
+
+  #game-menu-modal .aurora-pause-app-icon {
+    grid-row: 1 / span 3;
+    margin: 0;
+  }
+
+  #game-menu-modal .aurora-pause-app b,
+  #game-menu-modal .aurora-pause-app small,
+  #game-menu-modal .aurora-pause-open {
+    min-width: 0;
+    grid-column: 2;
+  }
+
+  #game-menu-modal .aurora-pause-open {
+    padding-top: 3px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+  #game-menu-modal {
+    padding: 8px;
+  }
+
+  #game-menu-modal .modal-card {
+    max-height: calc(100vh - 16px);
+    padding: 13px 18px;
+  }
+
+  #game-menu-modal .aurora-pause-header {
+    margin-bottom: 12px;
+    padding-bottom: 9px;
+  }
+
+  #game-menu-modal .aurora-pause-app {
+    min-height: 112px;
+    padding: 10px;
+  }
+
+  #game-menu-modal .aurora-pause-footer {
+    margin-top: 10px;
+    padding-top: 8px;
+  }
 }
 
 /* CELULAR EM MODO PAISAGEM */
