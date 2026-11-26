@@ -1520,6 +1520,10 @@ function updateCharacterCamera() {
     if (!characterCameraInitialized) {
       camera.position.copy(desired);
       characterCameraInitialized = true;
+    } else if (characterInWorldFrame) {
+      // No exterior, o personagem e o terreno usam um referencial geográfico
+      // comum. Seguir a posição exata evita atraso variável e tremor de perseguição.
+      camera.position.copy(desired);
     } else {
       camera.position.lerp(desired, 0.36);
     }
