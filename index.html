@@ -464,13 +464,37 @@
     <!-- MENU DE PAUSA -->
     <div id="game-menu-modal" class="modal hidden">
 
-      <div class="modal-card">
+      <div class="modal-card aurora-pause-card">
         <div id="pause-main-actions">
-          <h2>JOGO PAUSADO</h2>
-          <button id="resume-btn" class="primary">CONTINUAR</button>
-          <button id="pause-settings-btn" class="secondary" type="button">CONFIGURAÇÕES</button>
-          <button id="edit-character-hud-btn" class="secondary" type="button">EDITOR DE HUD</button>
-          <button id="return-menu-btn" class="secondary">VOLTAR AO MENU</button>
+          <header class="aurora-pause-header">
+            <span class="aurora-pause-eyebrow">STAR FRONTIER // SISTEMA OPERACIONAL</span>
+            <h2>AURORA OS</h2>
+            <p>Computador de bordo · Aplicativos da nave</p>
+          </header>
+          <section class="aurora-pause-app-grid" aria-label="Aplicativos do AURORA OS">
+            <button id="edit-character-hud-btn" class="aurora-pause-app" type="button">
+              <span class="aurora-pause-app-icon" aria-hidden="true">▦</span>
+              <b>Editor de HUD</b>
+              <small>Personalizar os painéis de voo e exploração</small>
+              <span class="aurora-pause-open">ABRIR ↗</span>
+            </button>
+            <button id="return-menu-btn" class="aurora-pause-app" type="button">
+              <span class="aurora-pause-app-icon" aria-hidden="true">⌂</span>
+              <b>Menu principal</b>
+              <small>Voltar ao centro de operações</small>
+              <span class="aurora-pause-open">ABRIR ↗</span>
+            </button>
+            <button id="pause-settings-btn" class="aurora-pause-app" type="button">
+              <span class="aurora-pause-app-icon" aria-hidden="true">⚙</span>
+              <b>Configurações</b>
+              <small>Gráficos, controles e tempo astronômico</small>
+              <span class="aurora-pause-open">ABRIR ↗</span>
+            </button>
+          </section>
+          <footer class="aurora-pause-footer">
+            <span>SESSÃO DE JOGO PAUSADA</span>
+            <button id="resume-btn" class="primary aurora-resume-btn" type="button">RETOMAR JOGO</button>
+          </footer>
         </div>
         <section id="pause-settings-panel" class="hidden" aria-hidden="true">
           <h2>CONFIGURAÇÕES</h2>
