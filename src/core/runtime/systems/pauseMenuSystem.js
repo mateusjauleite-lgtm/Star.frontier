@@ -2,7 +2,8 @@ export function createPauseMenuRuntimeSystem({
   runtime,
   document,
   state,
-  resetInputs = () => {}
+  resetInputs = () => {},
+  onSettingsOpened = () => {}
 }) {
   if (!runtime || typeof runtime.pause !== 'function' || typeof runtime.resume !== 'function') {
     throw new TypeError('O controlador do menu de pausa precisa de uma ponte Runtime válida.');
@@ -44,6 +45,7 @@ export function createPauseMenuRuntimeSystem({
     actions.classList.add('hidden');
     panel.classList.remove('hidden');
     panel.setAttribute?.('aria-hidden', 'false');
+    onSettingsOpened();
     return true;
   };
 
