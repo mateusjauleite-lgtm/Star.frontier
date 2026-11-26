@@ -23,6 +23,7 @@ import { loadGravityKernel } from '../physics/gravityKernel.js';
 import { createPlanetaryGravitySystem } from '../physics/planetaryGravitySystem.js';
 import { createSolarSystemDynamics } from '../physics/solarSystemDynamics.js';
 import { createSolarSystemPresentationAdapter } from './solarSystemPresentation.js';
+import { getGraphicsQualityProfile, normalizeGraphicsQuality } from '../ui/graphicsQuality.js';
 import { createShipOrbitalTelemetrySource } from '../ships/flight/orbitalTelemetrySource.js';
 import {
   EARTH_RENDER_RADIUS_UNITS,
@@ -59,6 +60,7 @@ export async function createGameWorld({
   let shipFlightKernel = null;
   let gravityKernel = null;
   let solarSystemDynamics = null;
+  const graphicsProfile = getGraphicsQualityProfile(normalizeGraphicsQuality(state.settings?.quality));
 
   try {
   scene.background = new THREE.Color(0x020817);
@@ -67,7 +69,10 @@ export async function createGameWorld({
 
   earthSystem = createEarthCore({
     radius: EARTH_RENDER_RADIUS_UNITS,
-    position: EARTH_WORLD_CENTER
+    position: EARTH_WORLD_CENTER,
+    regionalSurfaceMaxLevel: graphicsProfile.terrainMaxLevel,
+    regionalSurfaceMaxTiles: graphicsProfile.terrainMaxTiles,
+    regionalSurfaceBuildPerUpdate: graphicsProfile.terrainBuildPerUpdate
   });
   scene.add(earthSystem.group);
   const earthReferenceFrames = createEarthReferenceFrames({
@@ -117,16 +122,13 @@ export async function createGameWorld({
   );
 
   renderer = new THREE.WebGLRenderer({
-    antialias: state.settings.quality !== 'Baixa',
+    antialias: graphicsProfile.id !== 'Suave',
     powerPreference: 'high-performance',
     logarithmicDepthBuffer: true
   });
 
   renderer.setPixelRatio(
-    Math.min(
-      viewport.devicePixelRatio,
-      state.settings.quality === 'Alta' ? 1.7 : 1.25
-    )
+    Math.min(viewport.devicePixelRatio, graphicsProfile.pixelRatioCap)
   );
 
   renderer.setSize(viewport.width, viewport.height);
