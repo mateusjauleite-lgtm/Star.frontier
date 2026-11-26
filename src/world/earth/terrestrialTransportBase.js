@@ -137,8 +137,13 @@ export function createTerrestrialTransportBase({ THREE: Three = THREE, earthSyst
     root.updateWorldMatrix(true, true);
     return pad.getWorldPosition(target || padCenter);
   };
+  const getArrivalWorldPosition = target => {
+    root.updateWorldMatrix(true, true);
+    pad.updateWorldMatrix(true, false);
+    return pad.localToWorld(new Three.Vector3(0, 0.57, 0), target || new Three.Vector3());
+  };
   return Object.freeze({
-    group: root, console, pad, getConsoleWorldPosition, getPadWorldPosition,
+    group: root, console, pad, getConsoleWorldPosition, getPadWorldPosition, getArrivalWorldPosition,
     updatePlacement, isDemAnchored: () => demAnchored,
     getPlacement: () => placement,
     getStatus: () => ({ id: TERRESTRIAL_BASE_PROFILE.id, state: demAnchored ? 'dem-anchored' : 'waiting-for-dem', region: TERRESTRIAL_BASE_PROFILE.region }),
