@@ -1782,6 +1782,14 @@ function anchorCharacterToTerrestrialFrame(player, worldNormal) {
   return true;
 }
 
+function sampleTerrestrialWalkableSurface(worldPosition) {
+  // Estruturas da BT-01 têm contato pela própria malha; fora delas,
+  // permanece o sampler DEM global da Terra.
+  const baseContact = terrestrialTransportBase?.sampleCollisionSurface?.(worldPosition);
+  if (baseContact?.worldPosition && baseContact?.worldNormal) return baseContact;
+  return sampleTerrestrialWalkableSurface(worldPosition) ?? null;
+}
+
 function updateCharacterWorldPhysics(deltaSeconds) {
   if (!characterInWorldFrame || !characterModel?.group || characterWorldGrounded) return;
   const dt = THREE.MathUtils.clamp(Number.isFinite(deltaSeconds) ? deltaSeconds : 0, 0, 0.05);
@@ -1847,8 +1855,7 @@ function updateCharacterWorldPhysics(deltaSeconds) {
 
   // A mesma superfície ETOPO usada pelo mesh global fornece o contato.
   // O personagem pousa sobre a normal local, inclusive em montanhas e vales.
-  const terrain = earthSystem?.getCollisionSurface?.()
-    ?.sampleWorldPosition?.(worldPosition);
+  const terrain = sampleTerrestrialWalkableSurface(worldPosition);
   if (terrain?.worldPosition && terrain?.worldNormal) {
     const normal = terrain.worldNormal.clone().normalize();
     const clearance = worldPosition.clone().sub(terrain.worldPosition).dot(normal);
@@ -1916,7 +1923,7 @@ function updateCharacterMovement(dt) {
           }
         }
         if (!contact) {
-          const terrain = earthSystem?.getCollisionSurface?.()?.sampleWorldPosition?.(candidate);
+          const terrain = sampleTerrestrialWalkableSurface(candidate);
           if (terrain?.worldPosition && terrain?.worldNormal) {
             const normal = terrain.worldNormal.clone().normalize();
             const clearance = candidate.clone().sub(terrain.worldPosition).dot(normal);
