@@ -41,3 +41,12 @@ test('posições e dimensões inválidas são rejeitadas com segurança', () => 
   assert.equal(isCharacterInsideAuroraHull({ x: 0, z: 0 }, 'D1', NaN), false);
   assert.equal(isCharacterInsideAuroraHull({ x: 0, z: 0 }, 'D5', 0), false);
 });
+
+test('cápsula completa acompanha a curvatura do casco durante um salto', () => {
+  // Ao elevar o personagem, a cabeça se aproxima da concha superior
+  // e a margem lateral válida diminui em vez de manter um limite fixo.
+  assert.equal(isCharacterInsideAuroraHull({ x: 19, z: 0 }, 'D1', 8.91), true);
+  assert.equal(isCharacterInsideAuroraHull({ x: 20, z: 0 }, 'D1', 8.91), false);
+  assert.equal(isCharacterInsideAuroraHull({ x: 18, z: 0 }, 'D1', 10.0), true);
+  assert.equal(isCharacterInsideAuroraHull({ x: 19, z: 0 }, 'D1', 10.0), false);
+});
