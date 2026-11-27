@@ -395,7 +395,9 @@ export function createExplorationShip() {
 
     // Recorta somente a faixa superior de inspeção; a silhueta externa da nacele é preservada.
     const sourcePositions = sourceBodyGeometry.attributes.position;
-    const bodyPositions = [];
+    const retainedAttributes = Object.fromEntries(
+      Object.keys(sourceBodyGeometry.attributes).map(name => [name, []])
+    );
     for (let i = 0; i < sourcePositions.count; i += 3) {
       const ax = sourcePositions.getX(i);
       const ay = sourcePositions.getY(i);
@@ -410,13 +412,25 @@ export function createExplorationShip() {
       const centerZ = (az + bz + cz) / 3;
       const isInspectionSlot = Math.min(ay, by, cy) > 2.45 &&
         Math.abs(centerX - chamberX) < 0.66 && Math.abs(centerZ) < 17.8;
-      if (!isInspectionSlot) {
-        bodyPositions.push(ax, ay, az, bx, by, bz, cx, cy, cz);
+      if (isInspectionSlot) continue;
+      for (const [name, attribute] of Object.entries(sourceBodyGeometry.attributes)) {
+        const values = retainedAttributes[name];
+        for (const vertex of [i, i + 1, i + 2]) {
+          const offset = vertex * attribute.itemSize;
+          for (let component = 0; component < attribute.itemSize; component += 1) {
+            values.push(attribute.array[offset + component]);
+          }
+        }
       }
     }
     const bodyGeometry = new THREE.BufferGeometry();
-    bodyGeometry.setAttribute('position', new THREE.Float32BufferAttribute(bodyPositions, 3));
-    bodyGeometry.computeVertexNormals();
+    for (const [name, values] of Object.entries(retainedAttributes)) {
+      const sourceAttribute = sourceBodyGeometry.attributes[name];
+      const AttributeArray = sourceAttribute.array.constructor;
+      bodyGeometry.setAttribute(name, new THREE.BufferAttribute(
+        new AttributeArray(values), sourceAttribute.itemSize, sourceAttribute.normalized
+      ));
+    }
     bodyGeometry.computeBoundingSphere();
     bodyGeometry.parameters = sourceBodyGeometry.parameters;
     sourceBodyGeometry.dispose();
