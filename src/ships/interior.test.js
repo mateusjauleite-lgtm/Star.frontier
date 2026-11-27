@@ -104,7 +104,28 @@ test('Deck 1 é mais estreito; Decks 2 e 3 ampliados iguais; Deck 4 preservado',
 
   const deck4 = interior.group.getObjectByName('D4-Floor');
   assert.ok(deck4, 'piso D4 deve continuar instalado');
-  assert.deepEqual(deck4.userData.deckFootprint, { width: 48, length: 110, centerZ: 5.5 });
+  assert.deepEqual(deck4.userData.deckFootprint, { width: 48, length: 98, centerZ: 0 });
 
+  interior.dispose();
+});
+
+
+test('Deck 4 afunila na popa e reserva o poço do elevador na entrada do hangar', () => {
+  const interior = createStarshipInterior();
+  const floor = interior.group.getObjectByName('D4-Floor');
+  assert.ok(floor);
+  floor.updateMatrixWorld(true);
+  const positions = floor.geometry.attributes.position;
+  const aftVertices = [];
+  for (let index = 0; index < positions.count; index += 1) {
+    const vertex = new THREE.Vector3(
+      positions.getX(index), positions.getY(index), positions.getZ(index)
+    ).applyMatrix4(floor.matrixWorld);
+    if (vertex.z >= 40) aftVertices.push(vertex);
+  }
+  assert.ok(aftVertices.length > 0, 'piso deve alcançar a entrada traseira do hangar');
+  assert.ok(Math.max(...aftVertices.map(vertex => Math.abs(vertex.x))) <= 12.5,
+    'a popa do piso deve afunilar para acompanhar o casco');
+  assert.deepEqual(floor.userData.deckFootprint, { width: 48, length: 98, centerZ: 0 });
   interior.dispose();
 });

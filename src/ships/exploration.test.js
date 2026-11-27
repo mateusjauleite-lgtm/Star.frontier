@@ -63,3 +63,38 @@ test('abertura provisória do defletor recorta somente a concha frontal inferior
 
   assert.ok(trianglesOutsideAperture > 0);
 });
+
+
+test('popa nova tem moldura uniforme e duas naceles longas totalmente externas', () => {
+  const ship = createExplorationShip();
+  const visual = ship.visual;
+  const frame = visual.getObjectByName('Aft-Hangar-Opening-Frame');
+  const junction = visual.getObjectByName('Aft-Hangar-Nacelle-Junction');
+  assert.ok(frame, 'moldura contínua do hangar deve existir');
+  assert.ok(frame.getObjectByName('Central-Hangar-Upper-Lip'));
+  assert.ok(frame.getObjectByName('Central-Hangar-Lower-Lip'));
+  assert.ok(frame.getObjectByName('Central-Hangar-Port-Frame'));
+  assert.ok(frame.getObjectByName('Central-Hangar-Starboard-Frame'));
+  assert.equal(visual.getObjectByName('Integrated-Aft-Engineering-Pod'), undefined);
+  assert.ok(junction, 'junção externa das naceles deve existir');
+
+  for (const name of ['Port-Warp-Nacelle', 'Starboard-Warp-Nacelle']) {
+    const nacelle = visual.getObjectByName(name);
+    assert.ok(nacelle, name + ' deve existir');
+    assert.ok(Math.abs(nacelle.position.x) > 27.2,
+      'o corpo da nacelle deve permanecer além da largura máxima do casco');
+    assert.equal(nacelle.userData.exteriorOnly, true);
+    const bodyName = name.replace('Warp-Nacelle', 'Nacelle-Armored-Body');
+    const body = nacelle.getObjectByName(bodyName);
+    assert.ok(body, 'corpo estrutural alongado deve existir');
+    assert.ok(body.geometry.parameters.depth >= 60,
+      'nacelle deve ser longa no eixo longitudinal');
+    assert.ok(nacelle.getObjectByName('Nacelle-Plasma-Channel'));
+    assert.ok(nacelle.getObjectByName('Nacelle-Warp-Engine-Core'));
+    assert.equal(nacelle.getObjectByName('Port-Nacelle-Root-Collar'), undefined,
+      'aros circulares antigos não devem permanecer');
+  }
+
+  assert.equal(ship.engineFlames.length, 2);
+  assert.equal(ship.engineLights.length, 2);
+});

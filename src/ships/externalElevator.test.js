@@ -67,3 +67,17 @@ test('external elevator remains stopped until the character issues an explicit c
     elevator.dispose();
   }
 });
+
+
+test('elevador fica dentro do hangar, no alinhamento da abertura traseira', () => {
+  const elevator = createExternalElevator({ deckY: -8.7 });
+  try {
+    assert.equal(EXTERNAL_ELEVATOR_CONFIG.x, 0);
+    assert.equal(EXTERNAL_ELEVATOR_CONFIG.z, 41.5);
+    assert.equal(elevator.group.position.x, 0);
+    assert.equal(elevator.group.position.z, 41.5);
+    assert.equal(elevator.group.name, 'Deck4-External-Elevator');
+  } finally {
+    elevator.dispose();
+  }
+});

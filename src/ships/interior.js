@@ -142,10 +142,21 @@ export function createStarshipInterior(options = {}) {
       shape = new THREE.Shape();
       shape.moveTo(notchRadiusX, outerY);
 
-      const outerSteps = 96;
-      for (let i = 1; i <= outerSteps; i++) {
-        const angle = rightAngle + ((leftAngle - rightAngle) * i) / outerSteps;
-        shape.lineTo(outerRadiusX * Math.cos(angle), outerRadiusZ * Math.sin(angle));
+      if (name === 'D3-Floor') {
+        // A popa do Deck 3 afunila junto com o teto do hangar D4.
+        shape.quadraticCurveTo(outerRadiusX, -20, outerRadiusX, 0);
+        shape.quadraticCurveTo(outerRadiusX, 12, 20, 28);
+        shape.quadraticCurveTo(15, 42, 8, 45);
+        shape.quadraticCurveTo(0, 47, -8, 45);
+        shape.quadraticCurveTo(-15, 42, -20, 28);
+        shape.quadraticCurveTo(-outerRadiusX, 12, -outerRadiusX, 0);
+        shape.quadraticCurveTo(-outerRadiusX, -20, -notchRadiusX, outerY);
+      } else {
+        const outerSteps = 96;
+        for (let i = 1; i <= outerSteps; i++) {
+          const angle = rightAngle + ((leftAngle - rightAngle) * i) / outerSteps;
+          shape.lineTo(outerRadiusX * Math.cos(angle), outerRadiusZ * Math.sin(angle));
+        }
       }
 
       // Reentra pela curva da folga do defletor; a abertura fica ligada
@@ -165,15 +176,26 @@ export function createStarshipInterior(options = {}) {
         engineeringCoreOpening.absellipse(0, -2 - centerZ, 3.58, 3.58, 0, Math.PI * 2, true, 0);
         shape.holes.push(engineeringCoreOpening);
       }
+    } else if (name === 'D4-Floor') {
+      // Convés do hangar: laterais amplas no centro e popa estreita,
+      // acompanhando o casco e deixando o vão traseiro contínuo.
+      shape = new THREE.Shape();
+      shape.moveTo(0, -49);
+      shape.bezierCurveTo(-18, -49, -24, -38, -24, -20);
+      shape.bezierCurveTo(-24, 5, -20, 25, -15, 36);
+      shape.quadraticCurveTo(-11, 44, -7.5, 46);
+      shape.quadraticCurveTo(0, 48, 7.5, 46);
+      shape.quadraticCurveTo(11, 44, 15, 36);
+      shape.bezierCurveTo(20, 25, 24, 5, 24, -20);
+      shape.bezierCurveTo(24, -38, 18, -49, 0, -49);
     } else {
       shape = new THREE.Shape();
       shape.absellipse(0, 0, width / 2, length / 2, 0, Math.PI * 2, false, 0);
     }
     if (name === 'D4-Floor') {
-      // Abertura exclusiva do elevador externo; o piso original permanece
-      // contínuo no restante do Deck 4.
+      // Poço do elevador dentro do hangar, alinhado à saída traseira.
       const elevatorHatch = new THREE.Path();
-      elevatorHatch.absellipse(8.5, 25 - centerZ, 2.65, 2.65, 0, Math.PI * 2, true, 0);
+      elevatorHatch.absellipse(0, 41.5 - centerZ, 2.65, 2.65, 0, Math.PI * 2, true, 0);
       shape.holes.push(elevatorHatch);
     }
     const geometry = new THREE.ExtrudeGeometry(shape, {
@@ -197,9 +219,9 @@ export function createStarshipInterior(options = {}) {
     // D1 acompanha a seção mais estreita do casco nas laterais.
     // D2 e D3 compartilham a planta ampliada até o contorno do casco,
     // usando a região do elevador (Z=25) como referência traseira.
-    // D4 permanece integralmente fora desta revisão.
+    // D4 recebe uma planta afunilada, alinhada à abertura do hangar.
     const footprints = {
-      D1: [44, 82], D2: [52, 96], D3: [52, 96], D4: [48, 110, 5.5]
+      D1: [44, 82], D2: [52, 96], D3: [52, 96], D4: [48, 98, 0]
     };
     const [width, length, centerZ = -2] = footprints[deck.id];
     addDeckPlate(y, width, length, floorMat, label + '-Floor', 0.04, centerZ);
