@@ -680,6 +680,33 @@ let earthTimeCore = null;
 let asteroidSystem;
 let lightingSystem;
 let starshipInterior;
+
+// Ponte autorizada entre o aplicativo Iluminação do AURORA OS e o núcleo da nave.
+// O AURORA OS envia comandos; o Runtime aplica-os ao núcleo e devolve o estado.
+document.addEventListener('starfrontier:ship-lighting-command', event => {
+  const core = starshipInterior?.lightingCore;
+  if (!core) {
+    document.dispatchEvent(new CustomEvent('starfrontier:ship-lighting-status', {
+      detail: { available: false, status: null }
+    }));
+    return;
+  }
+
+  const command = event.detail || {};
+  try {
+    if (command.action === 'set-deck') {
+      core.setDeckEnabled(command.deckId, command.enabled);
+    }
+    document.dispatchEvent(new CustomEvent('starfrontier:ship-lighting-status', {
+      detail: { available: true, status: core.getStatus() }
+    }));
+  } catch (error) {
+    console.warn('Comando de iluminação recusado:', error);
+    document.dispatchEvent(new CustomEvent('starfrontier:ship-lighting-status', {
+      detail: { available: true, error: error.message, status: core.getStatus() }
+    }));
+  }
+});
 let externalElevator = null;
 let externalElevatorRiding = false;
 const externalElevatorRidingOffset = new THREE.Vector3();
