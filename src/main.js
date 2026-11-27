@@ -1599,8 +1599,8 @@ function isD4ExitAperture(position) {
 }
 
 function isD4BeyondExitAperture(position) {
-  const radius = 8;
-  const aftEdgeZ = 5.5 + 110 * 0.5;
+  const radius = 6.5;
+  const aftEdgeZ = 47;
   const absX = Math.abs(position.x);
   if (absX > radius) return false;
   const outerZ = aftEdgeZ + Math.sqrt(Math.max(0, radius ** 2 - position.x ** 2));

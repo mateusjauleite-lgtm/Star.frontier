@@ -37,6 +37,7 @@ on:
       - fix/earth-terrestrial-exploration-zone
       - feature/central-physical-scale-2026-11-22
       - feature/earth-scale-mineral-field-labels-2026-11-22
+      - feature/aurora-aft-hangar-nacelles
   pull_request:
     branches:
       - feature/alexia-chat-core

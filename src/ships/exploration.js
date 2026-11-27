@@ -148,8 +148,8 @@ export function createExplorationShip() {
 
     // Recorte circular no casco inferior, alinhado ao poço do elevador
     // externo do Deck 4 (coordenadas locais da nave).
-    const elevatorDx = centerX * 27.2 - 8.5;
-    const elevatorDz = centerZ * 50 - 25;
+    const elevatorDx = centerX * 27.2;
+    const elevatorDz = centerZ * 50 - 41.5;
     const isExternalElevatorOpening =
       elevatorDx * elevatorDx + elevatorDz * elevatorDz < 3.2 * 3.2 &&
       centerY < -0.68;
@@ -372,7 +372,7 @@ export function createExplorationShip() {
     nacelle.name = side < 0 ? 'Port-Warp-Nacelle' : 'Starboard-Warp-Nacelle';
     nacelle.position.set(side * 31.5, -0.8, 55);
     nacelle.userData.exteriorOnly = true;
-    nacelle.userData.hullClearanceMeters = 31.5 - 27.2;
+    nacelle.userData.hullClearanceMeters = 31.5 - 2.45 - 0.42 - 27.2;
     aftNacelleJunction.add(nacelle);
 
     const bodyGeometry = new THREE.ExtrudeGeometry(nacelleShape, {

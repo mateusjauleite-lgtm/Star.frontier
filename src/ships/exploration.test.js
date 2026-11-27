@@ -81,8 +81,8 @@ test('popa nova tem moldura uniforme e duas naceles longas totalmente externas',
   for (const name of ['Port-Warp-Nacelle', 'Starboard-Warp-Nacelle']) {
     const nacelle = visual.getObjectByName(name);
     assert.ok(nacelle, name + ' deve existir');
-    assert.ok(Math.abs(nacelle.position.x) > 27.2,
-      'o corpo da nacelle deve permanecer além da largura máxima do casco');
+    assert.ok(Math.abs(nacelle.position.x) - 2.45 - 0.42 > 27.2,
+      'até a face interna do corpo chanfrado deve permanecer além do casco');
     assert.equal(nacelle.userData.exteriorOnly, true);
     const bodyName = name.replace('Warp-Nacelle', 'Nacelle-Armored-Body');
     const body = nacelle.getObjectByName(bodyName);
