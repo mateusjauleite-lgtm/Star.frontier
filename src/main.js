@@ -1616,7 +1616,9 @@ function isCharacterInsideDeck(position, deckIndex) {
   // A borda deixa de ser uma elipse invisível independente do modelo.
   // A contenção usa a seção real do casco (27.2 x 15.2 x 50 m),
   // com margem para o corpo do personagem e recortes estruturais preservados.
-  const feetY = getCharacterWalkableFloorY(position, deckIndex);
+  const feetY = Number.isFinite(position.y)
+    ? position.y
+    : getCharacterWalkableFloorY(position, deckIndex);
   if (isCharacterInsideAuroraHull(position, deck.id, feetY)) return true;
 
   // A saída traseira do D4 continua sendo um vão funcional do hangar.
