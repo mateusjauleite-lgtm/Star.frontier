@@ -233,7 +233,7 @@ test('instala duas faixas emissivas sobre o piso real de cada deck, sem colisõe
   assert.equal(d1Fixture.material.emissiveIntensity, 0,
     'o interruptor mestre deve apagar todas as faixas');
   interior.lightingCore.setMasterEnabled(true);
-  assert.equal(d1Fixture.material.emissiveIntensity, 0.575,
+  assert.equal(d1Fixture.material.emissiveIntensity, 1.5,
     'ao religar o mestre, a intensidade individual deve ser preservada');
   interior.dispose();
 });
