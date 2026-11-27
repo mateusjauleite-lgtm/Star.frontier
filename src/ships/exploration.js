@@ -148,8 +148,8 @@ export function createExplorationShip() {
 
     // Recorte circular no casco inferior, alinhado ao poço do elevador
     // externo do Deck 4 (coordenadas locais da nave).
-    const elevatorDx = centerX * 27.2 - 8.5;
-    const elevatorDz = centerZ * 50 - 25;
+    const elevatorDx = centerX * 27.2;
+    const elevatorDz = centerZ * 50 - 41.5;
     const isExternalElevatorOpening =
       elevatorDx * elevatorDx + elevatorDz * elevatorDz < 3.2 * 3.2 &&
       centerY < -0.68;
@@ -297,161 +297,148 @@ export function createExplorationShip() {
     new THREE.TorusGeometry(0.46, 0.025, 8, 40),
     stationLightMaterial, [0, 1.28, -0.58], [Math.PI / 2, 0, 0]);
 
-  // Reforço do casco de engenharia inferior.
-
+  // Reforço do casco de engenharia inferior; permanece fora da circulação do D4.
   addMesh(new THREE.SphereGeometry(1, 36, 24), undersideMaterial,
     [0, -10.2, 18], [11.5, 4.8, 25], 'Engineering-Secondary-Hull');
 
-  // Corpo externo da popa mantido abaixo do piso do Deck 4.
-  // Reduzimos apenas a projeção vertical e longitudinal que avançava
-  // para dentro do hangar, preservando a largura e a ligação externa.
-  addMesh(new THREE.SphereGeometry(1, 32, 20), undersideMaterial,
-    [0, -11.0, 39], [9.2, 1.8, 12], 'Integrated-Aft-Engineering-Pod');
+  // Moldura contínua da boca do hangar. Os quatro elementos ficam fora
+  // do vão livre, sem pontas triangulares nem travessas atravessando a saída.
+  const aftHangarFrame = new THREE.Group();
+  aftHangarFrame.name = 'Aft-Hangar-Opening-Frame';
+  visual.add(aftHangarFrame);
+  const framePart = (name, size, position, material = hullMaterial) => {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(...size), material);
+    mesh.name = name;
+    mesh.position.set(...position);
+    aftHangarFrame.add(mesh);
+    return mesh;
+  };
+  framePart('Central-Hangar-Upper-Lip', [22.5, 0.9, 1.4], [0, -1.9, 49.2]);
+  framePart('Central-Hangar-Lower-Lip', [22.5, 0.9, 1.4], [0, -12.3, 49.2]);
+  framePart('Central-Hangar-Port-Frame', [1.2, 10.8, 1.4], [-10.8, -7.1, 49.2]);
+  framePart('Central-Hangar-Starboard-Frame', [1.2, 10.8, 1.4], [10.8, -7.1, 49.2]);
 
-  // Junção estrutural única da popa: os dois suportes e as naceles
-  // pertencem ao mesmo conjunto de conexão junto ao hangar.
+  // Junção externa independente: braços largos e achatados ligam a moldura
+  // do hangar às naceles, sem atravessar o volume habitável da nave.
   const aftNacelleJunction = new THREE.Group();
   aftNacelleJunction.name = 'Aft-Hangar-Nacelle-Junction';
   visual.add(aftNacelleJunction);
 
-  // Boca do hangar central: vão livre. Não inserir painel sólido no plano
-  // externo, pois ele fecha visualmente a saída do hangar.
-  addMesh(new THREE.BoxGeometry(19.6, 0.32, 0.42), trimMaterial,
-    [0, -4.55, 53.95], [1, 1, 1], 'Central-Hangar-Upper-Lip');
-  addMesh(new THREE.BoxGeometry(19.6, 0.32, 0.42), trimMaterial,
-    [0, -9.65, 53.95], [1, 1, 1], 'Central-Hangar-Lower-Lip');
-
-  for (const side of [-1, 1]) {
-    const supportCurve = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(side * 7.5, -8.2, 37),
-      new THREE.Vector3(side * 9.5, -4.2, 43),
-      new THREE.Vector3(side * 11.5, -0.8, 51),
-      new THREE.Vector3(side * 12.2, 0.1, 56)
-    ]);
-    const supportGeometry = new THREE.TubeGeometry(supportCurve, 32, 2.7, 16, false);
-    // Longarina achatada e larga, com acabamento metálico integrado ao casco.
-    supportGeometry.scale(1, 0.62, 1);
-    const support = new THREE.Mesh(supportGeometry, hullMaterial);
-    support.name = side < 0 ? 'Port-Integrated-Aft-Support' : 'Starboard-Integrated-Aft-Support';
-    aftNacelleJunction.add(support);
-
-    const railCurve = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(side * 7.8, -7.55, 37.4),
-      new THREE.Vector3(side * 9.8, -3.55, 43.4),
-      new THREE.Vector3(side * 11.8, -0.15, 51.4),
-      new THREE.Vector3(side * 12.5, 0.75, 56.4)
-    ]);
-    const insetRail = new THREE.Mesh(
-      new THREE.TubeGeometry(railCurve, 28, 0.24, 10, false),
-      trimMaterial
-    );
-    insetRail.name = side < 0 ? 'Port-Aft-Support-Inset-Rail' : 'Starboard-Aft-Support-Inset-Rail';
-    aftNacelleJunction.add(insetRail);
-  }
-
   const engineFlames = [];
   const engineLights = [];
-
   for (const side of [-1, 1]) {
-    // Nacelles recuadas: paralelas ao eixo longitudinal e ligadas à popa integrada.
+    const root = new THREE.Vector3(side * 11.0, -7.1, 49.2);
+    const tip = new THREE.Vector3(side * 31.5, -0.8, 55.0);
+    const direction = tip.clone().sub(root);
+    const supportLength = direction.length();
+    const support = new THREE.Mesh(
+      new THREE.BoxGeometry(6.2, 3.0, supportLength),
+      hullMaterial
+    );
+    support.name = side < 0
+      ? 'Port-External-Aft-Support'
+      : 'Starboard-External-Aft-Support';
+    support.position.copy(root).add(tip).multiplyScalar(0.5);
+    support.quaternion.setFromUnitVectors(
+      new THREE.Vector3(0, 0, 1), direction.normalize()
+    );
+    support.userData.exteriorOnly = true;
+    aftNacelleJunction.add(support);
+
+    const supportLight = new THREE.Mesh(
+      new THREE.BoxGeometry(0.2, 0.14, supportLength * 0.82),
+      glowMaterial
+    );
+    supportLight.name = side < 0
+      ? 'Port-Aft-Support-Light-Channel'
+      : 'Starboard-Aft-Support-Light-Channel';
+    supportLight.position.set(0, 1.55, 0);
+    support.add(supportLight);
+
+    // Perfil de seção retangular com cantos chanfrados: corpo alongado,
+    // não cilíndrico. A posição X mantém toda a nacelle além do casco (27,2 m).
+    const nacelleShape = new THREE.Shape();
+    nacelleShape.moveTo(-2.0, -2.15);
+    nacelleShape.lineTo(2.0, -2.15);
+    nacelleShape.quadraticCurveTo(2.45, -2.15, 2.45, -1.7);
+    nacelleShape.lineTo(2.45, 1.7);
+    nacelleShape.quadraticCurveTo(2.45, 2.15, 2.0, 2.15);
+    nacelleShape.lineTo(-2.0, 2.15);
+    nacelleShape.quadraticCurveTo(-2.45, 2.15, -2.45, 1.7);
+    nacelleShape.lineTo(-2.45, -1.7);
+    nacelleShape.quadraticCurveTo(-2.45, -2.15, -2.0, -2.15);
+
     const nacelle = new THREE.Group();
     nacelle.name = side < 0 ? 'Port-Warp-Nacelle' : 'Starboard-Warp-Nacelle';
-    nacelle.position.set(side * 12.2, 0.1, 61);
-    nacelle.scale.setScalar(0.82);
+    nacelle.position.set(side * 31.5, -0.8, 55);
+    nacelle.userData.exteriorOnly = true;
+    nacelle.userData.hullClearanceMeters = 31.5 - 2.45 - 0.42 - 27.2;
     aftNacelleJunction.add(nacelle);
 
-    // Anel estrutural na raiz da nacelle, encaixado no término do suporte
-    // curvo da junção traseira (Z global aproximado 56).
-    const rootCollar = new THREE.Mesh(
-      new THREE.TorusGeometry(3.3, 0.55, 10, 28),
-      undersideMaterial
-    );
-    rootCollar.name = side < 0 ? 'Port-Nacelle-Root-Collar' : 'Starboard-Nacelle-Root-Collar';
-    rootCollar.rotation.x = Math.PI / 2;
-    rootCollar.position.z = -5;
-    nacelle.add(rootCollar);
-
-    // Perfil oval afunilado, com extremidades arredondadas: substitui o antigo cubo/cilindro.
-    const nacelleProfile = [
-      new THREE.Vector2(0.15, -37), new THREE.Vector2(1.8, -35.5),
-      new THREE.Vector2(2.8, -32), new THREE.Vector2(3.25, -25),
-      new THREE.Vector2(3.35, 18), new THREE.Vector2(3.05, 29),
-      new THREE.Vector2(2.45, 34.5), new THREE.Vector2(1.2, 37),
-      new THREE.Vector2(0.12, 38)
-    ];
-    const body = new THREE.Mesh(
-      new THREE.LatheGeometry(nacelleProfile, 28),
-      undersideMaterial
-    );
-    body.rotation.x = Math.PI / 2;
+    const bodyGeometry = new THREE.ExtrudeGeometry(nacelleShape, {
+      depth: 62,
+      steps: 1,
+      bevelEnabled: true,
+      bevelSegments: 3,
+      bevelSize: 0.42,
+      bevelThickness: 0.42,
+      curveSegments: 8
+    });
+    bodyGeometry.translate(0, 0, -31);
+    const body = new THREE.Mesh(bodyGeometry, undersideMaterial);
+    body.name = side < 0 ? 'Port-Nacelle-Armored-Body' : 'Starboard-Nacelle-Armored-Body';
     nacelle.add(body);
 
-    // Painéis de fluxo e anéis técnicos para dar leitura de nacelle de dobra,
-    // mantendo os detalhes dentro do volume já existente da estrutura.
-    for (const [index, z] of [-27, -18, 18, 27].entries()) {
-      const band = new THREE.Mesh(
-        new THREE.TorusGeometry(index % 2 === 0 ? 3.18 : 3.28, 0.16, 8, 28),
-        trimMaterial
-      );
-      band.name = `Nacelle-Armor-Band-${side}-${index}`;
-      band.rotation.x = Math.PI / 2;
-      band.position.z = z;
-      nacelle.add(band);
-    }
-
-    const upperSpine = new THREE.Mesh(
-      new THREE.BoxGeometry(0.34, 0.22, 48),
-      trimMaterial
+    const dorsalArmor = new THREE.Mesh(
+      new THREE.BoxGeometry(0.62, 0.18, 50), trimMaterial
     );
-    upperSpine.name = side < 0 ? 'Port-Nacelle-Dorsal-Spine' : 'Starboard-Nacelle-Dorsal-Spine';
-    upperSpine.position.set(0, 2.95, 0);
-    nacelle.add(upperSpine);
+    dorsalArmor.name = 'Nacelle-Dorsal-Armor';
+    dorsalArmor.position.set(0, 2.32, 0);
+    nacelle.add(dorsalArmor);
 
-    const nacelleGlow = new THREE.Mesh(
-      new THREE.BoxGeometry(0.42, 0.5, 54), glowMaterial
+    const plasmaChannel = new THREE.Mesh(
+      new THREE.BoxGeometry(0.18, 0.24, 54), glowMaterial
     );
-    nacelleGlow.position.set(side * 2.85, 0.35, 0);
-    nacelle.add(nacelleGlow);
+    plasmaChannel.name = 'Nacelle-Plasma-Channel';
+    plasmaChannel.position.set(side * 2.05, 0.15, 0);
+    nacelle.add(plasmaChannel);
 
     const forwardCap = new THREE.Mesh(
-      new THREE.SphereGeometry(3.2, 20, 14),
-      trimMaterial
+      new THREE.BoxGeometry(3.9, 4.25, 1.7), trimMaterial
     );
-    forwardCap.position.z = -36.2;
-    forwardCap.scale.set(1, 1, 0.35);
+    forwardCap.name = 'Nacelle-Forward-Armor-Cap';
+    forwardCap.position.z = -31.25;
     nacelle.add(forwardCap);
 
     const bussard = new THREE.Mesh(
-      new THREE.SphereGeometry(2.25, 20, 14),
-      glowMaterial
+      new THREE.BoxGeometry(2.65, 3.05, 0.14), glowMaterial
     );
-    bussard.position.z = -36.8;
-    bussard.scale.z = 0.42;
+    bussard.name = 'Nacelle-Forward-Field-Emitter';
+    bussard.position.z = -32.18;
     nacelle.add(bussard);
 
-    const aftRing = new THREE.Mesh(
-      new THREE.TorusGeometry(3.05, 0.42, 10, 28),
-      trimMaterial
+    const aftCap = new THREE.Mesh(
+      new THREE.BoxGeometry(3.9, 4.25, 1.7), trimMaterial
     );
-    aftRing.position.z = 35.8;
-    nacelle.add(aftRing);
+    aftCap.name = 'Nacelle-Aft-Armor-Cap';
+    aftCap.position.z = 31.25;
+    nacelle.add(aftCap);
 
     const engineCore = new THREE.Mesh(
-      new THREE.SphereGeometry(2.45, 20, 14),
-      glowMaterial
+      new THREE.BoxGeometry(2.55, 2.9, 0.2), glowMaterial
     );
-    engineCore.position.z = 36.6;
-    engineCore.scale.z = 0.48;
+    engineCore.name = 'Nacelle-Warp-Engine-Core';
+    engineCore.position.z = 32.2;
     nacelle.add(engineCore);
 
     const flame = new THREE.Mesh(
-      new THREE.ConeGeometry(1.65, 8, 16),
+      new THREE.ConeGeometry(1.55, 8, 16),
       new THREE.MeshBasicMaterial({
         color: 0x31cfff, transparent: true, opacity: 0.34
       })
     );
     flame.rotation.x = Math.PI / 2;
-    flame.position.z = 40;
+    flame.position.z = 38;
     nacelle.add(flame);
     engineFlames.push(flame);
 

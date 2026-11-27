@@ -710,6 +710,10 @@ document.addEventListener('starfrontier:ship-lighting-command', event => {
   try {
     if (command.action === 'set-deck') {
       core.setDeckEnabled(command.deckId, command.enabled);
+    } else if (command.action === 'set-intensity') {
+      core.setDeckIntensity(command.deckId, command.intensity);
+    } else if (command.action === 'set-master') {
+      core.setMasterEnabled(command.enabled);
     }
     document.dispatchEvent(new CustomEvent('starfrontier:ship-lighting-status', {
       detail: { available: true, status: core.getStatus() }
@@ -736,11 +740,9 @@ let shipLandingGearContactPoints = [];
 // Estruturas externas da popa que invadem visualmente o espaço útil do Deck 4.
 // São ocultadas somente enquanto o personagem está no D4 e restauradas nos demais decks.
 const deck4ClearanceNames = new Set([
-  'Engineering-Secondary-Hull',
-  'Integrated-Aft-Engineering-Pod',
-  'Aft-Hangar-Nacelle-Junction',
-  'Central-Hangar-Upper-Lip',
-  'Central-Hangar-Lower-Lip'
+  // Apenas o reforço inferior de Engenharia ocupa a área interna do D4.
+  // Os braços e as naceles novas são inteiramente externos e permanecem visíveis.
+  'Engineering-Secondary-Hull'
 ]);
 
 function updateDeck4Clearance() {
@@ -1594,15 +1596,15 @@ function updateCharacterCamera() {
 }
 
 function isD4ExitAperture(position) {
-  const radius = 8;
-  const aftEdgeZ = 5.5 + 110 * 0.5;
+  const radius = 6.5;
+  const aftEdgeZ = 47;
   return position.z >= aftEdgeZ &&
     position.x * position.x + (position.z - aftEdgeZ) ** 2 <= radius ** 2;
 }
 
 function isD4BeyondExitAperture(position) {
-  const radius = 8;
-  const aftEdgeZ = 5.5 + 110 * 0.5;
+  const radius = 6.5;
+  const aftEdgeZ = 47;
   const absX = Math.abs(position.x);
   if (absX > radius) return false;
   const outerZ = aftEdgeZ + Math.sqrt(Math.max(0, radius ** 2 - position.x ** 2));

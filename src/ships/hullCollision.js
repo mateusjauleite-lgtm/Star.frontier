@@ -67,6 +67,7 @@ export function isCharacterInsideAuroraHull(
     deckId === 'D4' &&
     Math.abs(position.x) <= 9.792 - radius &&
     position.z >= 30 + radius &&
+    position.z <= AURORA_HULL_DIMENSIONS.radiusZ - radius &&
     centerY >= -11.552 + radius &&
     centerY <= -2.736 - radius
   ) return true;

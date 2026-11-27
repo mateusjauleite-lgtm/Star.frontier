@@ -63,3 +63,47 @@ test('abertura provisória do defletor recorta somente a concha frontal inferior
 
   assert.ok(trianglesOutsideAperture > 0);
 });
+
+
+test('popa nova tem moldura uniforme e duas naceles longas totalmente externas', () => {
+  const ship = createExplorationShip();
+  const visual = ship.visual;
+  const frame = visual.getObjectByName('Aft-Hangar-Opening-Frame');
+  const junction = visual.getObjectByName('Aft-Hangar-Nacelle-Junction');
+  assert.ok(frame, 'moldura contínua do hangar deve existir');
+  assert.ok(frame.getObjectByName('Central-Hangar-Upper-Lip'));
+  assert.ok(frame.getObjectByName('Central-Hangar-Lower-Lip'));
+  assert.ok(frame.getObjectByName('Central-Hangar-Port-Frame'));
+  assert.ok(frame.getObjectByName('Central-Hangar-Starboard-Frame'));
+  assert.equal(visual.getObjectByName('Integrated-Aft-Engineering-Pod'), undefined);
+  assert.ok(junction, 'junção externa das naceles deve existir');
+
+  for (const name of ['Port-Warp-Nacelle', 'Starboard-Warp-Nacelle']) {
+    const nacelle = visual.getObjectByName(name);
+    assert.ok(nacelle, name + ' deve existir');
+    assert.ok(Math.abs(nacelle.position.x) - 2.45 - 0.42 > 27.2,
+      'até a face interna do corpo chanfrado deve permanecer além do casco');
+    assert.equal(nacelle.userData.exteriorOnly, true);
+    assert.ok(nacelle.userData.hullClearanceMeters > 0,
+      'a face interna da nacelle deve manter folga positiva do casco');
+    const bodyName = name.replace('Warp-Nacelle', 'Nacelle-Armored-Body');
+    const body = nacelle.getObjectByName(bodyName);
+    assert.ok(body, 'corpo estrutural alongado deve existir');
+    assert.ok(body.geometry.parameters.options.depth >= 60,
+      'nacelle deve ser longa no eixo longitudinal');
+    assert.ok(nacelle.getObjectByName('Nacelle-Plasma-Channel'));
+    assert.ok(nacelle.getObjectByName('Nacelle-Warp-Engine-Core'));
+    assert.equal(nacelle.getObjectByName('Port-Nacelle-Root-Collar'), undefined,
+      'aros circulares antigos não devem permanecer');
+  }
+
+  for (const name of ['Port-External-Aft-Support', 'Starboard-External-Aft-Support']) {
+    const support = junction.getObjectByName(name);
+    assert.ok(support, 'braço estrutural externo deve existir');
+    assert.equal(support.geometry.type, 'BoxGeometry', 'braço não deve voltar a ser tubo');
+    assert.equal(support.userData.exteriorOnly, true);
+  }
+
+  assert.equal(ship.engineFlames.length, 2);
+  assert.equal(ship.engineLights.length, 2);
+});

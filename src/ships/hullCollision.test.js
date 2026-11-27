@@ -33,7 +33,11 @@ test('Deck 3 respeita o casco inferior e preserva a abertura do defletor', () =>
 test('Deck 4 bloqueia as laterais e preserva o túnel aberto do hangar', () => {
   assert.equal(isCharacterInsideAuroraHull({ x: 0, z: 0 }, 'D4', -8.49), true);
   assert.equal(isCharacterInsideAuroraHull({ x: 24, z: 0 }, 'D4', -8.49), false);
+  assert.equal(isCharacterInsideAuroraHull({ x: 0, z: 41.5 }, 'D4', -8.49), true);
   assert.equal(isCharacterInsideAuroraHull({ x: 0, z: 48 }, 'D4', -8.49), true);
+  assert.equal(isCharacterInsideAuroraHull({ x: 0, z: 50.5 }, 'D4', -8.49), false,
+    'a contenção do casco deve terminar na borda real da abertura traseira');
+  assert.equal(isCharacterInsideAuroraHull({ x: 9.5, z: 41.5 }, 'D4', -8.49), false);
 });
 
 test('posições e dimensões inválidas são rejeitadas com segurança', () => {
