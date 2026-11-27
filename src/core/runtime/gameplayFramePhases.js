@@ -38,7 +38,7 @@ export function createGameplayFramePhases(getDependencies) {
     },
 
     updateCharacterMode(dt) {
-      const { characterCore, syncCharacterDeckFrame, updateCharacterMovement, updateCharacterWeapon, updateExternalElevatorAnimation, updateElevatorInteraction, updateAlexiaInteraction, updatePilotInteraction, updateShipManagementInteraction, updateEngineeringConsoleInteraction, updateRefineryConsoleInteraction, updateDeflectorConsoleInteraction, updateTransporterConsoleInteraction, updateTransporterPlatformInteraction, updateExternalElevatorInteraction, updateCharacterCamera, updateFlight, updateCamera, cameraRuntime, state } = getDependencies();
+      const { characterCore, syncCharacterDeckFrame, updateCharacterMovement, updateCharacterWeapon, updateExternalElevatorAnimation, updateElevatorInteraction, updateAlexiaInteraction, updatePilotInteraction, updateShipManagementInteraction, updateEngineeringConsoleInteraction, updateRefineryConsoleInteraction, updateDeflectorConsoleInteraction, updateTransporterConsoleInteraction, updateTransporterPlatformInteraction, updateExternalElevatorInteraction, updateLightingConsoleInteraction, updateCharacterCamera, updateFlight, updateCamera, cameraRuntime, state } = getDependencies();
   syncCharacterDeckFrame?.();
   if (characterCore.snapshot().mode === 'on-foot') {
     updateCharacterMovement(dt);
@@ -69,6 +69,7 @@ export function createGameplayFramePhases(getDependencies) {
   updateTransporterConsoleInteraction?.(dt);
   updateTransporterPlatformInteraction?.();
   updateAlexiaInteraction?.(dt);
+  updateLightingConsoleInteraction?.(dt);
     },
 
     updateLanding(dt) {
