@@ -94,9 +94,11 @@ export function createStarshipInterior(options = {}) {
         continue;
       }
 
-      const centerX = side * (edge - 3.2);
-      const innerX = centerX - side * 0.09;
-      const outerX = centerX + side * 0.09;
+      const stripHalfWidth = 0.35;
+      const centerOffset = 3.2 + stripHalfWidth;
+      const centerX = side * (edge - centerOffset);
+      const innerX = centerX - side * stripHalfWidth;
+      const outerX = centerX + side * stripHalfWidth;
       const row = positions.length / 3;
       positions.push(innerX, 0.205, z, outerX, 0.205, z);
 
@@ -339,7 +341,7 @@ export function createStarshipInterior(options = {}) {
       const fixture = lightingCore.addWallFixture(deck.id, {
         geometry,
         color: 0xeaf6ff,
-        intensity: 1.15,
+        intensity: 3.0,
         name: `${deck.id}-Floor-Light-${side < 0 ? 'Port' : 'Starboard'}`
       });
       fixture.userData.floorStrip = {
@@ -348,6 +350,7 @@ export function createStarshipInterior(options = {}) {
         zStart: geometry.userData.floorRange.start,
         zEnd: geometry.userData.floorRange.end,
         edgeInset: 3.2,
+        width: 0.7,
         surfaceOffset: 0.025,
         collisionFree: true
       };
