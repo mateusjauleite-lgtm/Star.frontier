@@ -44,6 +44,19 @@ export function createStarshipInterior(options = {}) {
   });
   const collisionBoxes = [];
 
+  // Ray casting 2D: Three.js ShapeUtils não expõe isPointInsidePolygon.
+  const isPointInsidePolygon = (point, polygon) => {
+    let inside = false;
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i, i += 1) {
+      const a = polygon[i];
+      const b = polygon[j];
+      const crosses = ((a.y > point.y) !== (b.y > point.y)) &&
+        (point.x < ((b.x - a.x) * (point.y - a.y)) / (b.y - a.y) + a.x);
+      if (crosses) inside = !inside;
+    }
+    return inside;
+  };
+
   // Faixas planas geradas a partir do contorno real de cada piso.
   // A busca encontra a borda lateral do polígono e recua alguns metros,
   // sem tocar paredes, criar colisores ou alterar a malha estrutural.
@@ -70,9 +83,7 @@ export function createStarshipInterior(options = {}) {
       const localZ = z - centerZ;
       let edge = 0;
       for (let distance = 0.25; distance <= 32; distance += 0.2) {
-        if (THREE.ShapeUtils.isPointInsidePolygon(
-          new THREE.Vector2(side * distance, localZ), polygon
-        )) edge = distance;
+        if (isPointInsidePolygon(new THREE.Vector2(side * distance, localZ), polygon)) edge = distance;
       }
 
       // Ausência de piso (ex.: recorte do defletor) interrompe a faixa;
