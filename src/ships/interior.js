@@ -195,6 +195,7 @@ export function createStarshipInterior(options = {}) {
     // deixando as solas acima do plano sem alterar a altura lógica de caminhada.
     mesh.position.set(0, y + 0.18, centerZ);
     mesh.name = name;
+    mesh.userData.deckFootprint = { width, length, centerZ };
     mesh.castShadow = false;
     mesh.receiveShadow = true;
     group.add(mesh);
