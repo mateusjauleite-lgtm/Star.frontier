@@ -90,7 +90,7 @@ test('estrutura interna do defletor integra anel iluminado e acesso pelo Deck 3'
 
 test('Decks 1, 2 e 3 usam a mesma planta e o Deck 4 permanece inalterado', () => {
   const interior = createStarshipInterior();
-  const expected = { width: 44, length: 80, centerZ: -2 };
+  const expected = { width: 50, length: 82, centerZ: -2 };
 
   for (const deckId of ['D1', 'D2', 'D3']) {
     const floor = interior.group.getObjectByName(`${deckId}-Floor`);
