@@ -20,7 +20,7 @@ function element() {
   };
 }
 
-test('held flight controls set and release throttle state', () => {
+test('propulsor principal alterna entre ligado e desligado com toques', () => {
   const buttons = new Map(['throttle-btn', 'brake-btn', 'nitro-btn'].map(id => [id, element()]));
   const windowListeners = new Map();
   const document = { getElementById: id => buttons.get(id) || null };
@@ -29,12 +29,14 @@ test('held flight controls set and release throttle state', () => {
 
   registerHeldFlightControls({ document, window, state });
   const throttle = buttons.get('throttle-btn');
-  throttle.fire('pointerdown', { pointerId: 7, pointerType: 'touch' });
+  throttle.fire('click');
   assert.equal(state.throttle, true);
   assert.equal(throttle.classes.has('active'), true);
-  throttle.fire('pointerup', { pointerId: 7 });
+  assert.equal(throttle.attributes['aria-pressed'], 'true');
+  throttle.fire('click');
   assert.equal(state.throttle, false);
   assert.equal(throttle.classes.has('active'), false);
+  assert.equal(throttle.attributes['aria-pressed'], 'false');
 });
 
 test('camera cycle control preserves the three existing camera modes', () => {
@@ -52,6 +54,29 @@ test('camera cycle control preserves the three existing camera modes', () => {
   assert.equal(button.textContent, 'FIRST');
 });
 
+
+test('propulsor envia comandos de ligar e desligar ao Ship Computer', () => {
+  const throttle = element();
+  const document = { getElementById: id => id === 'throttle-btn' ? throttle : null };
+  const window = { addEventListener() {} };
+  const state = { throttle: false };
+  const commands = [];
+  registerHeldFlightControls({
+    document, window, state,
+    dispatchPropulsionCommand: payload => {
+      commands.push(payload);
+      return { accepted: true };
+    }
+  });
+  throttle.fire('click');
+  throttle.fire('click');
+  assert.deepEqual(commands, [
+    { control: 'throttle', active: true },
+    { control: 'throttle', active: false }
+  ]);
+  assert.equal(state.throttle, false);
+  assert.equal(throttle.attributes['aria-pressed'], 'false');
+});
 
 test('botão de dobra alterna o comando travado e sincroniza estado visual', () => {
   const warp = element();

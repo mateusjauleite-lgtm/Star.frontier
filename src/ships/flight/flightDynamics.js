@@ -43,6 +43,10 @@ export function advanceShipFlightDynamics(state, deltaSeconds) {
   }
 
   const hasConventionalFuel = Number(state.fuel) > 0;
+  if (state.throttle && !hasConventionalFuel) {
+    state.throttle = false;
+    state.throttleShutdownReason = 'fuel-depleted';
+  }
   const refinedDilithium = Math.max(0, Number(state.refinedDilithium) || 0);
   const plasma = state.plasma === undefined ? refinedDilithium : Math.max(0, Number(state.plasma) || 0);
   const hasCorePowerSystem = Boolean(state.warpCorePowerBusConnected);

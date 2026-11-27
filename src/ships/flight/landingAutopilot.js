@@ -51,12 +51,13 @@ export function createShipLandingMetricTelemetryAdapter({
      clearanceMeters:cleanZero(position[1]-deckHeightMeters),
      radialDistanceMeters:cleanZero(Math.hypot(position[0],position[2]))});
    }
+   const velocitySampleValid=Boolean(previousPosition);
    const velocity=previousPosition
     ?positionMeters.map((v,i)=>cleanZero((v-previousPosition[i])/dt))
     :[0,0,0];
    previousPosition=[...positionMeters];
    return {
-    positionMeters,velocityMetersPerSecond:velocity,
+    positionMeters,velocityMetersPerSecond:velocity,velocitySampleValid,
     targetPositionMeters:[0,SHIP_LANDING_TARGET_HEIGHT_METERS,0],
     surfaceNormal:[0,1,0],
     shipForwardLocal:toAxes(forwardPlatform),shipUpLocal:toAxes(upPlatform),
@@ -66,7 +67,7 @@ export function createShipLandingMetricTelemetryAdapter({
     maximumGearClearanceMeters:Math.max(...gear.map(point=>point.clearanceMeters)),
     modelMetersPerUnit,coordinateFrame:'platform-local-metric',
     source:'ship-model-and-platform-world-matrices',
-    scaleValidation:'metric-proxy-calibrated-render-scale-pending',
+    scaleValidation:'platform-local-metric-frame',
     actuationEnabled:false
    };
   },
@@ -145,23 +146,30 @@ export function calculateLandingGuidance({currentPosition,currentVelocity=[0,0,0
  return {altitudeUnits:altitude,lateralErrorUnits:lateralDistance,desiredVelocity,phase};
 }
 
-/** C++ Ship Core orchestration; guidance never directly moves the rendered ship. */
+/** C++ Ship Core guidance; the runtime maps its velocity target into bounded propulsion actuation. */
 export function createShipLandingAutopilot(shipKernel){
  let active=false,targetId=null;
  return {
   arm(site){if(!site||typeof site.id!=='string'||!site.id)return false;targetId=site.id;active=true;return true;},
   update(state){
    if(!active||!state)return null;
+   const surfaceNormal=normalize(state.surfaceNormal);
+   const relativePosition=vector3(state.positionMeters)&&vector3(state.targetPositionMeters)
+    ?state.positionMeters.map((value,index)=>value-state.targetPositionMeters[index]):null;
+   const altitude=surfaceNormal&&relativePosition?dot(relativePosition,surfaceNormal):0;
+   // Faster high-altitude approach, with a braking-distance ceiling for the
+   // 18 m/s² landing controller; the final flare remains deliberately gentle.
+   const adaptiveDescentSpeed=clamp(Math.sqrt(Math.max(0,altitude-5)*36),1.5,40);
    const guidance=shipKernel?.calculateLandingGuidanceMeters?.({
     position:state.positionMeters,velocity:state.velocityMetersPerSecond,targetPosition:state.targetPositionMeters,
     surfaceNormal:state.surfaceNormal,shipForward:state.shipForwardLocal,shipUp:state.shipUpLocal,targetNorth:state.targetNorthLocal,
-    maximumDescentSpeed:state.maximumDescentSpeed??1.5,lateralGain:state.lateralGain??0.08,verticalGain:state.verticalGain??0.15
+    maximumDescentSpeed:state.maximumDescentSpeed??adaptiveDescentSpeed,lateralGain:state.lateralGain??0.08,verticalGain:state.verticalGain??0.15
    });
-   return guidance?{...guidance,targetId,authority:'guidance-only',actuationEnabled:false,
+   return guidance?{...guidance,targetId,authority:'closed-loop-actuation',actuationEnabled:true,
     coordinateFrame:state.coordinateFrame??'earth-local-tangent',telemetrySource:state.source,scaleValidation:state.scaleValidation}:null;
   },
   cancel(){active=false;targetId=null;},
-  snapshot(){return {active,targetId,authority:'guidance-only',actuationEnabled:false};}
+  snapshot(){return {active,targetId,authority:active?'closed-loop-actuation':'standby',actuationEnabled:active};}
  };
 }
 

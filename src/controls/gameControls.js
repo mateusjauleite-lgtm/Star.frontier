@@ -130,7 +130,28 @@ export function registerHeldFlightControls({ document, window, state, dispatchPr
     ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type => button.addEventListener(type, stop));
     window.addEventListener('blur', stop);
   }
-  holdButton('throttle-btn', 'throttle', 'throttle');
+  // Propulsor principal funciona como a dobra: toque liga, novo toque desliga.
+  const throttleButton = document.getElementById('throttle-btn');
+  if (throttleButton) {
+    throttleButton.setAttribute('aria-pressed', String(Boolean(state.throttle)));
+    throttleButton.classList.toggle('active', Boolean(state.throttle));
+    throttleButton.addEventListener('click', () => {
+      const active = !Boolean(state.throttle);
+      let accepted = true;
+      if (typeof dispatchPropulsionCommand === 'function') {
+        accepted = dispatchPropulsionCommand({ control: 'throttle', active })?.accepted === true;
+      } else {
+        state.throttle = active;
+      }
+      if (!accepted) {
+        onWarpRejected('throttle-command-rejected');
+        return;
+      }
+      state.throttle = active;
+      throttleButton.setAttribute('aria-pressed', String(active));
+      throttleButton.classList.toggle('active', active);
+    });
+  }
   holdButton('brake-btn', 'braking', 'braking');
   holdButton('maneuver-left-btn', 'maneuverLeft', 'maneuverLeft');
   holdButton('maneuver-right-btn', 'maneuverRight', 'maneuverRight');
