@@ -77,11 +77,24 @@ test('barramento de dobra divide a potência igualmente entre as duas naceles', 
   const state = { refinedDilithium: 20, warpDriveButton: true };
   const core = createWarpCorePowerSystem({ state });
   core.update(1);
-  const delivered = core.powerBus.draw(100, 10);
+  const delivered = state.requestWarpPower(100, 10);
   const branches = core.snapshot().nacelles;
   assert.ok(delivered > 0);
   assert.ok(Math.abs(branches.port.deliveredThisFrame - branches.starboard.deliveredThisFrame) < 1e-12);
   assert.ok(Math.abs(branches.port.deliveredThisFrame + branches.starboard.deliveredThisFrame - delivered) < 1e-12);
   assert.equal(branches.port.online, true);
   assert.equal(branches.starboard.online, true);
+});
+
+test('consumo do defletor no barramento compartilhado não é contado como alimentação das naceles', () => {
+  const state = { refinedDilithium: 20 };
+  const core = createWarpCorePowerSystem({ state });
+  core.update(1);
+  const delivered = core.powerBus.draw(1, 1);
+  const branches = core.snapshot().nacelles;
+  assert.ok(delivered > 0);
+  assert.equal(branches.port.deliveredThisFrame, 0);
+  assert.equal(branches.starboard.deliveredThisFrame, 0);
+  assert.equal(branches.port.online, false);
+  assert.equal(branches.starboard.online, false);
 });
