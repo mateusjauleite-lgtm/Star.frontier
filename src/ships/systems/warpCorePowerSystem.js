@@ -43,6 +43,7 @@ export function createWarpCorePowerSystem(options = {}) {
   let lastOutputPerSecond = 0;
   let lastMatrixOnline = false;
   const frameDrawn = { critical: 0, operations: 0, warp: 0 };
+  const nacelleDeliveryThisFrame = { port: 0, starboard: 0 };
 
   state.warpCoreEnabled = state.warpCoreEnabled !== false;
   state.warpCoreMatrixEnabled = state.warpCoreMatrixEnabled !== false;
@@ -77,8 +78,14 @@ export function createWarpCorePowerSystem(options = {}) {
       frameDrawn[name] += delivered;
       deliveredTotal += delivered;
       transferThisFrame += delivered;
+      if (name === 'warp') {
+        const perNacelle = delivered * 0.5;
+        nacelleDeliveryThisFrame.port += perNacelle;
+        nacelleDeliveryThisFrame.starboard += delivered - perNacelle;
+      }
       syncState();
       telemetry = snapshot({ matrixOnline: lastMatrixOnline, outputPerSecond: lastOutputPerSecond });
+      state.warpCorePowerTelemetry = telemetry;
     }
     return delivered;
   }
@@ -90,6 +97,8 @@ export function createWarpCorePowerSystem(options = {}) {
     frameDrawn.critical = 0;
     frameDrawn.operations = 0;
     frameDrawn.warp = 0;
+    nacelleDeliveryThisFrame.port = 0;
+    nacelleDeliveryThisFrame.starboard = 0;
     state.warpCorePowerBusConnected = true;
     state.requestWarpPower = (amount, delta = dt) => draw('warp', amount, delta);
     state.requestOperationsPower = (amount, delta = dt) => draw('operations', amount, delta);
@@ -198,6 +207,16 @@ export function createWarpCorePowerSystem(options = {}) {
         critical: bufferSnapshot('critical'),
         operations: bufferSnapshot('operations'),
         warp: bufferSnapshot('warp')
+      }),
+      nacelles: Object.freeze({
+        port: Object.freeze({
+          online: Boolean(matrixOnline && (buffers.warp > EPSILON || nacelleDeliveryThisFrame.port > EPSILON)),
+          deliveredThisFrame: nacelleDeliveryThisFrame.port
+        }),
+        starboard: Object.freeze({
+          online: Boolean(matrixOnline && (buffers.warp > EPSILON || nacelleDeliveryThisFrame.starboard > EPSILON)),
+          deliveredThisFrame: nacelleDeliveryThisFrame.starboard
+        })
       })
     });
   }
