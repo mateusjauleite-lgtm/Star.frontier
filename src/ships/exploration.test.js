@@ -93,6 +93,16 @@ test('popa nova tem moldura uniforme e duas naceles longas totalmente externas',
       'nacelle deve ser longa no eixo longitudinal');
     assert.ok(nacelle.getObjectByName('Nacelle-Plasma-Channel'));
     assert.ok(nacelle.getObjectByName('Nacelle-Warp-Engine-Core'));
+    const side = name.startsWith('Port-') ? 'Port' : 'Starboard';
+    assert.ok(nacelle.getObjectByName(`${side}-Nacelle-Internal-Plasma-Chamber`),
+      'câmara interna de plasma deve existir em cada nacele');
+    assert.ok(nacelle.getObjectByName(`${side}-Nacelle-Internal-Chamber-View-Window`),
+      'câmara deve ter janela superior visível');
+    assert.equal(body.geometry.parameters.shapes.holes.length, 1,
+      'corpo da nacele deve reservar uma abertura real para a câmara');
+    const feed = junction.getObjectByName(`${side}-Warp-Plasma-Feed-Conduit`);
+    assert.ok(feed, 'condutor de plasma deve conectar o braço à nacele');
+    assert.equal(feed.userData.isNacellePlasmaConduit, true);
     assert.equal(nacelle.getObjectByName('Port-Nacelle-Root-Collar'), undefined,
       'aros circulares antigos não devem permanecer');
   }
