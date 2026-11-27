@@ -82,7 +82,8 @@ export function createShipLightingCore({ decks = DEFAULT_DECKS } = {}) {
       emissive: color,
       emissiveIntensity: intensity,
       metalness: 0.15,
-      roughness: 0.32
+      roughness: 0.32,
+      side: THREE.DoubleSide
     });
     const fixture = new THREE.Mesh(
       geometry || new THREE.BoxGeometry(width, height, depth),

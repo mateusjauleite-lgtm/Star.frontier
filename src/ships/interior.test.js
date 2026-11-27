@@ -163,6 +163,23 @@ test('instala duas faixas emissivas na face interna do casco em cada deck, sem c
     assert.ok(fixtures.every(fixture => fixture.geometry.attributes.position.count > 300));
   }
 
+  for (const deck of status.decks) {
+    const branch = interior.lightingCore.group.getObjectByName(`Aurora7-Lighting-Branch-${deck.id}`);
+    branch.updateMatrixWorld(true);
+    branch.traverse(object => {
+      if (!object.isMesh) return;
+      const positions = object.geometry.attributes.position;
+      for (let index = 0; index < positions.count; index += 1) {
+        const point = new THREE.Vector3(
+          positions.getX(index), positions.getY(index), positions.getZ(index)
+        ).applyMatrix4(object.matrixWorld);
+        const hullTerm = (point.x / 27.2) ** 2 + (point.y / 15.2) ** 2 + (point.z / 50) ** 2;
+        assert.ok(hullTerm < 1,
+          `${deck.id} faixa deve permanecer recuada dentro da concha do casco`);
+      }
+    });
+  }
+
   const d1 = interior.lightingCore.group.getObjectByName('Aurora7-Lighting-Branch-D1');
   const d2 = interior.lightingCore.group.getObjectByName('Aurora7-Lighting-Branch-D2');
   const d3 = interior.lightingCore.group.getObjectByName('Aurora7-Lighting-Branch-D3');
