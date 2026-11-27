@@ -206,5 +206,23 @@ test('instala duas faixas emissivas sobre o piso real de cada deck, sem colisõe
 
   assert.equal(interior.lightingCore.group.userData.collisionBoxesAtInstall, 0,
     'as faixas do piso não devem registrar caixas de colisão');
+
+  const d1Branch = interior.lightingCore.group.getObjectByName('Aurora7-Lighting-Branch-D1');
+  const d1Fixture = d1Branch.children.find(object => object.isMesh);
+  assert.ok(d1Fixture, 'o núcleo deve manter referência direta à faixa física do piso');
+  assert.equal(d1Fixture.material.emissiveIntensity, 1.15);
+  interior.lightingCore.setDeckIntensity('D1', 0.5);
+  assert.equal(d1Fixture.material.emissiveIntensity, 0.575,
+    'o controle de intensidade deve alterar a faixa real do piso');
+  interior.lightingCore.setDeckEnabled('D1', false);
+  assert.equal(d1Fixture.material.emissiveIntensity, 0,
+    'o interruptor individual deve apagar a faixa real');
+  interior.lightingCore.setDeckEnabled('D1', true);
+  interior.lightingCore.setMasterEnabled(false);
+  assert.equal(d1Fixture.material.emissiveIntensity, 0,
+    'o interruptor mestre deve apagar todas as faixas');
+  interior.lightingCore.setMasterEnabled(true);
+  assert.equal(d1Fixture.material.emissiveIntensity, 0.575,
+    'ao religar o mestre, a intensidade individual deve ser preservada');
   interior.dispose();
 });
