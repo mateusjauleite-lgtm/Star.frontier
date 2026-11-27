@@ -363,6 +363,12 @@ export function createExplorationShip() {
     nacelleShape.quadraticCurveTo(2.45, -2.15, 2.45, -1.7);
     nacelleShape.lineTo(2.45, 1.7);
     nacelleShape.quadraticCurveTo(2.45, 2.15, 2.0, 2.15);
+    // Rebaixo superior aberto: cria um compartimento longitudinal real
+    // dentro de cada nacelle, sem alterar sua largura externa nem a folga do casco.
+    nacelleShape.lineTo(1.35, 2.15);
+    nacelleShape.lineTo(1.35, 1.22);
+    nacelleShape.lineTo(-1.35, 1.22);
+    nacelleShape.lineTo(-1.35, 2.15);
     nacelleShape.lineTo(-2.0, 2.15);
     nacelleShape.quadraticCurveTo(-2.45, 2.15, -2.45, 1.7);
     nacelleShape.lineTo(-2.45, -1.7);
@@ -389,12 +395,58 @@ export function createExplorationShip() {
     body.name = side < 0 ? 'Port-Nacelle-Armored-Body' : 'Starboard-Nacelle-Armored-Body';
     nacelle.add(body);
 
-    const dorsalArmor = new THREE.Mesh(
-      new THREE.BoxGeometry(0.62, 0.18, 50), trimMaterial
+    // Duas longarinas laterais deixam o compartimento central visível.
+    for (const railSide of [-1, 1]) {
+      const dorsalRail = new THREE.Mesh(
+        new THREE.BoxGeometry(0.38, 0.18, 50), trimMaterial
+      );
+      dorsalRail.name = railSide < 0 ? 'Nacelle-Dorsal-Port-Rail' : 'Nacelle-Dorsal-Starboard-Rail';
+      dorsalRail.position.set(railSide * 1.72, 2.32, 0);
+      nacelle.add(dorsalRail);
+    }
+
+    const chamberFloor = new THREE.Mesh(
+      new THREE.BoxGeometry(2.58, 0.16, 54), undersideMaterial
     );
-    dorsalArmor.name = 'Nacelle-Dorsal-Armor';
-    dorsalArmor.position.set(0, 2.32, 0);
-    nacelle.add(dorsalArmor);
+    chamberFloor.name = 'Nacelle-Internal-Chamber-Floor';
+    chamberFloor.position.set(0, 1.28, 0);
+    nacelle.add(chamberFloor);
+
+    for (const chamberSide of [-1, 1]) {
+      const chamberWall = new THREE.Mesh(
+        new THREE.BoxGeometry(0.14, 0.72, 53), trimMaterial
+      );
+      chamberWall.name = chamberSide < 0 ? 'Nacelle-Internal-Port-Wall' : 'Nacelle-Internal-Starboard-Wall';
+      chamberWall.position.set(chamberSide * 1.25, 1.68, 0);
+      nacelle.add(chamberWall);
+
+      const interiorLightStrip = new THREE.Mesh(
+        new THREE.BoxGeometry(0.08, 0.08, 50), glowMaterial
+      );
+      interiorLightStrip.name = chamberSide < 0 ? 'Nacelle-Interior-Port-Light' : 'Nacelle-Interior-Starboard-Light';
+      interiorLightStrip.position.set(chamberSide * 0.98, 1.94, 0);
+      nacelle.add(interiorLightStrip);
+    }
+
+    const plasmaCore = new THREE.Mesh(
+      new THREE.BoxGeometry(0.52, 0.48, 50), glowMaterial
+    );
+    plasmaCore.name = 'Nacelle-Internal-Plasma-Core';
+    plasmaCore.position.set(0, 1.62, 0);
+    nacelle.add(plasmaCore);
+
+    const plasmaCoreLight = new THREE.PointLight(0x31cfff, 1.6, 28);
+    plasmaCoreLight.name = 'Nacelle-Internal-Plasma-Light';
+    plasmaCoreLight.position.set(0, 1.72, 0);
+    nacelle.add(plasmaCoreLight);
+
+    // Alimentação entra pelo lado interno, alinhada ao braço externo.
+    const plasmaFeed = new THREE.Mesh(
+      new THREE.BoxGeometry(1.65, 0.24, 0.32), glowMaterial
+    );
+    plasmaFeed.name = 'Nacelle-Plasma-Feed-Through';
+    plasmaFeed.position.set(-side * 0.72, 1.58, 0);
+    nacelle.add(plasmaFeed);
 
     const plasmaChannel = new THREE.Mesh(
       new THREE.BoxGeometry(0.18, 0.24, 54), glowMaterial
@@ -446,6 +498,12 @@ export function createExplorationShip() {
     engineLight.position.set(0, 0, 38);
     nacelle.add(engineLight);
     engineLights.push(engineLight);
+
+    const nacelleRunningLight = new THREE.PointLight(0x38d8ff, 1.1, 24);
+    nacelleRunningLight.name = side < 0 ? 'Port-Nacelle-Running-Light' : 'Starboard-Nacelle-Running-Light';
+    nacelleRunningLight.position.set(-side * 2.15, 0.25, 0);
+    nacelle.add(nacelleRunningLight);
+    engineLights.push(nacelleRunningLight);
   }
 
   // Janelas de observação laterais, sem ocupar o espaço interno dos corredores.
