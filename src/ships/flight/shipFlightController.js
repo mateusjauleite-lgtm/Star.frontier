@@ -113,8 +113,9 @@ export function createShipFlightController(dependencies = {}) {
       // velocidade de avanço de aproximação radial real ao planeta.
       state.distanceToEarthCenterMeters = distance;
       state.distanceToEarthSurfaceMeters = altitudeMeters;
-      // O campo de dobra fica bloqueado dentro do envelope planetário e de aproximação.
-      state.warpSafetyLock = altitudeMeters < earthRadius * 3;
+      // A dobra não exige escapar da esfera de influência da Terra.
+      // Gravidade, telemetria orbital e colisão continuam ativos durante o trânsito.
+      state.warpSafetyLock = false;
       if (distance > 1) {
         const worldPosition = currentWorldPosition.toArray();
         const acceleration = earthSystem?.getPlanetaryGravitySystem?.()
@@ -183,14 +184,19 @@ export function createShipFlightController(dependencies = {}) {
       enabled: true
     });
     state.auxiliaryThrustersActive = Math.hypot(...auxiliaryAcceleration) > 0.1;
-    if (earthCenter && !state.warpDriveActive && !(state.warpTransition === 'exiting' && Number(state.warpSpeedC) > 0)) {
-      const landingControl = state.landingAutopilotActive &&
+    if (earthCenter) {
+      const warpTransit = Boolean(state.warpDriveActive || state.warpDriveButton ||
+        (state.warpTransition === 'exiting' && Number(state.warpSpeedC) > 0));
+      const landingControl = !warpTransit && state.landingAutopilotActive &&
         Array.isArray(state.landingAutopilotControlAccelerationWorld) &&
         state.landingAutopilotControlAccelerationWorld.length === 3 &&
         state.landingAutopilotControlAccelerationWorld.every(Number.isFinite)
         ? state.landingAutopilotControlAccelerationWorld
         : null;
       const totalAcceleration = gravityAcceleration.map((value, axis) => {
+        // Durante a dobra, só a gravidade planetária continua atuando;
+        // manobras e assistência ficam suspensas até a nave sair do campo.
+        if (warpTransit) return value;
         const uncontrolled = value + maneuverAcceleration[axis] + auxiliaryAcceleration[axis];
         return landingControl
           ? uncontrolled + landingControl[axis] - value - auxiliaryAcceleration[axis]
@@ -230,7 +236,11 @@ export function createShipFlightController(dependencies = {}) {
     if (warpTravelActive) {
       const warpMetersPerSecond = SPEED_OF_LIGHT_MPS * Math.max(0, Number(state.warpSpeedC) || 0);
       nextShipWorldPosition.addScaledVector(forwardVector, warpMetersPerSecond * safeDt);
-      state.gravityVelocity = [0, 0, 0];
+      // Não zerar a velocidade gravitacional: a gravidade terrestre permanece
+      // integrada e compõe o deslocamento mesmo durante o trânsito de dobra.
+      if (Array.isArray(state.gravityVelocity) && state.gravityVelocity.length === 3) {
+        nextShipWorldPosition.addScaledVector(new THREE.Vector3(...state.gravityVelocity), safeDt);
+      }
     } else {
       nextShipWorldPosition.addScaledVector(forwardVector, state.speed * safeDt);
       if (Array.isArray(state.gravityVelocity)) {
