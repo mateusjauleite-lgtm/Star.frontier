@@ -19,10 +19,12 @@ export function getConventionalFlightSpeedLimit(altitudeMeters, {
   climbAlignment = 0,
   verticalSpeed = 0
 } = {}) {
-  const poweredClimb = Boolean(throttle) &&
-    Number.isFinite(climbAlignment) && climbAlignment > 0.05;
+  // O limite de 12 km/s é o teto do propulsor principal em qualquer direção.
+  // A restrição por altitude continua valendo quando o motor está em repouso,
+  // evitando que a nave acelere sozinha perto do terreno.
+  const poweredFlight = Boolean(throttle);
   const alreadyAscending = Number.isFinite(verticalSpeed) && verticalSpeed > 0.5;
-  return poweredClimb || alreadyAscending
+  return poweredFlight || alreadyAscending
     ? CONVENTIONAL_MAX_SPEED_MPS
     : getConventionalSpeedLimit(altitudeMeters);
 }
