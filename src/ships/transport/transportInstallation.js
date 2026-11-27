@@ -2,9 +2,14 @@ import * as THREE from 'three';
 
 export const DECK_2_TRANSPORTER_LAYOUT = Object.freeze({
   platform: Object.freeze({ x: -12, y: 3.12, z: 27 }),
-  console: Object.freeze({ x: -7.4, y: 3.12, z: 27.2 }),
-  platformRadius: 2.55,
-  emitterCount: 6
+  // Console no lado oposto ao elevador, mantendo distância segura da plataforma.
+  // Recuado para dentro do volume útil do casco: mantém folga vertical do teto elipsoidal.
+  console: Object.freeze({ x: -19.5, y: 3.12, z: 20.5 }),
+  platformRadius: 3.45,
+  consoleInteractionRadius: 3.6,
+  consoleVisibilityRadius: 8,
+  platformInteractionRadius: 3.8,
+  emitterCount: 8
 });
 
 export function createDeck2TransporterInstallation() {
@@ -40,17 +45,19 @@ export function createDeck2TransporterInstallation() {
   };
 
   // Base baixa, aro externo e superfície central azul: plataforma única de transporte.
-  cylinder(platform, 'Transporter-Platform-Base', 2.55, 2.62, 0.22, darkMetal, 0.11);
-  cylinder(platform, 'Transporter-Platform-Upper-Ring', 2.43, 2.43, 0.09, brushedMetal, 0.265);
-  cylinder(platform, 'Transporter-Platform-Deck', 2.28, 2.28, 0.035, darkMetal, 0.325);
+  cylinder(platform, 'Transporter-Platform-Base', 3.45, 3.52, 0.22, darkMetal, 0.11);
+  cylinder(platform, 'Transporter-Platform-Upper-Ring', 3.30, 3.30, 0.09, brushedMetal, 0.265);
+  cylinder(platform, 'Transporter-Platform-Deck', 3.12, 3.12, 0.035, darkMetal, 0.325);
   cylinder(platform, 'Transporter-Platform-Center-Emitter', 0.88, 0.88, 0.045, blue, 0.35);
   cylinder(platform, 'Transporter-Platform-Center-Glow', 1.02, 1.02, 0.018, blueGlow, 0.377);
 
   const emitters = new THREE.Group();
   emitters.name = 'Transporter-Emitter-Array';
   platform.add(emitters);
-  const emitterRadius = 2.08;
+  const emitterRadius = 2.82;
   for (let i = 0; i < DECK_2_TRANSPORTER_LAYOUT.emitterCount; i += 1) {
+    // Deixa o quadrante frontal (+Z) livre para a entrada do personagem.
+    if (i === 1 || i === 2) continue;
     const angle = (Math.PI * 2 * i) / DECK_2_TRANSPORTER_LAYOUT.emitterCount;
     const x = Math.cos(angle) * emitterRadius;
     const z = Math.sin(angle) * emitterRadius;
@@ -67,6 +74,13 @@ export function createDeck2TransporterInstallation() {
     lens.position.set(x, 3.902, z);
     emitters.add(lens);
   }
+  // Rampa baixa alinhada à abertura frontal: acesso caminhável sem atravessar colunas.
+  const entryRamp = new THREE.Mesh(new THREE.BoxGeometry(2.65, 0.12, 1.65), brushedMetal);
+  entryRamp.name = 'Transporter-Platform-Entry-Ramp';
+  entryRamp.position.set(0, 0.21625, 3.55);
+  entryRamp.rotation.x = 0.08;
+  platform.add(entryRamp);
+
   cylinder(emitters, 'Transporter-Emitter-Upper-Hub', 1.12, 1.12, 0.14, darkMetal, 3.9);
   cylinder(emitters, 'Transporter-Emitter-Upper-Blue-Hub', 0.82, 0.82, 0.035, blue, 3.99);
 
@@ -77,6 +91,11 @@ export function createDeck2TransporterInstallation() {
     DECK_2_TRANSPORTER_LAYOUT.console.x,
     DECK_2_TRANSPORTER_LAYOUT.console.y,
     DECK_2_TRANSPORTER_LAYOUT.console.z
+  );
+  // A tela fica voltada para a plataforma e para a área de circulação do Deck 2.
+  console.rotation.y = Math.atan2(
+    DECK_2_TRANSPORTER_LAYOUT.platform.x - DECK_2_TRANSPORTER_LAYOUT.console.x,
+    DECK_2_TRANSPORTER_LAYOUT.platform.z - DECK_2_TRANSPORTER_LAYOUT.console.z
   );
   root.add(console);
   const pedestal = new THREE.Mesh(new THREE.BoxGeometry(0.82, 1.05, 0.62), darkMetal);
@@ -105,9 +124,11 @@ export function createDeck2TransporterInstallation() {
     terminalId: 'planetary-transport-console',
     systemId: 'planetary-transport'
   };
+  // A plataforma e a rampa são superfícies caminháveis, não paredes sólidas.
+  // A altura do piso é resolvida pelo controlador de movimento do personagem.
+  // Mantém apenas o pedestal do console como obstáculo físico.
   root.userData.collisionBoxes = [
-    { x: -12, y: 3.55, z: 27, halfX: 2.65, halfY: 0.25, halfZ: 2.65 },
-    { x: -7.4, y: 3.7, z: 27.2, halfX: 0.62, halfY: 0.85, halfZ: 0.48 }
+    { x: DECK_2_TRANSPORTER_LAYOUT.console.x, y: DECK_2_TRANSPORTER_LAYOUT.console.y + 0.58, z: DECK_2_TRANSPORTER_LAYOUT.console.z, halfX: 0.62, halfY: 0.85, halfZ: 0.48 }
   ];
 
   root.traverse(object => {

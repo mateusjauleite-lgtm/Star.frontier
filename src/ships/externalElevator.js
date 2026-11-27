@@ -3,7 +3,7 @@ import * as THREE from 'three';
 export const EXTERNAL_ELEVATOR_CONFIG = Object.freeze({
   x: 8.5,
   z: 25,
-  interactionRadius: 5.2,
+  interactionRadius: 1.9,
   travelDistance: 6.4,
   travelSeconds: 4.0,
   platformHalfSize: 1.9

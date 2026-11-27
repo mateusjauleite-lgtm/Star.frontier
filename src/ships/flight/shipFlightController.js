@@ -277,6 +277,31 @@ export function createShipFlightController(dependencies = {}) {
       }
     }
 
+    // O trem de pouso não representa toda a extensão do casco. Ao aproximar
+    // a nave inclinada, a popa ou a proa pode atravessar o relevo mesmo com as
+    // sapatas ainda acima dele. Estes pontos acompanham a parte inferior real
+    // do casco e impedem que a superfície o oculte parcialmente.
+    const hullClearanceSamples = typeof shipVisual.localToWorld === 'function' &&
+      typeof new THREE.Vector3().clone === 'function' ? [
+      new THREE.Vector3(0, -15.2, 0),
+      new THREE.Vector3(0, -3.0, -48),
+      new THREE.Vector3(0, -10.85, 35),
+      new THREE.Vector3(0, -12.7, 39),
+      new THREE.Vector3(-18, -11.4, 0),
+      new THREE.Vector3(18, -11.4, 0)
+    ] : [];
+    for (const localPoint of hullClearanceSamples) {
+      const pointWorld = shipVisual.localToWorld(localPoint.clone());
+      const terrain = earthCollisionSurface?.sampleWorldPosition?.(pointWorld);
+      if (!terrain?.worldPosition || !terrain?.worldNormal) continue;
+      const normal = terrain.worldNormal.clone().normalize();
+      const clearance = pointWorld.clone().sub(terrain.worldPosition).dot(normal);
+      if (!Number.isFinite(clearance)) continue;
+      if (!closestContact || clearance < closestContact.clearance) {
+        closestContact = { clearance, normal };
+      }
+    }
+
     // Fallback conservador para mundos/testes sem pontos de trem de pouso.
     if (!closestContact && !landingContacts.length) {
       const rootWorldPosition = ship.getWorldPosition(new THREE.Vector3());
