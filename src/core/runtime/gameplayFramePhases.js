@@ -283,7 +283,20 @@ export function createGameplayFramePhases(getDependencies) {
           : (terrainClearance / 1000).toFixed(2).replace('.', ',') + ' km')
         : '—';
       if ($('speed')) $('speed').textContent = Math.round(state.speed);
-      if ($('fuel')) $('fuel').textContent = Math.round(state.fuel);
+      const plasmaPropulsionActive = Boolean(state.warpDriveActive || state.warpDriveButton ||
+        (state.warpTransition === 'exiting' && Number(state.warpSpeedC) > 0));
+      const fuelSource = plasmaPropulsionActive ? 'PLASMA' : 'COMBUSTÍVEL';
+      const fuelAmount = plasmaPropulsionActive
+        ? Math.max(0, Number(state.plasma) || 0)
+        : Math.max(0, Number(state.fuel) || 0);
+      const fuelCapacity = plasmaPropulsionActive
+        ? Math.max(0, Number(state.plasmaCapacity) || 250)
+        : 100;
+      const fuelPercent = fuelCapacity > 0
+        ? Math.round(Math.max(0, Math.min(100, fuelAmount / fuelCapacity * 100)))
+        : 0;
+      if ($('fuel-type')) $('fuel-type').textContent = fuelSource;
+      if ($('fuel')) $('fuel').textContent = fuelPercent;
       if ($('cargo')) $('cargo').textContent = state.cargo + ' / 100';
       if ($('hull')) $('hull').textContent = state.hull;
       if ($('shield')) $('shield').textContent = state.shield;
