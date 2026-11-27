@@ -116,5 +116,5 @@ test('popa nova tem moldura uniforme e duas naceles longas totalmente externas',
   }
 
   assert.equal(ship.engineFlames.length, 2);
-  assert.equal(ship.engineLights.length, 2);
+  assert.equal(ship.engineLights.length, 4);
 });
