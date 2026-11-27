@@ -4,7 +4,7 @@ import { createGameplayFramePhases } from './gameplayFramePhases.js';
 
 function fixture() {
   const calls = [];
-  const elements = new Map(['speed', 'fuel', 'cargo', 'hull', 'shield', 'hud-credits', 'hud', 'flight-controls', 'altitude-msl', 'atmosphere-layer', 'vertical-speed', 'terrain-clearance', 'altitude-marker', 'ozone-status', 'navigation-coordinates', 'navigation-distance', 'navigation-bearing', 'navigation-full-coordinates', 'navigation-full-distance', 'navigation-full-bearing', 'combat-target-name', 'combat-hull', 'combat-shield', 'warp-core-consumption', 'warp-stability-readout']
+  const elements = new Map(['speed', 'fuel', 'fuel-type', 'cargo', 'hull', 'shield', 'hud-credits', 'hud', 'flight-controls', 'altitude-msl', 'atmosphere-layer', 'vertical-speed', 'terrain-clearance', 'altitude-marker', 'ozone-status', 'navigation-coordinates', 'navigation-distance', 'navigation-bearing', 'navigation-full-coordinates', 'navigation-full-distance', 'navigation-full-bearing', 'combat-target-name', 'combat-hull', 'combat-shield', 'warp-core-consumption', 'warp-stability-readout']
     .map(id => {
       const element = { _textContent: '', style: {} };
       Object.defineProperty(element, 'textContent', {
@@ -80,6 +80,7 @@ test('extracted gameplay phases preserve the existing frame order and delta time
   assert.equal(f.getLandingBase().id, 'landing-base');
   assert.equal(f.elements.get('speed').textContent, '12');
   assert.equal(f.elements.get('fuel').textContent, '80');
+  assert.equal(f.elements.get('fuel-type').textContent, 'COMBUSTÍVEL');
   assert.equal(f.elements.get('cargo').textContent, '3 / 100');
   assert.equal(f.elements.get('hud-credits').textContent, '1.250');
 });
@@ -223,4 +224,16 @@ test('manual flight HUD does not turn a null terrain sample into zero clearance'
   f.dependencies.ship = { position: { x: 0, y: 0, z: 0 }, userData: { earthLandingContacts: { minimumClearanceUnits: null } } };
   f.phases.updateHud();
   assert.equal(f.elements.get('terrain-clearance').textContent, '—');
+});
+
+test('pilot HUD identifies plasma and shows its capacity percentage while warp is active', () => {
+  const f = fixture();
+  Object.assign(f.dependencies.state, {
+    warpDriveActive: true,
+    plasma: 125,
+    plasmaCapacity: 250
+  });
+  f.phases.updateHud();
+  assert.equal(f.elements.get('fuel-type').textContent, 'PLASMA');
+  assert.equal(f.elements.get('fuel').textContent, '50');
 });
