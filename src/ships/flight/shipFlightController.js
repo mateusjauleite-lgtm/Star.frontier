@@ -399,6 +399,19 @@ export function createShipFlightController(dependencies = {}) {
       light.intensity = warpTravelActive ? 3.5 + warpStage * 1.15 : (state.throttle ? 4 : 1.5);
     });
 
+    // As duas linhas de plasma recebem o mesmo barramento de dobra, com telemetria isolada.
+    const shipVisual = getShipVisual();
+    const nacellePower = state.warpCorePowerTelemetry?.nacelles || {};
+    for (const side of ['Port', 'Starboard']) {
+      const key = side === 'Port' ? 'port' : 'starboard';
+      const branch = nacellePower[key];
+      const flowing = Boolean(warpTravelActive && Number(branch?.deliveredThisFrame) > 0);
+      const conduit = shipVisual?.getObjectByName(`${side}-Warp-Plasma-Feed-Conduit`);
+      const chamber = shipVisual?.getObjectByName(`${side}-Nacelle-Internal-Plasma-Chamber`);
+      if (conduit?.material?.emissive) conduit.material.emissiveIntensity = flowing ? 2.1 : 0.72;
+      if (chamber?.material?.emissive) chamber.material.emissiveIntensity = flowing ? 2.4 : 0.85;
+    }
+
     // HUD de dobra: cinco estágios selecionáveis e reserva em unidades de dilítio.
     const warpDriveLevel = getElement('warp-drive-level');
     if (warpDriveLevel) {
