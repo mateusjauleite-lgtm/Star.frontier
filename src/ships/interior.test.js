@@ -144,3 +144,42 @@ test('Deck 4 afunila na popa e reserva o poço do elevador na entrada do hangar'
     'o teto do hangar deve acompanhar o afunilamento da popa');
   interior.dispose();
 });
+
+
+test('instala duas faixas emissivas na face interna do casco em cada deck, sem colisões novas', () => {
+  const interior = createStarshipInterior();
+  const status = interior.lightingCore.getStatus();
+  assert.deepEqual(status.decks.map(deck => deck.fixtureCount), [2, 2, 2, 2]);
+  assert.deepEqual(status.decks.map(deck => deck.intensity), [1, 1, 1, 1]);
+
+  for (const deck of status.decks) {
+    const fixtures = [];
+    interior.lightingCore.group.getObjectByName(`Aurora7-Lighting-Branch-${deck.id}`).traverse(object => {
+      if (object.isMesh) fixtures.push(object);
+    });
+    assert.equal(fixtures.length, 2, `${deck.id} deve possuir uma faixa por lateral`);
+    assert.ok(fixtures.every(fixture => fixture.userData.wallStrip?.mount === 'inner-hull'));
+    assert.ok(fixtures.every(fixture => fixture.userData.wallStrip?.collisionFree === true));
+    assert.ok(fixtures.every(fixture => fixture.geometry.attributes.position.count > 300));
+  }
+
+  const d2 = interior.lightingCore.group.getObjectByName('Aurora7-Lighting-Branch-D2');
+  const d3 = interior.lightingCore.group.getObjectByName('Aurora7-Lighting-Branch-D3');
+  const d4 = interior.lightingCore.group.getObjectByName('Aurora7-Lighting-Branch-D4');
+  for (const branch of [d2, d3]) {
+    branch.traverse(object => {
+      if (!object.isMesh) return;
+      assert.ok(object.userData.wallStrip.zStart > -35,
+        'as faixas de D2/D3 devem começar depois da abertura frontal do defletor');
+    });
+  }
+  d4.traverse(object => {
+    if (!object.isMesh) return;
+    assert.ok(object.userData.wallStrip.zEnd < 41.5,
+      'a faixa de D4 deve terminar antes da abertura do hangar/elevador');
+  });
+
+  assert.equal(interior.lightingCore.group.userData.collisionBoxesAtInstall, 0,
+    'a instalação das faixas não deve registrar caixas de colisão');
+  interior.dispose();
+});

@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import * as THREE from 'three';
 import { createShipLightingCore } from './shipLightingCore.js';
 
 test('núcleo cria quatro ramificações independentes e controla luminárias por deck', () => {
@@ -11,6 +12,12 @@ test('núcleo cria quatro ramificações independentes e controla luminárias po
 
   const d1Fixture = lighting.addWallFixture('D1', { position: [-18, 0, 0] });
   const d2Fixture = lighting.addWallFixture('D2', { position: [18, 0, 0] });
+  const customGeometry = new THREE.BufferGeometry();
+  customGeometry.setAttribute('position', new THREE.Float32BufferAttribute([
+    0, 0, 0, 1, 0, 0, 0, 1, 0
+  ], 3));
+  const strip = lighting.addWallFixture('D2', { geometry: customGeometry, name: 'D2-Wall-Light-Port' });
+  assert.equal(strip.geometry, customGeometry);
   assert.equal(d1Fixture.userData.deckId, 'D1');
   assert.equal(d2Fixture.userData.deckId, 'D2');
 
@@ -22,6 +29,11 @@ test('núcleo cria quatro ramificações independentes e controla luminárias po
 
   lighting.setDeckIntensity('D2', 0.5);
   assert.equal(d2Fixture.material.emissiveIntensity, 0.575);
+
+  lighting.setDeckIntensity('D1', 1.4);
+  assert.equal(d1Fixture.material.emissiveIntensity, 0);
+  lighting.setDeckEnabled('D1', true);
+  assert.equal(d1Fixture.material.emissiveIntensity, 1.61);
 
   lighting.setMasterEnabled(false);
   assert.equal(d2Fixture.material.emissiveIntensity, 0);

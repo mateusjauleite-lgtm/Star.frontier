@@ -81,15 +81,20 @@ export function createAuroraOS({ documentRef = globalThis.document, manager = au
         availability.textContent = !detail.available
           ? 'NÚCLEO INDISPONÍVEL'
           : status?.decks?.some(deck => deck.fixtureCount > 0)
-            ? 'NÚCLEO CONECTADO'
-            : 'NÚCLEO CONECTADO · LUMINÁRIAS A INSTALAR';
+            ? 'NÚCLEO CONECTADO · 8 FAIXAS'
+            : 'NÚCLEO CONECTADO';
         availability.classList.toggle('is-active', Boolean(detail.available));
       }
       for (const deck of status?.decks || []) {
         const card = root.querySelector('[data-lighting-deck="' + deck.id + '"]');
         if (!card) continue;
+        const percent = Math.round(deck.intensity * 100);
         const state = card.querySelector('[data-lighting-state]');
         if (state) state.textContent = deck.enabled ? 'ILUMINAÇÃO LIGADA' : 'ILUMINAÇÃO DESLIGADA';
+        const slider = card.querySelector('[data-aurora-light-intensity]');
+        if (slider && documentRef.activeElement !== slider) slider.value = String(percent);
+        const output = card.querySelector('[data-lighting-intensity-label]');
+        if (output) output.textContent = percent + '%';
         card.querySelectorAll('[data-aurora-light-action]').forEach(button => {
           button.disabled = !detail.available;
           button.classList.toggle('is-selected',
@@ -97,13 +102,17 @@ export function createAuroraOS({ documentRef = globalThis.document, manager = au
             (button.dataset.auroraLightAction === 'off' && !deck.branchEnabled));
         });
       }
+      root.querySelectorAll('[data-aurora-master-action]').forEach(button => {
+        button.disabled = !detail.available;
+        button.classList.toggle('is-selected',
+          (button.dataset.auroraMasterAction === 'on' && status?.masterEnabled) ||
+          (button.dataset.auroraMasterAction === 'off' && !status?.masterEnabled));
+      });
       const warning = root.querySelector('#aurora-lighting-note');
       if (warning) {
         warning.textContent = !detail.available
           ? 'O interior da nave ainda não está carregado.'
-          : status?.decks?.every(deck => deck.fixtureCount === 0)
-            ? 'Comandos conectados. As luminárias físicas serão instaladas junto às paredes internas.'
-            : 'Cada ramificação é independente. O estado de um deck não altera os outros.';
+          : 'O comando geral controla os quatro decks. Cada deck também possui interruptor e intensidade independentes.';
       }
     });
   }
@@ -119,11 +128,15 @@ export function createAuroraOS({ documentRef = globalThis.document, manager = au
     ];
     view.innerHTML = `
       <header class="aurora-page-heading">
-        <div><span class="aurora-eyebrow">AURORA OS // CONTROLE ELÉTRICO</span><h1>Iluminação da nave</h1><p>Núcleo central e ramificações independentes por deck.</p></div>
+        <div><span class="aurora-eyebrow">AURORA OS // CONTROLE ELÉTRICO</span><h1>Iluminação da nave</h1><p>Comando geral e controle individual de cada deck.</p></div>
         <button class="aurora-back-button" type="button" data-aurora-view="home">← INÍCIO</button>
       </header>
       <section class="aurora-lighting-header">
-        <div><span class="aurora-eyebrow">NÚCLEO DE ILUMINAÇÃO</span><b> AURORA-7 · DISTRIBUIÇÃO INTERNA</b></div>
+        <div><span class="aurora-eyebrow">NÚCLEO DE ILUMINAÇÃO</span><b>AURORA-7 · DISTRIBUIÇÃO INTERNA</b></div>
+        <div class="aurora-action-row">
+          <button type="button" class="aurora-action-button" data-aurora-master-action="on">TODOS LIGADOS</button>
+          <button type="button" class="aurora-action-button secondary" data-aurora-master-action="off">TODOS DESLIGADOS</button>
+        </div>
         <span id="aurora-lighting-availability" class="aurora-chip">CONSULTANDO NÚCLEO...</span>
       </section>
       <section class="aurora-lighting-grid">
@@ -134,6 +147,11 @@ export function createAuroraOS({ documentRef = globalThis.document, manager = au
               <div><b>${deck.name}</b><small>${deck.detail}</small></div>
             </div>
             <span class="aurora-lighting-state" data-lighting-state>CONSULTANDO...</span>
+            <div class="aurora-slider-row">
+              <label for="aurora-light-intensity-${deck.id}">INTENSIDADE</label>
+              <output data-lighting-intensity-label>100%</output>
+              <input id="aurora-light-intensity-${deck.id}" type="range" min="0" max="200" step="5" value="100" data-aurora-light-intensity data-deck-id="${deck.id}" aria-label="Intensidade da iluminação do ${deck.name}">
+            </div>
             <div class="aurora-action-row">
               <button type="button" class="aurora-action-button" data-aurora-light-action="on" data-deck-id="${deck.id}">LIGAR</button>
               <button type="button" class="aurora-action-button secondary" data-aurora-light-action="off" data-deck-id="${deck.id}">DESLIGAR</button>
@@ -157,8 +175,31 @@ export function createAuroraOS({ documentRef = globalThis.document, manager = au
         }));
       });
     });
+    container.querySelectorAll('[data-aurora-light-intensity]').forEach(slider => {
+      slider.addEventListener('input', () => {
+        const percent = Number(slider.value);
+        const output = slider.closest('[data-lighting-deck]')?.querySelector('[data-lighting-intensity-label]');
+        if (output) output.textContent = percent + '%';
+        documentRef.dispatchEvent(new CustomEvent('starfrontier:ship-lighting-command', {
+          detail: {
+            action: 'set-intensity',
+            deckId: slider.dataset.deckId,
+            intensity: percent / 100
+          }
+        }));
+      });
+    });
+    container.querySelectorAll('[data-aurora-master-action]').forEach(button => {
+      button.addEventListener('click', () => {
+        documentRef.dispatchEvent(new CustomEvent('starfrontier:ship-lighting-command', {
+          detail: {
+            action: 'set-master',
+            enabled: button.dataset.auroraMasterAction === 'on'
+          }
+        }));
+      });
+    });
   }
-
 
   function openInGameLighting() {
     const gameScreen = documentRef.getElementById('game-screen');
@@ -171,26 +212,36 @@ export function createAuroraOS({ documentRef = globalThis.document, manager = au
       overlay.dataset.lightingRoot = 'true';
       overlay.setAttribute('aria-modal', 'true');
       overlay.setAttribute('role', 'dialog');
+      const decks = [
+        { id: 'D1', name: 'Deck 1', detail: 'Ponte de comando' },
+        { id: 'D2', name: 'Deck 2', detail: 'Operações e ciência' },
+        { id: 'D3', name: 'Deck 3', detail: 'Engenharia' },
+        { id: 'D4', name: 'Deck 4', detail: 'Hangar e apoio' }
+      ];
       overlay.innerHTML = `
         <div class="aurora-lighting-panel">
           <header class="aurora-page-heading">
-            <div><span class="aurora-eyebrow">AURORA OS // CONTROLE ELÉTRICO</span><h1>Iluminação da nave</h1><p>Núcleo central · ramificações independentes por deck.</p></div>
+            <div><span class="aurora-eyebrow">AURORA OS // CONTROLE ELÉTRICO</span><h1>Iluminação da nave</h1><p>Comando geral e controle individual de cada deck.</p></div>
             <button type="button" class="aurora-lighting-close" data-lighting-close>FECHAR ×</button>
           </header>
           <section class="aurora-lighting-header">
             <div><span class="aurora-eyebrow">NÚCLEO DE ILUMINAÇÃO</span><b>AURORA-7 · DISTRIBUIÇÃO INTERNA</b></div>
+            <div class="aurora-action-row">
+              <button type="button" class="aurora-action-button" data-aurora-master-action="on">TODOS LIGADOS</button>
+              <button type="button" class="aurora-action-button secondary" data-aurora-master-action="off">TODOS DESLIGADOS</button>
+            </div>
             <span id="aurora-lighting-availability" class="aurora-chip">CONSULTANDO NÚCLEO...</span>
           </section>
           <section class="aurora-lighting-grid">
-            ${[
-              { id: 'D1', name: 'Deck 1', detail: 'Ponte de comando' },
-              { id: 'D2', name: 'Deck 2', detail: 'Operações e ciência' },
-              { id: 'D3', name: 'Deck 3', detail: 'Engenharia' },
-              { id: 'D4', name: 'Deck 4', detail: 'Hangar e apoio' }
-            ].map(deck => `
+            ${decks.map(deck => `
               <article class="aurora-lighting-card" data-lighting-deck="${deck.id}">
                 <div class="aurora-lighting-card-top"><span class="aurora-lighting-icon">☼</span><div><b>${deck.name}</b><small>${deck.detail}</small></div></div>
                 <span class="aurora-lighting-state" data-lighting-state>CONSULTANDO...</span>
+                <div class="aurora-slider-row">
+                  <label for="aurora-light-intensity-game-${deck.id}">INTENSIDADE</label>
+                  <output data-lighting-intensity-label>100%</output>
+                  <input id="aurora-light-intensity-game-${deck.id}" type="range" min="0" max="200" step="5" value="100" data-aurora-light-intensity data-deck-id="${deck.id}" aria-label="Intensidade da iluminação do ${deck.name}">
+                </div>
                 <div class="aurora-action-row">
                   <button type="button" class="aurora-action-button" data-aurora-light-action="on" data-deck-id="${deck.id}">LIGAR</button>
                   <button type="button" class="aurora-action-button secondary" data-aurora-light-action="off" data-deck-id="${deck.id}">DESLIGAR</button>
@@ -604,6 +655,12 @@ function injectStyles(documentRef) {
     #aurora-lighting-ingame .aurora-action-button.secondary { background:rgba(17,34,51,.8); color:#b5c9d8; }
     #aurora-lighting-ingame .aurora-action-button.is-selected { border-color:#69e2ff; background:rgba(23,111,145,.55); color:#e5fbff; }
     #aurora-lighting-ingame .aurora-action-button:disabled { opacity:.35; }
+    #aurora-lighting-ingame .aurora-slider-row { display:grid; grid-template-columns:1fr auto; gap:5px 10px; align-items:center; margin:13px 0; }
+    #aurora-lighting-ingame .aurora-slider-row label { color:#d4e8f5; font-size:10px; }
+    #aurora-lighting-ingame .aurora-slider-row output { color:#76dfff; font-size:10px; font-variant-numeric:tabular-nums; }
+    #aurora-lighting-ingame .aurora-slider-row input { grid-column:1/-1; width:100%; min-height:20px; height:22px; padding:0; accent-color:#55d8f4; }
+    #aurora-lighting-ingame .aurora-lighting-header { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; }
+    #aurora-lighting-ingame .aurora-lighting-header .aurora-action-row { display:flex; flex-wrap:wrap; gap:8px; }
     @media (max-width:600px) { #aurora-lighting-ingame .aurora-lighting-grid { grid-template-columns:1fr; } #aurora-lighting-ingame .aurora-page-heading { align-items:flex-start; flex-direction:column; } }
     #menu-screen .aurora-lighting-header { display:flex; justify-content:space-between; align-items:center; gap:12px; margin:5px 0 16px; padding:14px; border:1px solid rgba(93,177,216,.2); border-radius:12px; background:rgba(8,27,46,.74); }
     #menu-screen .aurora-lighting-header b { display:block; margin-top:6px; color:#dff7ff; font-size:12px; letter-spacing:.6px; }
@@ -619,6 +676,9 @@ function injectStyles(documentRef) {
     #menu-screen .aurora-lighting-card .aurora-action-button { width:100%; }
     #menu-screen .aurora-lighting-card .aurora-action-button.is-selected { border-color:#69e2ff; background:rgba(23,111,145,.55); color:#e5fbff; box-shadow:0 0 15px rgba(73,205,239,.12); }
     #menu-screen .aurora-lighting-card .aurora-action-button:disabled { opacity:.35; }
+    #menu-screen .aurora-lighting-header { flex-wrap:wrap; }
+    #menu-screen .aurora-lighting-header .aurora-action-row { display:flex; flex-wrap:wrap; gap:8px; }
+    #menu-screen .aurora-lighting-card .aurora-slider-row input { width:100%; }
     @media (max-width:760px) {
       #menu-screen { padding:12px; }
       #menu-screen .menu-layout { grid-template-columns:1fr; }

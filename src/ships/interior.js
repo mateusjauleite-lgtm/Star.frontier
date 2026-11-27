@@ -44,6 +44,61 @@ export function createStarshipInterior(options = {}) {
   });
   const collisionBoxes = [];
 
+  // Faixa contínua em malha única, amostrada sobre a superfície interna
+  // elipsoidal do casco. Não cria parede, não registra colisão e não altera o casco.
+  const createHullSideStripGeometry = (deckY, zStart, zEnd, side) => {
+    const radiusX = 27.2;
+    const radiusY = 15.2;
+    const radiusZ = 50;
+    const segments = Math.max(96, Math.ceil((zEnd - zStart) / 0.35));
+    const positions = [];
+    const indices = [];
+
+    for (let i = 0; i <= segments; i += 1) {
+      const z = zStart + ((zEnd - zStart) * i) / segments;
+      const term = 1 - (deckY * deckY) / (radiusY * radiusY) - (z * z) / (radiusZ * radiusZ);
+      if (term <= 0) throw new RangeError('Faixa de iluminação ultrapassa o casco no Deck ' + deckY);
+      const x = side * radiusX * Math.sqrt(term);
+
+      let nx = x / (radiusX * radiusX);
+      let ny = deckY / (radiusY * radiusY);
+      let nz = z / (radiusZ * radiusZ);
+      const normalLength = Math.hypot(nx, ny, nz);
+      nx /= normalLength;
+      ny /= normalLength;
+      nz /= normalLength;
+
+      const center = [x - nx * 0.155, -ny * 0.155, z - nz * 0.155];
+      const halfHeight = 0.085;
+      const halfDepth = 0.045;
+      const corners = [
+        [center[0] + nx * halfDepth, center[1] + halfHeight + ny * halfDepth, center[2] + nz * halfDepth],
+        [center[0] + nx * halfDepth, center[1] - halfHeight + ny * halfDepth, center[2] + nz * halfDepth],
+        [center[0] - nx * halfDepth, center[1] - halfHeight - ny * halfDepth, center[2] - nz * halfDepth],
+        [center[0] - nx * halfDepth, center[1] + halfHeight - ny * halfDepth, center[2] - nz * halfDepth]
+      ];
+      for (const corner of corners) positions.push(...corner);
+    }
+
+    for (let i = 0; i < segments; i += 1) {
+      const current = i * 4;
+      const next = (i + 1) * 4;
+      for (let edge = 0; edge < 4; edge += 1) {
+        const a = current + edge;
+        const b = current + ((edge + 1) % 4);
+        const c = next + ((edge + 1) % 4);
+        const d = next + edge;
+        indices.push(a, b, d, b, c, d);
+      }
+    }
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setIndex(indices);
+    geometry.computeVertexNormals();
+    return geometry;
+  };
+
   const addBox = (parent, size, at, material, name = '') => {
     const isHullFitted = /Wall|Partition|Bulkhead|Frame/.test(name);
     if (!isHullFitted) {
@@ -237,11 +292,36 @@ export function createStarshipInterior(options = {}) {
     deckFloor(deck, deck.id);
   }
 
-  // Núcleo lógico de iluminação com ramificações elétricas independentes por deck.
-  // As luminárias de parede serão posicionadas quando a geometria das paredes
-  // estiver instalada; o sistema já expõe addWallFixture para essa integração.
+  // Núcleo lógico e oito faixas físicas. O casco é a parede lateral real
+  // dos decks nesta arquitetura; cada faixa acompanha a face interna da concha.
+  // Os intervalos respeitam a janela da ponte, a abertura do defletor e a boca do hangar.
   const lightingCore = createShipLightingCore({ decks: STARSHIP_LAYOUT.decks });
   group.add(lightingCore.group);
+  const wallLightRanges = {
+    D1: { start: -40, end: 40 },
+    D2: { start: -34.4, end: 46 },
+    D3: { start: -34.4, end: 42 },
+    D4: { start: -39.2, end: 39.2 }
+  };
+  for (const deck of STARSHIP_LAYOUT.decks) {
+    const range = wallLightRanges[deck.id];
+    for (const side of [-1, 1]) {
+      const fixture = lightingCore.addWallFixture(deck.id, {
+        geometry: createHullSideStripGeometry(deck.y, range.start, range.end, side),
+        color: 0xeaf6ff,
+        intensity: 1.15,
+        name: `${deck.id}-Wall-Light-${side < 0 ? 'Port' : 'Starboard'}`
+      });
+      fixture.userData.wallStrip = {
+        mount: 'inner-hull',
+        side: side < 0 ? 'port' : 'starboard',
+        zStart: range.start,
+        zEnd: range.end,
+        collisionFree: true
+      };
+    }
+  }
+  lightingCore.group.userData.collisionBoxesAtInstall = collisionBoxes.length;
 
   // Console físico de acesso ao aplicativo Iluminação no Deck 1.
   const lightingConsole = createShipLightingConsole();
