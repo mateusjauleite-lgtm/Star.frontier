@@ -69,7 +69,9 @@ export function isCharacterInsideAuroraHull(
   ) return true;
 
   const rx = AURORA_HULL_DIMENSIONS.radiusX - radius;
-  const ry = AURORA_HULL_DIMENSIONS.radiusY - radius;
+  // A altura do casco não é reduzida: a cápsula é centrada verticalmente,
+  // enquanto o raio horizontal é compensado nos eixos X/Z.
+  const ry = AURORA_HULL_DIMENSIONS.radiusY;
   const rz = AURORA_HULL_DIMENSIONS.radiusZ - radius;
   if (rx <= 0 || ry <= 0 || rz <= 0) return false;
 
