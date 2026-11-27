@@ -31,6 +31,7 @@ test('propulsor principal acelera em m/s e consome combustível comum', () => {
   assert.equal(state.refinedDilithium, 100);
 });
 
+// Cada passo do runtime é limitado a 40 ms; 3000 m/s² adiciona 120 m/s por passo.
 test('aceleração de teste é 3000 m/s² sem alterar o teto de 12000 m/s', () => {
   const state = makeState({ throttle: true, speed: 0, conventionalSpeedLimit: 12000 });
   advanceShipFlightDynamics(state, 0.04);
