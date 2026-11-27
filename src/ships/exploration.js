@@ -368,6 +368,12 @@ export function createExplorationShip() {
     nacelleShape.lineTo(-2.45, -1.7);
     nacelleShape.quadraticCurveTo(-2.45, -2.15, -2.0, -2.15);
 
+    // Abertura longitudinal de inspeção no topo: cria espaço real para a câmara interna.
+    const chamberX = side * 1.05;
+    const chamberOpening = new THREE.Path();
+    chamberOpening.absellipse(chamberX, 1.52, 0.57, 0.62, 0, Math.PI * 2, true, 0);
+    nacelleShape.holes.push(chamberOpening);
+
     const nacelle = new THREE.Group();
     nacelle.name = side < 0 ? 'Port-Warp-Nacelle' : 'Starboard-Warp-Nacelle';
     nacelle.position.set(side * 31.5, -0.8, 55);
@@ -405,9 +411,8 @@ export function createExplorationShip() {
 
     // Câmara interna de plasma visível através de uma janela técnica superior.
     // A janela fica fora da linha da blindagem dorsal central e não altera o casco.
-    const chamberX = side * 1.05;
     const chamberGlass = new THREE.Mesh(
-      new THREE.BoxGeometry(1.08, 0.92, 34),
+      new THREE.BoxGeometry(1.08, 1.12, 34),
       new THREE.MeshPhysicalMaterial({
         color: 0x65dfff, transparent: true, opacity: 0.22,
         roughness: 0.08, metalness: 0.08, transmission: 0.42,
