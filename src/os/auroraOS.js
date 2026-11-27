@@ -112,7 +112,7 @@ export function createAuroraOS({ documentRef = globalThis.document, manager = au
       if (warning) {
         warning.textContent = !detail.available
           ? 'O interior da nave ainda não está carregado.'
-          : 'O comando geral controla os quatro decks. Cada deck também possui interruptor e intensidade independentes.';
+          : 'As oito faixas ficam sobre os pisos, sem colisores. O comando geral controla os quatro decks; cada deck também possui interruptor e intensidade independentes.';
       }
     });
   }
@@ -132,7 +132,7 @@ export function createAuroraOS({ documentRef = globalThis.document, manager = au
         <button class="aurora-back-button" type="button" data-aurora-view="home">← INÍCIO</button>
       </header>
       <section class="aurora-lighting-header">
-        <div><span class="aurora-eyebrow">NÚCLEO DE ILUMINAÇÃO</span><b>AURORA-7 · DISTRIBUIÇÃO INTERNA</b></div>
+        <div><span class="aurora-eyebrow">NÚCLEO DE ILUMINAÇÃO</span><b>AURORA-7 · FAIXAS LUMINOSAS NO PISO</b></div>
         <div class="aurora-action-row">
           <button type="button" class="aurora-action-button" data-aurora-master-action="on">TODOS LIGADOS</button>
           <button type="button" class="aurora-action-button secondary" data-aurora-master-action="off">TODOS DESLIGADOS</button>
