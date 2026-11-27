@@ -298,10 +298,10 @@ export function createStarshipInterior(options = {}) {
   const lightingCore = createShipLightingCore({ decks: STARSHIP_LAYOUT.decks });
   group.add(lightingCore.group);
   const wallLightRanges = {
-    D1: { start: -40, end: 40 },
+    D1: { start: -28.5, end: 40 },
     D2: { start: -34.4, end: 46 },
     D3: { start: -34.4, end: 42 },
-    D4: { start: -39.2, end: 39.2 }
+    D4: { start: -39.2, end: 36 }
   };
   for (const deck of STARSHIP_LAYOUT.decks) {
     const range = wallLightRanges[deck.id];

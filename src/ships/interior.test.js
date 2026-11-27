@@ -163,9 +163,15 @@ test('instala duas faixas emissivas na face interna do casco em cada deck, sem c
     assert.ok(fixtures.every(fixture => fixture.geometry.attributes.position.count > 300));
   }
 
+  const d1 = interior.lightingCore.group.getObjectByName('Aurora7-Lighting-Branch-D1');
   const d2 = interior.lightingCore.group.getObjectByName('Aurora7-Lighting-Branch-D2');
   const d3 = interior.lightingCore.group.getObjectByName('Aurora7-Lighting-Branch-D3');
   const d4 = interior.lightingCore.group.getObjectByName('Aurora7-Lighting-Branch-D4');
+  d1.traverse(object => {
+    if (!object.isMesh) return;
+    assert.ok(object.userData.wallStrip.zStart > -29,
+      'a faixa de D1 deve começar após a borda traseira da janela panorâmica');
+  });
   for (const branch of [d2, d3]) {
     branch.traverse(object => {
       if (!object.isMesh) return;
@@ -175,7 +181,7 @@ test('instala duas faixas emissivas na face interna do casco em cada deck, sem c
   }
   d4.traverse(object => {
     if (!object.isMesh) return;
-    assert.ok(object.userData.wallStrip.zEnd < 41.5,
+    assert.ok(object.userData.wallStrip.zEnd <= 36,
       'a faixa de D4 deve terminar antes da abertura do hangar/elevador');
   });
 
