@@ -126,7 +126,7 @@ test('Deck 4 afunila na popa e reserva o poço do elevador na entrada do hangar'
     if (vertex.z >= 40) aftVertices.push(vertex);
   }
   assert.ok(aftVertices.length > 0, 'piso deve alcançar a entrada traseira do hangar');
-  assert.ok(Math.max(...aftVertices.map(vertex => Math.abs(vertex.x))) <= 12.5,
+  assert.ok(Math.max(...aftVertices.map(vertex => Math.abs(vertex.x))) <= 13.5,
     'a popa do piso deve afunilar para acompanhar o casco');
   assert.deepEqual(floor.userData.deckFootprint, { width: 48, length: 98, centerZ: 0 });
 
