@@ -179,6 +179,7 @@ test('instala duas faixas emissivas sobre o piso real de cada deck, sem colisõe
       assert.equal(strip?.mount, 'floor');
       assert.equal(strip?.collisionFree, true);
       assert.equal(strip?.edgeInset, 3.2);
+      assert.equal(strip?.width, 0.7);
       assert.ok(fixture.name.includes('Floor-Light'));
       assert.ok(fixture.geometry.attributes.position.count > 300,
         'cada faixa deve ser uma malha contínua de baixa complexidade');
@@ -220,9 +221,9 @@ test('instala duas faixas emissivas sobre o piso real de cada deck, sem colisõe
   const d1Branch = interior.lightingCore.group.getObjectByName('Aurora7-Lighting-Branch-D1');
   const d1Fixture = d1Branch.children.find(object => object.isMesh);
   assert.ok(d1Fixture, 'o núcleo deve manter referência direta à faixa física do piso');
-  assert.equal(d1Fixture.material.emissiveIntensity, 1.15);
+  assert.equal(d1Fixture.material.emissiveIntensity, 3.0);
   interior.lightingCore.setDeckIntensity('D1', 0.5);
-  assert.equal(d1Fixture.material.emissiveIntensity, 0.575,
+  assert.equal(d1Fixture.material.emissiveIntensity, 1.5,
     'o controle de intensidade deve alterar a faixa real do piso');
   interior.lightingCore.setDeckEnabled('D1', false);
   assert.equal(d1Fixture.material.emissiveIntensity, 0,
