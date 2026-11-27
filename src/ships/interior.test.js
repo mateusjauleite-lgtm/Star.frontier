@@ -113,7 +113,9 @@ test('Deck 1 é mais estreito; Decks 2 e 3 ampliados iguais; Deck 4 preservado',
 test('Deck 4 afunila na popa e reserva o poço do elevador na entrada do hangar', () => {
   const interior = createStarshipInterior();
   const floor = interior.group.getObjectByName('D4-Floor');
+  const ceiling = interior.group.getObjectByName('D3-Floor');
   assert.ok(floor);
+  assert.ok(ceiling, 'o piso do D3 também forma o teto estrutural do hangar D4');
   floor.updateMatrixWorld(true);
   const positions = floor.geometry.attributes.position;
   const aftVertices = [];
@@ -127,5 +129,18 @@ test('Deck 4 afunila na popa e reserva o poço do elevador na entrada do hangar'
   assert.ok(Math.max(...aftVertices.map(vertex => Math.abs(vertex.x))) <= 12.5,
     'a popa do piso deve afunilar para acompanhar o casco');
   assert.deepEqual(floor.userData.deckFootprint, { width: 48, length: 98, centerZ: 0 });
+
+  ceiling.updateMatrixWorld(true);
+  const ceilingPositions = ceiling.geometry.attributes.position;
+  const ceilingAft = [];
+  for (let index = 0; index < ceilingPositions.count; index += 1) {
+    const vertex = new THREE.Vector3(
+      ceilingPositions.getX(index), ceilingPositions.getY(index), ceilingPositions.getZ(index)
+    ).applyMatrix4(ceiling.matrixWorld);
+    if (vertex.z >= 40) ceilingAft.push(vertex);
+  }
+  assert.ok(ceilingAft.length > 0);
+  assert.ok(Math.max(...ceilingAft.map(vertex => Math.abs(vertex.x))) <= 12.5,
+    'o teto do hangar deve acompanhar o afunilamento da popa');
   interior.dispose();
 });

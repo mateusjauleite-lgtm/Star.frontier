@@ -84,15 +84,24 @@ test('popa nova tem moldura uniforme e duas naceles longas totalmente externas',
     assert.ok(Math.abs(nacelle.position.x) - 2.45 - 0.42 > 27.2,
       'até a face interna do corpo chanfrado deve permanecer além do casco');
     assert.equal(nacelle.userData.exteriorOnly, true);
+    assert.ok(nacelle.userData.hullClearanceMeters > 0,
+      'a face interna da nacelle deve manter folga positiva do casco');
     const bodyName = name.replace('Warp-Nacelle', 'Nacelle-Armored-Body');
     const body = nacelle.getObjectByName(bodyName);
     assert.ok(body, 'corpo estrutural alongado deve existir');
-    assert.ok(body.geometry.parameters.depth >= 60,
+    assert.ok(body.geometry.parameters.options.depth >= 60,
       'nacelle deve ser longa no eixo longitudinal');
     assert.ok(nacelle.getObjectByName('Nacelle-Plasma-Channel'));
     assert.ok(nacelle.getObjectByName('Nacelle-Warp-Engine-Core'));
     assert.equal(nacelle.getObjectByName('Port-Nacelle-Root-Collar'), undefined,
       'aros circulares antigos não devem permanecer');
+  }
+
+  for (const name of ['Port-External-Aft-Support', 'Starboard-External-Aft-Support']) {
+    const support = junction.getObjectByName(name);
+    assert.ok(support, 'braço estrutural externo deve existir');
+    assert.equal(support.geometry.type, 'BoxGeometry', 'braço não deve voltar a ser tubo');
+    assert.equal(support.userData.exteriorOnly, true);
   }
 
   assert.equal(ship.engineFlames.length, 2);
