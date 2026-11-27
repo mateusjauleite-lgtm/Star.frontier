@@ -327,12 +327,12 @@ export function createExplorationShip() {
   const engineFlames = [];
   const engineLights = [];
   for (const side of [-1, 1]) {
-    const root = new THREE.Vector3(side * 18.4, -4.0, 36.0);
-    const tip = new THREE.Vector3(side * 31.5, -0.8, 49.0);
+    const root = new THREE.Vector3(side * 11.0, -7.1, 49.2);
+    const tip = new THREE.Vector3(side * 31.5, -0.8, 55.0);
     const direction = tip.clone().sub(root);
     const supportLength = direction.length();
     const support = new THREE.Mesh(
-      new THREE.BoxGeometry(5.4, 2.6, supportLength),
+      new THREE.BoxGeometry(6.2, 3.0, supportLength),
       hullMaterial
     );
     support.name = side < 0
@@ -352,7 +352,7 @@ export function createExplorationShip() {
     supportLight.name = side < 0
       ? 'Port-Aft-Support-Light-Channel'
       : 'Starboard-Aft-Support-Light-Channel';
-    supportLight.position.set(0, 1.34, 0);
+    supportLight.position.set(0, 1.55, 0);
     support.add(supportLight);
 
     // Perfil de seção retangular com cantos chanfrados: corpo alongado,
