@@ -5,6 +5,7 @@ import { createDilithiumProcessingPlant } from './engineering/dilithiumProcessin
 import { DECK_3_DEFLECTOR_APERTURE } from './engineering/deflectorAperture.js';
 import { createDeflectorInteriorStructure } from './engineering/deflectorInteriorStructure.js';
 import { createDeck2TransporterInstallation } from './transport/transportInstallation.js';
+import { createShipLightingCore } from './lighting/shipLightingCore.js';
 
 // Estrutura física inicial da nave exploradora.
 // Escala de trabalho: 120 x 64 x 32 m. Sem consoles, máquinas ou mobiliário.
@@ -213,6 +214,12 @@ export function createStarshipInterior(options = {}) {
     deckFloor(deck, deck.id);
   }
 
+  // Núcleo lógico de iluminação com ramificações elétricas independentes por deck.
+  // As luminárias de parede serão posicionadas quando a geometria das paredes
+  // estiver instalada; o sistema já expõe addWallFixture para essa integração.
+  const lightingCore = createShipLightingCore({ decks: STARSHIP_LAYOUT.decks });
+  group.add(lightingCore.group);
+
   // D1 — ponte ampla, ocupando praticamente todo o primeiro deck.
   // A área central permanece livre para a única cadeira de comando,
   // que será adicionada em uma etapa posterior.
@@ -261,6 +268,7 @@ export function createStarshipInterior(options = {}) {
     dilithiumPlant,
     dilithiumMatrix,
     transporterInstallation,
+    lightingCore,
     layout: STARSHIP_LAYOUT,
     collisionBoxes,
     dispose() {
