@@ -403,6 +403,51 @@ export function createExplorationShip() {
     plasmaChannel.position.set(side * 2.05, 0.15, 0);
     nacelle.add(plasmaChannel);
 
+    // Câmara interna de plasma visível através de uma janela técnica superior.
+    // A janela fica fora da linha da blindagem dorsal central e não altera o casco.
+    const chamberX = side * 1.05;
+    const chamberGlass = new THREE.Mesh(
+      new THREE.BoxGeometry(1.08, 0.92, 34),
+      new THREE.MeshPhysicalMaterial({
+        color: 0x65dfff, transparent: true, opacity: 0.22,
+        roughness: 0.08, metalness: 0.08, transmission: 0.42,
+        thickness: 0.18, depthWrite: false, side: THREE.DoubleSide
+      })
+    );
+    chamberGlass.name = side < 0
+      ? 'Port-Nacelle-Internal-Chamber-Glass'
+      : 'Starboard-Nacelle-Internal-Chamber-Glass';
+    chamberGlass.position.set(chamberX, 1.52, 0);
+    nacelle.add(chamberGlass);
+
+    const chamberPlasmaMaterial = new THREE.MeshStandardMaterial({
+      color: 0x36cfff, emissive: 0x079bd1, emissiveIntensity: 0.85,
+      metalness: 0.12, roughness: 0.16, transparent: true, opacity: 0.9
+    });
+    const chamberPlasma = new THREE.Mesh(
+      new THREE.BoxGeometry(0.68, 0.62, 30), chamberPlasmaMaterial
+    );
+    chamberPlasma.name = side < 0
+      ? 'Port-Nacelle-Internal-Plasma-Chamber'
+      : 'Starboard-Nacelle-Internal-Plasma-Chamber';
+    chamberPlasma.position.set(chamberX, 1.52, 0);
+    chamberPlasma.userData.isNacellePlasmaChamber = true;
+    nacelle.add(chamberPlasma);
+
+    const chamberWindow = new THREE.Mesh(
+      new THREE.BoxGeometry(1.12, 0.075, 35.5),
+      new THREE.MeshPhysicalMaterial({
+        color: 0x9beaff, transparent: true, opacity: 0.32,
+        roughness: 0.06, metalness: 0.05, transmission: 0.68,
+        thickness: 0.08, depthWrite: false, side: THREE.DoubleSide
+      })
+    );
+    chamberWindow.name = side < 0
+      ? 'Port-Nacelle-Internal-Chamber-View-Window'
+      : 'Starboard-Nacelle-Internal-Chamber-View-Window';
+    chamberWindow.position.set(chamberX, 2.18, 0);
+    nacelle.add(chamberWindow);
+
     const forwardCap = new THREE.Mesh(
       new THREE.BoxGeometry(3.9, 4.25, 1.7), trimMaterial
     );
@@ -446,6 +491,42 @@ export function createExplorationShip() {
     engineLight.position.set(0, 0, 38);
     nacelle.add(engineLight);
     engineLights.push(engineLight);
+
+    // Alimentação independente por bombordo/estibordo, acompanhando o braço externo.
+    // O primeiro trecho corre pela face inferior do casco e não atravessa os decks.
+    const feedCurve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(side * 3.2, -14.55, -2),
+      new THREE.Vector3(side * 5.5, -14.45, 18),
+      new THREE.Vector3(side * 8.5, -12.8, 37),
+      new THREE.Vector3(side * 11.0, -7.8, 49.2),
+      new THREE.Vector3(side * 20.5, -2.8, 52.2),
+      new THREE.Vector3(side * 29.5, -0.8, 55)
+    ]);
+    const feedMaterial = new THREE.MeshStandardMaterial({
+      color: 0x176d91, emissive: 0x087da8, emissiveIntensity: 0.72,
+      metalness: 0.82, roughness: 0.22
+    });
+    const feedConduit = new THREE.Mesh(
+      new THREE.TubeGeometry(feedCurve, 96, 0.24, 10, false), feedMaterial
+    );
+    feedConduit.name = side < 0
+      ? 'Port-Warp-Plasma-Feed-Conduit'
+      : 'Starboard-Warp-Plasma-Feed-Conduit';
+    feedConduit.userData.isNacellePlasmaConduit = true;
+    aftNacelleJunction.add(feedConduit);
+
+    const feedCore = new THREE.Mesh(
+      new THREE.TubeGeometry(feedCurve, 96, 0.065, 8, false),
+      new THREE.MeshBasicMaterial({
+        color: 0x7beaff, transparent: true, opacity: 0.82,
+        blending: THREE.AdditiveBlending, depthWrite: false
+      })
+    );
+    feedCore.name = side < 0
+      ? 'Port-Warp-Plasma-Feed-Core'
+      : 'Starboard-Warp-Plasma-Feed-Core';
+    feedCore.userData.isNacellePlasmaConduit = true;
+    aftNacelleJunction.add(feedCore);
   }
 
   // Janelas de observação laterais, sem ocupar o espaço interno dos corredores.
