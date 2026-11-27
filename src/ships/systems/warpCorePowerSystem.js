@@ -65,7 +65,7 @@ export function createWarpCorePowerSystem(options = {}) {
     warp: busFor('warp')
   });
 
-  function draw(name, requestedValue, deltaValue) {
+  function draw(name, requestedValue, deltaValue, routeToNacelles = false) {
     const requested = Math.max(0, finite(requestedValue));
     const dt = Math.max(0, finite(deltaValue));
     const matrixOnline = state.warpCoreEnabled && state.warpCoreContainmentStable &&
@@ -78,7 +78,7 @@ export function createWarpCorePowerSystem(options = {}) {
       frameDrawn[name] += delivered;
       deliveredTotal += delivered;
       transferThisFrame += delivered;
-      if (name === 'warp') {
+      if (name === 'warp' && routeToNacelles) {
         const perNacelle = delivered * 0.5;
         nacelleDeliveryThisFrame.port += perNacelle;
         nacelleDeliveryThisFrame.starboard += delivered - perNacelle;
@@ -100,7 +100,7 @@ export function createWarpCorePowerSystem(options = {}) {
     nacelleDeliveryThisFrame.port = 0;
     nacelleDeliveryThisFrame.starboard = 0;
     state.warpCorePowerBusConnected = true;
-    state.requestWarpPower = (amount, delta = dt) => draw('warp', amount, delta);
+    state.requestWarpPower = (amount, delta = dt) => draw('warp', amount, delta, true);
     state.requestOperationsPower = (amount, delta = dt) => draw('operations', amount, delta);
     state.requestCriticalPower = (amount, delta = dt) => draw('critical', amount, delta);
     if (dt <= 0) { telemetry = snapshot(); state.warpCorePowerTelemetry = telemetry; return telemetry; }
@@ -210,11 +210,13 @@ export function createWarpCorePowerSystem(options = {}) {
       }),
       nacelles: Object.freeze({
         port: Object.freeze({
-          online: Boolean(matrixOnline && (buffers.warp > EPSILON || nacelleDeliveryThisFrame.port > EPSILON)),
+          available: Boolean(matrixOnline && buffers.warp > EPSILON),
+          online: Boolean(matrixOnline && nacelleDeliveryThisFrame.port > EPSILON),
           deliveredThisFrame: nacelleDeliveryThisFrame.port
         }),
         starboard: Object.freeze({
-          online: Boolean(matrixOnline && (buffers.warp > EPSILON || nacelleDeliveryThisFrame.starboard > EPSILON)),
+          available: Boolean(matrixOnline && buffers.warp > EPSILON),
+          online: Boolean(matrixOnline && nacelleDeliveryThisFrame.starboard > EPSILON),
           deliveredThisFrame: nacelleDeliveryThisFrame.starboard
         })
       })
@@ -235,7 +237,7 @@ export function createWarpCorePowerSystem(options = {}) {
   }
   function initialize() {
     state.warpCorePowerBusConnected = true;
-    state.requestWarpPower = (amount, dt = 0) => draw('warp', amount, dt);
+    state.requestWarpPower = (amount, dt = 0) => draw('warp', amount, dt, true);
     state.requestOperationsPower = (amount, dt = 0) => draw('operations', amount, dt);
     state.requestCriticalPower = (amount, dt = 0) => draw('critical', amount, dt);
     telemetry = snapshot();
