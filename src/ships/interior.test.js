@@ -4,6 +4,18 @@ import * as THREE from 'three';
 import { createStarshipInterior } from './interior.js';
 import { DECK_3_DEFLECTOR_APERTURE } from './engineering/deflectorAperture.js';
 
+const isPointInsidePolygon = (point, polygon) => {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i, i += 1) {
+    const a = polygon[i];
+    const b = polygon[j];
+    const crosses = ((a.y > point.y) !== (b.y > point.y)) &&
+      (point.x < ((b.x - a.x) * (point.y - a.y)) / (b.y - a.y) + a.x);
+    if (crosses) inside = !inside;
+  }
+  return inside;
+};
+
 test('pisos dos Decks 2 e 3 mantêm livre o volume estrutural do defletor na proa', () => {
   const interior = createStarshipInterior();
   const aperture = DECK_3_DEFLECTOR_APERTURE;
@@ -178,9 +190,7 @@ test('instala duas faixas emissivas sobre o piso real de cada deck, sem colisõe
         const z = positions.getZ(index);
         assert.ok(Math.abs(y - 0.205) < 1e-6,
           'a faixa deve ficar apenas 2,5 cm acima da superfície do piso');
-        assert.ok(THREE.ShapeUtils.isPointInsidePolygon(
-          new THREE.Vector2(x, z - centerZ), contour
-        ), `${deck.id} faixa deve permanecer dentro do contorno real do piso`);
+        assert.ok(isPointInsidePolygon(new THREE.Vector2(x, z - centerZ), contour), `${deck.id} faixa deve permanecer dentro do contorno real do piso`);
       }
     }
   }
