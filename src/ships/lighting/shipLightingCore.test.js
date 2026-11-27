@@ -33,7 +33,7 @@ test('núcleo cria quatro ramificações independentes e controla luminárias po
   lighting.setDeckIntensity('D1', 1.4);
   assert.equal(d1Fixture.material.emissiveIntensity, 0);
   lighting.setDeckEnabled('D1', true);
-  assert.equal(d1Fixture.material.emissiveIntensity, 1.61);
+  assert.ok(Math.abs(d1Fixture.material.emissiveIntensity - 1.61) < 1e-9);
 
   lighting.setMasterEnabled(false);
   assert.equal(d2Fixture.material.emissiveIntensity, 0);
