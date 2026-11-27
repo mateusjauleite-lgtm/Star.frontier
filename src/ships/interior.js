@@ -192,10 +192,12 @@ export function createStarshipInterior(options = {}) {
 
   const deckFloor = (deck, label) => {
     const y = deck.y;
-    // D1-D3 compartilham a mesma planta, dimensionada para caber no casco
-    // na altura do D1 (o deck mais alto). D4 permanece fora desta revisão.
+    // D1 acompanha a seção mais estreita do casco nas laterais.
+    // D2 e D3 compartilham a planta ampliada até o contorno do casco,
+    // usando a região do elevador (Z=25) como referência traseira.
+    // D4 permanece integralmente fora desta revisão.
     const footprints = {
-      D1: [50, 82], D2: [50, 82], D3: [50, 82], D4: [48, 110, 5.5]
+      D1: [44, 82], D2: [52, 96], D3: [52, 96], D4: [48, 110, 5.5]
     };
     const [width, length, centerZ = -2] = footprints[deck.id];
     addDeckPlate(y, width, length, floorMat, label + '-Floor', 0.04, centerZ);
