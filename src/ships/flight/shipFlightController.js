@@ -405,8 +405,12 @@ export function createShipFlightController(dependencies = {}) {
       const key = side === 'Port' ? 'port' : 'starboard';
       const branch = nacellePower[key];
       const flowing = Boolean(warpTravelActive && Number(branch?.deliveredThisFrame) > 0);
-      const conduit = shipVisual?.getObjectByName(`${side}-Warp-Plasma-Feed-Conduit`);
-      const chamber = shipVisual?.getObjectByName(`${side}-Nacelle-Internal-Plasma-Chamber`);
+      const conduit = typeof shipVisual?.getObjectByName === 'function'
+        ? shipVisual.getObjectByName(`${side}-Warp-Plasma-Feed-Conduit`)
+        : null;
+      const chamber = typeof shipVisual?.getObjectByName === 'function'
+        ? shipVisual.getObjectByName(`${side}-Nacelle-Internal-Plasma-Chamber`)
+        : null;
       if (conduit?.material?.emissive) conduit.material.emissiveIntensity = flowing ? 2.1 : 0.72;
       if (chamber?.material?.emissive) chamber.material.emissiveIntensity = flowing ? 2.4 : 0.85;
     }
