@@ -400,7 +400,6 @@ export function createShipFlightController(dependencies = {}) {
     });
 
     // As duas linhas de plasma recebem o mesmo barramento de dobra, com telemetria isolada.
-    const shipVisual = getShipVisual();
     const nacellePower = state.warpCorePowerTelemetry?.nacelles || {};
     for (const side of ['Port', 'Starboard']) {
       const key = side === 'Port' ? 'port' : 'starboard';
