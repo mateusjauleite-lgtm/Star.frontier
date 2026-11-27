@@ -39,6 +39,9 @@ export function isCharacterInsideAuroraHull(
 
   const centerY = feetY + height * 0.5;
   if (!Number.isFinite(centerY)) return false;
+  // Considera a extremidade da cápsula mais próxima da concha: topo nos
+  // decks superiores e sola nos inferiores. Isso evita atravessar o casco
+  // com a cabeça durante saltos ou com os pés junto à borda inferior.
 
   // O casco superior fecha D1/D2; a concha inferior fecha D3/D4.
   if ((deckId === 'D1' || deckId === 'D2') && centerY <= 0) return false;
@@ -75,8 +78,11 @@ export function isCharacterInsideAuroraHull(
   const rz = AURORA_HULL_DIMENSIONS.radiusZ - radius;
   if (rx <= 0 || ry <= 0 || rz <= 0) return false;
 
+  const shellContactY = deckId === 'D1' || deckId === 'D2'
+    ? feetY + height - radius
+    : feetY + radius;
   const normalizedX = position.x / rx;
-  const normalizedY = centerY / ry;
+  const normalizedY = shellContactY / ry;
   const normalizedZ = position.z / rz;
   return normalizedX ** 2 + normalizedY ** 2 + normalizedZ ** 2 <= 1;
 }
