@@ -53,6 +53,7 @@ import { createPilotHudProfileStore, PILOT_HUD_PROFILES } from './ui/hudProfiles
 import { createNavigationSensorMap } from './ui/navigationSensorMap.js';
 import { createShipCameraController } from './core/runtime/camera/shipCameraController.js';
 import { isShipLightingConsoleInRange } from './ships/lighting/shipLightingConsole.js';
+import { isCharacterInsideAuroraHull } from './ships/hullCollision.js';
 import { createCharacterCameraController } from './core/runtime/camera/characterCameraController.js';
 import { createCameraInputController } from './core/runtime/camera/cameraInputController.js';
 import { createCameraRuntimeSystem } from './core/runtime/systems/cameraRuntimeSystem.js';
@@ -1612,33 +1613,17 @@ function isCharacterInsideDeck(position, deckIndex) {
   const deck = starshipInterior?.layout?.decks?.[deckIndex];
   if (!deck) return false;
 
-  // Medidas dos pisos elípticos (largura, comprimento e centro longitudinal).
-  const footprints = {
-    D1: [50, 82, -2],
-    D2: [50, 94, -2],
-    D3: [53, 102, -2],
-    D4: [48, 110, 5.5]
-  };
-  const footprint = footprints[deck.id];
-  if (!footprint) return false;
+  // A borda deixa de ser uma elipse invisível independente do modelo.
+  // A contenção usa a seção real do casco (27.2 x 15.2 x 50 m),
+  // com margem para o corpo do personagem e recortes estruturais preservados.
+  const feetY = getCharacterWalkableFloorY(position, deckIndex);
+  if (isCharacterInsideAuroraHull(position, deck.id, feetY)) return true;
 
-  // Reserva uma margem para o raio do personagem nas bordas do convés.
-  const [width, length, centerZ = -2] = footprint;
-  const playerRadius = 0.62;
-  const radiusX = width * 0.5 - playerRadius;
-  const radiusZ = length * 0.5 - playerRadius;
-  const normalizedX = position.x / radiusX;
-  const normalizedZ = (position.z - centerZ) / radiusZ;
-  const insideDeckEllipse =
-    normalizedX * normalizedX + normalizedZ * normalizedZ <= 1;
-
-  if (deck.id !== 'D4') return insideDeckEllipse;
-
-  // A meia-lua fica exclusivamente para fora da extremidade traseira do D4.
-  // Depois de atravessar sua borda externa, o personagem está fora do piso
-  // e pode continuar para fora da nave, entrando em queda livre.
-  return insideDeckEllipse || isD4ExitAperture(position) ||
-    isD4BeyondExitAperture(position);
+  // A saída traseira do D4 continua sendo um vão funcional do hangar.
+  if (deck.id === 'D4') {
+    return isD4ExitAperture(position) || isD4BeyondExitAperture(position);
+  }
+  return false;
 }
 
 function getCharacterWalkableFloorY(position, deckIndex) {
