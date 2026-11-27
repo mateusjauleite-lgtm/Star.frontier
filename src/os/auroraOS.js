@@ -8,6 +8,7 @@ const APP_ITEMS = [
   { id: 'story', icon: '✦', title: 'História', detail: 'Campanha e registros narrativos' },
   { id: 'character', icon: '◉', title: 'Personagem', detail: 'Perfil do explorador' },
   { id: 'ships', icon: '▱', title: 'Naves', detail: 'Nave e equipamentos' },
+  { id: 'lighting', icon: '☼', title: 'Iluminação', detail: 'Controle das luzes dos quatro decks' },
   { id: 'shop', icon: '◇', title: 'Loja', detail: 'Equipamentos e recursos' },
   { id: 'settings', icon: '⚙', title: 'Configurações', detail: 'Gráficos e controles' }
 ];
@@ -52,6 +53,103 @@ export function createAuroraOS({ documentRef = globalThis.document, manager = au
     renderAudio();
     updateNavigationState();
     startMeterAnimation();
+  }
+
+  function showLighting() {
+    stopMeterAnimation();
+    currentView = 'lighting';
+    menu.classList.add('aurora-os-active');
+    menu.classList.remove('aurora-legacy-app');
+    renderLighting();
+    updateNavigationState();
+    requestLightingStatus();
+  }
+
+  function requestLightingStatus() {
+    documentRef.dispatchEvent(new CustomEvent('starfrontier:ship-lighting-command', {
+      detail: { action: 'status' }
+    }));
+  }
+
+  function handleLightingStatus(event) {
+    if (currentView !== 'lighting') return;
+    const detail = event.detail || {};
+    const status = detail.status;
+    const availability = view.querySelector('#aurora-lighting-availability');
+    if (availability) {
+      availability.textContent = !detail.available
+        ? 'NÚCLEO INDISPONÍVEL'
+        : status?.decks?.some(deck => deck.fixtureCount > 0)
+          ? 'NÚCLEO CONECTADO'
+          : 'NÚCLEO CONECTADO · LUMINÁRIAS A INSTALAR';
+      availability.classList.toggle('is-active', Boolean(detail.available));
+    }
+    for (const deck of status?.decks || []) {
+      const card = view.querySelector('[data-lighting-deck="' + deck.id + '"]');
+      if (!card) continue;
+      const state = card.querySelector('[data-lighting-state]');
+      if (state) state.textContent = deck.enabled ? 'ILUMINAÇÃO LIGADA' : 'ILUMINAÇÃO DESLIGADA';
+      card.querySelectorAll('[data-aurora-light-action]').forEach(button => {
+        button.disabled = !detail.available;
+        button.classList.toggle('is-selected',
+          (button.dataset.auroraLightAction === 'on' && deck.branchEnabled) ||
+          (button.dataset.auroraLightAction === 'off' && !deck.branchEnabled));
+      });
+    }
+    const warning = view.querySelector('#aurora-lighting-note');
+    if (warning) {
+      warning.textContent = !detail.available
+        ? 'O interior da nave ainda não está carregado. Entre na nave e abra o aplicativo novamente.'
+        : status?.decks?.every(deck => deck.fixtureCount === 0)
+          ? 'Os comandos já estão ligados ao núcleo. A instalação física das luminárias será concluída junto às paredes internas, para que cada luz fique embutida no centro dos segmentos.'
+          : 'Cada ramificação é independente. O estado de um deck não altera os outros.';
+    }
+  }
+
+  function renderLighting() {
+    if (!view) return;
+    const decks = [
+      { id: 'D1', name: 'Deck 1', detail: 'Ponte de comando' },
+      { id: 'D2', name: 'Deck 2', detail: 'Operações e ciência' },
+      { id: 'D3', name: 'Deck 3', detail: 'Engenharia' },
+      { id: 'D4', name: 'Deck 4', detail: 'Hangar e apoio' }
+    ];
+    view.innerHTML = `
+      <header class="aurora-page-heading">
+        <div><span class="aurora-eyebrow">AURORA OS // CONTROLE ELÉTRICO</span><h1>Iluminação da nave</h1><p>Núcleo central e ramificações independentes por deck.</p></div>
+        <button class="aurora-back-button" type="button" data-aurora-view="home">← INÍCIO</button>
+      </header>
+      <section class="aurora-lighting-header">
+        <div><span class="aurora-eyebrow">NÚCLEO DE ILUMINAÇÃO</span><b> AURORA-7 · DISTRIBUIÇÃO INTERNA</b></div>
+        <span id="aurora-lighting-availability" class="aurora-chip">CONSULTANDO NÚCLEO...</span>
+      </section>
+      <section class="aurora-lighting-grid">
+        ${decks.map(deck => `
+          <article class="aurora-lighting-card" data-lighting-deck="${deck.id}">
+            <div class="aurora-lighting-card-top">
+              <span class="aurora-lighting-icon">☼</span>
+              <div><b>${deck.name}</b><small>${deck.detail}</small></div>
+            </div>
+            <span class="aurora-lighting-state" data-lighting-state>CONSULTANDO...</span>
+            <div class="aurora-action-row">
+              <button type="button" class="aurora-action-button" data-aurora-light-action="on" data-deck-id="${deck.id}">LIGAR</button>
+              <button type="button" class="aurora-action-button secondary" data-aurora-light-action="off" data-deck-id="${deck.id}">DESLIGAR</button>
+            </div>
+          </article>`).join('')}
+      </section>
+      <p id="aurora-lighting-note" class="aurora-footnote">Consultando estado das quatro ramificações.</p>
+    `;
+    view.querySelectorAll('[data-aurora-light-action]').forEach(button => {
+      button.addEventListener('click', () => {
+        documentRef.dispatchEvent(new CustomEvent('starfrontier:ship-lighting-command', {
+          detail: {
+            action: 'set-deck',
+            deckId: button.dataset.deckId,
+            enabled: button.dataset.auroraLightAction === 'on'
+          }
+        }));
+      });
+    });
   }
 
   function openLegacyApp(id) {
@@ -110,7 +208,7 @@ export function createAuroraOS({ documentRef = globalThis.document, manager = au
       <footer class="aurora-system-note"><b>ARQUITETURA ISOLADA</b><span>O AURORA OS não consulta nem altera diretamente o Ship Computer. Cada aplicativo acessa apenas os serviços que lhe forem autorizados.</span></footer>
     `;
     view.querySelectorAll('[data-aurora-open-app]').forEach(button => {
-      button.addEventListener('click', () => openLegacyApp(button.dataset.auroraOpenApp));
+      button.addEventListener('click', () => button.dataset.auroraOpenApp === 'lighting' ? showLighting() : openLegacyApp(button.dataset.auroraOpenApp));
     });
   }
 
@@ -217,6 +315,7 @@ export function createAuroraOS({ documentRef = globalThis.document, manager = au
       event.preventDefault();
       showHome();
       if (target.dataset.auroraView === 'audio') showAudio();
+      else if (target.dataset.auroraView === 'lighting') showLighting();
       return;
     }
   }
@@ -235,6 +334,7 @@ export function createAuroraOS({ documentRef = globalThis.document, manager = au
   }
 
   view?.addEventListener('click', handleClick);
+  documentRef.addEventListener('starfrontier:ship-lighting-status', handleLightingStatus);
   nav.addEventListener('click', handleClick);
   nav.addEventListener('click', handleLegacyClick);
   documentRef.getElementById('login-btn')?.addEventListener('click', handleLogin);
@@ -298,6 +398,7 @@ export function createAuroraOS({ documentRef = globalThis.document, manager = au
     destroyed = true;
     unsubscribe?.();
     view?.removeEventListener('click', handleClick);
+    documentRef.removeEventListener('starfrontier:ship-lighting-status', handleLightingStatus);
     nav.removeEventListener('click', handleClick);
     nav.removeEventListener('click', handleLegacyClick);
     documentRef.getElementById('login-btn')?.removeEventListener('click', handleLogin);
@@ -414,6 +515,20 @@ function injectStyles(documentRef) {
     #menu-screen .aurora-mic-meter i { display:block; width:0; height:100%; border-radius:20px; background:linear-gradient(90deg,#35a9df,#65e8b3); transition:width .12s linear; }
     #menu-screen .aurora-text-button { margin-top:13px; padding:7px 0; border:0; background:none; color:#73cde9; font-size:9px; letter-spacing:.6px; }
     #menu-screen .aurora-footnote { margin:16px 0 0; color:#7998ae; font-size:10px; line-height:1.5; }
+    #menu-screen .aurora-lighting-header { display:flex; justify-content:space-between; align-items:center; gap:12px; margin:5px 0 16px; padding:14px; border:1px solid rgba(93,177,216,.2); border-radius:12px; background:rgba(8,27,46,.74); }
+    #menu-screen .aurora-lighting-header b { display:block; margin-top:6px; color:#dff7ff; font-size:12px; letter-spacing:.6px; }
+    #menu-screen .aurora-lighting-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+    #menu-screen .aurora-lighting-card { padding:15px; border:1px solid rgba(93,177,216,.2); border-radius:13px; background:linear-gradient(145deg,rgba(12,39,62,.85),rgba(6,21,37,.92)); }
+    #menu-screen .aurora-lighting-card-top { display:flex; align-items:center; gap:11px; }
+    #menu-screen .aurora-lighting-icon { display:grid; place-items:center; width:38px; height:38px; border:1px solid rgba(101,207,245,.24); border-radius:10px; background:rgba(27,110,151,.2); color:var(--aurora-cyan); font-size:22px; }
+    #menu-screen .aurora-lighting-card-top b, #menu-screen .aurora-lighting-card-top small { display:block; }
+    #menu-screen .aurora-lighting-card-top b { color:#e5f5ff; font-size:13px; }
+    #menu-screen .aurora-lighting-card-top small { margin-top:4px; color:#8ba9bf; font-size:10px; }
+    #menu-screen .aurora-lighting-state { display:block; margin-top:16px; color:#9bb4c8; font-size:9px; font-weight:800; letter-spacing:1px; }
+    #menu-screen .aurora-lighting-card .aurora-action-row { display:grid; grid-template-columns:1fr 1fr; }
+    #menu-screen .aurora-lighting-card .aurora-action-button { width:100%; }
+    #menu-screen .aurora-lighting-card .aurora-action-button.is-selected { border-color:#69e2ff; background:rgba(23,111,145,.55); color:#e5fbff; box-shadow:0 0 15px rgba(73,205,239,.12); }
+    #menu-screen .aurora-lighting-card .aurora-action-button:disabled { opacity:.35; }
     @media (max-width:760px) {
       #menu-screen { padding:12px; }
       #menu-screen .menu-layout { grid-template-columns:1fr; }
@@ -423,6 +538,8 @@ function injectStyles(documentRef) {
       #menu-screen .aurora-app-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
       #menu-screen .aurora-status-grid { grid-template-columns:1fr; }
       #menu-screen .aurora-audio-layout { grid-template-columns:1fr; }
+      #menu-screen .aurora-lighting-grid { grid-template-columns:1fr; }
+      #menu-screen .aurora-lighting-header { align-items:flex-start; flex-direction:column; }
       #menu-screen .aurora-hero { flex-direction:column; }
       #menu-screen .aurora-clock-card { width:100%; }
     }
