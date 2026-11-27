@@ -73,7 +73,8 @@ export function createShipLightingCore({ decks = DEFAULT_DECKS } = {}) {
     depth = DEFAULT_LIGHT.depth,
     color = DEFAULT_LIGHT.color,
     intensity = DEFAULT_LIGHT.intensity,
-    name
+    name,
+    geometry = null
   } = {}) => {
     const branch = getBranch(deckId);
     const material = new THREE.MeshStandardMaterial({
@@ -81,10 +82,11 @@ export function createShipLightingCore({ decks = DEFAULT_DECKS } = {}) {
       emissive: color,
       emissiveIntensity: intensity,
       metalness: 0.15,
-      roughness: 0.32
+      roughness: 0.32,
+      side: THREE.DoubleSide
     });
     const fixture = new THREE.Mesh(
-      new THREE.BoxGeometry(width, height, depth),
+      geometry || new THREE.BoxGeometry(width, height, depth),
       material
     );
     fixture.name = name || `${deckId}-Wall-Light-${branch.fixtures.size + 1}`;

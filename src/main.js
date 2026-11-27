@@ -710,6 +710,10 @@ document.addEventListener('starfrontier:ship-lighting-command', event => {
   try {
     if (command.action === 'set-deck') {
       core.setDeckEnabled(command.deckId, command.enabled);
+    } else if (command.action === 'set-intensity') {
+      core.setDeckIntensity(command.deckId, command.intensity);
+    } else if (command.action === 'set-master') {
+      core.setMasterEnabled(command.enabled);
     }
     document.dispatchEvent(new CustomEvent('starfrontier:ship-lighting-status', {
       detail: { available: true, status: core.getStatus() }

@@ -44,6 +44,86 @@ export function createStarshipInterior(options = {}) {
   });
   const collisionBoxes = [];
 
+  // Ray casting 2D: Three.js ShapeUtils não expõe isPointInsidePolygon.
+  const isPointInsidePolygon = (point, polygon) => {
+    let inside = false;
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i, i += 1) {
+      const a = polygon[i];
+      const b = polygon[j];
+      const crosses = ((a.y > point.y) !== (b.y > point.y)) &&
+        (point.x < ((b.x - a.x) * (point.y - a.y)) / (b.y - a.y) + a.x);
+      if (crosses) inside = !inside;
+    }
+    return inside;
+  };
+
+  // Faixas planas geradas a partir do contorno real de cada piso.
+  // A busca encontra a borda lateral do polígono e recua alguns metros,
+  // sem tocar paredes, criar colisores ou alterar a malha estrutural.
+  const createFloorSideStripGeometry = (contour, centerZ, side, requestedStart, requestedEnd) => {
+    const polygon = contour.map(([x, z]) => new THREE.Vector2(x, z));
+    const worldZValues = contour.map(([, z]) => z + centerZ);
+    const floorStart = Math.min(...worldZValues);
+    const floorEnd = Math.max(...worldZValues);
+    const zStart = Math.max(requestedStart, floorStart + 3.5);
+    const zEnd = Math.min(requestedEnd, floorEnd - 3.5);
+    if (zEnd <= zStart) throw new RangeError('Trecho de faixa inválido para o piso.');
+
+    const positions = [];
+    const indices = [];
+    const step = 0.22;
+    const samples = Math.ceil((zEnd - zStart) / step);
+    let previousRow = -1;
+    let previousZ = null;
+    let firstVisibleZ = null;
+    let lastVisibleZ = null;
+
+    for (let i = 0; i <= samples; i += 1) {
+      const z = zStart + ((zEnd - zStart) * i) / samples;
+      const localZ = z - centerZ;
+      let edge = 0;
+      for (let distance = 0.25; distance <= 32; distance += 0.2) {
+        if (isPointInsidePolygon(new THREE.Vector2(side * distance, localZ), polygon)) edge = distance;
+      }
+
+      // Ausência de piso (ex.: recorte do defletor) interrompe a faixa;
+      // nunca ligamos uma ponte luminosa atravessando uma abertura.
+      if (edge < 5) {
+        previousRow = -1;
+        previousZ = null;
+        continue;
+      }
+
+      const stripHalfWidth = 0.35;
+      const centerOffset = 3.2 + stripHalfWidth;
+      const centerX = side * (edge - centerOffset);
+      const innerX = centerX - side * stripHalfWidth;
+      const outerX = centerX + side * stripHalfWidth;
+      const row = positions.length / 3;
+      positions.push(innerX, 0.205, z, outerX, 0.205, z);
+
+      if (previousRow >= 0 && previousZ !== null && z - previousZ <= step * 1.5) {
+        const a = previousRow;
+        const b = previousRow + 1;
+        const c = row + 1;
+        const d = row;
+        indices.push(a, b, d, b, c, d);
+      }
+      previousRow = row;
+      previousZ = z;
+      if (firstVisibleZ === null) firstVisibleZ = z;
+      lastVisibleZ = z;
+    }
+
+    if (indices.length === 0) throw new RangeError('O contorno do piso não possui lateral útil para a faixa.');
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setIndex(indices);
+    geometry.computeVertexNormals();
+    geometry.userData.floorRange = { start: firstVisibleZ, end: lastVisibleZ };
+    return geometry;
+  };
+
   const addBox = (parent, size, at, material, name = '') => {
     const isHullFitted = /Wall|Partition|Bulkhead|Frame/.test(name);
     if (!isHullFitted) {
@@ -208,6 +288,8 @@ export function createStarshipInterior(options = {}) {
     mesh.position.set(0, y + 0.18, centerZ);
     mesh.name = name;
     mesh.userData.deckFootprint = { width, length, centerZ };
+    mesh.userData.floorContour = shape.getPoints(256).map(point => [point.x, point.y]);
+    mesh.userData.floorTopY = y + 0.18;
     mesh.castShadow = false;
     mesh.receiveShadow = true;
     group.add(mesh);
@@ -237,11 +319,44 @@ export function createStarshipInterior(options = {}) {
     deckFloor(deck, deck.id);
   }
 
-  // Núcleo lógico de iluminação com ramificações elétricas independentes por deck.
-  // As luminárias de parede serão posicionadas quando a geometria das paredes
-  // estiver instalada; o sistema já expõe addWallFixture para essa integração.
+  // Núcleo lógico e oito faixas embutidas visualmente nos pisos.
+  // A geometria usa o contorno efetivo de cada convés, com recuo de 3,2 m
+  // da borda lateral e margem longitudinal de segurança.
   const lightingCore = createShipLightingCore({ decks: STARSHIP_LAYOUT.decks });
   group.add(lightingCore.group);
+  const floorLightRanges = {
+    D1: { start: -28.5, end: 40 },
+    D2: { start: -34.4, end: 46 },
+    D3: { start: -34.4, end: 42 },
+    D4: { start: -39.2, end: 36 }
+  };
+  for (const deck of STARSHIP_LAYOUT.decks) {
+    const floor = group.getObjectByName(`${deck.id}-Floor`);
+    const range = floorLightRanges[deck.id];
+    const contour = floor.userData.floorContour;
+    for (const side of [-1, 1]) {
+      const geometry = createFloorSideStripGeometry(
+        contour, floor.userData.deckFootprint.centerZ, side, range.start, range.end
+      );
+      const fixture = lightingCore.addWallFixture(deck.id, {
+        geometry,
+        color: 0xeaf6ff,
+        intensity: 3.0,
+        name: `${deck.id}-Floor-Light-${side < 0 ? 'Port' : 'Starboard'}`
+      });
+      fixture.userData.floorStrip = {
+        mount: 'floor',
+        side: side < 0 ? 'port' : 'starboard',
+        zStart: geometry.userData.floorRange.start,
+        zEnd: geometry.userData.floorRange.end,
+        edgeInset: 3.2,
+        width: 0.7,
+        surfaceOffset: 0.025,
+        collisionFree: true
+      };
+    }
+  }
+  lightingCore.group.userData.collisionBoxesAtInstall = collisionBoxes.length;
 
   // Console físico de acesso ao aplicativo Iluminação no Deck 1.
   const lightingConsole = createShipLightingConsole();
