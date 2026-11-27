@@ -16,7 +16,7 @@ test('conventional speed envelope is fast in open space and controlled near terr
   assert.equal(getConventionalSpeedLimit(20), 4);
 });
 
-test('powered upward flight can exceed the low-altitude approach speed limit', () => {
+test('propulsor principal mantém o teto de 12 km/s também em voo horizontal', () => {
   assert.equal(getConventionalFlightSpeedLimit(20), 4);
   assert.equal(getConventionalFlightSpeedLimit(20, {
     throttle: true,
@@ -29,7 +29,11 @@ test('powered upward flight can exceed the low-altitude approach speed limit', (
   assert.equal(getConventionalFlightSpeedLimit(20, {
     throttle: true,
     climbAlignment: 0.02
-  }), 4);
+  }), 12000);
+  assert.equal(getConventionalFlightSpeedLimit(20, {
+    throttle: true,
+    climbAlignment: 0
+  }), 12000);
   assert.equal(getConventionalFlightSpeedLimit(20, {
     verticalSpeed: 25
   }), 12000);

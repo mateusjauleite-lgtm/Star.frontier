@@ -26,9 +26,21 @@ function makeState(overrides = {}) {
 test('propulsor principal acelera em m/s e consome combustível comum', () => {
   const state = makeState({ throttle: true, speed: 10 });
   advanceShipFlightDynamics(state, 0.04);
-  assert.equal(state.speed, 50);
+  assert.equal(state.speed, 130);
   assert.ok(state.fuel < 100);
   assert.equal(state.refinedDilithium, 100);
+});
+
+// Cada passo do runtime é limitado a 40 ms; 3000 m/s² adiciona 120 m/s por passo.
+test('aceleração de teste é 3000 m/s² sem alterar o teto de 12000 m/s', () => {
+  const state = makeState({ throttle: true, speed: 0, conventionalSpeedLimit: 12000 });
+  advanceShipFlightDynamics(state, 0.04);
+  assert.equal(state.speed, 120);
+  advanceShipFlightDynamics(state, 0.04);
+  assert.equal(state.speed, 240);
+  state.speed = 11950;
+  advanceShipFlightDynamics(state, 0.04);
+  assert.equal(state.speed, 12000);
 });
 
 test('propulsor travado desliga ao esgotar combustível e a nave volta a desacelerar', () => {

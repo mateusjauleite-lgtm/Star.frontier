@@ -93,6 +93,17 @@ test('popa nova tem moldura uniforme e duas naceles longas totalmente externas',
       'nacelle deve ser longa no eixo longitudinal');
     assert.ok(nacelle.getObjectByName('Nacelle-Plasma-Channel'));
     assert.ok(nacelle.getObjectByName('Nacelle-Warp-Engine-Core'));
+    assert.ok(nacelle.getObjectByName('Nacelle-Internal-Chamber-Floor'));
+    assert.ok(nacelle.getObjectByName('Nacelle-Internal-Port-Wall'));
+    assert.ok(nacelle.getObjectByName('Nacelle-Internal-Starboard-Wall'));
+    assert.ok(nacelle.getObjectByName('Nacelle-Internal-Plasma-Core'));
+    assert.ok(nacelle.getObjectByName('Nacelle-Plasma-Feed-Through'));
+    assert.ok(nacelle.getObjectByName('Nacelle-Internal-Plasma-Light'));
+    assert.ok(nacelle.getObjectByName('Nacelle-Interior-Port-Light'));
+    assert.ok(nacelle.getObjectByName('Nacelle-Interior-Starboard-Light'));
+    assert.ok(nacelle.getObjectByName(name.startsWith('Port-')
+      ? 'Port-Nacelle-Running-Light'
+      : 'Starboard-Nacelle-Running-Light'));
     assert.equal(nacelle.getObjectByName('Port-Nacelle-Root-Collar'), undefined,
       'aros circulares antigos não devem permanecer');
   }
@@ -105,5 +116,5 @@ test('popa nova tem moldura uniforme e duas naceles longas totalmente externas',
   }
 
   assert.equal(ship.engineFlames.length, 2);
-  assert.equal(ship.engineLights.length, 2);
+  assert.equal(ship.engineLights.length, 4);
 });
