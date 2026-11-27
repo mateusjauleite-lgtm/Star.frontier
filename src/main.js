@@ -1207,6 +1207,8 @@ async function startGame() {
     asteroidSystem = null;
     lightingSystem = null;
     starshipInterior = null;
+    lightingConsoleInteractionAvailable = false;
+    lightingConsoleActive = false;
     characterModel = null;
     characterAnimator = null;
     characterPhysics = null;
@@ -2320,13 +2322,15 @@ function updateLightingConsoleInteraction() {
   lightingConsoleInteractionAvailable = available;
 
   if (available || lightingConsoleActive) {
+    const label = lightingConsoleActive ? '◎ ILUMINAÇÃO ABERTA' : '◎ INTERAGIR';
+    const targetChanged = button.dataset.interaction !== 'lighting-console' || button.textContent !== label;
     button.disabled = false;
     button.classList.remove('hidden');
     button.classList.add('available');
     button.dataset.interaction = 'lighting-console';
-    button.textContent = lightingConsoleActive ? '◎ ILUMINAÇÃO ABERTA' : '◎ INTERAGIR';
-    characterCore.setInteractionTarget('CONSOLE DE ILUMINAÇÃO');
-    if (previousAvailable !== available) updateCharacterHUD();
+    button.textContent = label;
+    if (targetChanged) characterCore.setInteractionTarget('CONSOLE DE ILUMINAÇÃO');
+    if (previousAvailable !== available || targetChanged) updateCharacterHUD();
   } else if (previousAvailable || button.dataset.interaction === 'lighting-console') {
     button.disabled = !pilotInteractionAvailable;
     button.classList.remove('available');
