@@ -98,8 +98,20 @@ test('popa nova tem moldura uniforme e duas naceles longas totalmente externas',
       'câmara interna de plasma deve existir em cada nacele');
     assert.ok(nacelle.getObjectByName(`${side}-Nacelle-Internal-Chamber-View-Window`),
       'câmara deve ter janela superior visível');
-    assert.equal(body.geometry.parameters.shapes.holes.length, 1,
-      'corpo da nacele deve reservar uma abertura real para a câmara');
+    assert.equal(body.userData.nacelleInspectionSlot, true,
+      'blindagem deve conter uma abertura de inspeção real');
+    const positions = body.geometry.attributes.position;
+    let trianglesInsideInspectionSlot = 0;
+    for (let i = 0; i < positions.count; i += 3) {
+      const centerX = (positions.getX(i) + positions.getX(i + 1) + positions.getX(i + 2)) / 3;
+      const centerZ = (positions.getZ(i) + positions.getZ(i + 1) + positions.getZ(i + 2)) / 3;
+      const minimumY = Math.min(positions.getY(i), positions.getY(i + 1), positions.getY(i + 2));
+      if (minimumY > 2.45 && Math.abs(centerX - (side === 'Port' ? -1.05 : 1.05)) < 0.66 && Math.abs(centerZ) < 17.8) {
+        trianglesInsideInspectionSlot += 1;
+      }
+    }
+    assert.equal(trianglesInsideInspectionSlot, 0,
+      'a janela não deve continuar coberta pela face superior da blindagem');
     const feed = junction.getObjectByName(`${side}-Warp-Plasma-Feed-Conduit`);
     assert.ok(feed, 'condutor de plasma deve conectar o braço à nacele');
     assert.equal(feed.userData.isNacellePlasmaConduit, true);
