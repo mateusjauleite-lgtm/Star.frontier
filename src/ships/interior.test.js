@@ -86,3 +86,25 @@ test('estrutura interna do defletor integra anel iluminado e acesso pelo Deck 3'
 
   interior.dispose();
 });
+
+
+test('Deck 1 é mais estreito; Decks 2 e 3 ampliados iguais; Deck 4 preservado', () => {
+  const interior = createStarshipInterior();
+  const expectedFootprints = {
+    D1: { width: 44, length: 82, centerZ: -2 },
+    D2: { width: 52, length: 96, centerZ: -2 },
+    D3: { width: 52, length: 96, centerZ: -2 }
+  };
+
+  for (const [deckId, expected] of Object.entries(expectedFootprints)) {
+    const floor = interior.group.getObjectByName(`${deckId}-Floor`);
+    assert.ok(floor, `piso ${deckId} deve existir`);
+    assert.deepEqual(floor.userData.deckFootprint, expected);
+  }
+
+  const deck4 = interior.group.getObjectByName('D4-Floor');
+  assert.ok(deck4, 'piso D4 deve continuar instalado');
+  assert.deepEqual(deck4.userData.deckFootprint, { width: 48, length: 110, centerZ: 5.5 });
+
+  interior.dispose();
+});

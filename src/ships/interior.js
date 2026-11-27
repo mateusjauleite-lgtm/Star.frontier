@@ -5,6 +5,8 @@ import { createDilithiumProcessingPlant } from './engineering/dilithiumProcessin
 import { DECK_3_DEFLECTOR_APERTURE } from './engineering/deflectorAperture.js';
 import { createDeflectorInteriorStructure } from './engineering/deflectorInteriorStructure.js';
 import { createDeck2TransporterInstallation } from './transport/transportInstallation.js';
+import { createShipLightingCore } from './lighting/shipLightingCore.js';
+import { createShipLightingConsole } from './lighting/shipLightingConsole.js';
 
 // Estrutura física inicial da nave exploradora.
 // Escala de trabalho: 120 x 64 x 32 m. Sem consoles, máquinas ou mobiliário.
@@ -120,17 +122,19 @@ export function createStarshipInterior(options = {}) {
   };
 
   const addDeckPlate = (y, width, length, material, name, thickness, centerZ = -2) => {
-    // Planta elíptica acompanha o casco arredondado, sem criar uma moldura retangular.
+    // Planta elíptica acompanha o casco arredondado. D2 e D3 mantêm
+    // a mesma dimensão externa dos decks, mas abrem uma reentrância na proa
+    // para o volume estrutural do defletor, sem deixar triângulos sob o emissor.
     let shape;
-    if (name === 'D2-Floor') {
-      // O recorte do defletor chega à borda de proa do Deck 2.
-      // Um furo fechado ultrapassaria o contorno elíptico do convés e
-      // invalidaria a triangulação; por isso o recorte é uma reentrância
-      // contínua no próprio perímetro do piso.
+    if (name === 'D2-Floor' || name === 'D3-Floor') {
       const outerRadiusX = width / 2;
       const outerRadiusZ = length / 2;
-      const notchRadiusX = DECK_3_DEFLECTOR_APERTURE.radiusX;
-      const notchRadiusZ = DECK_3_DEFLECTOR_APERTURE.radiusZ;
+      const notchRadiusX = name === 'D2-Floor'
+        ? DECK_3_DEFLECTOR_APERTURE.radiusX
+        : 9.35;
+      const notchRadiusZ = name === 'D2-Floor'
+        ? DECK_3_DEFLECTOR_APERTURE.radiusZ
+        : 6.25;
       const notchCenterZ = DECK_3_DEFLECTOR_APERTURE.centerZ - centerZ;
       const outerY = -outerRadiusZ * Math.sqrt(1 - (notchRadiusX / outerRadiusX) ** 2);
       const rightAngle = Math.atan2(outerY / outerRadiusZ, notchRadiusX / outerRadiusX);
@@ -144,40 +148,26 @@ export function createStarshipInterior(options = {}) {
         shape.lineTo(outerRadiusX * Math.cos(angle), outerRadiusZ * Math.sin(angle));
       }
 
-      // Retorna pela borda superior da elipse de folga do defletor,
-      // deixando o recorte aberto até a extremidade frontal do convés.
+      // Reentra pela curva da folga do defletor; a abertura fica ligada
+      // à borda frontal do convés, evitando furos parcialmente externos.
       const innerSteps = 48;
       for (let i = 1; i <= innerSteps; i++) {
         const angle = Math.PI - (Math.PI * i) / innerSteps;
         shape.lineTo(
-          DECK_3_DEFLECTOR_APERTURE.centerX + notchRadiusX * Math.cos(angle),
+          notchRadiusX * Math.cos(angle),
           notchCenterZ + notchRadiusZ * Math.sin(angle)
         );
       }
       shape.closePath();
 
-      const engineeringCoreOpening = new THREE.Path();
-      engineeringCoreOpening.absellipse(0, -2 - centerZ, 3.58, 3.58, 0, Math.PI * 2, true, 0);
-      shape.holes.push(engineeringCoreOpening);
+      if (name === 'D2-Floor') {
+        const engineeringCoreOpening = new THREE.Path();
+        engineeringCoreOpening.absellipse(0, -2 - centerZ, 3.58, 3.58, 0, Math.PI * 2, true, 0);
+        shape.holes.push(engineeringCoreOpening);
+      }
     } else {
       shape = new THREE.Shape();
       shape.absellipse(0, 0, width / 2, length / 2, 0, Math.PI * 2, false, 0);
-    }
-    if (name === 'D3-Floor') {
-      // O defletor atravessa o plano do Deck 3: reservar o volume da concha
-      // parabólica e do aro estrutural para que o piso não corte o emissor.
-      const deflectorServiceOpening = new THREE.Path();
-      deflectorServiceOpening.absellipse(
-        DECK_3_DEFLECTOR_APERTURE.centerX,
-        DECK_3_DEFLECTOR_APERTURE.centerZ - centerZ,
-        9.35,
-        6.25,
-        0,
-        Math.PI * 2,
-        true,
-        0
-      );
-      shape.holes.push(deflectorServiceOpening);
     }
     if (name === 'D4-Floor') {
       // Abertura exclusiva do elevador externo; o piso original permanece
@@ -195,6 +185,7 @@ export function createStarshipInterior(options = {}) {
     // deixando as solas acima do plano sem alterar a altura lógica de caminhada.
     mesh.position.set(0, y + 0.18, centerZ);
     mesh.name = name;
+    mesh.userData.deckFootprint = { width, length, centerZ };
     mesh.castShadow = false;
     mesh.receiveShadow = true;
     group.add(mesh);
@@ -203,8 +194,12 @@ export function createStarshipInterior(options = {}) {
 
   const deckFloor = (deck, label) => {
     const y = deck.y;
+    // D1 acompanha a seção mais estreita do casco nas laterais.
+    // D2 e D3 compartilham a planta ampliada até o contorno do casco,
+    // usando a região do elevador (Z=25) como referência traseira.
+    // D4 permanece integralmente fora desta revisão.
     const footprints = {
-      D1: [50, 82], D2: [50, 94], D3: [53, 102], D4: [48, 110, 5.5]
+      D1: [44, 82], D2: [52, 96], D3: [52, 96], D4: [48, 110, 5.5]
     };
     const [width, length, centerZ = -2] = footprints[deck.id];
     addDeckPlate(y, width, length, floorMat, label + '-Floor', 0.04, centerZ);
@@ -219,6 +214,17 @@ export function createStarshipInterior(options = {}) {
   for (const deck of STARSHIP_LAYOUT.decks) {
     deckFloor(deck, deck.id);
   }
+
+  // Núcleo lógico de iluminação com ramificações elétricas independentes por deck.
+  // As luminárias de parede serão posicionadas quando a geometria das paredes
+  // estiver instalada; o sistema já expõe addWallFixture para essa integração.
+  const lightingCore = createShipLightingCore({ decks: STARSHIP_LAYOUT.decks });
+  group.add(lightingCore.group);
+
+  // Console físico de acesso ao aplicativo Iluminação no Deck 1.
+  const lightingConsole = createShipLightingConsole();
+  group.add(lightingConsole.group);
+  collisionBoxes.push(...lightingConsole.collisionBoxes);
 
   // D1 — ponte ampla, ocupando praticamente todo o primeiro deck.
   // A área central permanece livre para a única cadeira de comando,
@@ -268,6 +274,8 @@ export function createStarshipInterior(options = {}) {
     dilithiumPlant,
     dilithiumMatrix,
     transporterInstallation,
+    lightingConsole,
+    lightingCore,
     layout: STARSHIP_LAYOUT,
     collisionBoxes,
     dispose() {

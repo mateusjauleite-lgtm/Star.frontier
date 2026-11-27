@@ -52,6 +52,8 @@ import { registerTextInteractionGuard } from './core/ui/textInteractionGuard.js'
 import { createPilotHudProfileStore, PILOT_HUD_PROFILES } from './ui/hudProfiles.js';
 import { createNavigationSensorMap } from './ui/navigationSensorMap.js';
 import { createShipCameraController } from './core/runtime/camera/shipCameraController.js';
+import { isShipLightingConsoleInRange } from './ships/lighting/shipLightingConsole.js';
+import { isCharacterInsideAuroraHull } from './ships/hullCollision.js';
 import { createCharacterCameraController } from './core/runtime/camera/characterCameraController.js';
 import { createCameraInputController } from './core/runtime/camera/cameraInputController.js';
 import { createCameraRuntimeSystem } from './core/runtime/systems/cameraRuntimeSystem.js';
@@ -121,6 +123,8 @@ let refineryConsoleActive = false;
 let refineryInteractionAvailable = false;
 let refineryTelemetryAccumulator = 0;
 let managementTelemetryAccumulator = 0;
+let lightingConsoleInteractionAvailable = false;
+let lightingConsoleActive = false;
 const engineeringRenderer = createEngineeringTerminalRenderer({
   root: $('game-screen'),
   onOpen: () => toggleEngineeringConsole(),
@@ -680,6 +684,43 @@ let earthTimeCore = null;
 let asteroidSystem;
 let lightingSystem;
 let starshipInterior;
+
+// Ponte autorizada entre o aplicativo Iluminação do AURORA OS e o núcleo da nave.
+// O AURORA OS envia comandos; o Runtime aplica-os ao núcleo e devolve o estado.
+document.addEventListener('starfrontier:lighting-console-opened', () => {
+  lightingConsoleActive = true;
+  characterControls?.reset?.();
+});
+document.addEventListener('starfrontier:lighting-console-closed', () => {
+  lightingConsoleActive = false;
+  updateLightingConsoleInteraction();
+  updateCharacterHUD();
+});
+
+document.addEventListener('starfrontier:ship-lighting-command', event => {
+  const core = starshipInterior?.lightingCore;
+  if (!core) {
+    document.dispatchEvent(new CustomEvent('starfrontier:ship-lighting-status', {
+      detail: { available: false, status: null }
+    }));
+    return;
+  }
+
+  const command = event.detail || {};
+  try {
+    if (command.action === 'set-deck') {
+      core.setDeckEnabled(command.deckId, command.enabled);
+    }
+    document.dispatchEvent(new CustomEvent('starfrontier:ship-lighting-status', {
+      detail: { available: true, status: core.getStatus() }
+    }));
+  } catch (error) {
+    console.warn('Comando de iluminação recusado:', error);
+    document.dispatchEvent(new CustomEvent('starfrontier:ship-lighting-status', {
+      detail: { available: true, error: error.message, status: core.getStatus() }
+    }));
+  }
+});
 let externalElevator = null;
 let externalElevatorRiding = false;
 const externalElevatorRidingOffset = new THREE.Vector3();
@@ -986,7 +1027,7 @@ async function startGame() {
             earthSystem, camera, applyEarthSurfaceRotation, ship, updatePhaserWeapon,
             characterCore, syncCharacterDeckFrame, updateCharacterMovement, updateCharacterWeapon,
             updateExternalElevatorAnimation, updateElevatorInteraction,
-            updatePilotInteraction, updateShipManagementInteraction, updateEngineeringConsoleInteraction, updateRefineryConsoleInteraction, updateDeflectorConsoleInteraction, updateTransporterConsoleInteraction, updateTransporterPlatformInteraction, updateExternalElevatorInteraction, updateAlexiaInteraction,
+            updatePilotInteraction, updateShipManagementInteraction, updateEngineeringConsoleInteraction, updateRefineryConsoleInteraction, updateDeflectorConsoleInteraction, updateTransporterConsoleInteraction, updateTransporterPlatformInteraction, updateExternalElevatorInteraction, updateAlexiaInteraction, updateLightingConsoleInteraction,
             updateCharacterCamera, updateFlight, updateCamera, updateShipSystems,
             setLandingBaseSystem: value => { landingBaseSystem = value; },
             updateShipLandingGuidance, THREE, shipVisual, shipEarthContactPoints,
@@ -1167,6 +1208,8 @@ async function startGame() {
     asteroidSystem = null;
     lightingSystem = null;
     starshipInterior = null;
+    lightingConsoleInteractionAvailable = false;
+    lightingConsoleActive = false;
     characterModel = null;
     characterAnimator = null;
     characterPhysics = null;
@@ -1570,33 +1613,19 @@ function isCharacterInsideDeck(position, deckIndex) {
   const deck = starshipInterior?.layout?.decks?.[deckIndex];
   if (!deck) return false;
 
-  // Medidas dos pisos elípticos (largura, comprimento e centro longitudinal).
-  const footprints = {
-    D1: [50, 82, -2],
-    D2: [50, 94, -2],
-    D3: [53, 102, -2],
-    D4: [48, 110, 5.5]
-  };
-  const footprint = footprints[deck.id];
-  if (!footprint) return false;
+  // A borda deixa de ser uma elipse invisível independente do modelo.
+  // A contenção usa a seção real do casco (27.2 x 15.2 x 50 m),
+  // com margem para o corpo do personagem e recortes estruturais preservados.
+  const feetY = Number.isFinite(position.y)
+    ? position.y
+    : getCharacterWalkableFloorY(position, deckIndex);
+  if (isCharacterInsideAuroraHull(position, deck.id, feetY)) return true;
 
-  // Reserva uma margem para o raio do personagem nas bordas do convés.
-  const [width, length, centerZ = -2] = footprint;
-  const playerRadius = 0.62;
-  const radiusX = width * 0.5 - playerRadius;
-  const radiusZ = length * 0.5 - playerRadius;
-  const normalizedX = position.x / radiusX;
-  const normalizedZ = (position.z - centerZ) / radiusZ;
-  const insideDeckEllipse =
-    normalizedX * normalizedX + normalizedZ * normalizedZ <= 1;
-
-  if (deck.id !== 'D4') return insideDeckEllipse;
-
-  // A meia-lua fica exclusivamente para fora da extremidade traseira do D4.
-  // Depois de atravessar sua borda externa, o personagem está fora do piso
-  // e pode continuar para fora da nave, entrando em queda livre.
-  return insideDeckEllipse || isD4ExitAperture(position) ||
-    isD4BeyondExitAperture(position);
+  // A saída traseira do D4 continua sendo um vão funcional do hangar.
+  if (deck.id === 'D4') {
+    return isD4ExitAperture(position) || isD4BeyondExitAperture(position);
+  }
+  return false;
 }
 
 function getCharacterWalkableFloorY(position, deckIndex) {
@@ -1625,9 +1654,10 @@ function isCharacterPositionBlocked(position, deckIndex) {
   const deck = starshipInterior?.layout?.decks?.[deckIndex];
   if (!deck || !isCharacterInsideDeck(position, deckIndex)) return true;
 
-  // D1 e a abertura traseira do D4 não bloqueiam a passagem do personagem.
-  if (deck.id === 'D1' || (deck.id === 'D4' &&
-      (isD4ExitAperture(position) || isD4BeyondExitAperture(position)))) return false;
+  // A abertura traseira do D4 permanece liberada; D1 agora respeita
+  // as mesmas caixas de colisão dos demais decks.
+  if (deck.id === 'D4' &&
+      (isD4ExitAperture(position) || isD4BeyondExitAperture(position))) return false;
   if (deck.id === 'D4' && position.z >= 27 && Math.abs(position.x) <= 10.4) return false;
 
   const playerRadius = 0.48;
@@ -2259,6 +2289,42 @@ function updateShipManagementInteraction(dt = 0) {
     }
   } else {
     managementTelemetryAccumulator = 0;
+  }
+}
+
+function updateLightingConsoleInteraction() {
+  const button = $('character-action-btn');
+  if (!button) return;
+
+  const previousAvailable = lightingConsoleInteractionAvailable;
+  const validContext = Boolean(characterModel && shipVisual &&
+    characterCore.snapshot().mode === 'on-foot' && !characterInWorldFrame &&
+    !nearbyElevator && activeDeckIndex === 0);
+  const available = validContext && isShipLightingConsoleInRange(
+    characterModel.group.position,
+    activeDeckIndex,
+    characterCore.snapshot().mode,
+    characterInWorldFrame
+  );
+  lightingConsoleInteractionAvailable = available;
+
+  if (available || lightingConsoleActive) {
+    const label = lightingConsoleActive ? '◎ ILUMINAÇÃO ABERTA' : '◎ INTERAGIR';
+    const targetChanged = button.dataset.interaction !== 'lighting-console' || button.textContent !== label;
+    button.disabled = false;
+    button.classList.remove('hidden');
+    button.classList.add('available');
+    button.dataset.interaction = 'lighting-console';
+    button.textContent = label;
+    if (targetChanged) characterCore.setInteractionTarget('CONSOLE DE ILUMINAÇÃO');
+    if (previousAvailable !== available || targetChanged) updateCharacterHUD();
+  } else if (previousAvailable || button.dataset.interaction === 'lighting-console') {
+    button.disabled = !pilotInteractionAvailable;
+    button.classList.remove('available');
+    button.dataset.interaction = '';
+    button.textContent = pilotInteractionAvailable ? '◎ PILOTAR' : '◎ AÇÃO';
+    characterCore.setInteractionTarget(pilotInteractionAvailable ? 'PILOTAGEM DISPONÍVEL' : null);
+    updateCharacterHUD();
   }
 }
 
@@ -2916,6 +2982,10 @@ function updateCharacterWeapon(dt) {
 
 $('character-action-btn')?.addEventListener('click', () => {
   if (nearbyAlexiaInteraction) { alexiaInteractionMenu?.open?.(); return; }
+  if (lightingConsoleInteractionAvailable || lightingConsoleActive) {
+    document.dispatchEvent(new CustomEvent('starfrontier:aurora-open-app', { detail: { app: 'lighting', source: 'deck1-console' } }));
+    return;
+  }
   if (transporterActionAvailable) { transporterActionMenu?.open?.(transporterDispatchBuffer.getPending()?.destinationName); return; }
   if (terrestrialTransportInteractionAvailable || terrestrialTransportConsoleActive) { toggleTerrestrialTransportConsole(); return; }
   if (transporterInteractionAvailable || transporterConsoleActive) { togglePlanetaryTransportConsole(); return; }
