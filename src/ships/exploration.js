@@ -500,7 +500,7 @@ export function createExplorationShip() {
     // Alimentação independente por bombordo/estibordo, acompanhando o braço externo.
     // O primeiro trecho corre pela face inferior do casco e não atravessa os decks.
     const feedCurve = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(side * 3.2, -14.55, -2),
+      new THREE.Vector3(side * 3.2, -15.35, -2),
       new THREE.Vector3(side * 5.5, -14.45, 18),
       new THREE.Vector3(side * 8.5, -12.8, 37),
       new THREE.Vector3(side * 11.0, -7.8, 49.2),
