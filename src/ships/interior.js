@@ -120,17 +120,19 @@ export function createStarshipInterior(options = {}) {
   };
 
   const addDeckPlate = (y, width, length, material, name, thickness, centerZ = -2) => {
-    // Planta elíptica acompanha o casco arredondado, sem criar uma moldura retangular.
+    // Planta elíptica acompanha o casco arredondado. D2 e D3 mantêm
+    // a mesma dimensão externa dos decks, mas abrem uma reentrância na proa
+    // para o volume estrutural do defletor, sem deixar triângulos sob o emissor.
     let shape;
-    if (name === 'D2-Floor') {
-      // O recorte do defletor chega à borda de proa do Deck 2.
-      // Um furo fechado ultrapassaria o contorno elíptico do convés e
-      // invalidaria a triangulação; por isso o recorte é uma reentrância
-      // contínua no próprio perímetro do piso.
+    if (name === 'D2-Floor' || name === 'D3-Floor') {
       const outerRadiusX = width / 2;
       const outerRadiusZ = length / 2;
-      const notchRadiusX = DECK_3_DEFLECTOR_APERTURE.radiusX;
-      const notchRadiusZ = DECK_3_DEFLECTOR_APERTURE.radiusZ;
+      const notchRadiusX = name === 'D2-Floor'
+        ? DECK_3_DEFLECTOR_APERTURE.radiusX
+        : 9.35;
+      const notchRadiusZ = name === 'D2-Floor'
+        ? DECK_3_DEFLECTOR_APERTURE.radiusZ
+        : 6.25;
       const notchCenterZ = DECK_3_DEFLECTOR_APERTURE.centerZ - centerZ;
       const outerY = -outerRadiusZ * Math.sqrt(1 - (notchRadiusX / outerRadiusX) ** 2);
       const rightAngle = Math.atan2(outerY / outerRadiusZ, notchRadiusX / outerRadiusX);
@@ -144,40 +146,26 @@ export function createStarshipInterior(options = {}) {
         shape.lineTo(outerRadiusX * Math.cos(angle), outerRadiusZ * Math.sin(angle));
       }
 
-      // Retorna pela borda superior da elipse de folga do defletor,
-      // deixando o recorte aberto até a extremidade frontal do convés.
+      // Reentra pela curva da folga do defletor; a abertura fica ligada
+      // à borda frontal do convés, evitando furos parcialmente externos.
       const innerSteps = 48;
       for (let i = 1; i <= innerSteps; i++) {
         const angle = Math.PI - (Math.PI * i) / innerSteps;
         shape.lineTo(
-          DECK_3_DEFLECTOR_APERTURE.centerX + notchRadiusX * Math.cos(angle),
+          notchRadiusX * Math.cos(angle),
           notchCenterZ + notchRadiusZ * Math.sin(angle)
         );
       }
       shape.closePath();
 
-      const engineeringCoreOpening = new THREE.Path();
-      engineeringCoreOpening.absellipse(0, -2 - centerZ, 3.58, 3.58, 0, Math.PI * 2, true, 0);
-      shape.holes.push(engineeringCoreOpening);
+      if (name === 'D2-Floor') {
+        const engineeringCoreOpening = new THREE.Path();
+        engineeringCoreOpening.absellipse(0, -2 - centerZ, 3.58, 3.58, 0, Math.PI * 2, true, 0);
+        shape.holes.push(engineeringCoreOpening);
+      }
     } else {
       shape = new THREE.Shape();
       shape.absellipse(0, 0, width / 2, length / 2, 0, Math.PI * 2, false, 0);
-    }
-    if (name === 'D3-Floor') {
-      // O defletor atravessa o plano do Deck 3: reservar o volume da concha
-      // parabólica e do aro estrutural para que o piso não corte o emissor.
-      const deflectorServiceOpening = new THREE.Path();
-      deflectorServiceOpening.absellipse(
-        DECK_3_DEFLECTOR_APERTURE.centerX,
-        DECK_3_DEFLECTOR_APERTURE.centerZ - centerZ,
-        9.35,
-        6.25,
-        0,
-        Math.PI * 2,
-        true,
-        0
-      );
-      shape.holes.push(deflectorServiceOpening);
     }
     if (name === 'D4-Floor') {
       // Abertura exclusiva do elevador externo; o piso original permanece
