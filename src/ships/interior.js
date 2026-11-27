@@ -44,58 +44,70 @@ export function createStarshipInterior(options = {}) {
   });
   const collisionBoxes = [];
 
-  // Faixa contínua em malha única, amostrada sobre a superfície interna
-  // elipsoidal do casco. Não cria parede, não registra colisão e não altera o casco.
-  const createHullSideStripGeometry = (deckY, zStart, zEnd, side) => {
-    const radiusX = 27.2;
-    const radiusY = 15.2;
-    const radiusZ = 50;
-    const segments = Math.max(96, Math.ceil((zEnd - zStart) / 0.35));
+  // Faixas planas geradas a partir do contorno real de cada piso.
+  // A busca encontra a borda lateral do polígono e recua alguns metros,
+  // sem tocar paredes, criar colisores ou alterar a malha estrutural.
+  const createFloorSideStripGeometry = (contour, centerZ, side, requestedStart, requestedEnd) => {
+    const polygon = contour.map(([x, z]) => new THREE.Vector2(x, z));
+    const worldZValues = contour.map(([, z]) => z + centerZ);
+    const floorStart = Math.min(...worldZValues);
+    const floorEnd = Math.max(...worldZValues);
+    const zStart = Math.max(requestedStart, floorStart + 3.5);
+    const zEnd = Math.min(requestedEnd, floorEnd - 3.5);
+    if (zEnd <= zStart) throw new RangeError('Trecho de faixa inválido para o piso.');
+
     const positions = [];
     const indices = [];
+    const step = 0.22;
+    const samples = Math.ceil((zEnd - zStart) / step);
+    let previousRow = -1;
+    let previousZ = null;
+    let firstVisibleZ = null;
+    let lastVisibleZ = null;
 
-    for (let i = 0; i <= segments; i += 1) {
-      const z = zStart + ((zEnd - zStart) * i) / segments;
-      const term = 1 - (deckY * deckY) / (radiusY * radiusY) - (z * z) / (radiusZ * radiusZ);
-      if (term <= 0) throw new RangeError('Faixa de iluminação ultrapassa o casco no Deck ' + deckY);
-      const x = side * radiusX * Math.sqrt(term);
+    for (let i = 0; i <= samples; i += 1) {
+      const z = zStart + ((zEnd - zStart) * i) / samples;
+      const localZ = z - centerZ;
+      let edge = 0;
+      for (let distance = 0.25; distance <= 32; distance += 0.2) {
+        if (THREE.ShapeUtils.isPointInsidePolygon(
+          new THREE.Vector2(side * distance, localZ), polygon
+        )) edge = distance;
+      }
 
-      let nx = x / (radiusX * radiusX);
-      let ny = deckY / (radiusY * radiusY);
-      let nz = z / (radiusZ * radiusZ);
-      const normalLength = Math.hypot(nx, ny, nz);
-      nx /= normalLength;
-      ny /= normalLength;
-      nz /= normalLength;
+      // Ausência de piso (ex.: recorte do defletor) interrompe a faixa;
+      // nunca ligamos uma ponte luminosa atravessando uma abertura.
+      if (edge < 5) {
+        previousRow = -1;
+        previousZ = null;
+        continue;
+      }
 
-      const center = [x - nx * 0.155, -ny * 0.155, z - nz * 0.155];
-      const halfHeight = 0.085;
-      const halfDepth = 0.045;
-      const corners = [
-        [center[0] + nx * halfDepth, center[1] + halfHeight + ny * halfDepth, center[2] + nz * halfDepth],
-        [center[0] + nx * halfDepth, center[1] - halfHeight + ny * halfDepth, center[2] + nz * halfDepth],
-        [center[0] - nx * halfDepth, center[1] - halfHeight - ny * halfDepth, center[2] - nz * halfDepth],
-        [center[0] - nx * halfDepth, center[1] + halfHeight - ny * halfDepth, center[2] - nz * halfDepth]
-      ];
-      for (const corner of corners) positions.push(...corner);
-    }
+      const centerX = side * (edge - 3.2);
+      const innerX = centerX - side * 0.09;
+      const outerX = centerX + side * 0.09;
+      const row = positions.length / 3;
+      positions.push(innerX, 0.205, z, outerX, 0.205, z);
 
-    for (let i = 0; i < segments; i += 1) {
-      const current = i * 4;
-      const next = (i + 1) * 4;
-      for (let edge = 0; edge < 4; edge += 1) {
-        const a = current + edge;
-        const b = current + ((edge + 1) % 4);
-        const c = next + ((edge + 1) % 4);
-        const d = next + edge;
+      if (previousRow >= 0 && previousZ !== null && z - previousZ <= step * 1.5) {
+        const a = previousRow;
+        const b = previousRow + 1;
+        const c = row + 1;
+        const d = row;
         indices.push(a, b, d, b, c, d);
       }
+      previousRow = row;
+      previousZ = z;
+      if (firstVisibleZ === null) firstVisibleZ = z;
+      lastVisibleZ = z;
     }
 
+    if (indices.length === 0) throw new RangeError('O contorno do piso não possui lateral útil para a faixa.');
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
     geometry.setIndex(indices);
     geometry.computeVertexNormals();
+    geometry.userData.floorRange = { start: firstVisibleZ, end: lastVisibleZ };
     return geometry;
   };
 
@@ -263,6 +275,8 @@ export function createStarshipInterior(options = {}) {
     mesh.position.set(0, y + 0.18, centerZ);
     mesh.name = name;
     mesh.userData.deckFootprint = { width, length, centerZ };
+    mesh.userData.floorContour = shape.getPoints(256).map(point => [point.x, point.y]);
+    mesh.userData.floorTopY = y + 0.18;
     mesh.castShadow = false;
     mesh.receiveShadow = true;
     group.add(mesh);
@@ -292,31 +306,38 @@ export function createStarshipInterior(options = {}) {
     deckFloor(deck, deck.id);
   }
 
-  // Núcleo lógico e oito faixas físicas. O casco é a parede lateral real
-  // dos decks nesta arquitetura; cada faixa acompanha a face interna da concha.
-  // Os intervalos respeitam a janela da ponte, a abertura do defletor e a boca do hangar.
+  // Núcleo lógico e oito faixas embutidas visualmente nos pisos.
+  // A geometria usa o contorno efetivo de cada convés, com recuo de 3,2 m
+  // da borda lateral e margem longitudinal de segurança.
   const lightingCore = createShipLightingCore({ decks: STARSHIP_LAYOUT.decks });
   group.add(lightingCore.group);
-  const wallLightRanges = {
+  const floorLightRanges = {
     D1: { start: -28.5, end: 40 },
     D2: { start: -34.4, end: 46 },
     D3: { start: -34.4, end: 42 },
     D4: { start: -39.2, end: 36 }
   };
   for (const deck of STARSHIP_LAYOUT.decks) {
-    const range = wallLightRanges[deck.id];
+    const floor = group.getObjectByName(`${deck.id}-Floor`);
+    const range = floorLightRanges[deck.id];
+    const contour = floor.userData.floorContour;
     for (const side of [-1, 1]) {
+      const geometry = createFloorSideStripGeometry(
+        contour, floor.userData.deckFootprint.centerZ, side, range.start, range.end
+      );
       const fixture = lightingCore.addWallFixture(deck.id, {
-        geometry: createHullSideStripGeometry(deck.y, range.start, range.end, side),
+        geometry,
         color: 0xeaf6ff,
         intensity: 1.15,
-        name: `${deck.id}-Wall-Light-${side < 0 ? 'Port' : 'Starboard'}`
+        name: `${deck.id}-Floor-Light-${side < 0 ? 'Port' : 'Starboard'}`
       });
-      fixture.userData.wallStrip = {
-        mount: 'inner-hull',
+      fixture.userData.floorStrip = {
+        mount: 'floor',
         side: side < 0 ? 'port' : 'starboard',
-        zStart: range.start,
-        zEnd: range.end,
+        zStart: geometry.userData.floorRange.start,
+        zEnd: geometry.userData.floorRange.end,
+        edgeInset: 3.2,
+        surfaceOffset: 0.025,
         collisionFree: true
       };
     }
