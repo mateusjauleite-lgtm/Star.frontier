@@ -86,3 +86,28 @@ test('estrutura interna do defletor integra anel iluminado e acesso pelo Deck 3'
 
   interior.dispose();
 });
+
+
+test('Decks 1, 2 e 3 usam a mesma planta e o Deck 4 permanece inalterado', () => {
+  const interior = createStarshipInterior();
+  const expected = { width: 44, length: 80, thickness: 0.04 };
+
+  for (const deckId of ['D1', 'D2', 'D3']) {
+    const floor = interior.group.getObjectByName(`${deckId}-Floor`);
+    assert.ok(floor, `piso ${deckId} deve existir`);
+    floor.geometry.computeBoundingBox();
+    const bounds = floor.geometry.boundingBox;
+    assert.ok(Math.abs((bounds.max.x - bounds.min.x) - expected.width) < 1e-5);
+    assert.ok(Math.abs((bounds.max.y - bounds.min.y) - expected.length) < 1e-5);
+    assert.ok(Math.abs((bounds.max.z - bounds.min.z) - expected.thickness) < 1e-5);
+  }
+
+  const deck4 = interior.group.getObjectByName('D4-Floor');
+  assert.ok(deck4, 'piso D4 deve continuar instalado');
+  deck4.geometry.computeBoundingBox();
+  const deck4Bounds = deck4.geometry.boundingBox;
+  assert.ok(Math.abs((deck4Bounds.max.x - deck4Bounds.min.x) - 48) < 1e-5);
+  assert.ok(Math.abs((deck4Bounds.max.y - deck4Bounds.min.y) - 110) < 1e-5);
+
+  interior.dispose();
+});
