@@ -72,3 +72,16 @@ test('matriz converte dilítio refinado da reserva em plasma estabilizado', () =
   assert.ok(Math.abs(state.plasma - 0.14) < 1e-12);
   assert.equal(status.outputPerSecond, 16);
 });
+
+test('barramento de dobra divide a potência igualmente entre as duas naceles', () => {
+  const state = { refinedDilithium: 20, warpDriveButton: true };
+  const core = createWarpCorePowerSystem({ state });
+  core.update(1);
+  const delivered = core.powerBus.draw(100, 10);
+  const branches = core.snapshot().nacelles;
+  assert.ok(delivered > 0);
+  assert.ok(Math.abs(branches.port.deliveredThisFrame - branches.starboard.deliveredThisFrame) < 1e-12);
+  assert.ok(Math.abs(branches.port.deliveredThisFrame + branches.starboard.deliveredThisFrame - delivered) < 1e-12);
+  assert.equal(branches.port.online, true);
+  assert.equal(branches.starboard.online, true);
+});
