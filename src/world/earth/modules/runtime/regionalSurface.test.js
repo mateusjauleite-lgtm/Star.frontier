@@ -8,7 +8,8 @@ import {
   createEarthQuadtreeNode,
   getEarthQuadtreeChildren,
   selectEarthQuadtreeTiles,
-  createEarthQuadtreeTileGeometry
+  createEarthQuadtreeTileGeometry,
+  getEarthQuadtreeNodeForDirection
 } from './regionalSurface.js';
 
 test('cube-sphere faces produce normalized directions', () => {
@@ -46,23 +47,20 @@ test('near-surface selection is bounded by the regional tile budget', () => {
   assert.ok(tiles.every(tile => tile.level <= 12));
 });
 
-test('horizon fallback can still select regional tiles when the camera view cone rejects all tiles', () => {
+test('near-surface ground anchor remains selected when the camera view cone points away from terrain', () => {
   const camera = new THREE.Vector3(0, 0, 601);
   const lookingAway = new THREE.Vector3(0, 0, 1);
-  const rejected = selectEarthQuadtreeTiles(camera, 600, {
+  const selected = selectEarthQuadtreeTiles(camera, 600, {
     maxLevel: 8,
     maxTiles: 24,
     cameraForwardLocal: lookingAway,
     cameraFovDeg: 40,
     cameraAspect: 1
   });
-  const horizonFallback = selectEarthQuadtreeTiles(camera, 600, {
-    maxLevel: 8,
-    maxTiles: 24
-  });
-  assert.equal(rejected.length, 0);
-  assert.ok(horizonFallback.length > 0);
-  assert.ok(horizonFallback.length <= 24);
+  const anchor = getEarthQuadtreeNodeForDirection(camera, 8);
+  assert.ok(selected.some(tile => tile.key === anchor.key));
+  assert.ok(selected.length > 0);
+  assert.ok(selected.length <= 24);
 });
 
 test('regional tile UVs use the same north-to-v=1 orientation as the globe texture', () => {
@@ -123,6 +121,39 @@ test('regional selection prioritizes tiles inside the camera view cone', () => {
   assert.ok(tiles.length <= 24);
 });
 
+
+
+test('maps a surface direction to its containing cube-sphere tile', () => {
+  const tile = getEarthQuadtreeNodeForDirection(new THREE.Vector3(0, 0, 1), 12);
+  assert.equal(tile.face, 4);
+  assert.equal(tile.level, 12);
+  assert.equal(getEarthQuadtreeNodeForDirection(new THREE.Vector3(0, 0, 0), 4), null);
+});
+
+test('keeps the ground-anchor tile when a third-person camera looks toward the horizon', () => {
+  const camera = new THREE.Vector3(0, 0, 600);
+  const tiles = selectEarthQuadtreeTiles(camera, 600, {
+    maxLevel: 12,
+    maxTiles: 24,
+    cameraForwardLocal: new THREE.Vector3(1, 0, 0),
+    cameraFovDeg: 55,
+    cameraAspect: 1.8
+  });
+  const anchor = getEarthQuadtreeNodeForDirection(camera, 12);
+  assert.ok(tiles.some(tile => tile.key === anchor.key));
+  assert.ok(tiles.length <= 24);
+});
+
+test('keeps a local ground tile when camera position is slightly inside the collision radius', () => {
+  const camera = new THREE.Vector3(0, 0, 599);
+  const tiles = selectEarthQuadtreeTiles(camera, 600, {
+    maxLevel: 12,
+    maxTiles: 24,
+    cameraForwardLocal: new THREE.Vector3(1, 0, 0)
+  });
+  assert.ok(tiles.length > 0);
+  assert.ok(tiles.some(tile => tile.face === 4));
+});
 
 test('regional tiles use the same longitude UV convention as the global SphereGeometry', () => {
   assert.equal(earthLongitudeToSphereUv(0), 0.5);

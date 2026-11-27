@@ -218,6 +218,9 @@ let characterPhysics = null;
 let shieldVisual = null;
 let characterYaw = 0;
 let characterPitch = 0;
+// A câmera terrestre mantém orientação própria, separada da câmera da nave/convés.
+let groundCameraYaw = 0;
+let groundCameraPitch = 0;
 const characterForward = new THREE.Vector3();
 const characterRight = new THREE.Vector3();
 const characterMove = new THREE.Vector3();
@@ -673,6 +676,7 @@ const shipLandingTelemetry = createShipLandingMetricTelemetryAdapter({
 let orbitSystem;
 let solarSystemDynamics = null;
 let solarSystemPresentation = null;
+let earthTimeCore = null;
 let asteroidSystem;
 let lightingSystem;
 let starshipInterior;
@@ -993,7 +997,7 @@ async function startGame() {
               ship?.position,
               shipYaw?.rotation.y ?? 0
             ),
-            orbitSystem, solarSystemDynamics, solarSystemPresentation, asteroidSystem, lightingSystem, renderer, scene, $
+            orbitSystem, solarSystemDynamics, solarSystemPresentation, earthTimeCore, asteroidSystem, lightingSystem, renderer, scene, $
           }))
         }
       });
@@ -1221,6 +1225,7 @@ async function init3D() {
     earthReferenceFrames,
     solarSystemDynamics,
     solarSystemPresentation,
+    earthTimeCore,
     stationSystem,
     shipFlightKernel,
     gravityKernel,
@@ -1496,11 +1501,12 @@ function updateCharacterCamera() {
   }
   camera.up.copy(cameraUp);
   const target = characterCameraWorldPosition.clone().addScaledVector(cameraUp, 1.25);
+  const cameraPitch = characterInWorldFrame ? groundCameraPitch : characterPitch;
 
   if (characterCameraMode === 'first-person') {
     characterCameraOffset.copy(cameraUp).multiplyScalar(1.62);
     camera.position.copy(characterCameraWorldPosition).add(characterCameraOffset);
-    characterLookEuler.set(characterPitch, 0, 0, 'YXZ');
+    characterLookEuler.set(cameraPitch, 0, 0, 'YXZ');
     camera.quaternion.copy(characterCameraWorldQuaternion).multiply(
       new THREE.Quaternion().setFromEuler(characterLookEuler)
     );
@@ -1514,6 +1520,10 @@ function updateCharacterCamera() {
     if (!characterCameraInitialized) {
       camera.position.copy(desired);
       characterCameraInitialized = true;
+    } else if (characterInWorldFrame) {
+      // No exterior, o personagem e o terreno usam um referencial geográfico
+      // comum. Seguir a posição exata evita atraso variável e tremor de perseguição.
+      camera.position.copy(desired);
     } else {
       camera.position.lerp(desired, 0.36);
     }
@@ -1535,7 +1545,7 @@ function updateCharacterCamera() {
       }
     }
     const lookTarget = target.addScaledVector(characterCameraForward, 1.4);
-    lookTarget.addScaledVector(cameraUp, Math.sin(characterPitch) * 4.2);
+    lookTarget.addScaledVector(cameraUp, Math.sin(cameraPitch) * 4.2);
     camera.lookAt(lookTarget);
   }
 }
@@ -1757,7 +1767,9 @@ function updateShipSystems(dt) {
 function updateCharacterMovement(dt) {
   if (!characterModel || characterCore.snapshot().mode !== 'on-foot') return;
   syncCharacterDeckFrame();
-  artificialGravityField.update(dt, state);
+  // A gravidade artificial pertence somente ao referencial interno da nave.
+  // No exterior, o personagem usa exclusivamente a gravidade planetária.
+  if (!characterInWorldFrame) artificialGravityField.update(dt, state);
   terrestrialTransportBase?.updatePlacement?.();
   updateTerrestrialTransportInteraction(dt);
   if (externalElevator?.moving && externalElevatorRiding) {
@@ -1811,18 +1823,18 @@ function updateCharacterMovement(dt) {
         if (contact) {
           const normal = contact.worldNormal.clone().normalize();
           const groundedPosition = contact.worldPosition.clone().addScaledVector(normal, 0.21);
+          // Mantém o ator no frame terrestre; a posição candidata é convertida
+          // de mundo para local pelo EarthReferenceFrames.
+          earthReferenceFrames?.attachToSurface(player);
           earthReferenceFrames?.setWorldPosition(player, groundedPosition);
           earthReferenceFrames?.alignToSurface(player, normal, forward);
           characterWorldGrounded = true;
-          characterCore.setGrounded(true);
-        } else {
-          earthReferenceFrames?.attachToGlobal(player);
-          earthReferenceFrames?.setWorldPosition(player, candidate);
-          characterWorldGrounded = false;
           characterWorldVelocity.set(0, 0, 0);
-          characterCore.setGrounded(false);
+          characterCore.setGrounded(true);
+          worldMoving = true;
         }
-        worldMoving = true;
+        // Sem amostra válida de contato, rejeita apenas este passo. Não solta o
+        // personagem para gravidade livre por uma falha pontual do sampler.
       }
     }
 
@@ -2769,6 +2781,7 @@ function bindStick(id, key) {
   const knob = element.querySelector('.knob');
   let pointer = null;
   const hasPropulsion = () => Number(state.fuel) > 0 || Number(state.refinedDilithium) > 0 || state.maneuveringAssist !== false;
+  const isCharacterWalking = () => characterCore.snapshot().mode === 'on-foot' && !shipManagementTerminal.getSnapshot().open;
   const reset = () => {
     state[key].x = 0;
     state[key].y = 0;
@@ -2777,6 +2790,7 @@ function bindStick(id, key) {
   };
 
   const moveStick = event => {
+    if (key === 'move' && isCharacterWalking()) { reset(); return; }
     const rect = element.getBoundingClientRect();
     const max = Math.max(1, rect.width * 0.34);
     let x = event.clientX - rect.left - rect.width / 2;
@@ -2797,6 +2811,7 @@ function bindStick(id, key) {
 
   element.addEventListener('pointerdown', event => {
     if (pointer !== null || (event.pointerType === 'mouse' && event.button !== 0)) return;
+    if (key === 'move' && isCharacterWalking()) return;
     if (key === 'move' && !hasPropulsion()) {
       element.classList.add('no-propulsion');
       return;
@@ -2843,9 +2858,16 @@ const characterControls = registerCharacterControls({
     toast(aiming ? 'Mira ativada.' : 'Arma abaixada.');
   },
   onAimLook: (dx, dy) => {
-    const yawDelta = -dx * 0.005;
-    characterYaw += yawDelta;
-    characterPitch = THREE.MathUtils.clamp(characterPitch - dy * 0.004, -0.65, 0.65);
+    const terrestrialCamera = characterInWorldFrame;
+    // A câmera no solo usa sensibilidade própria, cerca de 3x menor que a câmera interna.
+    const yawDelta = -dx * (terrestrialCamera ? 0.00165 : 0.005);
+    const pitchDelta = dy * (terrestrialCamera ? 0.00135 : 0.004);
+    if (terrestrialCamera) {
+      groundCameraPitch = THREE.MathUtils.clamp(groundCameraPitch - pitchDelta, -0.65, 0.65);
+    } else {
+      characterYaw += yawDelta;
+      characterPitch = THREE.MathUtils.clamp(characterPitch - pitchDelta, -0.65, 0.65);
+    }
     // A guinada exterior gira ao redor da normal local, nunca do Y global.
     if (characterModel?.group && characterInWorldFrame) {
       const player = characterModel.group;
@@ -2854,7 +2876,9 @@ const characterControls = registerCharacterControls({
       const up = characterWorldGrounded
         ? new THREE.Vector3(0, 1, 0).applyQuaternion(player.getWorldQuaternion(new THREE.Quaternion())).normalize()
         : earthCenter ? worldPosition.sub(earthCenter).normalize() : new THREE.Vector3(0, 1, 0);
-      earthReferenceFrames?.rotateAroundWorldAxis(player, up, yawDelta);
+      const previousGroundYaw = groundCameraYaw;
+      groundCameraYaw += yawDelta;
+      earthReferenceFrames?.rotateAroundWorldAxis(player, up, groundCameraYaw - previousGroundYaw);
     } else if (characterModel?.group) {
       characterModel.group.rotation.y = characterYaw;
     }

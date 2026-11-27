@@ -1046,6 +1046,29 @@ select:focus {
   font-size: 17px;
   pointer-events: auto;
 }
+.character-earth-clock {
+  position: absolute;
+  top: 92px;
+  left: max(18px, env(safe-area-inset-left));
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 9px;
+  border: 1px solid rgba(67,217,255,.28);
+  border-radius: 7px;
+  background: rgba(3,12,26,.66);
+  color: #d9f5ff;
+  font: 600 10px/1.25 system-ui, sans-serif;
+  letter-spacing: .035em;
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+}
+.character-earth-clock small { color: rgba(190,218,232,.72); font-size: 9px; font-weight: 500; }
+@media (orientation: landscape) and (max-height: 600px) {
+  .character-earth-clock { top: 78px; padding: 4px 7px; font-size: 9px; }
+  .character-earth-clock small { font-size: 8px; }
+}
+
 .character-status {
   display: flex;
   gap: 12px;
@@ -1228,7 +1251,8 @@ select:focus {
 }
 .character-aim-area {
   position: absolute;
-  inset: 15% 0 0 34%;
+  /* Mantém a zona de olhar afastada do joystick esquerdo em telas estreitas. */
+  inset: 15% 0 0 42%;
   pointer-events: auto;
   touch-action: none;
 }

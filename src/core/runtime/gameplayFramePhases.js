@@ -11,13 +11,16 @@ export function createGameplayFramePhases(getDependencies) {
 
   return {
     updateEnvironment(dt) {
-      const { earthSystem, camera, applyEarthSurfaceRotation, solarSystemDynamics, solarSystemPresentation, scene, ship, updatePhaserWeapon } = getDependencies();
+      const { earthSystem, camera, applyEarthSurfaceRotation, solarSystemDynamics, solarSystemPresentation, earthTimeCore, scene, ship, updatePhaserWeapon } = getDependencies();
       // Avança o relógio astronômico uma única vez e aplica o ângulo absoluto
       // antes de atualizar atores ancorados à superfície terrestre.
       const solarSnapshot = solarSystemDynamics?.advance(dt) ?? null;
       const solarFrame = solarSnapshot
         ? solarSystemPresentation?.getFrame(solarSnapshot) ?? null
         : null;
+      if (Number.isFinite(solarSnapshot?.simulationTimeSeconds)) {
+        earthTimeCore?.syncSimulationSeconds?.(solarSnapshot.simulationTimeSeconds);
+      }
       if (scene && solarSnapshot) {
         scene.userData.solarSystemSnapshot = solarSnapshot;
         scene.userData.solarSystemPresentationFrame = solarFrame;
@@ -228,8 +231,13 @@ export function createGameplayFramePhases(getDependencies) {
     },
 
     updateHud() {
-      const { $, state, ship, getActivePilotHudProfile, updateNavigationSensorMap } = getDependencies();
+      const { $, state, ship, earthTimeCore, getActivePilotHudProfile, updateNavigationSensorMap } = getDependencies();
       const activeProfile = getActivePilotHudProfile?.();
+      const earthClock = earthTimeCore?.getSnapshot?.();
+      const localClock = $('character-earth-time');
+      const utcClock = $('character-earth-utc');
+      if (localClock && earthClock) localClock.textContent = earthClock.local + ' · JAÚ';
+      if (utcClock && earthClock) utcClock.textContent = 'UTC ' + earthClock.utc;
       if (activeProfile) {
         $('hud')?.setAttribute('data-active-hud-profile', activeProfile);
         $('flight-controls')?.setAttribute('data-active-hud-profile', activeProfile);

@@ -31,5 +31,19 @@ test('BT-01 waits for the global DEM and then anchors its structure to the sampl
   assert.equal(base.group.position.x, 17);
   assert.equal(base.getProfile().id, TERRESTRIAL_BASE_PROFILE.id);
   assert.equal(base.getProfile().region, 'Jaú, São Paulo, Brasil');
+  assert.equal(base.getProfile().latitudeDeg, -22.2964);
+  assert.equal(base.getProfile().longitudeDeg, -48.5570);
+  assert.ok(base.group.getObjectByName('BT01-Arrival-Apron'));
+  assert.ok(base.group.getObjectByName('BT01-Arrival-Walkway'));
+  assert.equal(base.pad.parent, base.group);
+  // The transporter coordinate is the local origin: landing there places the
+  // character above the pad, while the operations hall stays clear behind it.
+  assert.equal(base.pad.position.x, 0);
+  assert.equal(base.pad.position.z, 0);
+  const arrival = base.getArrivalWorldPosition();
+  const expectedArrival = base.pad.localToWorld(new THREE.Vector3(0, 0.57, 0));
+  assert.ok(arrival.distanceTo(expectedArrival) < 1e-9, 'arrival point must be the exact top surface of the transporter deck');
+  const hall = base.group.getObjectByName('BT01-Operations-Hall');
+  assert.ok(hall.position.z + 9 / 2 < 0, 'operations hall must not cover the arrival point');
   base.dispose();
 });

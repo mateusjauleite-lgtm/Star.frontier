@@ -22,6 +22,7 @@ import { createCharacterPhysics } from '../character/characterPhysics.js';
 import { loadGravityKernel } from '../physics/gravityKernel.js';
 import { createPlanetaryGravitySystem } from '../physics/planetaryGravitySystem.js';
 import { createSolarSystemDynamics } from '../physics/solarSystemDynamics.js';
+import { createEarthTimeCore } from './earthTimeCore.js';
 import { createSolarSystemPresentationAdapter } from './solarSystemPresentation.js';
 import { createShipOrbitalTelemetrySource } from '../ships/flight/orbitalTelemetrySource.js';
 import {
@@ -59,6 +60,7 @@ export async function createGameWorld({
   let shipFlightKernel = null;
   let gravityKernel = null;
   let solarSystemDynamics = null;
+  const earthTimeCore = createEarthTimeCore({ timeZone: 'America/Sao_Paulo' });
 
   try {
   scene.background = new THREE.Color(0x020817);
@@ -197,6 +199,19 @@ export async function createGameWorld({
         terrestrialTransportBase.updatePlacement();
         if (!terrestrialTransportBase.isDemAnchored()) return null;
       }
+      if (destination.id === TERRESTRIAL_BASE_PROFILE.id) {
+        // A chegada usa o topo real do deck da BT-01, não uma segunda
+        // resolução geográfica independente que possa divergir da estrutura.
+        const placement = terrestrialTransportBase.getPlacement();
+        const surfaceFrame = earthSystem.getSurfaceFrame();
+        surfaceFrame.updateWorldMatrix(true, false);
+        const normal = placement.sample.terrainNormal.clone()
+          .transformDirection(surfaceFrame.matrixWorld).normalize();
+        return {
+          position: terrestrialTransportBase.getArrivalWorldPosition(),
+          normal
+        };
+      }
       const placement = earthTerrainReferenceCore.resolveSurfacePosition({
         latitudeDeg: destination.latitudeDeg,
         longitudeDeg: destination.longitudeDeg,
@@ -312,6 +327,7 @@ export async function createGameWorld({
     planetaryGravitySystem,
     solarSystemDynamics,
     solarSystemPresentation,
+    earthTimeCore,
     orbitalTelemetrySource: createShipOrbitalTelemetrySource({ THREE, earthSystem, ship, shipVisual }),
     shipLandingAutopilot,
     shipLandingGear,

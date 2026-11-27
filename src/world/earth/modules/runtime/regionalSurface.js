@@ -31,6 +31,32 @@ export function earthDirectionToLatLon(direction) {
   };
 }
 
+/** Returns the quadtree tile containing a unit direction, independent of camera view. */
+export function getEarthQuadtreeNodeForDirection(direction, level = 0) {
+  if (!direction?.isVector3 || !Number.isInteger(level) || level < 0) return null;
+  const normal = direction.clone().normalize();
+  if (!Number.isFinite(normal.x + normal.y + normal.z) || normal.lengthSq() < 1e-10) return null;
+  const ax = Math.abs(normal.x), ay = Math.abs(normal.y), az = Math.abs(normal.z);
+  let face, u, v, denominator;
+  if (ax >= ay && ax >= az) {
+    denominator = ax;
+    if (normal.x >= 0) { face = 0; u = -normal.z / denominator; v = normal.y / denominator; }
+    else { face = 1; u = normal.z / denominator; v = normal.y / denominator; }
+  } else if (ay >= ax && ay >= az) {
+    denominator = ay;
+    if (normal.y >= 0) { face = 2; u = normal.x / denominator; v = -normal.z / denominator; }
+    else { face = 3; u = normal.x / denominator; v = normal.z / denominator; }
+  } else {
+    denominator = az;
+    if (normal.z >= 0) { face = 4; u = normal.x / denominator; v = normal.y / denominator; }
+    else { face = 5; u = -normal.x / denominator; v = normal.y / denominator; }
+  }
+  const divisions = 2 ** level;
+  const x = Math.min(divisions - 1, Math.max(0, Math.floor((THREE.MathUtils.clamp(u, -1, 1) + 1) * .5 * divisions)));
+  const y = Math.min(divisions - 1, Math.max(0, Math.floor((1 - THREE.MathUtils.clamp(v, -1, 1)) * .5 * divisions)));
+  return createEarthQuadtreeNode(face, level, x, y);
+}
+
 export function createEarthQuadtreeNode(face, level = 0, x = 0, y = 0) {
   if (!Number.isInteger(face) || face < 0 || face > 5 ||
       !Number.isInteger(level) || level < 0 ||
@@ -87,7 +113,11 @@ export function selectEarthQuadtreeTiles(cameraLocalPosition, radius, {
   if (!(distance > 0)) return [];
   const direction = cameraLocalPosition.clone().normalize();
   const altitude = Math.max(0, distance - radius);
-  const horizonAngle = Math.acos(THREE.MathUtils.clamp(radius / distance, -1, 1));
+  // The player/camera may sit a few centimetres below the DEM surface because
+  // of collision tolerances. Keep a one-metre geometric horizon instead of
+  // collapsing regional visibility to zero when distance <= radius.
+  const horizonDistance = Math.max(distance, radius + Math.max(1, radius * 1e-7));
+  const horizonAngle = Math.acos(THREE.MathUtils.clamp(radius / horizonDistance, -1, 1));
   const targetLevel = targetEarthQuadtreeLevel(altitude, radius, maxLevel);
   const forward = cameraForwardLocal?.isVector3
     ? cameraForwardLocal.clone().normalize()
@@ -132,6 +162,30 @@ export function selectEarthQuadtreeTiles(cameraLocalPosition, radius, {
       continue;
     }
     leaves.splice(candidateIndex, 1, ...children);
+  }
+
+  // Always render the tile directly beneath a near-surface observer. A third-
+  // person camera looks toward the horizon, so a strict view-cone test can
+  // otherwise discard the ground under the character and expose empty space.
+  if (altitude <= radius * .01) {
+    const groundAnchor = getEarthQuadtreeNodeForDirection(direction, targetLevel);
+    // A coarse ancestor tile is not sufficient here: it can cover the anchor
+    // geographically while still leaving the character without local detail.
+    // Replace that ancestor with the high-resolution anchor tile so the ground
+    // directly beneath the observer is always represented at targetLevel.
+    const exactAnchorPresent = groundAnchor && leaves.some(node =>
+      node.key === groundAnchor.key
+    );
+    if (groundAnchor && !exactAnchorPresent) {
+      const ancestorIndex = leaves.findIndex(node => {
+        if (node.face !== groundAnchor.face || node.level >= groundAnchor.level) return false;
+        const shift = groundAnchor.level - node.level;
+        return (groundAnchor.x >> shift) === node.x && (groundAnchor.y >> shift) === node.y;
+      });
+      if (ancestorIndex >= 0) leaves.splice(ancestorIndex, 1);
+      if (leaves.length >= maxTiles) leaves.pop();
+      leaves.push(groundAnchor);
+    }
   }
   return leaves;
 }
