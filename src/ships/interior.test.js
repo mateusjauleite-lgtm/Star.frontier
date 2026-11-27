@@ -146,38 +146,43 @@ test('Deck 4 afunila na popa e reserva o poço do elevador na entrada do hangar'
 });
 
 
-test('instala duas faixas emissivas na face interna do casco em cada deck, sem colisões novas', () => {
+test('instala duas faixas emissivas sobre o piso real de cada deck, sem colisões novas', () => {
   const interior = createStarshipInterior();
   const status = interior.lightingCore.getStatus();
   assert.deepEqual(status.decks.map(deck => deck.fixtureCount), [2, 2, 2, 2]);
   assert.deepEqual(status.decks.map(deck => deck.intensity), [1, 1, 1, 1]);
 
   for (const deck of status.decks) {
-    const fixtures = [];
-    interior.lightingCore.group.getObjectByName(`Aurora7-Lighting-Branch-${deck.id}`).traverse(object => {
-      if (object.isMesh) fixtures.push(object);
-    });
-    assert.equal(fixtures.length, 2, `${deck.id} deve possuir uma faixa por lateral`);
-    assert.ok(fixtures.every(fixture => fixture.userData.wallStrip?.mount === 'inner-hull'));
-    assert.ok(fixtures.every(fixture => fixture.userData.wallStrip?.collisionFree === true));
-    assert.ok(fixtures.every(fixture => fixture.geometry.attributes.position.count > 300));
-  }
-
-  for (const deck of status.decks) {
+    const floor = interior.group.getObjectByName(`${deck.id}-Floor`);
+    assert.ok(floor, `piso ${deck.id} deve existir`);
+    const contour = floor.userData.floorContour.map(([x, z]) => new THREE.Vector2(x, z));
+    const centerZ = floor.userData.deckFootprint.centerZ;
     const branch = interior.lightingCore.group.getObjectByName(`Aurora7-Lighting-Branch-${deck.id}`);
-    branch.updateMatrixWorld(true);
-    branch.traverse(object => {
-      if (!object.isMesh) return;
-      const positions = object.geometry.attributes.position;
+    const fixtures = [];
+    branch.traverse(object => { if (object.isMesh) fixtures.push(object); });
+    assert.equal(fixtures.length, 2, `${deck.id} deve possuir uma faixa em cada lateral`);
+
+    for (const fixture of fixtures) {
+      const strip = fixture.userData.floorStrip;
+      assert.equal(strip?.mount, 'floor');
+      assert.equal(strip?.collisionFree, true);
+      assert.equal(strip?.edgeInset, 3.2);
+      assert.ok(fixture.name.includes('Floor-Light'));
+      assert.ok(fixture.geometry.attributes.position.count > 300,
+        'cada faixa deve ser uma malha contínua de baixa complexidade');
+
+      const positions = fixture.geometry.attributes.position;
       for (let index = 0; index < positions.count; index += 1) {
-        const point = new THREE.Vector3(
-          positions.getX(index), positions.getY(index), positions.getZ(index)
-        ).applyMatrix4(object.matrixWorld);
-        const hullTerm = (point.x / 27.2) ** 2 + (point.y / 15.2) ** 2 + (point.z / 50) ** 2;
-        assert.ok(hullTerm < 1,
-          `${deck.id} faixa deve permanecer recuada dentro da concha do casco`);
+        const x = positions.getX(index);
+        const y = positions.getY(index);
+        const z = positions.getZ(index);
+        assert.ok(Math.abs(y - 0.205) < 1e-6,
+          'a faixa deve ficar apenas 2,5 cm acima da superfície do piso');
+        assert.ok(THREE.ShapeUtils.isPointInsidePolygon(
+          new THREE.Vector2(x, z - centerZ), contour
+        ), `${deck.id} faixa deve permanecer dentro do contorno real do piso`);
       }
-    });
+    }
   }
 
   const d1 = interior.lightingCore.group.getObjectByName('Aurora7-Lighting-Branch-D1');
@@ -185,24 +190,21 @@ test('instala duas faixas emissivas na face interna do casco em cada deck, sem c
   const d3 = interior.lightingCore.group.getObjectByName('Aurora7-Lighting-Branch-D3');
   const d4 = interior.lightingCore.group.getObjectByName('Aurora7-Lighting-Branch-D4');
   d1.traverse(object => {
-    if (!object.isMesh) return;
-    assert.ok(object.userData.wallStrip.zStart > -29,
-      'a faixa de D1 deve começar após a borda traseira da janela panorâmica');
+    if (object.isMesh) assert.ok(object.userData.floorStrip.zStart > -29,
+      'D1 mantém livre a região da janela panorâmica');
   });
   for (const branch of [d2, d3]) {
     branch.traverse(object => {
-      if (!object.isMesh) return;
-      assert.ok(object.userData.wallStrip.zStart > -35,
-        'as faixas de D2/D3 devem começar depois da abertura frontal do defletor');
+      if (object.isMesh) assert.ok(object.userData.floorStrip.zStart > -35,
+        'D2/D3 mantêm livre a abertura frontal do defletor');
     });
   }
   d4.traverse(object => {
-    if (!object.isMesh) return;
-    assert.ok(object.userData.wallStrip.zEnd <= 36,
-      'a faixa de D4 deve terminar antes da abertura do hangar/elevador');
+    if (object.isMesh) assert.ok(object.userData.floorStrip.zEnd <= 36,
+      'D4 termina antes da abertura do hangar/elevador');
   });
 
   assert.equal(interior.lightingCore.group.userData.collisionBoxesAtInstall, 0,
-    'a instalação das faixas não deve registrar caixas de colisão');
+    'as faixas do piso não devem registrar caixas de colisão');
   interior.dispose();
 });
