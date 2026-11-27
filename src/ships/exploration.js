@@ -368,11 +368,8 @@ export function createExplorationShip() {
     nacelleShape.lineTo(-2.45, -1.7);
     nacelleShape.quadraticCurveTo(-2.45, -2.15, -2.0, -2.15);
 
-    // Abertura longitudinal de inspeção no topo: cria espaço real para a câmara interna.
+    // Janela longitudinal será recortada da face superior após a extrusão.
     const chamberX = side * 1.05;
-    const chamberOpening = new THREE.Path();
-    chamberOpening.absellipse(chamberX, 1.52, 0.57, 0.62, 0, Math.PI * 2, true, 0);
-    nacelleShape.holes.push(chamberOpening);
 
     const nacelle = new THREE.Group();
     nacelle.name = side < 0 ? 'Port-Warp-Nacelle' : 'Starboard-Warp-Nacelle';
@@ -381,7 +378,7 @@ export function createExplorationShip() {
     nacelle.userData.hullClearanceMeters = 31.5 - 2.45 - 0.42 - 27.2;
     aftNacelleJunction.add(nacelle);
 
-    const bodyGeometry = new THREE.ExtrudeGeometry(nacelleShape, {
+    const extrudedBodyGeometry = new THREE.ExtrudeGeometry(nacelleShape, {
       depth: 62,
       steps: 1,
       bevelEnabled: true,
@@ -390,9 +387,42 @@ export function createExplorationShip() {
       bevelThickness: 0.42,
       curveSegments: 8
     });
-    bodyGeometry.translate(0, 0, -31);
+    extrudedBodyGeometry.translate(0, 0, -31);
+    const sourceBodyGeometry = extrudedBodyGeometry.index
+      ? extrudedBodyGeometry.toNonIndexed()
+      : extrudedBodyGeometry;
+    if (sourceBodyGeometry !== extrudedBodyGeometry) extrudedBodyGeometry.dispose();
+
+    // Recorta somente a faixa superior de inspeção; a silhueta externa da nacele é preservada.
+    const sourcePositions = sourceBodyGeometry.attributes.position;
+    const bodyPositions = [];
+    for (let i = 0; i < sourcePositions.count; i += 3) {
+      const ax = sourcePositions.getX(i);
+      const ay = sourcePositions.getY(i);
+      const az = sourcePositions.getZ(i);
+      const bx = sourcePositions.getX(i + 1);
+      const by = sourcePositions.getY(i + 1);
+      const bz = sourcePositions.getZ(i + 1);
+      const cx = sourcePositions.getX(i + 2);
+      const cy = sourcePositions.getY(i + 2);
+      const cz = sourcePositions.getZ(i + 2);
+      const centerX = (ax + bx + cx) / 3;
+      const centerZ = (az + bz + cz) / 3;
+      const isInspectionSlot = Math.min(ay, by, cy) > 2.45 &&
+        Math.abs(centerX - chamberX) < 0.66 && Math.abs(centerZ) < 17.8;
+      if (!isInspectionSlot) {
+        bodyPositions.push(ax, ay, az, bx, by, bz, cx, cy, cz);
+      }
+    }
+    const bodyGeometry = new THREE.BufferGeometry();
+    bodyGeometry.setAttribute('position', new THREE.Float32BufferAttribute(bodyPositions, 3));
+    bodyGeometry.computeVertexNormals();
+    bodyGeometry.computeBoundingSphere();
+    bodyGeometry.parameters = sourceBodyGeometry.parameters;
+    sourceBodyGeometry.dispose();
     const body = new THREE.Mesh(bodyGeometry, undersideMaterial);
     body.name = side < 0 ? 'Port-Nacelle-Armored-Body' : 'Starboard-Nacelle-Armored-Body';
+    body.userData.nacelleInspectionSlot = true;
     nacelle.add(body);
 
     const dorsalArmor = new THREE.Mesh(
@@ -412,7 +442,7 @@ export function createExplorationShip() {
     // Câmara interna de plasma visível através de uma janela técnica superior.
     // A janela fica fora da linha da blindagem dorsal central e não altera o casco.
     const chamberGlass = new THREE.Mesh(
-      new THREE.BoxGeometry(1.08, 1.12, 34),
+      new THREE.BoxGeometry(1.08, 1.82, 34),
       new THREE.MeshPhysicalMaterial({
         color: 0x65dfff, transparent: true, opacity: 0.22,
         roughness: 0.08, metalness: 0.08, transmission: 0.42,
@@ -422,7 +452,7 @@ export function createExplorationShip() {
     chamberGlass.name = side < 0
       ? 'Port-Nacelle-Internal-Chamber-Glass'
       : 'Starboard-Nacelle-Internal-Chamber-Glass';
-    chamberGlass.position.set(chamberX, 1.52, 0);
+    chamberGlass.position.set(chamberX, 1.65, 0);
     nacelle.add(chamberGlass);
 
     const chamberPlasmaMaterial = new THREE.MeshStandardMaterial({
@@ -430,12 +460,12 @@ export function createExplorationShip() {
       metalness: 0.12, roughness: 0.16, transparent: true, opacity: 0.9
     });
     const chamberPlasma = new THREE.Mesh(
-      new THREE.BoxGeometry(0.68, 0.62, 30), chamberPlasmaMaterial
+      new THREE.BoxGeometry(0.68, 1.15, 30), chamberPlasmaMaterial
     );
     chamberPlasma.name = side < 0
       ? 'Port-Nacelle-Internal-Plasma-Chamber'
       : 'Starboard-Nacelle-Internal-Plasma-Chamber';
-    chamberPlasma.position.set(chamberX, 1.52, 0);
+    chamberPlasma.position.set(chamberX, 1.65, 0);
     chamberPlasma.userData.isNacellePlasmaChamber = true;
     nacelle.add(chamberPlasma);
 
@@ -450,7 +480,7 @@ export function createExplorationShip() {
     chamberWindow.name = side < 0
       ? 'Port-Nacelle-Internal-Chamber-View-Window'
       : 'Starboard-Nacelle-Internal-Chamber-View-Window';
-    chamberWindow.position.set(chamberX, 2.18, 0);
+    chamberWindow.position.set(chamberX, 2.62, 0);
     nacelle.add(chamberWindow);
 
     const forwardCap = new THREE.Mesh(
