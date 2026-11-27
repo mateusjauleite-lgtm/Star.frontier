@@ -1625,9 +1625,10 @@ function isCharacterPositionBlocked(position, deckIndex) {
   const deck = starshipInterior?.layout?.decks?.[deckIndex];
   if (!deck || !isCharacterInsideDeck(position, deckIndex)) return true;
 
-  // D1 e a abertura traseira do D4 não bloqueiam a passagem do personagem.
-  if (deck.id === 'D1' || (deck.id === 'D4' &&
-      (isD4ExitAperture(position) || isD4BeyondExitAperture(position)))) return false;
+  // A abertura traseira do D4 permanece liberada; D1 agora respeita
+  // as mesmas caixas de colisão dos demais decks.
+  if (deck.id === 'D4' &&
+      (isD4ExitAperture(position) || isD4BeyondExitAperture(position))) return false;
   if (deck.id === 'D4' && position.z >= 27 && Math.abs(position.x) <= 10.4) return false;
 
   const playerRadius = 0.48;
