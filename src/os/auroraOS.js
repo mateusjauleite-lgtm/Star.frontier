@@ -81,7 +81,7 @@ export function createAuroraOS({ documentRef = globalThis.document, manager = au
         availability.textContent = !detail.available
           ? 'NÚCLEO INDISPONÍVEL'
           : status?.decks?.some(deck => deck.fixtureCount > 0)
-            ? 'NÚCLEO CONECTADO · 8 FAIXAS'
+            ? 'NÚCLEO CONECTADO · 8 FAIXAS NO PISO'
             : 'NÚCLEO CONECTADO';
         availability.classList.toggle('is-active', Boolean(detail.available));
       }
