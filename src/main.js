@@ -52,6 +52,7 @@ import { registerTextInteractionGuard } from './core/ui/textInteractionGuard.js'
 import { createPilotHudProfileStore, PILOT_HUD_PROFILES } from './ui/hudProfiles.js';
 import { createNavigationSensorMap } from './ui/navigationSensorMap.js';
 import { createShipCameraController } from './core/runtime/camera/shipCameraController.js';
+import { isShipLightingConsoleInRange } from './ships/lighting/shipLightingConsole.js';
 import { createCharacterCameraController } from './core/runtime/camera/characterCameraController.js';
 import { createCameraInputController } from './core/runtime/camera/cameraInputController.js';
 import { createCameraRuntimeSystem } from './core/runtime/systems/cameraRuntimeSystem.js';
@@ -121,6 +122,8 @@ let refineryConsoleActive = false;
 let refineryInteractionAvailable = false;
 let refineryTelemetryAccumulator = 0;
 let managementTelemetryAccumulator = 0;
+let lightingConsoleInteractionAvailable = false;
+let lightingConsoleActive = false;
 const engineeringRenderer = createEngineeringTerminalRenderer({
   root: $('game-screen'),
   onOpen: () => toggleEngineeringConsole(),
@@ -683,6 +686,16 @@ let starshipInterior;
 
 // Ponte autorizada entre o aplicativo Iluminação do AURORA OS e o núcleo da nave.
 // O AURORA OS envia comandos; o Runtime aplica-os ao núcleo e devolve o estado.
+document.addEventListener('starfrontier:lighting-console-opened', () => {
+  lightingConsoleActive = true;
+  characterControls?.reset?.();
+});
+document.addEventListener('starfrontier:lighting-console-closed', () => {
+  lightingConsoleActive = false;
+  updateLightingConsoleInteraction();
+  updateCharacterHUD();
+});
+
 document.addEventListener('starfrontier:ship-lighting-command', event => {
   const core = starshipInterior?.lightingCore;
   if (!core) {
@@ -1013,7 +1026,7 @@ async function startGame() {
             earthSystem, camera, applyEarthSurfaceRotation, ship, updatePhaserWeapon,
             characterCore, syncCharacterDeckFrame, updateCharacterMovement, updateCharacterWeapon,
             updateExternalElevatorAnimation, updateElevatorInteraction,
-            updatePilotInteraction, updateShipManagementInteraction, updateEngineeringConsoleInteraction, updateRefineryConsoleInteraction, updateDeflectorConsoleInteraction, updateTransporterConsoleInteraction, updateTransporterPlatformInteraction, updateExternalElevatorInteraction, updateAlexiaInteraction,
+            updatePilotInteraction, updateShipManagementInteraction, updateEngineeringConsoleInteraction, updateRefineryConsoleInteraction, updateDeflectorConsoleInteraction, updateTransporterConsoleInteraction, updateTransporterPlatformInteraction, updateExternalElevatorInteraction, updateAlexiaInteraction, updateLightingConsoleInteraction,
             updateCharacterCamera, updateFlight, updateCamera, updateShipSystems,
             setLandingBaseSystem: value => { landingBaseSystem = value; },
             updateShipLandingGuidance, THREE, shipVisual, shipEarthContactPoints,
@@ -2290,6 +2303,40 @@ function updateShipManagementInteraction(dt = 0) {
   }
 }
 
+function updateLightingConsoleInteraction() {
+  const button = $('character-action-btn');
+  if (!button) return;
+
+  const previousAvailable = lightingConsoleInteractionAvailable;
+  const validContext = Boolean(characterModel && shipVisual &&
+    characterCore.snapshot().mode === 'on-foot' && !characterInWorldFrame &&
+    !nearbyElevator && activeDeckIndex === 0);
+  const available = validContext && isShipLightingConsoleInRange(
+    characterModel.group.position,
+    activeDeckIndex,
+    characterCore.snapshot().mode,
+    characterInWorldFrame
+  );
+  lightingConsoleInteractionAvailable = available;
+
+  if (available || lightingConsoleActive) {
+    button.disabled = false;
+    button.classList.remove('hidden');
+    button.classList.add('available');
+    button.dataset.interaction = 'lighting-console';
+    button.textContent = lightingConsoleActive ? '◎ ILUMINAÇÃO ABERTA' : '◎ INTERAGIR';
+    characterCore.setInteractionTarget('CONSOLE DE ILUMINAÇÃO');
+    if (previousAvailable !== available) updateCharacterHUD();
+  } else if (previousAvailable || button.dataset.interaction === 'lighting-console') {
+    button.disabled = !pilotInteractionAvailable;
+    button.classList.remove('available');
+    button.dataset.interaction = '';
+    button.textContent = pilotInteractionAvailable ? '◎ PILOTAR' : '◎ AÇÃO';
+    characterCore.setInteractionTarget(pilotInteractionAvailable ? 'PILOTAGEM DISPONÍVEL' : null);
+    updateCharacterHUD();
+  }
+}
+
 function updateEngineeringConsoleInteraction(dt = 0) {
   updateDilithiumMatrixConsoleInteraction(dt);
   engineeringHologram?.update(dt);
@@ -2944,6 +2991,10 @@ function updateCharacterWeapon(dt) {
 
 $('character-action-btn')?.addEventListener('click', () => {
   if (nearbyAlexiaInteraction) { alexiaInteractionMenu?.open?.(); return; }
+  if (lightingConsoleInteractionAvailable || lightingConsoleActive) {
+    document.dispatchEvent(new CustomEvent('starfrontier:aurora-open-app', { detail: { app: 'lighting', source: 'deck1-console' } }));
+    return;
+  }
   if (transporterActionAvailable) { transporterActionMenu?.open?.(transporterDispatchBuffer.getPending()?.destinationName); return; }
   if (terrestrialTransportInteractionAvailable || terrestrialTransportConsoleActive) { toggleTerrestrialTransportConsole(); return; }
   if (transporterInteractionAvailable || transporterConsoleActive) { togglePlanetaryTransportConsole(); return; }
