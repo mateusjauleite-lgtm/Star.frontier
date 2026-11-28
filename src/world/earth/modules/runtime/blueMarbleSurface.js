@@ -90,6 +90,9 @@ export function createBlueMarbleSurfaceRuntime({
           // the single scene-level directional sunlight.
           material.emissiveMap = loadedTexture;
           material.needsUpdate = true;
+          // Regional tiles share this authoritative texture immediately; do not
+          // wait for the next camera/LOD selection cycle to update their maps.
+          layers.terrain?.syncSurfaceMaterials?.();
           textureState = 'ready';
           textureLoadedAt = nowMs();
           mesh.userData.earthBlueMarbleTiming.textureLoadMs = textureLoadedAt - textureRequestedAt;
