@@ -154,9 +154,6 @@ export function createBlueMarbleSurfaceRuntime({
           // the single scene-level directional sunlight.
           material.emissiveMap = loadedTexture;
           material.needsUpdate = true;
-          // Regional tiles share this authoritative texture immediately; do not
-          // wait for the next camera/LOD selection cycle to update their maps.
-          layers.terrain?.syncSurfaceMaterials?.();
           textureState = 'ready';
           textureLoadedAt = nowMs();
           mesh.userData.earthBlueMarbleTiming.textureLoadMs = textureLoadedAt - textureRequestedAt;
@@ -164,6 +161,9 @@ export function createBlueMarbleSurfaceRuntime({
           mesh.userData.earthBlueMarbleTiming.textureState = textureState;
           layers.surfaceVisual.textureLoadMs = textureLoadedAt - textureRequestedAt;
           layers.surfaceVisual.state = textureState;
+          // Sync after load timing/state is committed so tile diagnostics measure
+          // the actual asynchronous handoff, not only the map assignment.
+          layers.terrain?.syncSurfaceMaterials?.();
           console.info('[Earth] Blue Marble texture loaded:', {
             width: loadedTexture.image?.width ?? null,
             height: loadedTexture.image?.height ?? null
