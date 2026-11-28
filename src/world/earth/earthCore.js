@@ -108,7 +108,7 @@ export function createEarthCore(options = {}) {
     },
     prepareTerrainRegion({ latitudeDeg, longitudeDeg, altitudeMeters = 0 } = {}) {
       if (disposed) return Promise.resolve({ ok: false, reason: 'earth-disposed' });
-      const prepare = updatePipeline.getRuntime?.('terrain')?.prepareRegion;
+      const prepare = layers.terrain?.prepareRegion;
       if (typeof prepare !== 'function') {
         return Promise.resolve({ ok: false, reason: 'terrain-preparation-unavailable' });
       }
