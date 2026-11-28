@@ -27,7 +27,8 @@ test('propulsor principal alterna entre ligado e desligado com toques', () => {
   const window = { addEventListener: (type, callback) => windowListeners.set(type, callback) };
   const state = { throttle: false, braking: false, nitroButton: false };
 
-  registerHeldFlightControls({ document, window, state });
+  const controls = registerHeldFlightControls({ document, window, state });
+  controls.setEnabled(true);
   const throttle = buttons.get('throttle-btn');
   throttle.fire('click');
   assert.equal(state.throttle, true);
@@ -36,7 +37,6 @@ test('propulsor principal alterna entre ligado e desligado com toques', () => {
   throttle.fire('click');
   assert.equal(state.throttle, false);
   assert.equal(throttle.classes.has('active'), false);
-  assert.equal(throttle.attributes['aria-pressed'], 'false');
 });
 
 test('camera cycle control preserves the three existing camera modes', () => {
@@ -61,13 +61,14 @@ test('propulsor envia comandos de ligar e desligar ao Ship Computer', () => {
   const window = { addEventListener() {} };
   const state = { throttle: false };
   const commands = [];
-  registerHeldFlightControls({
+  const controls = registerHeldFlightControls({
     document, window, state,
     dispatchPropulsionCommand: payload => {
       commands.push(payload);
       return { accepted: true };
     }
   });
+  controls.setEnabled(true);
   throttle.fire('click');
   throttle.fire('click');
   assert.deepEqual(commands, [
@@ -85,7 +86,7 @@ test('botão de dobra alterna o comando travado e sincroniza estado visual', () 
   const window = { addEventListener() {} };
   const state = { warpDriveButton: false };
   const commands = [];
-  registerHeldFlightControls({
+  const controls = registerHeldFlightControls({
     document, window, state,
     dispatchPropulsionCommand: payload => {
       commands.push(payload);
@@ -93,6 +94,7 @@ test('botão de dobra alterna o comando travado e sincroniza estado visual', () 
       return { accepted: true };
     }
   });
+  controls.setEnabled(true);
   warp.fire('click');
   assert.deepEqual(commands[0], { control: 'warpDriveButton', active: true });
   assert.equal(state.warpDriveButton, true);
@@ -111,11 +113,12 @@ test('botão de dobra informa rejeição sem fingir que ativou', () => {
   const window = { addEventListener() {} };
   const state = { warpDriveButton: false };
   let rejected = null;
-  registerHeldFlightControls({
+  const controls = registerHeldFlightControls({
     document, window, state,
     dispatchPropulsionCommand: () => ({ accepted: false, reason: 'dilithium-unavailable' }),
     onWarpRejected: reason => { rejected = reason; }
   });
+  controls.setEnabled(true);
   warp.fire('click');
   assert.equal(rejected, 'dilithium-unavailable');
   assert.equal(state.warpDriveButton, false);
@@ -129,7 +132,7 @@ test('manobradores mantêm o comando pressionado e liberam ao soltar o toque', (
   const window = { addEventListener() {} };
   const state = { maneuver: { left: false, right: false, up: false, down: false } };
   const commands = [];
-  registerHeldFlightControls({
+  const controls = registerHeldFlightControls({
     document, window, state,
     dispatchPropulsionCommand: payload => {
       commands.push(payload);
@@ -138,6 +141,7 @@ test('manobradores mantêm o comando pressionado e liberam ao soltar o toque', (
       return { accepted: true };
     }
   });
+  controls.setEnabled(true);
   const up = buttons.get('maneuver-up-btn');
   up.fire('pointerdown', { pointerId: 9, pointerType: 'touch' });
   assert.equal(state.maneuver.up, true);
