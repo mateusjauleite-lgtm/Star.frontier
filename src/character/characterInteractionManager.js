@@ -21,19 +21,20 @@ export function createCharacterInteractionManager({ button = null, onTargetChang
   }
 
   function render(candidates = [], fallback = {}) {
-    const selected = candidates
-      .map((candidate, index) => ({ candidate, index }))
-      .filter(({ candidate }) =>
-        candidate &&
-        candidate.visible !== false &&
-        (candidate.available === true || candidate.disabled === true) &&
-        typeof candidate.id === 'string' &&
-        candidate.id.length > 0
-      )
-      .sort((a, b) =>
-        (Number(b.candidate.priority) || 0) - (Number(a.candidate.priority) || 0) ||
-        a.index - b.index
-      )[0]?.candidate ?? null;
+    let selected = null;
+    let selectedPriority = -Infinity;
+    for (const candidate of candidates) {
+      if (!candidate ||
+          candidate.visible === false ||
+          (candidate.available !== true && candidate.disabled !== true) ||
+          typeof candidate.id !== 'string' ||
+          candidate.id.length === 0) continue;
+      const priority = Number(candidate.priority) || 0;
+      if (!selected || priority > selectedPriority) {
+        selected = candidate;
+        selectedPriority = priority;
+      }
+    }
 
     active = selected;
 
