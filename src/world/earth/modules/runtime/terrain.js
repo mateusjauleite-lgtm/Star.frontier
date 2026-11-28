@@ -468,6 +468,15 @@ export function createTerrainRuntime({ options, layers }) {
       });
       layers.terrain.regionalSurface = regionalSurfaceRuntime.getStatus();
       layers.terrain.regionalDem = regionalDemProvider.getStatus();
+      layers.terrain.syncSurfaceMaterials = () => regionalSurfaceRuntime.syncSurfaceMaterials();
+      layers.terrain.setTextureDebug = enabled => regionalSurfaceRuntime.setTextureDebug(enabled);
+      layers.terrain.prepareRegion = ({ latitudeDeg, longitudeDeg, altitudeMeters = 0 } = {}) => {
+        if (disposed || !Number.isFinite(altitudeMeters) || altitudeMeters < 0) {
+          return Promise.resolve({ ok: false, reason: 'terrain-runtime-unavailable' });
+        }
+        const altitudeUnits = physicalScale.metersToRenderUnits(altitudeMeters);
+        return regionalSurfaceRuntime.prepareRegion({ latitudeDeg, longitudeDeg, altitudeUnits });
+      };
 
       // Replace the reference-sphere first frame with NOAA ETOPO data. Reusing
       // applyElevationToMeshes also applies the identical no-data fallback
@@ -521,6 +530,14 @@ export function createTerrainRuntime({ options, layers }) {
       }).catch(() => {
         // Keep the already-generated JS terrain if WASM loading fails.
       });
+    },
+    prepareRegion({ latitudeDeg, longitudeDeg, altitudeMeters = 0 } = {}) {
+      if (disposed || !regionalSurfaceRuntime ||
+          !Number.isFinite(altitudeMeters) || altitudeMeters < 0) {
+        return Promise.resolve({ ok: false, reason: 'terrain-runtime-unavailable' });
+      }
+      const altitudeUnits = physicalScale.metersToRenderUnits(altitudeMeters);
+      return regionalSurfaceRuntime.prepareRegion({ latitudeDeg, longitudeDeg, altitudeUnits });
     },
     update(delta, context) {
       regionalSurfaceRuntime?.update(delta, context);

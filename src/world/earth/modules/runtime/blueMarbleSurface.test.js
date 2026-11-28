@@ -2,7 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   EARTH_BLUE_MARBLE_TEXTURE_PATH,
+  EARTH_REGIONAL_COLOR_TEXTURE_PATH,
+  EARTH_REGIONAL_COLOR_BOUNDS,
   resolveEarthTextureUrl,
+  resolveEarthRegionalColorUrl,
   createBlueMarbleSurfaceRuntime
 } from './blueMarbleSurface.js';
 
@@ -35,4 +38,13 @@ test('surface runtime leaves absolute spin ownership to the astronomical clock',
   const runtime = createBlueMarbleSurfaceRuntime({ surfaceFrame, options: { radius: 1 }, layers: {} });
   runtime.update(10, {});
   assert.equal(rotations.y, 1.25);
+});
+
+test('packages the Jaú regional NASA color tile and its geographic bounds', () => {
+  assert.equal(resolveEarthRegionalColorUrl('./'), './earth/jau-regional-500m.jpg');
+  assert.equal(resolveEarthRegionalColorUrl('/app'), '/app/earth/jau-regional-500m.jpg');
+  assert.equal(EARTH_REGIONAL_COLOR_TEXTURE_PATH, 'earth/jau-regional-500m.jpg');
+  assert.deepEqual(EARTH_REGIONAL_COLOR_BOUNDS, {
+    west: -52.557, east: -44.557, south: -26.2964, north: -18.2964
+  });
 });

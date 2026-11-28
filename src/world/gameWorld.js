@@ -241,6 +241,14 @@ export async function createGameWorld({
       bus: 'OPERATIONS EPS',
       energy: Math.max(0, Number(state.warpCoreOperationsBuffer) || 0)
     }),
+    prepareDestinationRegion: (destination, { altitudeOffsetMeters = 0 } = {}) => {
+      if (destination?.bodyId !== 'earth') return { ok: false, reason: 'unsupported-body' };
+      return earthSystem.prepareTerrainRegion({
+        latitudeDeg: destination.latitudeDeg,
+        longitudeDeg: destination.longitudeDeg,
+        altitudeMeters: altitudeOffsetMeters
+      });
+    },
     energyCost: 8,
     enabled: true
   });
