@@ -256,7 +256,9 @@ export function createEarthQuadtreeTileGeometry(node, radius, {
   }
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+  geometry.setAttribute('uv', new THREE.BufferAttribute(
+    localColorCoverage ? localUvs : uvs, 2
+  ));
   if (localUvs) geometry.setAttribute('uv2', new THREE.BufferAttribute(localUvs, 2));
   geometry.setIndex(indices);
   geometry.computeVertexNormals();
