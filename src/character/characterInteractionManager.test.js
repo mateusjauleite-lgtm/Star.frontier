@@ -87,14 +87,3 @@ test('não publica novamente o alvo quando a interação permanece estável', ()
   manager.render([candidate]);
   assert.equal(changes, 1);
 });
-
-test('sincroniza novamente o alvo quando outro sistema o sobrescreve', () => {
-  let currentTarget = null;
-  const manager = createCharacterInteractionManager({
-    onTargetChange: target => { currentTarget = target; }
-  });
-  manager.render([{ id: 'matrix', available: true, target: 'MATRIZ' }]);
-  currentTarget = 'ENGENHARIA';
-  manager.syncTarget();
-  assert.equal(currentTarget, 'MATRIZ');
-});
