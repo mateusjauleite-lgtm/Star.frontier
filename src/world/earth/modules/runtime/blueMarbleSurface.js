@@ -27,6 +27,9 @@ export function createBlueMarbleSurfaceRuntime({
   let lodCheckElapsed = 0;
   let textureState = 'loading';
   let textureError = null;
+  let textureRequestedAt = null;
+  let textureLoadedAt = null;
+  const nowMs = () => globalThis.performance?.now?.() ?? Date.now();
 
   return {
     initialize() {
@@ -59,6 +62,8 @@ export function createBlueMarbleSurfaceRuntime({
         attribution: 'NASA Earth Observatory'
       };
 
+      textureRequestedAt = nowMs();
+      mesh.userData.earthBlueMarbleTiming = { textureLoadMs: null, textureState: 'loading' };
       const loader = new THREE.TextureLoader();
       loader.setCrossOrigin?.('anonymous');
       texture = loader.load(
@@ -86,6 +91,10 @@ export function createBlueMarbleSurfaceRuntime({
           material.emissiveMap = loadedTexture;
           material.needsUpdate = true;
           textureState = 'ready';
+          textureLoadedAt = nowMs();
+          mesh.userData.earthBlueMarbleTiming.textureLoadMs = textureLoadedAt - textureRequestedAt;
+          mesh.userData.earthBlueMarbleTiming.textureState = textureState;
+          layers.surfaceVisual.textureLoadMs = textureLoadedAt - textureRequestedAt;
           layers.surfaceVisual.state = textureState;
           console.info('[Earth] Blue Marble texture loaded:', {
             width: loadedTexture.image?.width ?? null,
@@ -95,7 +104,9 @@ export function createBlueMarbleSurfaceRuntime({
         undefined,
         error => {
           textureState = 'fallback';
+          if (mesh?.userData?.earthBlueMarbleTiming) mesh.userData.earthBlueMarbleTiming.textureState = textureState;
           textureError = error?.message ?? 'NASA Blue Marble texture could not be loaded';
+          layers.surfaceVisual.textureLoadMs = nowMs() - textureRequestedAt;
           console.warn('[Earth] Blue Marble texture failed to load:', textureError);
           if (layers.surfaceVisual) {
             layers.surfaceVisual.state = textureState;
@@ -150,6 +161,7 @@ export function createBlueMarbleSurfaceRuntime({
         texture: EARTH_BLUE_MARBLE_TEXTURE_PATH,
         textureState,
         textureError,
+        textureLoadMs: mesh?.userData?.earthBlueMarbleTiming?.textureLoadMs ?? null,
         lodLevel: currentLevel,
         disposed
       };
