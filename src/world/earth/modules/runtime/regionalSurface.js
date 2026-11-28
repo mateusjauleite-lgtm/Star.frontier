@@ -276,7 +276,10 @@ export function createEarthRegionalSurfaceRuntime({
   let pending = [];
   let buildToken = 0;
   let building = false;
-  let elapsed = 0;
+  let lastCameraLocalPosition = null;
+  let lastCameraForwardLocal = null;
+  let lastCameraFov = null;
+  let lastCameraAspect = null;
   let disposed = false;
   let lastSelection = [];
   let demActive = false;
@@ -290,6 +293,8 @@ export function createEarthRegionalSurfaceRuntime({
   let cameraInsideSurface = false;
   let firstRegionalTextureMs = null;
   let regionalTextureAfterLoadMs = null;
+  let lastSyncedMap = surface?.material?.map ?? null;
+  let lastSyncedEmissiveMap = surface?.material?.emissiveMap ?? null;
   let generationStartedAt = null;
   let lastGenerationMs = null;
   let completedGenerations = 0;
@@ -319,8 +324,13 @@ export function createEarthRegionalSurfaceRuntime({
     if (changed) target.needsUpdate = true;
   };
 
-  const syncActiveTileMaterials = () => {
+  const syncActiveTileMaterials = (force = false) => {
     if (!surface?.material) return;
+    const sourceMap = surface.material.map ?? null;
+    const sourceEmissiveMap = surface.material.emissiveMap ?? null;
+    if (!force && sourceMap === lastSyncedMap && sourceEmissiveMap === lastSyncedEmissiveMap) return;
+    lastSyncedMap = sourceMap;
+    lastSyncedEmissiveMap = sourceEmissiveMap;
     for (const mesh of active.values()) {
       syncMaterial(mesh.material, surface.material);
       const timing = surface.userData?.earthBlueMarbleTiming;
@@ -343,6 +353,7 @@ export function createEarthRegionalSurfaceRuntime({
 
   async function buildTile(node, token, useDem) {
     const id = tileId(node, useDem);
+    if (active.has(id)) return active.get(id);
     const points = [];
     const divisions = 2 ** node.level;
     const u0 = node.x / divisions * 2 - 1;
@@ -367,7 +378,7 @@ export function createEarthRegionalSurfaceRuntime({
         lastError = `DEM ${node.key}: ${error?.message ?? String(error)}`;
       }
     }
-    if (disposed || token !== buildToken) return;
+    if (disposed || token !== buildToken) return null;
     const hasDem = demValues && Array.from(demValues).some(Number.isFinite);
     const geometry = createEarthQuadtreeTileGeometry(node, radius, {
       segments,
@@ -375,7 +386,7 @@ export function createEarthRegionalSurfaceRuntime({
       elevationMeters: hasDem ? demValues : null,
       elevationMetersToUnits
     });
-    if (!geometry) return;
+    if (!geometry) return null;
     const material = surface.material.clone();
     syncMaterial(material, surface.material);
     material.side = THREE.DoubleSide;
@@ -397,14 +408,41 @@ export function createEarthRegionalSurfaceRuntime({
     completedTiles++;
     if (hasDem) demTiles++;
     else fallbackTiles++;
+    return mesh;
+  }
+
+  async function prepareRegion({ latitudeDeg, longitudeDeg, altitudeUnits = 0 } = {}) {
+    if (disposed || !surface || !Number.isFinite(latitudeDeg) ||
+        latitudeDeg < -90 || latitudeDeg > 90 || !Number.isFinite(longitudeDeg) ||
+        longitudeDeg < -180 || longitudeDeg > 180 || !Number.isFinite(altitudeUnits) || altitudeUnits < 0) {
+      return { ok: false, reason: 'invalid-region' };
+    }
+    const latitude = THREE.MathUtils.degToRad(latitudeDeg);
+    const longitude = THREE.MathUtils.degToRad(longitudeDeg);
+    const direction = new THREE.Vector3(
+      Math.cos(latitude) * Math.cos(longitude),
+      Math.sin(latitude),
+      Math.cos(latitude) * Math.sin(longitude)
+    );
+    const level = targetEarthQuadtreeLevel(altitudeUnits, radius, maxLevel);
+    const node = getEarthQuadtreeNodeForDirection(direction, level);
+    if (!node) return { ok: false, reason: 'region-unresolved' };
+    const useDem = typeof sampleElevationMetersBatch === 'function';
+    const id = tileId(node, useDem);
+    let mesh = active.get(id);
+    if (!mesh) mesh = await buildTile(node, buildToken, useDem);
+    if (!mesh || disposed) return { ok: false, reason: 'tile-not-ready', key: node.key };
+    syncMaterial(mesh.material, surface.material);
+    if (mesh.material?.map !== lastSyncedMap || mesh.material?.emissiveMap !== lastSyncedEmissiveMap) {
+      mesh.material.needsUpdate = true;
+    }
+    return { ok: true, key: node.key, textured: Boolean(mesh.material?.map?.image), elevationSource: mesh.userData?.earthQuadtree?.elevationSource };
   }
 
   return {
+    prepareRegion,
     update(delta, context) {
       if (disposed || !surface || !context?.camera) return;
-      elapsed += Math.min(Math.max(delta || 0, 0), .1);
-      if (elapsed < .35) return;
-      elapsed = 0;
       syncActiveTileMaterials();
       surface.updateWorldMatrix(true, false);
       context.camera.updateMatrixWorld?.();
@@ -420,13 +458,30 @@ export function createEarthRegionalSurfaceRuntime({
       const cameraForwardWorld = context.camera.getWorldDirection(new THREE.Vector3());
       const forwardLocal = surface.worldToLocal(cameraWorld.clone().add(cameraForwardWorld))
         .sub(cameraLocal).normalize();
+      const cameraFov = context.camera.fov ?? 75;
+      const cameraAspect = context.camera.aspect ?? 1;
+      const positionThreshold = Math.max(0.05, radius * 1e-6);
+      const directionThreshold = Math.cos(THREE.MathUtils.degToRad(2));
+      const positionChanged = !lastCameraLocalPosition ||
+        lastCameraLocalPosition.distanceTo(cameraLocal) >= positionThreshold;
+      const directionChanged = !lastCameraForwardLocal ||
+        lastCameraForwardLocal.dot(forwardLocal) <= directionThreshold;
+      const projectionChanged = lastCameraFov === null ||
+        Math.abs(lastCameraFov - cameraFov) > 0.01 ||
+        Math.abs(lastCameraAspect - cameraAspect) > 0.01;
+      const demModeChanged = demActive !== lastDemActive;
+      if (!positionChanged && !directionChanged && !projectionChanged && !demModeChanged) return;
+      lastCameraLocalPosition = cameraLocal.clone();
+      lastCameraForwardLocal = forwardLocal.clone();
+      lastCameraFov = cameraFov;
+      lastCameraAspect = cameraAspect;
       let selected = altitude <= radius * 1.5
         ? selectEarthQuadtreeTiles(cameraLocal, radius, {
           maxLevel,
           maxTiles,
           cameraForwardLocal: forwardLocal,
-          cameraFovDeg: Math.min(150, (context.camera.fov ?? 75) + 10),
-          cameraAspect: context.camera.aspect ?? 1
+          cameraFovDeg: Math.min(150, cameraFov + 10),
+          cameraAspect
         })
         : [];
       // If the camera basis and Earth-local frame temporarily disagree, keep
@@ -438,7 +493,6 @@ export function createEarthRegionalSurfaceRuntime({
         });
       }
       const keys = selected.map(node => tileId(node, demActive));
-      const demModeChanged = demActive !== lastDemActive;
       const changed = keys.length !== lastSelection.length ||
         keys.some((key, index) => key !== lastSelection[index]) || demModeChanged;
       if (changed) {
