@@ -467,15 +467,30 @@
       <div class="modal-card">
         <h2>JOGO PAUSADO</h2>
 
-        <button id="resume-btn" class="primary">
-          CONTINUAR
-        </button>
+        <div id="pause-menu-actions">
+          <button id="resume-btn" class="primary" type="button">CONTINUAR</button>
+          <button id="pause-settings-btn" class="secondary" type="button">CONFIGURAÇÕES</button>
+          <button id="edit-character-hud-btn" class="secondary" type="button">EDITOR DE HUD</button>
+          <button id="return-menu-btn" class="secondary" type="button">VOLTAR AO MENU</button>
+        </div>
 
-        <button id="edit-character-hud-btn" class="secondary" type="button">EDITOR DE HUD</button>
-
-        <button id="return-menu-btn" class="secondary">
-          VOLTAR AO MENU
-        </button>
+        <section id="pause-settings-panel" class="pause-settings-panel hidden" aria-label="Configurações do jogo">
+          <h3>CONFIGURAÇÕES</h3>
+          <div class="field-row">
+            <label for="pause-quality">Qualidade gráfica</label>
+            <select id="pause-quality">
+              <option value="Baixa">Baixa</option>
+              <option value="Média">Média</option>
+              <option value="Alta">Alta</option>
+            </select>
+          </div>
+          <div class="field-row">
+            <label for="pause-sens">Sensibilidade <output id="pause-sens-value">1,0</output></label>
+            <input id="pause-sens" type="range" min=".5" max="2" step=".1" value="1">
+          </div>
+          <small>As alterações são salvas neste dispositivo.</small>
+          <button id="pause-settings-back-btn" class="secondary" type="button">VOLTAR</button>
+        </section>
       </div>
 
     </div>
