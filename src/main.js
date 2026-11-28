@@ -1653,11 +1653,13 @@ function updateCharacterCamera() {
     if (earthCenter) cameraUp.copy(characterCameraWorldPosition).sub(earthCenter).normalize();
   }
   camera.up.copy(cameraUp);
-  const target = characterCameraWorldPosition.clone().addScaledVector(cameraUp, 1.25);
+  // Mantém o ponto de mira na altura do tórax superior, evitando a sensação
+  // de câmera baixa sem deslocar o referencial físico do personagem.
+  const target = characterCameraWorldPosition.clone().addScaledVector(cameraUp, 1.48);
   const cameraPitch = characterInWorldFrame ? groundCameraPitch : characterPitch;
 
   if (characterCameraMode === 'first-person') {
-    characterCameraOffset.copy(cameraUp).multiplyScalar(1.62);
+    characterCameraOffset.copy(cameraUp).multiplyScalar(1.72);
     camera.position.copy(characterCameraWorldPosition).add(characterCameraOffset);
     characterLookEuler.set(cameraPitch, 0, 0, 'YXZ');
     camera.quaternion.copy(characterCameraWorldQuaternion).multiply(
@@ -1665,21 +1667,13 @@ function updateCharacterCamera() {
     );
     characterCameraInitialized = true;
   } else {
-    characterCameraOffset.set(0, 1.55, 3.35).applyQuaternion(characterCameraWorldQuaternion);
+    characterCameraOffset.set(0, 1.78, 3.65).applyQuaternion(characterCameraWorldQuaternion);
     const desired = characterCameraWorldPosition.clone().add(characterCameraOffset);
-    // Na primeira apresentação, posiciona a câmera diretamente atrás do piloto.
-    // O lerp só começa depois disso; evita a câmera atravessar a cena desde a origem,
-    // dando a impressão de que o personagem está caindo/entrando pelo alto.
-    if (!characterCameraInitialized) {
-      camera.position.copy(desired);
-      characterCameraInitialized = true;
-    } else if (characterInWorldFrame) {
-      // No exterior, o personagem e o terreno usam um referencial geográfico
-      // comum. Seguir a posição exata evita atraso variável e tremor de perseguição.
-      camera.position.copy(desired);
-    } else {
-      camera.position.lerp(desired, 0.36);
-    }
+    // A câmera acompanha o referencial mundial do personagem sem atraso artificial.
+    // O lerp fixo por frame fazia a visão ficar para trás quando a Aurora acelerava
+    // e introduzia oscilação conforme a taxa de quadros variava no Android.
+    camera.position.copy(desired);
+    characterCameraInitialized = true;
     // Impede que a câmera atravesse anteparas ou saia do casco em corredores/decks.
     if (!characterInWorldFrame && shipVisual) {
       shipVisual.updateWorldMatrix(true, true);
@@ -1693,7 +1687,9 @@ function updateCharacterCamera() {
         if (obstruction) {
           const safeDistance = Math.max(0.45, obstruction.distance - 0.32);
           const safePosition = target.clone().addScaledVector(rayDirection, safeDistance);
-          camera.position.lerp(safePosition, 0.8);
+          // A correção de obstrução é aplicada no mesmo frame para não disputar
+          // com o seguimento do personagem e produzir tremor perto das paredes.
+          camera.position.copy(safePosition);
         }
       }
     }
