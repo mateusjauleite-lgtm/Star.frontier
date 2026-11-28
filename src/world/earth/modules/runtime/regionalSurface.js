@@ -620,6 +620,10 @@ export function createEarthRegionalSurfaceRuntime({
       const texturedTiles = [...active.values()].filter(mesh =>
         Boolean(mesh.material?.map?.image)
       ).length;
+      const globalTexture = surface?.material?.map ?? null;
+      const globalImage = globalTexture?.image ?? null;
+      const regionalTexture = surface?.userData?.earthRegionalColorTexture ?? null;
+      const regionalImage = regionalTexture?.image ?? null;
       return {
         mode: 'cube-sphere-quadtree',
         activeTiles: active.size,
@@ -627,8 +631,16 @@ export function createEarthRegionalSurfaceRuntime({
         globalColorTiles: texturedTiles - [...active.values()].filter(mesh => mesh.material?.userData?.earthRegionalColorTile && mesh.material?.map?.image).length,
         regionalColorTiles: [...active.values()].filter(mesh => mesh.material?.userData?.earthRegionalColorTile && mesh.material?.map?.image).length,
         textureDebug,
-        globalTextureState: surface?.userData?.earthBlueMarbleTiming?.textureState ?? (surface?.material?.map?.image ? 'ready' : 'missing'),
-        regionalColorTextureState: surface?.userData?.earthRegionalColorTexture ? 'ready' : surface?.userData?.earthRegionalColorState ?? 'missing',
+        globalTextureState: surface?.userData?.earthBlueMarbleTiming?.textureState ?? (globalImage ? 'ready' : 'missing'),
+        globalTextureColorSpace: globalTexture?.colorSpace ?? null,
+        globalTextureDimensions: globalImage ? {
+          width: globalImage.width ?? null, height: globalImage.height ?? null
+        } : null,
+        regionalColorTextureState: regionalTexture ? 'ready' : surface?.userData?.earthRegionalColorState ?? 'missing',
+        regionalColorTextureColorSpace: regionalTexture?.colorSpace ?? null,
+        regionalColorTextureDimensions: regionalImage ? {
+          width: regionalImage.width ?? null, height: regionalImage.height ?? null
+        } : null,
         untexturedTiles: active.size - texturedTiles,
         textureCoverage: active.size ? texturedTiles / active.size : 0,
         queuedTiles: pending.length,
