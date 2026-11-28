@@ -591,7 +591,7 @@ export function createEarthRegionalSurfaceRuntime({
         fallbackTiles,
         cameraAltitudeUnits: lastCameraAltitude,
         cameraInsideSurface,
-        retiringTiles: [...active.keys()].filter(key => !lastSelection.includes(key)).length,
+        retiringTiles: [...active.keys()].filter(key => !lastSelection.includes(key) && !preparedTiles.has(key)).length,
         maxLevel,
         maxTiles,
         tileSegments: segments,
