@@ -965,8 +965,13 @@ async function bootApplication() {
   show('game-screen');
   loadingScreen?.classList.remove('hidden');
 
+  // Primeiro confirma que a interface de carregamento já está visível.
+  // Só depois conecta os controles de personagem e de pilotagem.
+  await loadingStep(8, 'Inicializando Star.frontier...');
+  initializeGameplayControlModes();
+  await new Promise(resolve => setTimeout(resolve, 180));
+
   const stages = [
-    [8, 'Inicializando Star.frontier...'],
     [28, 'Carregando os sistemas do jogo...'],
     [54, 'Preparando a interface do piloto...'],
     [78, 'Carregando o menu principal...'],
@@ -3287,17 +3292,42 @@ document.querySelectorAll('[data-warp-stage]').forEach(button => {
 });
 registerFlightSelectionGuards({ document });
 
-gameplayControlModes = createGameplayControlModeController({
-  document,
-  characterHUD,
-  characterControls,
-  shipMovementControls,
-  shipAimControls,
-  shipCommandControls,
-  applyHudLayout,
-  readHudLayout
-});
-gameplayControlModes.setMode(characterInWorldFrame ? 'on-foot-planet' : 'on-foot-ship');
+function initializeGameplayControlModes() {
+  if (gameplayControlModes) return true;
+  try {
+    const controller = createGameplayControlModeController({
+      document,
+      characterHUD,
+      characterControls,
+      shipMovementControls,
+      shipAimControls,
+      shipCommandControls,
+      applyHudLayout,
+      readHudLayout
+    });
+    controller.setMode(characterInWorldFrame ? 'on-foot-planet' : 'on-foot-ship');
+    gameplayControlModes = controller;
+    return true;
+  } catch (error) {
+    // Uma falha na integração de controles não pode impedir a tela inicial
+    // nem bloquear a inicialização do aplicativo antes de bootApplication().
+    console.error('Não foi possível ativar os modos de controle:', error);
+    gameplayControlModes = null;
+    characterControls.reset();
+    shipMovementControls.reset();
+    characterControls.setEnabled(true);
+    shipMovementControls.setEnabled(false);
+    shipAimControls?.reset?.();
+    shipAimControls?.setEnabled?.(false);
+    shipCommandControls?.reset?.();
+    shipCommandControls?.setEnabled?.(false);
+    characterHUD.show(true);
+    ['hud', 'warp-drive-display', 'flight-controls', 'leave-pilot-btn'].forEach(id => {
+      $(id)?.classList.add('hidden');
+    });
+    return false;
+  }
+}
 
 function cancelLandingGuidance(reason = 'cancelled') {
   shipLandingAutopilot?.cancel?.();
