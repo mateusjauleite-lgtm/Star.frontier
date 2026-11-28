@@ -30,6 +30,7 @@ export function createPlanetaryTransportCore({
   getActors = () => ({}),
   consumePower = () => true,
   getPowerStatus = () => null,
+  prepareDestinationRegion = null,
   energyCost = 8,
   enabled = true
 } = {}) {
@@ -54,7 +55,7 @@ export function createPlanetaryTransportCore({
     );
   }
   function getDestination(id) { return destinations.get(String(id)) ?? null; }
-  function previewDestination(id, { altitudeOffsetMeters = 0 } = {}) {
+  function resolvePreview(id, altitudeOffsetMeters) {
     const destination = getDestination(id);
     if (!destination) return { ok: false, reason: 'destination-not-found' };
     if (!finite(altitudeOffsetMeters) || Number(altitudeOffsetMeters) < 0) {
@@ -69,6 +70,26 @@ export function createPlanetaryTransportCore({
     } catch (error) {
       return { ok: false, reason: 'destination-unresolved', message: String(error?.message || error) };
     }
+  }
+  async function prepareDestination(id, { altitudeOffsetMeters = 0 } = {}) {
+    const preview = resolvePreview(id, altitudeOffsetMeters);
+    if (!preview.ok || typeof prepareDestinationRegion !== 'function') return preview;
+    try {
+      const preparation = await prepareDestinationRegion(preview.destination, {
+        altitudeOffsetMeters: Number(altitudeOffsetMeters),
+        position: preview.position
+      });
+      return { ...preview, preparation: preparation ?? { ok: false, reason: 'preparation-unavailable' } };
+    } catch (error) {
+      return { ...preview, preparation: { ok: false, reason: 'preparation-failed', message: String(error?.message || error) } };
+    }
+  }
+  function previewDestination(id, { altitudeOffsetMeters = 0 } = {}) {
+    const preview = resolvePreview(id, altitudeOffsetMeters);
+    if (preview.ok && typeof prepareDestinationRegion === 'function') {
+      void prepareDestination(id, { altitudeOffsetMeters }).catch(() => {});
+    }
+    return preview;
   }
   function teleport(id, { actor = 'ship', altitudeOffsetMeters = 100 } = {}) {
     if (!active) return { ok: false, reason: 'transport-disabled' };
@@ -141,7 +162,7 @@ export function createPlanetaryTransportCore({
 
   return Object.freeze({
     registerDestination, unregisterDestination, findDestinations, getDestination,
-    previewDestination, teleport, transferToPosition,
+    previewDestination, prepareDestination, teleport, transferToPosition,
     setEnabled(value) { active = Boolean(value); return active; },
     getStatus() {
       return {
