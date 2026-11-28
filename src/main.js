@@ -2771,6 +2771,72 @@ function updatePilotInteraction() {
   updateCharacterHUD();
 }
 
+const characterInteractionCandidates = [
+  {
+    id: 'alexia', priority: 100, available: false,
+    label: '◎ ALEXIA', target: 'TRIPULANTE ALEXIA',
+    activate: () => alexiaInteractionMenu?.open?.()
+  },
+  {
+    id: 'lighting-console', priority: 95, available: false,
+    label: '◎ INTERAGIR', target: 'CONSOLE DE ILUMINAÇÃO',
+    activate: () => document.dispatchEvent(new CustomEvent('starfrontier:aurora-open-app', {
+      detail: { app: 'lighting', source: 'deck1-console' }
+    }))
+  },
+  {
+    id: 'transporter-platform', priority: 90, available: false,
+    label: '◎ PLATAFORMA', target: 'PLATAFORMA · SEM DESTINO DEFINIDO',
+    activate: () => transporterActionMenu?.open?.(transporterDispatchBuffer.getPending()?.destinationName)
+  },
+  {
+    id: 'terrestrial-transport', priority: 85, available: false,
+    label: '◎ TERMINAL BT-01', target: 'TERMINAL DE TRANSPORTE · BT-01',
+    activate: () => toggleTerrestrialTransportConsole()
+  },
+  {
+    id: 'planetary-transport', priority: 80, available: false,
+    label: '◎ AURORA OS', target: 'CONSOLE AURORA OS · TRANSPORTE PLANETÁRIO',
+    activate: () => togglePlanetaryTransportConsole()
+  },
+  {
+    id: 'external-elevator-moving', priority: 75, visible: false,
+    available: false, disabled: true,
+    label: 'ELEVADOR...', target: 'ELEVADOR EM MOVIMENTO'
+  },
+  {
+    id: 'external-elevator', priority: 75, visible: false, available: false,
+    label: 'DESCER', target: 'ELEVADOR EXTERNO',
+    activate: () => activateExternalElevator()
+  },
+  {
+    id: 'dilithium-matrix', priority: 70, available: false,
+    label: '◎ ACESSAR MATRIZ', target: 'TERMINAL DA MATRIZ DE DILÍTIO',
+    activate: () => toggleDilithiumMatrixConsole()
+  },
+  {
+    id: 'refinery', priority: 65, available: false,
+    label: '◎ REFINARIA', target: 'TERMINAL DA REFINARIA',
+    activate: () => toggleRefineryConsole()
+  },
+  {
+    id: 'deflector', priority: 60, available: false,
+    label: '◎ CONSOLE DO DEFLETOR', target: 'COMPUTADOR DO DEFLETOR',
+    activate: () => toggleDeflectorConsole()
+  },
+  {
+    id: 'engineering', priority: 55, available: false,
+    label: '◎ ENGENHARIA', target: 'CONSOLE DE ENGENHARIA',
+    activate: () => toggleEngineeringConsole()
+  },
+  {
+    id: 'pilot-console', priority: 10, available: false,
+    label: '◎ PILOTAR', target: 'PILOTAGEM DISPONÍVEL',
+    activate: () => enterPilotMode()
+  }
+];
+const characterInteractionFallback = { hidden: false, label: 'AÇÃO', target: null };
+
 function updateCharacterAction() {
   const onFoot = characterCore.snapshot().mode === 'on-foot';
   if (!onFoot || !characterModel) {
@@ -2779,104 +2845,68 @@ function updateCharacterAction() {
     return;
   }
 
-  const candidates = [];
-  if (nearbyAlexiaInteraction) candidates.push({
-    id: 'alexia', priority: 100, available: true,
-    label: '◎ ALEXIA', target: 'TRIPULANTE ALEXIA',
-    activate: () => alexiaInteractionMenu?.open?.()
-  });
-  if (lightingConsoleInteractionAvailable || lightingConsoleActive) candidates.push({
-    id: 'lighting-console', priority: 95, available: true,
-    label: lightingConsoleActive ? '◎ ILUMINAÇÃO ABERTA' : '◎ INTERAGIR',
-    target: 'CONSOLE DE ILUMINAÇÃO',
-    activate: () => document.dispatchEvent(new CustomEvent('starfrontier:aurora-open-app', {
-      detail: { app: 'lighting', source: 'deck1-console' }
-    }))
-  });
-  if (transporterActionAvailable) {
-    const pending = transporterDispatchBuffer.getPending();
-    candidates.push({
-      id: 'transporter-platform', priority: 90, available: true,
-      label: '◎ PLATAFORMA',
-      target: pending && transporterDestinationId === pending.destinationId
-        ? 'PLATAFORMA · DESTINO RECEBIDO · PRONTA'
-        : 'PLATAFORMA · SEM DESTINO DEFINIDO',
-      activate: () => transporterActionMenu?.open?.(pending?.destinationName)
-    });
-  }
-  if (terrestrialTransportInteractionAvailable || terrestrialTransportConsoleActive) candidates.push({
-    id: 'terrestrial-transport', priority: 85, available: true,
-    label: terrestrialTransportConsoleActive ? '◎ FECHAR TERMINAL BT-01' : '◎ TERMINAL BT-01',
-    target: terrestrialTransportConsoleActive
-      ? 'TERMINAL TERRESTRE · CONECTADO'
-      : 'TERMINAL DE TRANSPORTE · BT-01',
-    activate: () => toggleTerrestrialTransportConsole()
-  });
-  if (transporterInteractionAvailable || transporterConsoleActive) candidates.push({
-    id: 'planetary-transport', priority: 80, available: true,
-    label: transporterConsoleActive ? '◎ FECHAR AURORA OS' : '◎ AURORA OS',
-    target: transporterConsoleActive
-      ? 'AURORA OS · TRANSPORTE CONECTADO'
-      : 'CONSOLE AURORA OS · TRANSPORTE PLANETÁRIO',
-    activate: () => togglePlanetaryTransportConsole()
-  });
-  if (externalElevator?.moving) candidates.push({
-    id: 'external-elevator-moving', priority: 75, available: false, disabled: true,
-    label: 'ELEVADOR...', target: 'ELEVADOR EM MOVIMENTO'
-  });
-  else if (externalElevatorActionAvailable) candidates.push({
-    id: 'external-elevator', priority: 75, available: true,
-    label: externalElevator?.phase === 'bottom' ? 'SUBIR' : 'DESCER',
-    target: 'ELEVADOR EXTERNO',
-    activate: () => activateExternalElevator()
-  });
-  if (matrixInteractionAvailable || matrixConsoleActive) candidates.push({
-    id: 'dilithium-matrix', priority: 70, available: true,
-    label: matrixConsoleActive ? '◎ FECHAR MATRIZ' : '◎ ACESSAR MATRIZ',
-    target: matrixConsoleActive ? 'TERMINAL DA MATRIZ CONECTADO' : 'TERMINAL DA MATRIZ DE DILÍTIO',
-    activate: () => toggleDilithiumMatrixConsole()
-  });
-  if (refineryInteractionAvailable || refineryConsoleActive) candidates.push({
-    id: 'refinery', priority: 65, available: true,
-    label: refineryConsoleActive ? '◎ FECHAR REFINARIA' : '◎ REFINARIA',
-    target: refineryConsoleActive ? 'TERMINAL DA REFINARIA CONECTADO' : 'TERMINAL DA REFINARIA',
-    activate: () => toggleRefineryConsole()
-  });
-  if (deflectorInteractionAvailable || deflectorConsoleActive) candidates.push({
-    id: 'deflector', priority: 60, available: true,
-    label: deflectorConsoleActive ? '◎ DESCONECTAR DEFLETOR' : '◎ CONSOLE DO DEFLETOR',
-    target: deflectorConsoleActive ? 'COMPUTADOR DO DEFLETOR CONECTADO' : 'COMPUTADOR DO DEFLETOR',
-    activate: () => toggleDeflectorConsole()
-  });
-  if (engineeringInteractionAvailable || engineeringConsoleActive) candidates.push({
-    id: 'engineering', priority: 55, available: true,
-    label: engineeringConsoleActive ? '◎ DESCONECTAR ENGENHARIA' : '◎ ENGENHARIA',
-    target: engineeringConsoleActive ? 'CONSOLE DE ENGENHARIA CONECTADO' : 'CONSOLE DE ENGENHARIA',
-    activate: () => toggleEngineeringConsole()
-  });
+  const candidates = characterInteractionCandidates;
+  candidates[0].available = Boolean(nearbyAlexiaInteraction);
+  candidates[1].available = Boolean(lightingConsoleInteractionAvailable || lightingConsoleActive);
+  candidates[1].label = lightingConsoleActive ? '◎ ILUMINAÇÃO ABERTA' : '◎ INTERAGIR';
+  candidates[2].available = Boolean(transporterActionAvailable);
+  const pending = transporterDispatchBuffer.getPending();
+  candidates[2].target = pending && transporterDestinationId === pending.destinationId
+    ? 'PLATAFORMA · DESTINO RECEBIDO · PRONTA'
+    : 'PLATAFORMA · SEM DESTINO DEFINIDO';
+  candidates[3].available = Boolean(terrestrialTransportInteractionAvailable || terrestrialTransportConsoleActive);
+  candidates[3].label = terrestrialTransportConsoleActive ? '◎ FECHAR TERMINAL BT-01' : '◎ TERMINAL BT-01';
+  candidates[3].target = terrestrialTransportConsoleActive
+    ? 'TERMINAL TERRESTRE · CONECTADO'
+    : 'TERMINAL DE TRANSPORTE · BT-01';
+  candidates[4].available = Boolean(transporterInteractionAvailable || transporterConsoleActive);
+  candidates[4].label = transporterConsoleActive ? '◎ FECHAR AURORA OS' : '◎ AURORA OS';
+  candidates[4].target = transporterConsoleActive
+    ? 'AURORA OS · TRANSPORTE CONECTADO'
+    : 'CONSOLE AURORA OS · TRANSPORTE PLANETÁRIO';
+
+  const elevatorMoving = Boolean(externalElevator?.moving);
+  candidates[5].visible = elevatorMoving;
+  candidates[6].visible = !elevatorMoving && Boolean(externalElevatorActionAvailable);
+  candidates[6].available = Boolean(externalElevatorActionAvailable && !elevatorMoving);
+  candidates[6].label = externalElevator?.phase === 'bottom' ? 'SUBIR' : 'DESCER';
+
+  candidates[7].available = Boolean(matrixInteractionAvailable || matrixConsoleActive);
+  candidates[7].label = matrixConsoleActive ? '◎ FECHAR MATRIZ' : '◎ ACESSAR MATRIZ';
+  candidates[7].target = matrixConsoleActive
+    ? 'TERMINAL DA MATRIZ CONECTADO'
+    : 'TERMINAL DA MATRIZ DE DILÍTIO';
+  candidates[8].available = Boolean(refineryInteractionAvailable || refineryConsoleActive);
+  candidates[8].label = refineryConsoleActive ? '◎ FECHAR REFINARIA' : '◎ REFINARIA';
+  candidates[8].target = refineryConsoleActive
+    ? 'TERMINAL DA REFINARIA CONECTADO'
+    : 'TERMINAL DA REFINARIA';
+  candidates[9].available = Boolean(deflectorInteractionAvailable || deflectorConsoleActive);
+  candidates[9].label = deflectorConsoleActive ? '◎ DESCONECTAR DEFLETOR' : '◎ CONSOLE DO DEFLETOR';
+  candidates[9].target = deflectorConsoleActive
+    ? 'COMPUTADOR DO DEFLETOR CONECTADO'
+    : 'COMPUTADOR DO DEFLETOR';
+  candidates[10].available = Boolean(engineeringInteractionAvailable || engineeringConsoleActive);
+  candidates[10].label = engineeringConsoleActive ? '◎ DESCONECTAR ENGENHARIA' : '◎ ENGENHARIA';
+  candidates[10].target = engineeringConsoleActive
+    ? 'CONSOLE DE ENGENHARIA CONECTADO'
+    : 'CONSOLE DE ENGENHARIA';
+
   let pilotAvailable = false;
   if (!nearbyElevator) {
     characterModel.group.getWorldPosition(pilotPlayerWorldPosition);
     pilotAvailable = isPilotConsoleInRange(pilotPlayerWorldPosition, shipVisual);
   }
   pilotInteractionAvailable = pilotAvailable;
-  if (pilotAvailable) candidates.push({
-    id: 'pilot-console', priority: 10, available: true,
-    label: '◎ PILOTAR', target: 'PILOTAGEM DISPONÍVEL',
-    activate: () => enterPilotMode()
-  });
+  candidates[11].available = pilotAvailable;
 
-  const pending = transporterDispatchBuffer.getPending();
-  const fallbackTarget = nearbyElevator
+  characterInteractionFallback.hidden = Boolean(nearbyElevator);
+  characterInteractionFallback.target = nearbyElevator
     ? 'ELEVADOR INTERNO'
     : characterInWorldFrame && terrestrialTransportBase
       ? 'BASE TERRESTRE BRASIL · BT-01'
       : pending ? 'DESTINO ENVIADO · DIRIJA-SE À PLATAFORMA' : null;
-  characterInteractionManager.render(candidates, {
-    hidden: nearbyElevator,
-    label: 'AÇÃO',
-    target: fallbackTarget
-  });
+  characterInteractionManager.render(candidates, characterInteractionFallback);
   characterInteractionManager.syncTarget();
 }
 
