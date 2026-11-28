@@ -17,6 +17,7 @@ import { state, resetTransientState } from './core/state.js';
 import { createCharacterCore } from './character/characterCore.js';
 import { createCharacterHUD } from './character/characterHUD.js';
 import { createCharacterInteractionMenu } from './character/characterInteractionMenu.js';
+import { createCharacterInteractionManager } from './character/characterInteractionManager.js';
 import { createCharacterAudio } from './character/characterAudio.js';
 import { createShipAudio } from './ships/shipAudio.js';
 import { audioManager } from './systems/audioManager.js';
@@ -78,6 +79,13 @@ function cloneHudData(value) {
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 
 const characterCore = createCharacterCore();
+const characterInteractionManager = createCharacterInteractionManager({
+  button: $('character-action-btn'),
+  onTargetChange: target => {
+    characterCore.setInteractionTarget(target);
+    updateCharacterHUD();
+  }
+});
 const characterAudio = createCharacterAudio({ core: characterCore });
 characterAudio.attach();
 const shipAudio = createShipAudio();
@@ -1064,7 +1072,7 @@ async function startGame() {
             cameraRuntime: cameraRuntimeSystem.service,
             earthSystem, camera, applyEarthSurfaceRotation, ship, updatePhaserWeapon,
             characterCore, syncCharacterDeckFrame, updateCharacterMovement, updateCharacterWeapon,
-            updateExternalElevatorAnimation, updateElevatorInteraction,
+            updateExternalElevatorAnimation, updateElevatorInteraction, updateCharacterAction,
             updatePilotInteraction, updateShipManagementInteraction, updateEngineeringConsoleInteraction, updateRefineryConsoleInteraction, updateDeflectorConsoleInteraction, updateTransporterConsoleInteraction, updateTransporterPlatformInteraction, updateExternalElevatorInteraction, updateAlexiaInteraction, updateLightingConsoleInteraction,
             updateCharacterCamera, updateFlight, updateCamera, updateShipSystems,
             setLandingBaseSystem: value => { landingBaseSystem = value; },
@@ -2079,7 +2087,6 @@ function updateAlexiaInteraction(dt = 0) {
       alexiaCharacter.core?.setMovement?.(0, 1);
     } else alexiaCharacter.core?.setMovement?.(0, 0);
   }
-  const floorY = starshipInterior.layout.decks[0].y + 0.21;
   if (available) {
     if (button) {
       button.disabled = false; button.dataset.interaction = 'alexia';
@@ -2658,6 +2665,10 @@ function updateTransporterPlatformInteraction() {
   // O destino só é exigido no momento de executar a transferência.
   const valid = Boolean(characterModel && characterCore.snapshot().mode === 'on-foot' &&
     !characterInWorldFrame && !nearbyElevator && activeDeckIndex === 1);
+  if (!valid) {
+    transporterActionAvailable = false;
+    return;
+  }
   const playerPosition = characterModel.group.position;
   const platformDx = playerPosition.x - transporterPlatformPosition.x;
   const platformDz = playerPosition.z - transporterPlatformPosition.z;
@@ -2756,6 +2767,107 @@ function updatePilotInteraction() {
 
   characterCore.setInteractionTarget(available ? 'PILOTAGEM DISPONÍVEL' : null);
   updateCharacterHUD();
+}
+
+function updateCharacterAction() {
+  const onFoot = characterCore.snapshot().mode === 'on-foot';
+  if (!onFoot) {
+    characterInteractionManager.render([], { hidden: true, label: 'AÇÃO' });
+    return;
+  }
+
+  const candidates = [];
+  if (nearbyAlexiaInteraction) candidates.push({
+    id: 'alexia', priority: 100, available: true,
+    label: '◎ ALEXIA', target: 'TRIPULANTE ALEXIA',
+    activate: () => alexiaInteractionMenu?.open?.()
+  });
+  if (lightingConsoleInteractionAvailable || lightingConsoleActive) candidates.push({
+    id: 'lighting-console', priority: 95, available: true,
+    label: lightingConsoleActive ? '◎ ILUMINAÇÃO ABERTA' : '◎ INTERAGIR',
+    target: 'CONSOLE DE ILUMINAÇÃO',
+    activate: () => document.dispatchEvent(new CustomEvent('starfrontier:aurora-open-app', {
+      detail: { app: 'lighting', source: 'deck1-console' }
+    }))
+  });
+  if (transporterActionAvailable) {
+    const pending = transporterDispatchBuffer.getPending();
+    candidates.push({
+      id: 'transporter-platform', priority: 90, available: true,
+      label: '◎ PLATAFORMA',
+      target: pending && transporterDestinationId === pending.destinationId
+        ? 'PLATAFORMA · DESTINO RECEBIDO · PRONTA'
+        : 'PLATAFORMA · SEM DESTINO DEFINIDO',
+      activate: () => transporterActionMenu?.open?.(pending?.destinationName)
+    });
+  }
+  if (terrestrialTransportInteractionAvailable || terrestrialTransportConsoleActive) candidates.push({
+    id: 'terrestrial-transport', priority: 85, available: true,
+    label: terrestrialTransportConsoleActive ? '◎ FECHAR TERMINAL BT-01' : '◎ TERMINAL BT-01',
+    target: terrestrialTransportConsoleActive
+      ? 'TERMINAL TERRESTRE · CONECTADO'
+      : 'TERMINAL DE TRANSPORTE · BT-01',
+    activate: () => toggleTerrestrialTransportConsole()
+  });
+  if (transporterInteractionAvailable || transporterConsoleActive) candidates.push({
+    id: 'planetary-transport', priority: 80, available: true,
+    label: transporterConsoleActive ? '◎ FECHAR AURORA OS' : '◎ AURORA OS',
+    target: transporterConsoleActive
+      ? 'AURORA OS · TRANSPORTE CONECTADO'
+      : 'CONSOLE AURORA OS · TRANSPORTE PLANETÁRIO',
+    activate: () => togglePlanetaryTransportConsole()
+  });
+  if (externalElevator?.moving) candidates.push({
+    id: 'external-elevator-moving', priority: 75, available: false, disabled: true,
+    label: 'ELEVADOR...', target: 'ELEVADOR EM MOVIMENTO'
+  });
+  else if (externalElevatorActionAvailable) candidates.push({
+    id: 'external-elevator', priority: 75, available: true,
+    label: externalElevator?.phase === 'bottom' ? 'SUBIR' : 'DESCER',
+    target: 'ELEVADOR EXTERNO',
+    activate: () => activateExternalElevator()
+  });
+  if (matrixInteractionAvailable || matrixConsoleActive) candidates.push({
+    id: 'dilithium-matrix', priority: 70, available: true,
+    label: matrixConsoleActive ? '◎ FECHAR MATRIZ' : '◎ ACESSAR MATRIZ',
+    target: matrixConsoleActive ? 'TERMINAL DA MATRIZ CONECTADO' : 'TERMINAL DA MATRIZ DE DILÍTIO',
+    activate: () => toggleDilithiumMatrixConsole()
+  });
+  if (refineryInteractionAvailable || refineryConsoleActive) candidates.push({
+    id: 'refinery', priority: 65, available: true,
+    label: refineryConsoleActive ? '◎ FECHAR REFINARIA' : '◎ REFINARIA',
+    target: refineryConsoleActive ? 'TERMINAL DA REFINARIA CONECTADO' : 'TERMINAL DA REFINARIA',
+    activate: () => toggleRefineryConsole()
+  });
+  if (deflectorInteractionAvailable || deflectorConsoleActive) candidates.push({
+    id: 'deflector', priority: 60, available: true,
+    label: deflectorConsoleActive ? '◎ DESCONECTAR DEFLETOR' : '◎ CONSOLE DO DEFLETOR',
+    target: deflectorConsoleActive ? 'COMPUTADOR DO DEFLETOR CONECTADO' : 'COMPUTADOR DO DEFLETOR',
+    activate: () => toggleDeflectorConsole()
+  });
+  if (engineeringInteractionAvailable || engineeringConsoleActive) candidates.push({
+    id: 'engineering', priority: 55, available: true,
+    label: engineeringConsoleActive ? '◎ DESCONECTAR ENGENHARIA' : '◎ ENGENHARIA',
+    target: engineeringConsoleActive ? 'CONSOLE DE ENGENHARIA CONECTADO' : 'CONSOLE DE ENGENHARIA',
+    activate: () => toggleEngineeringConsole()
+  });
+  if (pilotInteractionAvailable) candidates.push({
+    id: 'pilot-console', priority: 10, available: true,
+    label: '◎ PILOTAR', target: 'PILOTAGEM DISPONÍVEL',
+    activate: () => enterPilotMode()
+  });
+
+  const pending = transporterDispatchBuffer.getPending();
+  const fallbackTarget = nearbyElevator
+    ? 'ELEVADOR INTERNO'
+    : characterInWorldFrame && terrestrialTransportBase
+      ? 'BASE TERRESTRE BRASIL · BT-01'
+      : pending ? 'DESTINO ENVIADO · DIRIJA-SE À PLATAFORMA' : null;
+  characterInteractionManager.render(candidates, {
+    hidden: nearbyElevator,
+    label: 'AÇÃO',
+    target: fallbackTarget
+  });
 }
 
 function setPilotInterface(activePilot) {
@@ -3019,20 +3131,7 @@ function updateCharacterWeapon(dt) {
 }
 
 $('character-action-btn')?.addEventListener('click', () => {
-  if (nearbyAlexiaInteraction) { alexiaInteractionMenu?.open?.(); return; }
-  if (lightingConsoleInteractionAvailable || lightingConsoleActive) {
-    document.dispatchEvent(new CustomEvent('starfrontier:aurora-open-app', { detail: { app: 'lighting', source: 'deck1-console' } }));
-    return;
-  }
-  if (transporterActionAvailable) { transporterActionMenu?.open?.(transporterDispatchBuffer.getPending()?.destinationName); return; }
-  if (terrestrialTransportInteractionAvailable || terrestrialTransportConsoleActive) { toggleTerrestrialTransportConsole(); return; }
-  if (transporterInteractionAvailable || transporterConsoleActive) { togglePlanetaryTransportConsole(); return; }
-  if (externalElevatorActionAvailable) activateExternalElevator();
-  else if (matrixInteractionAvailable || matrixConsoleActive) toggleDilithiumMatrixConsole();
-  else if (refineryInteractionAvailable || refineryConsoleActive) toggleRefineryConsole();
-  else if (deflectorInteractionAvailable || deflectorConsoleActive) toggleDeflectorConsole();
-  else if (engineeringInteractionAvailable || engineeringConsoleActive) toggleEngineeringConsole();
-  else enterPilotMode();
+  characterInteractionManager.activate();
 });
 window.addEventListener('keydown', event => {
   if (event.key === 'Escape' && !$('inventory-modal')?.classList.contains('hidden')) { closeInventory(); return; }
