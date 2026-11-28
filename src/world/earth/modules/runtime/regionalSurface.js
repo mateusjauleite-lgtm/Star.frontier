@@ -195,6 +195,7 @@ export function createEarthQuadtreeTileGeometry(node, radius, {
   elevationSampler = null,
   elevationMeters = null,
   elevationMetersToUnits = null,
+  localColorBounds = null,
   skirtUnits = 0.002,
   demEdgeBlend = 0.12
 } = {}) {
@@ -207,6 +208,8 @@ export function createEarthQuadtreeTileGeometry(node, radius, {
   const v0 = 1 - (node.y + 1) / divisions * 2;
   const positions = new Float32Array((segments + 1) ** 2 * 3);
   const uvs = new Float32Array((segments + 1) ** 2 * 2);
+  const localUvs = localColorBounds ? new Float32Array((segments + 1) ** 2 * 2) : null;
+  let localColorCoverage = Boolean(localColorBounds);
   const indices = [];
   const direction = new THREE.Vector3();
   let vertex = 0;
@@ -236,6 +239,12 @@ export function createEarthQuadtreeTileGeometry(node, radius, {
       uvs[index * 2] = earthLongitudeToSphereUv(geographic.longitudeDeg);
       // Match SphereGeometry's north-at-v=1 convention and TextureLoader flipY.
       uvs[index * 2 + 1] = (geographic.latitudeDeg + 90) / 180;
+      if (localUvs) {
+        const inside = geographic.longitudeDeg >= localColorBounds.west && geographic.longitudeDeg <= localColorBounds.east && geographic.latitudeDeg >= localColorBounds.south && geographic.latitudeDeg <= localColorBounds.north;
+        localColorCoverage = localColorCoverage && inside;
+        localUvs[index * 2] = THREE.MathUtils.clamp((geographic.longitudeDeg - localColorBounds.west) / (localColorBounds.east - localColorBounds.west), 0, 1);
+        localUvs[index * 2 + 1] = THREE.MathUtils.clamp((geographic.latitudeDeg - localColorBounds.south) / (localColorBounds.north - localColorBounds.south), 0, 1);
+      }
     }
   }
   for (let row = 0; row < segments; row++) {
@@ -248,10 +257,12 @@ export function createEarthQuadtreeTileGeometry(node, radius, {
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+  if (localUvs) geometry.setAttribute('uv2', new THREE.BufferAttribute(localUvs, 2));
   geometry.setIndex(indices);
   geometry.computeVertexNormals();
   geometry.computeBoundingSphere();
   geometry.userData.earthQuadtree = { ...node, segments };
+  geometry.userData.earthRegionalColorCoverage = localColorCoverage;
   return geometry;
 }
 
@@ -298,6 +309,8 @@ export function createEarthRegionalSurfaceRuntime({
   let lastSyncedMap = surface?.material?.map ?? null;
   let lastSyncedEmissiveMap = surface?.material?.emissiveMap ?? null;
   let lastSyncedMaterialVersion = surface?.material?.version ?? 0;
+  let lastSyncedRegionalTexture = surface?.userData?.earthRegionalColorTexture ?? null;
+  let textureDebug = false;
   let generationStartedAt = null;
   let lastGenerationMs = null;
   let completedGenerations = 0;
@@ -325,7 +338,19 @@ export function createEarthRegionalSurfaceRuntime({
     target.roughness = source.roughness;
     target.metalness = source.metalness;
     target.emissiveIntensity = source.emissiveIntensity;
+    const regionalTexture = surface?.userData?.earthRegionalColorTexture ?? null;
+    if (target.userData?.earthRegionalColorTile && regionalTexture) {
+      if (target.map !== regionalTexture || target.emissiveMap !== regionalTexture) changed = true;
+      target.map = regionalTexture;
+      target.emissiveMap = regionalTexture;
+    }
     if (changed) target.needsUpdate = true;
+  };
+
+  const applyTextureDebugTint = material => {
+    if (!material?.color) return;
+    material.color.set(textureDebug && !material.map?.image ? 0xff3030 : 0xffffff);
+    material.needsUpdate = true;
   };
 
   const syncActiveTileMaterials = (force = false) => {
@@ -333,13 +358,16 @@ export function createEarthRegionalSurfaceRuntime({
     const sourceMap = surface.material.map ?? null;
     const sourceEmissiveMap = surface.material.emissiveMap ?? null;
     const sourceVersion = surface.material.version ?? 0;
+    const regionalTexture = surface.userData?.earthRegionalColorTexture ?? null;
     if (!force && sourceMap === lastSyncedMap && sourceEmissiveMap === lastSyncedEmissiveMap &&
-        sourceVersion === lastSyncedMaterialVersion) return;
+        sourceVersion === lastSyncedMaterialVersion && regionalTexture === lastSyncedRegionalTexture) return;
     lastSyncedMap = sourceMap;
     lastSyncedEmissiveMap = sourceEmissiveMap;
     lastSyncedMaterialVersion = sourceVersion;
+    lastSyncedRegionalTexture = regionalTexture;
     for (const mesh of active.values()) {
       syncMaterial(mesh.material, surface.material);
+      applyTextureDebugTint(mesh.material);
       const timing = surface.userData?.earthBlueMarbleTiming;
       if (mesh.material?.map?.image && timing?.loadedAtMs != null && firstRegionalTextureMs === null) {
         const syncedAt = nowMs();
@@ -391,11 +419,14 @@ export function createEarthRegionalSurfaceRuntime({
       segments,
       elevationSampler,
       elevationMeters: hasDem ? demValues : null,
-      elevationMetersToUnits
+      elevationMetersToUnits,
+      localColorBounds: surface.userData?.earthRegionalColorBounds ?? null
     });
     if (!geometry) return null;
     const material = surface.material.clone();
+    material.userData.earthRegionalColorTile = geometry.userData.earthRegionalColorCoverage === true;
     syncMaterial(material, surface.material);
+    applyTextureDebugTint(material);
     material.side = THREE.DoubleSide;
     material.depthTest = true;
     material.depthWrite = true;
@@ -409,7 +440,7 @@ export function createEarthRegionalSurfaceRuntime({
     mesh.scale.copy(surface.scale);
     mesh.renderOrder = 2;
     mesh.frustumCulled = false;
-    mesh.userData.earthQuadtree = { ...node, elevationSource: hasDem ? 'regional-dem' : 'global-fallback' };
+    mesh.userData.earthQuadtree = { ...node, elevationSource: hasDem ? 'regional-dem' : 'global-fallback', colorSource: material.userData.earthRegionalColorTile && material.map?.image ? 'nasa-blue-marble-500m-jau' : material.map?.image ? 'nasa-blue-marble-global' : 'missing' };
     tileRoot.add(mesh);
     active.set(id, mesh);
     completedTiles++;
@@ -472,6 +503,11 @@ export function createEarthRegionalSurfaceRuntime({
     syncSurfaceMaterials() {
       syncActiveTileMaterials(true);
       return active.size;
+    },
+    setTextureDebug(enabled) {
+      textureDebug = Boolean(enabled);
+      for (const mesh of active.values()) applyTextureDebugTint(mesh.material);
+      return textureDebug;
     },
     update(delta, context) {
       if (disposed || !surface || !context?.camera) return;
@@ -586,6 +622,11 @@ export function createEarthRegionalSurfaceRuntime({
         mode: 'cube-sphere-quadtree',
         activeTiles: active.size,
         texturedTiles,
+        globalColorTiles: texturedTiles - [...active.values()].filter(mesh => mesh.material?.userData?.earthRegionalColorTile && mesh.material?.map?.image).length,
+        regionalColorTiles: [...active.values()].filter(mesh => mesh.material?.userData?.earthRegionalColorTile && mesh.material?.map?.image).length,
+        textureDebug,
+        globalTextureState: surface?.userData?.earthBlueMarbleTiming?.textureState ?? (surface?.material?.map?.image ? 'ready' : 'missing'),
+        regionalColorTextureState: surface?.userData?.earthRegionalColorTexture ? 'ready' : surface?.userData?.earthRegionalColorState ?? 'missing',
         untexturedTiles: active.size - texturedTiles,
         textureCoverage: active.size ? texturedTiles / active.size : 0,
         queuedTiles: pending.length,
