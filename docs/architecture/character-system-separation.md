@@ -63,3 +63,12 @@ Testar caminhada nos quatro decks, elevadores, saída/retorno à nave, BT-01, te
 - Não substituir Blue Marble/ETOPO nem misturar a correção de textura da PR #84 com esta reforma.
 - Não integrar a instrumentação da PR #86 como correção de movimento.
 - Cada etapa deve permanecer isolada em PR revisável e com testes antes de avançar.
+
+
+## Etapa 4 — integração de controles e HUD (continuação)
+- O joystick de caminhada pertence exclusivamente a `characterControls`; seu vetor local nunca é gravado em `state.move`.
+- O joystick de pilotagem pertence a `shipMovementControls`; somente ele escreve em `state.move`.
+- `createGameplayControlModeController` define três modos explícitos: `on-foot-ship`, `on-foot-planet` e `piloting`, além de `inactive` para suspensão.
+- A pé na nave ou no planeta, o HUD e os controles do personagem ficam ativos; em pilotagem, somente HUD e controles da nave ficam ativos.
+- Toda transição limpa entradas e libera capturas de ponteiro antes de ativar o outro conjunto.
+- A física/movimentação de ambiente ainda permanece no fluxo legado de `main.js`; esta etapa separa a captura de entrada e a ativação dos HUDs, sem afirmar que a migração dos adaptadores de física foi concluída.

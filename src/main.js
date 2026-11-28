@@ -1891,6 +1891,7 @@ function updateShipSystems(dt) {
 function updateCharacterMovement(dt) {
   if (!characterModel || characterCore.snapshot().mode !== 'on-foot') return;
   syncCharacterDeckFrame();
+  gameplayControlModes?.setMode(characterInWorldFrame ? 'on-foot-planet' : 'on-foot-ship');
   // A gravidade artificial pertence somente ao referencial interno da nave.
   // No exterior, o personagem usa exclusivamente a gravidade planetária.
   if (!characterInWorldFrame) artificialGravityField.update(dt, state);
