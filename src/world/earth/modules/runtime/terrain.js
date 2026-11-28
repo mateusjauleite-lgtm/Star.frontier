@@ -522,6 +522,14 @@ export function createTerrainRuntime({ options, layers }) {
         // Keep the already-generated JS terrain if WASM loading fails.
       });
     },
+    prepareRegion({ latitudeDeg, longitudeDeg, altitudeMeters = 0 } = {}) {
+      if (disposed || !regionalSurfaceRuntime ||
+          !Number.isFinite(altitudeMeters) || altitudeMeters < 0) {
+        return Promise.resolve({ ok: false, reason: 'terrain-runtime-unavailable' });
+      }
+      const altitudeUnits = physicalScale.metersToRenderUnits(altitudeMeters);
+      return regionalSurfaceRuntime.prepareRegion({ latitudeDeg, longitudeDeg, altitudeUnits });
+    },
     update(delta, context) {
       regionalSurfaceRuntime?.update(delta, context);
       if (layers.terrain && regionalSurfaceRuntime) {
