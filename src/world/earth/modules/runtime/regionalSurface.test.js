@@ -239,8 +239,8 @@ test('reselects visible regional tiles immediately after a meaningful camera tur
   );
   root.add(surface);
   const camera = new THREE.PerspectiveCamera(70, 1.8, 0.1, 10000);
-  camera.position.set(0, 0, 601);
-  camera.lookAt(1, 0, 0);
+  camera.position.set(0, 0, 700);
+  camera.lookAt(700, 0, 0);
   const runtime = createEarthRegionalSurfaceRuntime({
     surface,
     radius: 600,
@@ -253,7 +253,7 @@ test('reselects visible regional tiles immediately after a meaningful camera tur
 
   runtime.update(0.016, { camera });
   const firstSelection = runtime.getStatus().selectedKeys;
-  camera.lookAt(0, 1, 0);
+  camera.lookAt(0, 700, 0);
   runtime.update(0.016, { camera });
   const turnedSelection = runtime.getStatus().selectedKeys;
 
