@@ -726,6 +726,20 @@ select:focus {
   line-height: 1.45;
 }
 
+#game-menu-modal .settings-performance-readout {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid rgba(67, 217, 255, 0.2);
+  border-radius: 7px;
+  color: #91b8cb;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+#game-menu-modal .settings-performance-readout b {
+  color: #d9f6ff;
+}
+
 /* CELULAR EM MODO PAISAGEM */
 
 @media (orientation: landscape) and (max-height: 600px) {
