@@ -6,6 +6,10 @@ from urllib.request import Request, urlopen
 
 from PIL import Image
 
+# These fixed NASA source rasters are trusted and exceed Pillow's generic
+# decompression-bomb threshold (the 500 m quadrant is 21600x21600 pixels).
+Image.MAX_IMAGE_PIXELS = None
+
 NASA_BASE = (
     "https://assets.science.nasa.gov/content/dam/science/esd/eo/images/"
     "bmng/bmng-topography-bathymetry/january/"
