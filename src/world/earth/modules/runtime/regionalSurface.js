@@ -475,7 +475,7 @@ export function createEarthRegionalSurfaceRuntime({
         .sub(cameraLocal).normalize();
       const cameraFov = context.camera.fov ?? 75;
       const cameraAspect = context.camera.aspect ?? 1;
-      const positionThreshold = Math.max(0.05, radius * 1e-6);
+      const positionThreshold = Math.max(0.5, radius * 1e-6);
       const directionThreshold = Math.cos(THREE.MathUtils.degToRad(2));
       const positionChanged = !lastCameraLocalPosition ||
         lastCameraLocalPosition.distanceTo(cameraLocal) >= positionThreshold;
