@@ -479,16 +479,28 @@
           <div class="field-row">
             <label for="pause-quality">Qualidade gráfica</label>
             <select id="pause-quality">
-              <option value="Baixa">Baixa</option>
-              <option value="Média">Média</option>
-              <option value="Alta">Alta</option>
+              <option value="Suave">Suave</option>
+              <option value="Padrão">Padrão</option>
+              <option value="Alto">Alto</option>
+              <option value="Ultra">Ultra</option>
             </select>
           </div>
+          <small>Os perfis ajustam a resolução de renderização e a filtragem das texturas.</small>
           <div class="field-row">
-            <label for="pause-sens">Sensibilidade <output id="pause-sens-value">1,0</output></label>
+            <label for="pause-sens">Sensibilidade da câmera <output id="pause-sens-value">1,0</output></label>
             <input id="pause-sens" type="range" min=".5" max="2" step=".1" value="1">
           </div>
-          <small>As alterações são salvas neste dispositivo.</small>
+          <div class="field-row">
+            <label for="pause-time-scale">Velocidade do tempo astronômico</label>
+            <select id="pause-time-scale">
+              <option value="1">1× · Normal</option>
+              <option value="10">10×</option>
+              <option value="60">60×</option>
+              <option value="300">300×</option>
+            </select>
+          </div>
+          <small>Altera somente a evolução do tempo astronômico; não acelera a física da nave nem do personagem.</small>
+          <p class="settings-performance-readout">Desempenho: <b id="pause-fps-value">--</b> FPS (última leitura)</p>
           <button id="pause-settings-back-btn" class="secondary" type="button">VOLTAR</button>
         </section>
       </div>

@@ -34,10 +34,12 @@ function createFixture() {
     ['resume-btn', new FakeElement()],
     ['pause-menu-actions', new FakeElement()],
     ['pause-settings-panel', new FakeElement(true)],
-    ['game-menu-modal', new FakeElement(true)]
+    ['game-menu-modal', new FakeElement(true)],
+    ['pause-fps-value', new FakeElement()]
   ]);
   const document = { getElementById: id => elements.get(id) ?? null };
   let status = 'running';
+  let clock = 1000;
   const calls = { pause: 0, resume: 0, reset: 0 };
   const runtime = {
     get status() { return status; },
@@ -49,9 +51,10 @@ function createFixture() {
     runtime,
     document,
     state,
-    resetInputs: () => { calls.reset += 1; }
+    resetInputs: () => { calls.reset += 1; },
+    now: () => clock
   });
-  return { elements, calls, state, system };
+  return { elements, calls, state, system, advanceClock: value => { clock = value; } };
 }
 
 test('menu de pausa abre, interrompe o Runtime e libera comandos de propulsão', () => {
@@ -92,4 +95,15 @@ test('shutdown remove os eventos do menu de pausa', () => {
 
   assert.equal(calls.pause, 0);
   assert.equal(elements.get('game-menu-modal').classList.contains('hidden'), true);
+});
+
+
+test('monitor de desempenho atualiza a última leitura de FPS durante a execução', () => {
+  const { elements, system, advanceClock } = createFixture();
+  system.initialize();
+  for (let frame = 0; frame <= 30; frame += 1) {
+    advanceClock(1000 + frame * (500 / 30));
+    system.update();
+  }
+  assert.equal(elements.get('pause-fps-value').textContent, '60');
 });

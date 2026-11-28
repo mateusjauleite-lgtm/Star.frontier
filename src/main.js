@@ -10,6 +10,7 @@ import { registerGameRuntimeSystems } from './core/runtime/systems/registerGameR
 import { createGameplayFramePhases } from './core/runtime/gameplayFramePhases.js';
 import { registerGameWorldEntities } from './core/entities/GameEntityBindings.js';
 import { createGameWorld } from './world/gameWorld.js';
+import { getGraphicsQualityProfile, normalizeGraphicsQuality } from './ui/graphicsQuality.js';
 import { createShipLandingMetricTelemetryAdapter, SHIP_MODEL_METERS_PER_UNIT } from './ships/flight/landingAutopilot.js';
 import { EXTERNAL_ELEVATOR_CONFIG } from './ships/externalElevator.js';
 import { getLandingSite } from './ships/flight/landingSites.js';
@@ -363,6 +364,9 @@ function updateCharacterHUD() {
 }
 
 load();
+state.settings ||= {};
+state.settings.quality = normalizeGraphicsQuality(state.settings.quality);
+state.settings.simulationTimeScale ??= 1;
 state.ship = 'Nave exploradora';
 
 /* UTILITÁRIOS */
@@ -643,15 +647,53 @@ function renderPanel(key) {
   });
 }
 
-// O menu de pausa reutiliza as mesmas preferências gerais do menu principal.
+// As configurações da pausa usam o mesmo estado persistido do jogo.
 function syncPauseSettingsControls() {
   state.settings ||= {};
+  state.settings.simulationTimeScale ??= 1;
   const quality = $('pause-quality');
   const sensitivity = $('pause-sens');
-  if (quality) quality.value = state.settings.quality || 'Alta';
+  const timeScale = $('pause-time-scale');
+  if (quality) quality.value = normalizeGraphicsQuality(state.settings.quality);
   if (sensitivity) sensitivity.value = String(state.settings.sensitivity ?? 1);
+  if (timeScale) timeScale.value = String(state.settings.simulationTimeScale);
   const readout = $('pause-sens-value');
   if (readout) readout.textContent = Number(sensitivity?.value ?? 1).toFixed(1).replace('.', ',');
+}
+
+function applyTextureAnisotropy(root, activeRenderer, profile) {
+  if (!root?.traverse || !activeRenderer?.capabilities) return;
+  const maximum = activeRenderer.capabilities.getMaxAnisotropy?.() ?? 1;
+  const anisotropy = Math.max(1, Math.min(maximum, profile.textureAnisotropy));
+  const textureSlots = ['map', 'aoMap', 'lightMap', 'bumpMap', 'normalMap', 'displacementMap', 'roughnessMap', 'metalnessMap', 'alphaMap', 'emissiveMap'];
+  root.traverse(object => {
+    const materials = Array.isArray(object.material) ? object.material : [object.material];
+    for (const material of materials) {
+      if (!material) continue;
+      for (const slot of textureSlots) {
+        const texture = material[slot];
+        if (!texture || texture.anisotropy === anisotropy) continue;
+        texture.anisotropy = anisotropy;
+        texture.needsUpdate = true;
+      }
+    }
+  });
+}
+
+function applyGraphicsSettings() {
+  state.settings ||= {};
+  state.settings.quality = normalizeGraphicsQuality(state.settings.quality);
+  const profile = getGraphicsQualityProfile(state.settings.quality);
+  const timeScale = Number(state.settings.simulationTimeScale ?? 1);
+  state.settings.simulationTimeScale = Number.isFinite(timeScale) && timeScale >= 0 ? timeScale : 1;
+  solarSystemDynamics?.setTimeScale?.(state.settings.simulationTimeScale);
+  if (renderer) {
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, profile.pixelRatioCap));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    applyTextureAnisotropy(scene, renderer, profile);
+  }
+  save();
+  return profile;
 }
 
 $('pause-settings-btn')?.addEventListener('click', () => {
@@ -665,10 +707,23 @@ $('pause-settings-back-btn')?.addEventListener('click', () => {
   $('pause-menu-actions')?.classList.remove('hidden');
 });
 
-$('pause-quality')?.addEventListener('change', event => {
-  state.settings ||= {};
-  state.settings.quality = event.target.value;
-  save();
+document.addEventListener('change', event => {
+  if (event.target?.id === 'pause-quality') {
+    state.settings ||= {};
+    state.settings.quality = normalizeGraphicsQuality(event.target.value);
+    applyGraphicsSettings();
+    syncPauseSettingsControls();
+    return;
+  }
+  if (event.target?.id === 'pause-time-scale') {
+    state.settings ||= {};
+    state.settings.simulationTimeScale = Number(event.target.value);
+    if (!Number.isFinite(state.settings.simulationTimeScale) || state.settings.simulationTimeScale < 0) {
+      state.settings.simulationTimeScale = 1;
+    }
+    solarSystemDynamics?.setTimeScale?.(state.settings.simulationTimeScale);
+    save();
+  }
 });
 
 $('pause-sens')?.addEventListener('input', event => {
@@ -1336,6 +1391,7 @@ async function init3D() {
     characterPhysics
   } = world);
 
+  applyGraphicsSettings();
   planetaryTransportCore = world.planetaryTransportCore;
   terrestrialTransportBase = world.terrestrialTransportBase;
   planetaryTransportTerminal?.destroy?.();

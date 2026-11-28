@@ -2,7 +2,8 @@ export function createPauseMenuRuntimeSystem({
   runtime,
   document,
   state,
-  resetInputs = () => {}
+  resetInputs = () => {},
+  now = () => globalThis.performance?.now?.() ?? Date.now()
 }) {
   if (!runtime || typeof runtime.pause !== 'function' || typeof runtime.resume !== 'function') {
     throw new TypeError('O controlador do menu de pausa precisa de uma ponte Runtime válida.');
@@ -12,6 +13,8 @@ export function createPauseMenuRuntimeSystem({
   }
 
   let bindings = [];
+  let fpsWindowStart = null;
+  let fpsWindowFrames = 0;
 
   const bind = (id, handler) => {
     const element = document.getElementById(id);
@@ -69,6 +72,19 @@ export function createPauseMenuRuntimeSystem({
       const modal = document.getElementById('game-menu-modal');
       modal?.classList.add('hidden');
       modal?.setAttribute?.('aria-hidden', 'true');
+    },
+    update() {
+      const timestamp = Number(now());
+      if (!Number.isFinite(timestamp)) return;
+      if (fpsWindowStart === null) fpsWindowStart = timestamp;
+      fpsWindowFrames += 1;
+      const elapsed = timestamp - fpsWindowStart;
+      if (elapsed < 500) return;
+      const measuredFps = Math.round(Math.max(0, fpsWindowFrames - 1) * 1000 / elapsed);
+      fpsWindowStart = timestamp;
+      fpsWindowFrames = 0;
+      const readout = document.getElementById('pause-fps-value');
+      if (readout) readout.textContent = String(measuredFps);
     },
     open,
     resume
