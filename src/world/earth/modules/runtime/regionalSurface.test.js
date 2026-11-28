@@ -260,6 +260,8 @@ test('reselects visible regional tiles immediately after a meaningful camera tur
 
   runtime.update(0.016, { camera });
   const firstStatus = runtime.getStatus();
+  runtime.update(0.016, { camera });
+  assert.equal(runtime.getStatus().selectionRefreshCount, firstStatus.selectionRefreshCount);
   camera.lookAt(0, 700, 0);
   runtime.update(0.016, { camera });
   const turnedStatus = runtime.getStatus();
