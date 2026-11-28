@@ -208,6 +208,13 @@ test('prepares the destination anchor tile before the camera arrives', async () 
   assert.equal(preparedMesh.material.map, loadedTexture);
   assert.equal(preparedMesh.material.emissiveMap, loadedTexture);
 
+  const distantCamera = new THREE.PerspectiveCamera(70, 1.8, 0.1, 10000);
+  distantCamera.position.set(0, 0, 2000);
+  distantCamera.lookAt(0, 0, 0);
+  runtime.update(0.016, { camera: distantCamera });
+  assert.equal(runtime.getStatus().preparedTiles, 1);
+  assert.equal(runtime.getStatus().activeTiles, 1);
+
   runtime.dispose();
   loadedTexture.dispose();
   surface.geometry.dispose();
