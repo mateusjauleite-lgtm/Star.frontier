@@ -3,10 +3,25 @@ import { EARTH_LOD_SEGMENTS, selectEarthLodLevel } from './surface.js';
 
 export const EARTH_BLUE_MARBLE_TEXTURE_PATH =
   'earth/blue-marble-topography-bathymetry.jpg';
+export const EARTH_REGIONAL_COLOR_TEXTURE_PATH = 'earth/jau-regional-500m.jpg';
+export const EARTH_REGIONAL_COLOR_BOUNDS = Object.freeze({
+  west: -52.557,
+  east: -44.557,
+  south: -26.2964,
+  north: -18.2964
+});
+
+function resolveEarthAssetUrl(assetPath, baseUrl = './') {
+  const normalizedBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+  return `${normalizedBase}${assetPath}`;
+}
 
 export function resolveEarthTextureUrl(baseUrl = './') {
-  const normalizedBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
-  return `${normalizedBase}${EARTH_BLUE_MARBLE_TEXTURE_PATH}`;
+  return resolveEarthAssetUrl(EARTH_BLUE_MARBLE_TEXTURE_PATH, baseUrl);
+}
+
+export function resolveEarthRegionalColorUrl(baseUrl = './') {
+  return resolveEarthAssetUrl(EARTH_REGIONAL_COLOR_TEXTURE_PATH, baseUrl);
 }
 
 /**
@@ -22,6 +37,9 @@ export function createBlueMarbleSurfaceRuntime({
   let geometry = null;
   let material = null;
   let texture = null;
+  let regionalColorTexture = null;
+  let regionalColorState = 'loading';
+  let regionalColorError = null;
   let disposed = false;
   let currentLevel = 0;
   let lodCheckElapsed = 0;
@@ -58,14 +76,60 @@ export function createBlueMarbleSurfaceRuntime({
         source: 'NASA Blue Marble Next Generation — Topography and Bathymetry',
         texture: EARTH_BLUE_MARBLE_TEXTURE_PATH,
         state: textureState,
-        resolution: '4096x2048 (optimized from NASA 5400x2700)',
+        resolution: '6144x3072 (optimized from NASA 21600x10800, 2 km source)',
+        regionalColorTexture: EARTH_REGIONAL_COLOR_TEXTURE_PATH,
+        regionalColorBounds: EARTH_REGIONAL_COLOR_BOUNDS,
+        regionalColorState,
         attribution: 'NASA Earth Observatory'
       };
+      mesh.userData.earthRegionalColorBounds = EARTH_REGIONAL_COLOR_BOUNDS;
+      mesh.userData.earthRegionalColorState = regionalColorState;
 
       textureRequestedAt = nowMs();
       mesh.userData.earthBlueMarbleTiming = { textureLoadMs: null, textureState: 'loading', requestedAtMs: textureRequestedAt, loadedAtMs: null };
       const loader = new THREE.TextureLoader();
       loader.setCrossOrigin?.('anonymous');
+      regionalColorTexture = loader.load(
+        resolveEarthRegionalColorUrl(import.meta.env.BASE_URL),
+        loadedTexture => {
+          if (disposed) {
+            loadedTexture.dispose();
+            return;
+          }
+          loadedTexture.colorSpace = THREE.SRGBColorSpace;
+          loadedTexture.wrapS = THREE.ClampToEdgeWrapping;
+          loadedTexture.wrapT = THREE.ClampToEdgeWrapping;
+          loadedTexture.generateMipmaps = true;
+          loadedTexture.minFilter = THREE.LinearMipmapLinearFilter;
+          loadedTexture.magFilter = THREE.LinearFilter;
+          loadedTexture.anisotropy = Math.max(1, Math.min(4, options.textureAnisotropy ?? 4));
+          mesh.userData.earthRegionalColorTexture = loadedTexture;
+          regionalColorState = 'ready';
+          mesh.userData.earthRegionalColorState = regionalColorState;
+          layers.surfaceVisual.regionalColorState = regionalColorState;
+          layers.surfaceVisual.regionalColorDimensions = {
+            width: loadedTexture.image?.width ?? null,
+            height: loadedTexture.image?.height ?? null
+          };
+          layers.terrain?.syncSurfaceMaterials?.();
+          console.info('[Earth] Jaú regional 500 m color texture loaded:', {
+            width: loadedTexture.image?.width ?? null,
+            height: loadedTexture.image?.height ?? null,
+            bounds: EARTH_REGIONAL_COLOR_BOUNDS
+          });
+        },
+        undefined,
+        error => {
+          regionalColorState = 'fallback';
+          regionalColorError = error?.message ?? 'Jaú regional color texture could not be loaded';
+          if (mesh?.userData) mesh.userData.earthRegionalColorState = regionalColorState;
+          if (layers.surfaceVisual) {
+            layers.surfaceVisual.regionalColorState = regionalColorState;
+            layers.surfaceVisual.regionalColorError = regionalColorError;
+          }
+          console.warn('[Earth] Jaú regional color texture failed to load:', regionalColorError);
+        }
+      );
       texture = loader.load(
         resolveEarthTextureUrl(import.meta.env.BASE_URL),
         loadedTexture => {
@@ -166,6 +230,9 @@ export function createBlueMarbleSurfaceRuntime({
         textureState,
         textureError,
         textureLoadMs: mesh?.userData?.earthBlueMarbleTiming?.textureLoadMs ?? null,
+        regionalColorTexture: EARTH_REGIONAL_COLOR_TEXTURE_PATH,
+        regionalColorState,
+        regionalColorError,
         lodLevel: currentLevel,
         disposed
       };
@@ -178,6 +245,7 @@ export function createBlueMarbleSurfaceRuntime({
       geometry?.dispose();
       material?.dispose();
       texture?.dispose();
+      regionalColorTexture?.dispose();
       if (layers.surface === mesh) layers.surface = null;
     }
   };
