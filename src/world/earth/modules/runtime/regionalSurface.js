@@ -323,6 +323,12 @@ export function createEarthRegionalSurfaceRuntime({
     if (!surface?.material) return;
     for (const mesh of active.values()) {
       syncMaterial(mesh.material, surface.material);
+      const timing = surface.userData?.earthBlueMarbleTiming;
+      if (mesh.material?.map?.image && timing?.loadedAtMs != null && firstRegionalTextureMs === null) {
+        const syncedAt = nowMs();
+        firstRegionalTextureMs = syncedAt - timing.requestedAtMs;
+        regionalTextureAfterLoadMs = syncedAt - timing.loadedAtMs;
+      }
     }
   };
 
@@ -388,11 +394,6 @@ export function createEarthRegionalSurfaceRuntime({
     mesh.userData.earthQuadtree = { ...node, elevationSource: hasDem ? 'regional-dem' : 'global-fallback' };
     tileRoot.add(mesh);
     active.set(id, mesh);
-    const blueMarbleTiming = surface.userData?.earthBlueMarbleTiming;
-    if (material.map && material.map.image && blueMarbleTiming?.textureLoadMs !== null && firstRegionalTextureMs === null) {
-      firstRegionalTextureMs = nowMs();
-      regionalTextureAfterLoadMs = blueMarbleTiming.textureLoadMs;
-    }
     completedTiles++;
     if (hasDem) demTiles++;
     else fallbackTiles++;
