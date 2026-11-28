@@ -79,6 +79,78 @@ test('regional tile UVs use the same north-to-v=1 orientation as the globe textu
   southGeometry.dispose();
 });
 
+test('Jaú regional color UVs are generated only for tiles fully inside the 500 m crop', () => {
+  const bounds = { west: -52.557, east: -44.557, south: -26.2964, north: -18.2964 };
+  const latitude = THREE.MathUtils.degToRad(-22.2964);
+  const longitude = THREE.MathUtils.degToRad(-48.557);
+  const jauDirection = new THREE.Vector3(
+    Math.cos(latitude) * Math.cos(longitude),
+    Math.sin(latitude),
+    Math.cos(latitude) * Math.sin(longitude)
+  );
+  const jauNode = getEarthQuadtreeNodeForDirection(jauDirection, 8);
+  const jauGeometry = createEarthQuadtreeTileGeometry(jauNode, 600, {
+    segments: 4, localColorBounds: bounds, skirtUnits: 0
+  });
+  assert.equal(jauGeometry.userData.earthRegionalColorCoverage, true);
+  const localUvs = jauGeometry.attributes.uv2;
+  assert.ok(localUvs);
+  for (let i = 0; i < localUvs.count; i++) {
+    assert.ok(localUvs.getX(i) >= 0 && localUvs.getX(i) <= 1);
+    assert.ok(localUvs.getY(i) >= 0 && localUvs.getY(i) <= 1);
+  }
+  jauGeometry.dispose();
+
+  const outsideNode = getEarthQuadtreeNodeForDirection(new THREE.Vector3(1, 0, 0), 8);
+  const outsideGeometry = createEarthQuadtreeTileGeometry(outsideNode, 600, {
+    segments: 2, localColorBounds: bounds, skirtUnits: 0
+  });
+  assert.equal(outsideGeometry.userData.earthRegionalColorCoverage, false);
+  outsideGeometry.dispose();
+});
+
+test('regional 500 m texture remains assigned after global material synchronization', async () => {
+  const root = new THREE.Group();
+  const globalTexture = new THREE.Texture();
+  const regionalTexture = new THREE.Texture();
+  const surface = new THREE.Mesh(
+    new THREE.SphereGeometry(600, 8, 8),
+    new THREE.MeshStandardMaterial({ color: 0xffffff, map: globalTexture })
+  );
+  surface.userData.earthRegionalColorBounds = {
+    west: -52.557, east: -44.557, south: -26.2964, north: -18.2964
+  };
+  surface.userData.earthRegionalColorTexture = regionalTexture;
+  surface.userData.earthRegionalColorState = 'ready';
+  root.add(surface);
+  const runtime = createEarthRegionalSurfaceRuntime({
+    surface, radius: 600, elevationSampler: () => 0,
+    maxLevel: 8, maxTiles: 24, segments: 4, buildPerUpdate: 2
+  });
+  const prepared = await runtime.prepareRegion({
+    latitudeDeg: -22.2964, longitudeDeg: -48.557, altitudeUnits: 0
+  });
+  assert.equal(prepared.ok, true);
+  const tile = root.children.find(child => child.name.startsWith('Earth-Regional-Tile-'));
+  assert.equal(tile.material.map, regionalTexture);
+  assert.equal(tile.material.emissiveMap, regionalTexture);
+  assert.equal(tile.material.userData.earthRegionalColorTile, true);
+
+  const replacementGlobal = new THREE.Texture();
+  surface.material.map = replacementGlobal;
+  runtime.syncSurfaceMaterials();
+  assert.equal(tile.material.map, regionalTexture);
+  assert.equal(runtime.getStatus().regionalColorTiles, 1);
+  assert.equal(runtime.getStatus().regionalColorTextureState, 'ready');
+
+  runtime.dispose();
+  globalTexture.dispose();
+  regionalTexture.dispose();
+  replacementGlobal.dispose();
+  surface.geometry.dispose();
+  surface.material.dispose();
+});
+
 test('tile geometry uses the requested segment budget and finite positions', () => {
   const geometry = createEarthQuadtreeTileGeometry(createEarthQuadtreeNode(4), 600, {
     segments: 8,
