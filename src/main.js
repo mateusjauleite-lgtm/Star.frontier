@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { registerAimControls, registerHeldFlightControls, registerFlightSelectionGuards, registerCameraCycleControl } from './controls/gameControls.js';
 import { registerCharacterControls } from './controls/characterControls.js';
+import { registerShipMovementControls } from './controls/shipMovementControls.js';
+import { createGameplayControlModeController } from './ui/gameplayControlModes.js';
 import { registerGameplayActions } from './systems/gameplayActions.js';
 import { createMiningRuntimeSystem } from './systems/miningSystem.js';
 import { loadRuntimeKernel } from './core/runtime/RuntimeKernel.js';
@@ -973,8 +975,13 @@ async function bootApplication() {
   show('game-screen');
   loadingScreen?.classList.remove('hidden');
 
+  // Primeiro confirma que a interface de carregamento já está visível.
+  // Só depois conecta os controles de personagem e de pilotagem.
+  await loadingStep(8, 'Inicializando Star.frontier...');
+  initializeGameplayControlModes();
+  await new Promise(resolve => setTimeout(resolve, 180));
+
   const stages = [
-    [8, 'Inicializando Star.frontier...'],
     [28, 'Carregando os sistemas do jogo...'],
     [54, 'Preparando a interface do piloto...'],
     [78, 'Carregando o menu principal...'],
@@ -1646,11 +1653,13 @@ function updateCharacterCamera() {
     if (earthCenter) cameraUp.copy(characterCameraWorldPosition).sub(earthCenter).normalize();
   }
   camera.up.copy(cameraUp);
-  const target = characterCameraWorldPosition.clone().addScaledVector(cameraUp, 1.25);
+  // Mantém o ponto de mira na altura do tórax superior, evitando a sensação
+  // de câmera baixa sem deslocar o referencial físico do personagem.
+  const target = characterCameraWorldPosition.clone().addScaledVector(cameraUp, 1.48);
   const cameraPitch = characterInWorldFrame ? groundCameraPitch : characterPitch;
 
   if (characterCameraMode === 'first-person') {
-    characterCameraOffset.copy(cameraUp).multiplyScalar(1.62);
+    characterCameraOffset.copy(cameraUp).multiplyScalar(1.72);
     camera.position.copy(characterCameraWorldPosition).add(characterCameraOffset);
     characterLookEuler.set(cameraPitch, 0, 0, 'YXZ');
     camera.quaternion.copy(characterCameraWorldQuaternion).multiply(
@@ -1658,21 +1667,13 @@ function updateCharacterCamera() {
     );
     characterCameraInitialized = true;
   } else {
-    characterCameraOffset.set(0, 1.55, 3.35).applyQuaternion(characterCameraWorldQuaternion);
+    characterCameraOffset.set(0, 1.78, 3.65).applyQuaternion(characterCameraWorldQuaternion);
     const desired = characterCameraWorldPosition.clone().add(characterCameraOffset);
-    // Na primeira apresentação, posiciona a câmera diretamente atrás do piloto.
-    // O lerp só começa depois disso; evita a câmera atravessar a cena desde a origem,
-    // dando a impressão de que o personagem está caindo/entrando pelo alto.
-    if (!characterCameraInitialized) {
-      camera.position.copy(desired);
-      characterCameraInitialized = true;
-    } else if (characterInWorldFrame) {
-      // No exterior, o personagem e o terreno usam um referencial geográfico
-      // comum. Seguir a posição exata evita atraso variável e tremor de perseguição.
-      camera.position.copy(desired);
-    } else {
-      camera.position.lerp(desired, 0.36);
-    }
+    // A câmera acompanha o referencial mundial do personagem sem atraso artificial.
+    // O lerp fixo por frame fazia a visão ficar para trás quando a Aurora acelerava
+    // e introduzia oscilação conforme a taxa de quadros variava no Android.
+    camera.position.copy(desired);
+    characterCameraInitialized = true;
     // Impede que a câmera atravesse anteparas ou saia do casco em corredores/decks.
     if (!characterInWorldFrame && shipVisual) {
       shipVisual.updateWorldMatrix(true, true);
@@ -1686,7 +1687,9 @@ function updateCharacterCamera() {
         if (obstruction) {
           const safeDistance = Math.max(0.45, obstruction.distance - 0.32);
           const safePosition = target.clone().addScaledVector(rayDirection, safeDistance);
-          camera.position.lerp(safePosition, 0.8);
+          // A correção de obstrução é aplicada no mesmo frame para não disputar
+          // com o seguimento do personagem e produzir tremor perto das paredes.
+          camera.position.copy(safePosition);
         }
       }
     }
@@ -1900,6 +1903,7 @@ function updateShipSystems(dt) {
 function updateCharacterMovement(dt) {
   if (!characterModel || characterCore.snapshot().mode !== 'on-foot') return;
   syncCharacterDeckFrame();
+  gameplayControlModes?.setMode(characterInWorldFrame ? 'on-foot-planet' : 'on-foot-ship');
   // A gravidade artificial pertence somente ao referencial interno da nave.
   // No exterior, o personagem usa exclusivamente a gravidade planetária.
   if (!characterInWorldFrame) artificialGravityField.update(dt, state);
@@ -2821,6 +2825,8 @@ function updatePilotInteraction() {
   updateCharacterHUD();
 }
 
+let gameplayControlModes = null;
+
 const characterInteractionCandidates = [
   {
     id: 'alexia', priority: 100, available: false,
@@ -2959,6 +2965,13 @@ function updateCharacterAction() {
 }
 
 function setPilotInterface(activePilot) {
+  const mode = activePilot
+    ? 'piloting'
+    : characterInWorldFrame ? 'on-foot-planet' : 'on-foot-ship';
+  if (gameplayControlModes) {
+    gameplayControlModes.setMode(mode);
+    return;
+  }
   characterHUD.show(!activePilot);
   ['hud', 'warp-drive-display', 'flight-controls', 'leave-pilot-btn'].forEach(id => {
     $(id)?.classList.toggle('hidden', !activePilot);
@@ -3078,74 +3091,13 @@ function updateCamera() {
 
 /* JOYSTICK */
 
-function bindStick(id, key) {
-  const element = $(id);
-  if (!element) return;
-
-  const knob = element.querySelector('.knob');
-  let pointer = null;
-  const hasPropulsion = () => Number(state.fuel) > 0 || Number(state.refinedDilithium) > 0 || state.maneuveringAssist !== false;
-  const isCharacterWalking = () => characterCore.snapshot().mode === 'on-foot' && !shipManagementTerminal.getSnapshot().open;
-  const reset = () => {
-    state[key].x = 0;
-    state[key].y = 0;
-    if (knob) knob.style.transform = 'translate(-50%,-50%)';
-    element.classList.remove('is-active');
-  };
-
-  const moveStick = event => {
-    if (key === 'move' && isCharacterWalking()) { reset(); return; }
-    const rect = element.getBoundingClientRect();
-    const max = Math.max(1, rect.width * 0.34);
-    let x = event.clientX - rect.left - rect.width / 2;
-    let y = event.clientY - rect.top - rect.height / 2;
-    const length = Math.hypot(x, y);
-    if (length > max) { x *= max / length; y *= max / length; }
-
-    if (key === 'move' && !hasPropulsion()) {
-      reset();
-      element.classList.add('no-propulsion');
-      return;
-    }
-    element.classList.remove('no-propulsion');
-    state[key].x = THREE.MathUtils.clamp(x / max, -1, 1);
-    state[key].y = THREE.MathUtils.clamp(y / max, -1, 1);
-    if (knob) knob.style.transform = `translate(-50%,-50%) translate(${x}px,${y}px)`;
-  };
-
-  element.addEventListener('pointerdown', event => {
-    if (pointer !== null || (event.pointerType === 'mouse' && event.button !== 0)) return;
-    if (key === 'move' && isCharacterWalking()) return;
-    if (key === 'move' && !hasPropulsion()) {
-      element.classList.add('no-propulsion');
-      return;
-    }
-    event.preventDefault();
-    pointer = event.pointerId;
-    element.classList.add('is-active');
-    try { element.setPointerCapture(pointer); } catch {}
-    moveStick(event);
-  });
-
-  element.addEventListener('pointermove', event => {
-    if (pointer !== event.pointerId) return;
-    event.preventDefault();
-    moveStick(event);
-  });
-
-  const end = event => {
-    if (pointer !== event.pointerId) return;
-    pointer = null;
-    reset();
-  };
-  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type => element.addEventListener(type, end));
-  window.addEventListener('blur', () => {
-    pointer = null;
-    reset();
-  });
-}
-
-bindStick('move-stick', 'move');
+const shipMovementControls = registerShipMovementControls({
+  document,
+  window,
+  state,
+  THREE,
+  hasPropulsion: () => Number(state.fuel) > 0 || Number(state.refinedDilithium) > 0 || state.maneuveringAssist !== false
+});
 
 const characterControls = registerCharacterControls({
   document,
@@ -3429,7 +3381,7 @@ document.addEventListener('visibilitychange', () => {
   handleRuntimeVisibility(document.hidden);
 });
 
-registerAimControls({ document, THREE, state, getCameraInput: () => cameraRuntimeInput });
+const shipAimControls = registerAimControls({ document, THREE, state, getCameraInput: () => cameraRuntimeInput });
 const instrumentBindings = [
   ['hull', 'hull-bar', 100], ['shield', 'shield-bar', 100],
   ['fuel', 'fuel-bar', 100], ['speed', 'speed-bar', 12000]
@@ -3448,7 +3400,7 @@ instrumentBindings.forEach(([valueId]) => {
   if (value) instrumentObserver.observe(value, { childList:true, characterData:true, subtree:true });
 });
 updateInstrumentBars();
-registerHeldFlightControls({
+const shipCommandControls = registerHeldFlightControls({
   document, window, state,
   dispatchPropulsionCommand: payload => {
     const response = shipComputer.dispatch('pilot-console', 'propulsion', 'setPilotInput', payload);
@@ -3466,6 +3418,43 @@ document.querySelectorAll('[data-warp-stage]').forEach(button => {
   });
 });
 registerFlightSelectionGuards({ document });
+
+function initializeGameplayControlModes() {
+  if (gameplayControlModes) return true;
+  try {
+    const controller = createGameplayControlModeController({
+      document,
+      characterHUD,
+      characterControls,
+      shipMovementControls,
+      shipAimControls,
+      shipCommandControls,
+      applyHudLayout,
+      readHudLayout
+    });
+    controller.setMode(characterInWorldFrame ? 'on-foot-planet' : 'on-foot-ship');
+    gameplayControlModes = controller;
+    return true;
+  } catch (error) {
+    // Uma falha na integração de controles não pode impedir a tela inicial
+    // nem bloquear a inicialização do aplicativo antes de bootApplication().
+    console.error('Não foi possível ativar os modos de controle:', error);
+    gameplayControlModes = null;
+    characterControls.reset();
+    shipMovementControls.reset();
+    characterControls.setEnabled(true);
+    shipMovementControls.setEnabled(false);
+    shipAimControls?.reset?.();
+    shipAimControls?.setEnabled?.(false);
+    shipCommandControls?.reset?.();
+    shipCommandControls?.setEnabled?.(false);
+    characterHUD.show(true);
+    ['hud', 'warp-drive-display', 'flight-controls', 'leave-pilot-btn'].forEach(id => {
+      $(id)?.classList.add('hidden');
+    });
+    return false;
+  }
+}
 
 function cancelLandingGuidance(reason = 'cancelled') {
   shipLandingAutopilot?.cancel?.();
