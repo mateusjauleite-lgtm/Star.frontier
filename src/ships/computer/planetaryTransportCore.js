@@ -87,7 +87,10 @@ export function createPlanetaryTransportCore({
   function previewDestination(id, { altitudeOffsetMeters = 0 } = {}) {
     const preview = resolvePreview(id, altitudeOffsetMeters);
     if (preview.ok && typeof prepareDestinationRegion === 'function') {
-      void prepareDestination(id, { altitudeOffsetMeters }).catch(() => {});
+      void Promise.resolve().then(() => prepareDestinationRegion(preview.destination, {
+        altitudeOffsetMeters: Number(altitudeOffsetMeters),
+        position: preview.position
+      })).catch(() => {});
     }
     return preview;
   }
