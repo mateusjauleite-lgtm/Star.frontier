@@ -111,8 +111,8 @@ test('Jaú regional color UVs are generated only for tiles fully inside the 500 
 
 test('regional 500 m texture remains assigned after global material synchronization', async () => {
   const root = new THREE.Group();
-  const globalTexture = new THREE.Texture();
-  const regionalTexture = new THREE.Texture();
+  const globalTexture = new THREE.Texture({ width: 2, height: 2 });
+  const regionalTexture = new THREE.Texture({ width: 2, height: 2 });
   const surface = new THREE.Mesh(
     new THREE.SphereGeometry(600, 8, 8),
     new THREE.MeshStandardMaterial({ color: 0xffffff, map: globalTexture })
@@ -136,7 +136,7 @@ test('regional 500 m texture remains assigned after global material synchronizat
   assert.equal(tile.material.emissiveMap, regionalTexture);
   assert.equal(tile.material.userData.earthRegionalColorTile, true);
 
-  const replacementGlobal = new THREE.Texture();
+  const replacementGlobal = new THREE.Texture({ width: 2, height: 2 });
   surface.material.map = replacementGlobal;
   runtime.syncSurfaceMaterials();
   assert.equal(tile.material.map, regionalTexture);
