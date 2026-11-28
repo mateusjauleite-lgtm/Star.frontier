@@ -468,6 +468,7 @@ export function createTerrainRuntime({ options, layers }) {
       });
       layers.terrain.regionalSurface = regionalSurfaceRuntime.getStatus();
       layers.terrain.regionalDem = regionalDemProvider.getStatus();
+      layers.terrain.syncSurfaceMaterials = () => regionalSurfaceRuntime.syncSurfaceMaterials();
       layers.terrain.prepareRegion = ({ latitudeDeg, longitudeDeg, altitudeMeters = 0 } = {}) => {
         if (disposed || !Number.isFinite(altitudeMeters) || altitudeMeters < 0) {
           return Promise.resolve({ ok: false, reason: 'terrain-runtime-unavailable' });
