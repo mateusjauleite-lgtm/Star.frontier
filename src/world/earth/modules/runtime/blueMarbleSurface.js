@@ -63,7 +63,7 @@ export function createBlueMarbleSurfaceRuntime({
       };
 
       textureRequestedAt = nowMs();
-      mesh.userData.earthBlueMarbleTiming = { textureLoadMs: null, textureState: 'loading' };
+      mesh.userData.earthBlueMarbleTiming = { textureLoadMs: null, textureState: 'loading', requestedAtMs: textureRequestedAt, loadedAtMs: null };
       const loader = new THREE.TextureLoader();
       loader.setCrossOrigin?.('anonymous');
       texture = loader.load(
@@ -93,6 +93,7 @@ export function createBlueMarbleSurfaceRuntime({
           textureState = 'ready';
           textureLoadedAt = nowMs();
           mesh.userData.earthBlueMarbleTiming.textureLoadMs = textureLoadedAt - textureRequestedAt;
+          mesh.userData.earthBlueMarbleTiming.loadedAtMs = textureLoadedAt;
           mesh.userData.earthBlueMarbleTiming.textureState = textureState;
           layers.surfaceVisual.textureLoadMs = textureLoadedAt - textureRequestedAt;
           layers.surfaceVisual.state = textureState;
