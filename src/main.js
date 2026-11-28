@@ -1888,8 +1888,135 @@ function updateShipSystems(dt) {
   }
 }
 
+let characterWorldDiagnosticsElapsed = 0;
+let characterWorldDiagnosticsButton = null;
+let characterWorldDiagnosticsPanel = null;
+let characterWorldDiagnosticsEnabled = false;
+
+// Diagnóstico temporário, ativado manualmente no jogo. Não altera física,
+// câmera, referencial ou posicionamento: apenas lê os estados usados pelo Runtime.
+function updateCharacterWorldDiagnostics(dt = 0) {
+  if (!characterWorldDiagnosticsButton) {
+    characterWorldDiagnosticsButton = document.createElement('button');
+    characterWorldDiagnosticsButton.type = 'button';
+    characterWorldDiagnosticsButton.textContent = 'DBG SOLO';
+    characterWorldDiagnosticsButton.setAttribute('aria-label', 'Alternar diagnóstico do personagem e terreno');
+    Object.assign(characterWorldDiagnosticsButton.style, {
+      position: 'fixed', top: '8px', left: '8px', zIndex: '12000',
+      padding: '6px 9px', border: '1px solid rgba(80,210,255,.65)',
+      borderRadius: '6px', background: 'rgba(3,14,26,.82)',
+      color: '#a8eaff', font: '11px monospace'
+    });
+    characterWorldDiagnosticsButton.addEventListener('click', () => {
+      characterWorldDiagnosticsEnabled = !characterWorldDiagnosticsEnabled;
+      if (characterWorldDiagnosticsPanel) characterWorldDiagnosticsPanel.style.display =
+        characterWorldDiagnosticsEnabled ? 'block' : 'none';
+      characterWorldDiagnosticsButton.textContent = characterWorldDiagnosticsEnabled ? 'DBG ON' : 'DBG SOLO';
+    });
+    document.getElementById('game-screen')?.appendChild(characterWorldDiagnosticsButton);
+  }
+  if (!characterWorldDiagnosticsEnabled) return;
+  characterWorldDiagnosticsElapsed += Math.max(0, Number(dt) || 0);
+  if (characterWorldDiagnosticsElapsed < 0.2) return;
+  characterWorldDiagnosticsElapsed = 0;
+
+  if (!characterWorldDiagnosticsPanel) {
+    characterWorldDiagnosticsPanel = document.createElement('pre');
+    Object.assign(characterWorldDiagnosticsPanel.style, {
+      position: 'fixed', top: '38px', left: '8px', zIndex: '12000',
+      width: 'min(340px, calc(100vw - 16px))', maxHeight: '42vh',
+      overflow: 'auto', margin: '0', padding: '8px',
+      border: '1px solid rgba(80,210,255,.45)', borderRadius: '6px',
+      background: 'rgba(2,8,18,.88)', color: '#d8f5ff',
+      font: '10px/1.35 monospace', whiteSpace: 'pre-wrap',
+      pointerEvents: 'none'
+    });
+    characterWorldDiagnosticsPanel.style.display = 'none';
+    document.getElementById('game-screen')?.appendChild(characterWorldDiagnosticsPanel);
+  }
+
+  const player = characterModel?.group;
+  if (!player) {
+    characterWorldDiagnosticsPanel.textContent = 'Personagem indisponível';
+    return;
+  }
+  player.updateWorldMatrix(true, true);
+  camera?.updateMatrixWorld?.(true);
+  const worldPosition = player.getWorldPosition(new THREE.Vector3());
+  const cameraPosition = camera?.getWorldPosition?.(new THREE.Vector3()) ?? new THREE.Vector3();
+  const terrain = earthSystem?.getCollisionSurface?.()?.sampleWorldPosition?.(worldPosition) ?? null;
+  const clearance = terrain?.worldPosition && terrain?.worldNormal
+    ? worldPosition.clone().sub(terrain.worldPosition).dot(terrain.worldNormal.clone().normalize())
+    : null;
+  const baseRoot = terrestrialTransportBase?.group;
+  baseRoot?.updateWorldMatrix?.(true, true);
+  const baseWorld = baseRoot?.getWorldPosition?.(new THREE.Vector3()) ?? null;
+  const earthStatus = earthSystem?.getStatus?.() ?? {};
+  const terrainStatus = earthStatus.terrain ?? {};
+  const regional = terrainStatus.regionalSurface ?? {};
+  const dem = terrainStatus.regionalDem ?? {};
+  const placement = terrestrialTransportBase?.getPlacement?.() ?? null;
+  const normalSpeed = terrain?.worldNormal
+    ? characterWorldVelocity.dot(terrain.worldNormal.clone().normalize())
+    : null;
+  const vector = value => value
+    ? [value.x, value.y, value.z].map(number => Number(number).toFixed(3)).join(', ')
+    : 'n/d';
+  const number = value => Number.isFinite(value) ? value.toFixed(3) : 'n/d';
+
+  const snapshot = {
+    mode: characterCore.snapshot().mode,
+    characterInWorldFrame,
+    characterWorldGrounded,
+    coreGrounded: characterCore.snapshot().grounded,
+    physicsGrounded: characterPhysics?.grounded ?? null,
+    physicsLocalPosition: vector(player.position),
+    meshWorldPosition: vector(worldPosition),
+    cameraWorldPosition: vector(cameraPosition),
+    cameraMeshDistance: number(cameraPosition.distanceTo(worldPosition)),
+    worldVelocity: vector(characterWorldVelocity),
+    verticalSpeedAlongTerrainNormal: number(normalSpeed),
+    terrainClearance: number(clearance),
+    terrainSampleValid: Boolean(terrain?.worldPosition && terrain?.worldNormal),
+    baseWorldPosition: vector(baseWorld),
+    baseLocalPosition: vector(baseRoot?.position),
+    basePlacementLocalPosition: vector(placement?.localPosition),
+    baseElevationMeters: number(placement?.sample?.elevationMeters),
+    regionalSurface: {
+      activeTiles: regional.activeTiles ?? null,
+      completedGenerations: regional.completedGenerations ?? null,
+      selectedKeys: regional.selectedKeys ?? [],
+      demActive: regional.demActive ?? null,
+      lastGenerationMs: regional.lastGenerationMs ?? null
+    },
+    regionalDem: {
+      state: dem.state ?? null,
+      cachedTiles: dem.cachedTiles ?? dem.tileCount ?? null
+    }
+  };
+  window.__starFrontierCharacterDiagnostics = snapshot;
+  characterWorldDiagnosticsPanel.textContent =
+    'PERSONAGEM / TERRENO\n' +
+    'modo/frame/grounded: ' + snapshot.mode + ' / ' + characterInWorldFrame + ' / ' + characterWorldGrounded + '\n' +
+    'grounded core/física: ' + snapshot.coreGrounded + ' / ' + snapshot.physicsGrounded + '\n' +
+    'posição física local: ' + snapshot.physicsLocalPosition + '\n' +
+    'mesh mundo: ' + snapshot.meshWorldPosition + '\n' +
+    'câmera mundo: ' + snapshot.cameraWorldPosition + '\n' +
+    'dist câmera-mesh: ' + snapshot.cameraMeshDistance + '\n' +
+    'velocidade mundo: ' + snapshot.worldVelocity + '\n' +
+    'velocidade normal: ' + snapshot.verticalSpeedAlongTerrainNormal + '\n' +
+    'folga terreno: ' + snapshot.terrainClearance + ' | amostra: ' + snapshot.terrainSampleValid + '\n' +
+    'BT-01 mundo: ' + snapshot.baseWorldPosition + '\n' +
+    'BT-01 local: ' + snapshot.baseLocalPosition + '\n' +
+    'BT-01 placement: ' + snapshot.basePlacementLocalPosition + '\n' +
+    'BT-01 elevação DEM: ' + snapshot.baseElevationMeters + ' m\n' +
+    'tiles ativos/gerações: ' + snapshot.regionalSurface.activeTiles + ' / ' + snapshot.regionalSurface.completedGenerations + '\n' +
+    'tile keys: ' + JSON.stringify(snapshot.regionalSurface.selectedKeys) + '\n' +
+    'DEM: ' + JSON.stringify(snapshot.regionalDem);
+}
+
 function updateCharacterMovement(dt) {
-  if (!characterModel || characterCore.snapshot().mode !== 'on-foot') return;
+  updateCharacterWorldDiagnostics(dt);\n  if (!characterModel || characterCore.snapshot().mode !== 'on-foot') return;
   syncCharacterDeckFrame();
   // A gravidade artificial pertence somente ao referencial interno da nave.
   // No exterior, o personagem usa exclusivamente a gravidade planetária.
