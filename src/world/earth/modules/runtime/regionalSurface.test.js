@@ -139,6 +139,7 @@ test('regional 500 m texture remains assigned after global material synchronizat
   assert.equal(tile.material.userData.earthRegionalColorTile, true);
 
   const replacementGlobal = new THREE.Texture({ width: 2, height: 2 });
+  replacementGlobal.colorSpace = THREE.SRGBColorSpace;
   surface.material.map = replacementGlobal;
   runtime.syncSurfaceMaterials();
   assert.equal(tile.material.map, regionalTexture);
