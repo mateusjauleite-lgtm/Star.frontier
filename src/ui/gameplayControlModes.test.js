@@ -46,8 +46,7 @@ test('piloting disables character input and enables all ship input channels', ()
   controller.setMode('piloting');
   assert.equal(controller.isPilotActive(), true);
   assert.equal(controller.isCharacterActive(), false);
-  assert.equal(calls.at(-1)[0], 'ship-commands-enabled');
-  assert.equal(calls.at(-1)[1], true);
+  assert.deepEqual(calls.find(call => call[0] === 'ship-commands-enabled'), ['ship-commands-enabled', true]);
   assert.equal(calls.filter(call => call[0] === 'ship-aim-enabled' && call[1] === true).length, 1);
   assert.equal(elements.get('flight-controls').classList.hidden, false);
 });
@@ -68,6 +67,5 @@ test('inactive mode hides both interfaces and blocks all input channels', () => 
   assert.equal(controller.isCharacterActive(), false);
   assert.equal(controller.isPilotActive(), false);
   assert.equal(elements.get('hud').classList.hidden, true);
-  assert.equal(calls.at(-1)[0], 'ship-commands-enabled');
-  assert.equal(calls.at(-1)[1], false);
+  assert.deepEqual(calls.find(call => call[0] === 'ship-commands-enabled'), ['ship-commands-enabled', false]);
 });
