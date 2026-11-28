@@ -18,6 +18,7 @@ import { state, resetTransientState } from './core/state.js';
 import { createCharacterCore } from './character/characterCore.js';
 import { createCharacterHUD } from './character/characterHUD.js';
 import { createCharacterInteractionMenu } from './character/characterInteractionMenu.js';
+import { createCharacterInteractionManager } from './character/characterInteractionManager.js';
 import { createCharacterAudio } from './character/characterAudio.js';
 import { createShipAudio } from './ships/shipAudio.js';
 import { audioManager } from './systems/audioManager.js';
@@ -79,6 +80,15 @@ function cloneHudData(value) {
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 
 const characterCore = createCharacterCore();
+const characterInteractionManager = createCharacterInteractionManager({
+  button: $('character-action-btn'),
+  onTargetChange: target => {
+    if (characterCore.snapshot().interactionTarget !== target) {
+      characterCore.setInteractionTarget(target);
+      updateCharacterHUD();
+    }
+  }
+});
 const characterAudio = createCharacterAudio({ core: characterCore });
 characterAudio.attach();
 const shipAudio = createShipAudio();
@@ -1119,7 +1129,7 @@ async function startGame() {
             cameraRuntime: cameraRuntimeSystem.service,
             earthSystem, camera, applyEarthSurfaceRotation, ship, updatePhaserWeapon,
             characterCore, syncCharacterDeckFrame, updateCharacterMovement, updateCharacterWeapon,
-            updateExternalElevatorAnimation, updateElevatorInteraction,
+            updateExternalElevatorAnimation, updateElevatorInteraction, updateCharacterAction,
             updatePilotInteraction, updateShipManagementInteraction, updateEngineeringConsoleInteraction, updateRefineryConsoleInteraction, updateDeflectorConsoleInteraction, updateTransporterConsoleInteraction, updateTransporterPlatformInteraction, updateExternalElevatorInteraction, updateAlexiaInteraction, updateLightingConsoleInteraction,
             updateCharacterCamera, updateFlight, updateCamera, updateShipSystems,
             setLandingBaseSystem: value => { landingBaseSystem = value; },
@@ -1404,8 +1414,7 @@ async function init3D() {
       const packet = transporterDispatchBuffer.queue(destination);
       transporterDestinationId = packet.destinationId;
       transporterActionAvailable = false;
-      characterCore.setInteractionTarget('DESTINO ENVIADO · PLATAFORMA AGUARDANDO');
-      updateCharacterHUD();
+          updateCharacterHUD();
       toast('Destino registrado e enviado. A plataforma está aguardando a confirmação física.');
     }
   });
@@ -2135,13 +2144,12 @@ function updateAlexiaInteraction(dt = 0) {
       alexiaCharacter.core?.setMovement?.(0, 1);
     } else alexiaCharacter.core?.setMovement?.(0, 0);
   }
-  const floorY = starshipInterior.layout.decks[0].y + 0.21;
   if (available) {
     if (button) {
       button.disabled = false; button.dataset.interaction = 'alexia';
       button.textContent = '◎ ALEXIA'; button.classList.add('available');
     }
-    characterCore.setInteractionTarget('TRIPULANTE ALEXIA');
+    
     alexiaInteractionMenu?.updatePosition?.();
   } else {
     if (alexiaInteractionMenu?.isOpen?.()) alexiaInteractionMenu.close();
@@ -2149,7 +2157,7 @@ function updateAlexiaInteraction(dt = 0) {
       button.disabled = true; button.classList.remove('available');
       button.dataset.interaction = ''; button.textContent = '◎ AÇÃO';
     }
-    if (!pilotInteractionAvailable) characterCore.setInteractionTarget(null);
+    
   }
 }
 
@@ -2176,11 +2184,11 @@ function updateElevatorInteraction() {
   nearbyElevator = inLift;
   if (changed) {
     if (inLift) {
-      characterCore.setInteractionTarget('ELEVADOR INTERNO');
+      
       updateCharacterHUD();
     } else {
       pilotInteractionAvailable = false;
-      characterCore.setInteractionTarget(null);
+      
       updateCharacterHUD();
       updatePilotInteraction();
     }
@@ -2204,7 +2212,7 @@ function moveElevator(direction) {
   // O centro do elevador fica dentro da área livre dos quatro decks.
   // Não chamar resolveCharacterShipCollisions: essa função não existe no runtime.
   nearbyElevator = true;
-  characterCore.setInteractionTarget('ELEVADOR INTERNO');
+  
   updateElevatorButtons();
   updateCharacterHUD();
   toast('Acesso ao ' + deck.name + ' liberado.');
@@ -2233,8 +2241,7 @@ function updateExternalElevatorAnimation(dt) {
     transferCharacterToWorldFrame();
     characterWorldGrounded = false;
     characterCore.setGrounded(false);
-    characterCore.setInteractionTarget('ELEVADOR EXTERNO');
-    updateCharacterHUD();
+      updateCharacterHUD();
     toast('Você chegou ao exterior da nave.');
   } else if (reached === 'top') {
     externalElevatorRiding = false;
@@ -2247,7 +2254,6 @@ function updateExternalElevatorAnimation(dt) {
     characterPhysics?.reset(feetY);
     characterCore.setGrounded(true);
     characterAnimator?.play('idle', { restart: true });
-    characterCore.setInteractionTarget('ELEVADOR EXTERNO');
     updateCharacterHUD();
     toast('Retorno ao Deck 4 concluído.');
   }
@@ -2312,7 +2318,7 @@ function updateExternalElevatorInteraction() {
     button.disabled = true;
     button.textContent = 'ELEVADOR...';
     button.classList.add('available');
-    characterCore.setInteractionTarget('ELEVADOR EM MOVIMENTO');
+    
     return;
   }
 
@@ -2342,7 +2348,7 @@ function updateExternalElevatorInteraction() {
     button.textContent = externalElevator.phase === 'bottom' ? 'SUBIR' : 'DESCER';
     button.classList.add('available');
     if (changed) {
-      characterCore.setInteractionTarget('ELEVADOR EXTERNO');
+      
       updateCharacterHUD();
     }
   } else if (changed || button.textContent === 'ELEVADOR...') {
@@ -2351,9 +2357,9 @@ function updateExternalElevatorInteraction() {
     button.disabled = !pilotInteractionAvailable;
     button.textContent = pilotInteractionAvailable ? '◎ PILOTAR' : 'AÇÃO';
     if (nearbyElevator) {
-      characterCore.setInteractionTarget('ELEVADOR INTERNO');
+      
     } else {
-      characterCore.setInteractionTarget(pilotInteractionAvailable ? 'PILOTAGEM DISPONÍVEL' : null);
+      
     }
     updateCharacterHUD();
   }
@@ -2410,14 +2416,14 @@ function updateLightingConsoleInteraction() {
     button.classList.add('available');
     button.dataset.interaction = 'lighting-console';
     button.textContent = label;
-    if (targetChanged) characterCore.setInteractionTarget('CONSOLE DE ILUMINAÇÃO');
+    
     if (previousAvailable !== available || targetChanged) updateCharacterHUD();
   } else if (previousAvailable || button.dataset.interaction === 'lighting-console') {
     button.disabled = !pilotInteractionAvailable;
     button.classList.remove('available');
     button.dataset.interaction = '';
     button.textContent = pilotInteractionAvailable ? '◎ PILOTAR' : '◎ AÇÃO';
-    characterCore.setInteractionTarget(pilotInteractionAvailable ? 'PILOTAGEM DISPONÍVEL' : null);
+    
     updateCharacterHUD();
   }
 }
@@ -2439,7 +2445,7 @@ function updateEngineeringConsoleInteraction(dt = 0) {
     if ((previousAvailable || previousActive) && !nearbyElevator) {
       const button = $('character-action-btn');
       if (button) { button.disabled = true; button.textContent = 'AÇÃO'; button.classList.remove('available'); }
-      characterCore.setInteractionTarget(null);
+      
       updateCharacterHUD();
       updatePilotInteraction();
     }
@@ -2469,12 +2475,12 @@ function updateEngineeringConsoleInteraction(dt = 0) {
       button.textContent = engineeringConsoleActive ? '◎ DESCONECTAR ENGENHARIA' : '◎ ENGENHARIA';
       button.classList.add('available');
     }
-    characterCore.setInteractionTarget(engineeringConsoleActive ? 'CONSOLE DE ENGENHARIA CONECTADO' : 'CONSOLE DE ENGENHARIA');
+    
     if (previousAvailable !== available || previousActive !== engineeringConsoleActive) updateCharacterHUD();
   } else if (previousAvailable || previousActive) {
     const button = $('character-action-btn');
     if (button) { button.disabled = true; button.textContent = 'AÇÃO'; button.classList.remove('available'); }
-    characterCore.setInteractionTarget(null);
+    
     updateCharacterHUD();
     updatePilotInteraction();
   }
@@ -2497,7 +2503,7 @@ function updateDilithiumMatrixConsoleInteraction(dt = 0) {
     if ((previousAvailable || previousActive) && !nearbyElevator) {
       const button = $('character-action-btn');
       if (button) { button.disabled = true; button.textContent = 'AÇÃO'; button.classList.remove('available'); }
-      characterCore.setInteractionTarget(null);
+      
       updateCharacterHUD();
     }
     return;
@@ -2514,12 +2520,12 @@ function updateDilithiumMatrixConsoleInteraction(dt = 0) {
   if (available || matrixConsoleActive) {
     const button = $('character-action-btn');
     if (button) { button.disabled = false; button.textContent = matrixConsoleActive ? '◎ FECHAR MATRIZ' : '◎ ACESSAR MATRIZ'; button.classList.add('available'); }
-    characterCore.setInteractionTarget(matrixConsoleActive ? 'TERMINAL DA MATRIZ CONECTADO' : 'TERMINAL DA MATRIZ DE DILÍTIO');
+    
     if (previousAvailable !== available || previousActive !== matrixConsoleActive) updateCharacterHUD();
   } else if (previousAvailable || previousActive) {
     const button = $('character-action-btn');
     if (button) { button.disabled = true; button.textContent = 'AÇÃO'; button.classList.remove('available'); }
-    characterCore.setInteractionTarget(null);
+    
     updateCharacterHUD();
     updatePilotInteraction();
   }
@@ -2533,12 +2539,12 @@ function toggleDilithiumMatrixConsole() {
 function updateRefineryConsoleInteraction(dt = 0) {
  refineryHologram?.update(dt);const pa=refineryInteractionAvailable,pc=refineryConsoleActive;
  const valid=Boolean(characterModel&&shipVisual&&characterCore.snapshot().mode==='on-foot'&&!characterInWorldFrame&&!nearbyElevator&&activeDeckIndex===2);
- if(!valid){refineryInteractionAvailable=false;refineryHologram?.setVisible(false);refineryTerminal?.setPresence(false,false);if((pa||pc)&&!nearbyElevator){const b=$('character-action-btn');if(b){b.disabled=true;b.textContent='AÇÃO';b.classList.remove('available');}characterCore.setInteractionTarget(null);updateCharacterHUD();updatePilotInteraction();}return;}
+ if(!valid){refineryInteractionAvailable=false;refineryHologram?.setVisible(false);refineryTerminal?.setPresence(false,false);if((pa||pc)&&!nearbyElevator){const b=$('character-action-btn');if(b){b.disabled=true;b.textContent='AÇÃO';b.classList.remove('available');}updateCharacterHUD();updatePilotInteraction();}return;}
  const d=characterModel.group.position.distanceToSquared(refineryConsolePosition),visible=d<=REFINERY_TERMINAL_DISPLAY_RADIUS**2,available=d<=REFINERY_TERMINAL_INTERACTION_RADIUS**2;
  refineryInteractionAvailable=available;refineryHologram?.setVisible(visible);refineryTerminal?.setPresence(visible,available);
  if(refineryConsoleActive){refineryTelemetryAccumulator+=Math.max(0,Number(dt)||0);if(refineryTelemetryAccumulator>=.18){refineryTelemetryAccumulator=0;refineryTerminal?.refresh();}}else refineryTelemetryAccumulator=0;
- if(available||refineryConsoleActive){const b=$('character-action-btn');if(b){b.disabled=false;b.textContent=refineryConsoleActive?'◎ FECHAR REFINARIA':'◎ REFINARIA';b.classList.add('available');}characterCore.setInteractionTarget(refineryConsoleActive?'TERMINAL DA REFINARIA CONECTADO':'TERMINAL DA REFINARIA');if(pa!==available||pc!==refineryConsoleActive)updateCharacterHUD();}
- else if(pa||pc){const b=$('character-action-btn');if(b){b.disabled=true;b.textContent='AÇÃO';b.classList.remove('available');}characterCore.setInteractionTarget(null);updateCharacterHUD();updatePilotInteraction();}
+ if(available||refineryConsoleActive){const b=$('character-action-btn');if(b){b.disabled=false;b.textContent=refineryConsoleActive?'◎ FECHAR REFINARIA':'◎ REFINARIA';b.classList.add('available');}if(pa!==available||pc!==refineryConsoleActive)updateCharacterHUD();}
+ else if(pa||pc){const b=$('character-action-btn');if(b){b.disabled=true;b.textContent='AÇÃO';b.classList.remove('available');}updateCharacterHUD();updatePilotInteraction();}
 }
 function toggleRefineryConsole(){if(refineryConsoleActive){refineryTerminal?.close();return;}if(!refineryInteractionAvailable||!refineryTerminal?.open('ENGENHEIRO DE RECURSOS'))toast('Aproxime-se do terminal da Refinaria no Deck 3.');}
 
@@ -2562,7 +2568,7 @@ function updateDeflectorConsoleInteraction(dt = 0) {
     if ((previousAvailable || previousActive) && !nearbyElevator) {
       const button = $('character-action-btn');
       if (button) { button.disabled = true; button.textContent = 'AÇÃO'; button.classList.remove('available'); }
-      characterCore.setInteractionTarget(null);
+      
       updateCharacterHUD();
     }
     return;
@@ -2590,12 +2596,12 @@ function updateDeflectorConsoleInteraction(dt = 0) {
       button.textContent = deflectorConsoleActive ? '◎ DESCONECTAR DEFLETOR' : '◎ CONSOLE DO DEFLETOR';
       button.classList.add('available');
     }
-    characterCore.setInteractionTarget(deflectorConsoleActive ? 'COMPUTADOR DO DEFLETOR CONECTADO' : 'COMPUTADOR DO DEFLETOR');
+    
     if (previousAvailable !== available || previousActive !== deflectorConsoleActive) updateCharacterHUD();
   } else if (previousAvailable || previousActive) {
     const button = $('character-action-btn');
     if (button) { button.disabled = true; button.textContent = 'AÇÃO'; button.classList.remove('available'); }
-    characterCore.setInteractionTarget(null);
+    
     updateCharacterHUD();
   }
 }
@@ -2618,7 +2624,7 @@ function updateTransporterConsoleInteraction(dt = 0) {
     if ((previousAvailable || previousActive) && !nearbyElevator) {
       const button = $('character-action-btn');
       if (button) { button.disabled = true; button.textContent = 'AÇÃO'; button.classList.remove('available'); }
-      characterCore.setInteractionTarget(null);
+      
       updateCharacterHUD();
     }
     return;
@@ -2640,12 +2646,12 @@ function updateTransporterConsoleInteraction(dt = 0) {
   if (available || transporterConsoleActive) {
     const button = $('character-action-btn');
     if (button) { button.disabled = false; button.textContent = transporterConsoleActive ? '◎ FECHAR AURORA OS' : '◎ AURORA OS'; button.classList.add('available'); }
-    characterCore.setInteractionTarget(transporterConsoleActive ? 'AURORA OS · TRANSPORTE CONECTADO' : 'CONSOLE AURORA OS · TRANSPORTE PLANETÁRIO');
+    
     if (previousAvailable !== available || previousActive !== transporterConsoleActive) updateCharacterHUD();
   } else if (previousAvailable || previousActive) {
     const button = $('character-action-btn');
     if (button) { button.disabled = true; button.textContent = 'AÇÃO'; button.classList.remove('available'); }
-    characterCore.setInteractionTarget(transporterDispatchBuffer.getPending() ? 'DESTINO ENVIADO · DIRIJA-SE À PLATAFORMA' : null);
+    
     updateCharacterHUD();
   }
 }
@@ -2676,7 +2682,7 @@ function updateTerrestrialTransportInteraction(dt = 0) {
     if (previousAvailable || previousActive) {
       const button = $('character-action-btn');
       if (button) { button.disabled = true; button.textContent = 'AÇÃO'; button.classList.remove('available'); }
-      if (!transporterActionAvailable) characterCore.setInteractionTarget(null);
+      
       updateCharacterHUD();
     }
     return;
@@ -2699,11 +2705,11 @@ function updateTerrestrialTransportInteraction(dt = 0) {
   if (available || terrestrialTransportConsoleActive) {
     const button = $('character-action-btn');
     if (button) { button.disabled = false; button.textContent = terrestrialTransportConsoleActive ? '◎ FECHAR TERMINAL BT-01' : '◎ TERMINAL BT-01'; button.classList.add('available'); }
-    characterCore.setInteractionTarget(terrestrialTransportConsoleActive ? 'TERMINAL TERRESTRE · CONECTADO' : 'TERMINAL DE TRANSPORTE · BT-01');
+    
   } else if (previousAvailable || previousActive) {
     const button = $('character-action-btn');
     if (button) { button.disabled = true; button.textContent = 'AÇÃO'; button.classList.remove('available'); }
-    characterCore.setInteractionTarget('BASE TERRESTRE BRASIL · BT-01');
+    
   }
   if (previousAvailable !== available || previousActive !== terrestrialTransportConsoleActive) updateCharacterHUD();
 }
@@ -2714,6 +2720,10 @@ function updateTransporterPlatformInteraction() {
   // O destino só é exigido no momento de executar a transferência.
   const valid = Boolean(characterModel && characterCore.snapshot().mode === 'on-foot' &&
     !characterInWorldFrame && !nearbyElevator && activeDeckIndex === 1);
+  if (!valid) {
+    transporterActionAvailable = false;
+    return;
+  }
   const playerPosition = characterModel.group.position;
   const platformDx = playerPosition.x - transporterPlatformPosition.x;
   const platformDz = playerPosition.z - transporterPlatformPosition.z;
@@ -2732,9 +2742,7 @@ function updateTransporterPlatformInteraction() {
       button.classList.add('available');
     }
     const pending = transporterDispatchBuffer.getPending();
-    characterCore.setInteractionTarget(pending && transporterDestinationId === pending.destinationId
-      ? 'PLATAFORMA · DESTINO RECEBIDO · PRONTA'
-      : 'PLATAFORMA · SEM DESTINO DEFINIDO');
+    
   } else if (previous) {
     const button = $('character-action-btn');
     if (button) {
@@ -2744,7 +2752,7 @@ function updateTransporterPlatformInteraction() {
       button.classList.remove('available');
     }
     updateElevatorButtons();
-    characterCore.setInteractionTarget(transporterDestinationId ? 'DESTINO ENVIADO · DIRIJA-SE À PLATAFORMA' : null);
+    
   }
   if (previous !== transporterActionAvailable) updateCharacterHUD();
 }
@@ -2782,7 +2790,6 @@ function executePlanetaryTransport() {
   characterCore.setGrounded(false);
   characterPhysics?.reset(characterModel.group.position.y);
   characterAnimator?.play('idle', { restart: true });
-  characterCore.setInteractionTarget('LOCAL DE TRANSPORTE TERRESTRE');
   updateCharacterHUD();
   toast('Teletransporte concluído. Você chegou ao destino terrestre.');
   return true;
@@ -2810,8 +2817,145 @@ function updatePilotInteraction() {
     button.classList.toggle('available', available);
   }
 
-  characterCore.setInteractionTarget(available ? 'PILOTAGEM DISPONÍVEL' : null);
+  
   updateCharacterHUD();
+}
+
+const characterInteractionCandidates = [
+  {
+    id: 'alexia', priority: 100, available: false,
+    label: '◎ ALEXIA', target: 'TRIPULANTE ALEXIA',
+    activate: () => alexiaInteractionMenu?.open?.()
+  },
+  {
+    id: 'lighting-console', priority: 95, available: false,
+    label: '◎ INTERAGIR', target: 'CONSOLE DE ILUMINAÇÃO',
+    activate: () => document.dispatchEvent(new CustomEvent('starfrontier:aurora-open-app', {
+      detail: { app: 'lighting', source: 'deck1-console' }
+    }))
+  },
+  {
+    id: 'transporter-platform', priority: 90, available: false,
+    label: '◎ PLATAFORMA', target: 'PLATAFORMA · SEM DESTINO DEFINIDO',
+    activate: () => transporterActionMenu?.open?.(transporterDispatchBuffer.getPending()?.destinationName)
+  },
+  {
+    id: 'terrestrial-transport', priority: 85, available: false,
+    label: '◎ TERMINAL BT-01', target: 'TERMINAL DE TRANSPORTE · BT-01',
+    activate: () => toggleTerrestrialTransportConsole()
+  },
+  {
+    id: 'planetary-transport', priority: 80, available: false,
+    label: '◎ AURORA OS', target: 'CONSOLE AURORA OS · TRANSPORTE PLANETÁRIO',
+    activate: () => togglePlanetaryTransportConsole()
+  },
+  {
+    id: 'external-elevator-moving', priority: 75, visible: false,
+    available: false, disabled: true,
+    label: 'ELEVADOR...', target: 'ELEVADOR EM MOVIMENTO'
+  },
+  {
+    id: 'external-elevator', priority: 75, visible: false, available: false,
+    label: 'DESCER', target: 'ELEVADOR EXTERNO',
+    activate: () => activateExternalElevator()
+  },
+  {
+    id: 'dilithium-matrix', priority: 70, available: false,
+    label: '◎ ACESSAR MATRIZ', target: 'TERMINAL DA MATRIZ DE DILÍTIO',
+    activate: () => toggleDilithiumMatrixConsole()
+  },
+  {
+    id: 'refinery', priority: 65, available: false,
+    label: '◎ REFINARIA', target: 'TERMINAL DA REFINARIA',
+    activate: () => toggleRefineryConsole()
+  },
+  {
+    id: 'deflector', priority: 60, available: false,
+    label: '◎ CONSOLE DO DEFLETOR', target: 'COMPUTADOR DO DEFLETOR',
+    activate: () => toggleDeflectorConsole()
+  },
+  {
+    id: 'engineering', priority: 55, available: false,
+    label: '◎ ENGENHARIA', target: 'CONSOLE DE ENGENHARIA',
+    activate: () => toggleEngineeringConsole()
+  },
+  {
+    id: 'pilot-console', priority: 10, available: false,
+    label: '◎ PILOTAR', target: 'PILOTAGEM DISPONÍVEL',
+    activate: () => enterPilotMode()
+  }
+];
+const characterInteractionFallback = { hidden: false, label: 'AÇÃO', target: null };
+
+function updateCharacterAction() {
+  const onFoot = characterCore.snapshot().mode === 'on-foot';
+  if (!onFoot || !characterModel) {
+    characterInteractionManager.render([], { hidden: true, label: 'AÇÃO' });
+    return;
+  }
+
+  const candidates = characterInteractionCandidates;
+  candidates[0].available = Boolean(nearbyAlexiaInteraction);
+  candidates[1].available = Boolean(lightingConsoleInteractionAvailable || lightingConsoleActive);
+  candidates[1].label = lightingConsoleActive ? '◎ ILUMINAÇÃO ABERTA' : '◎ INTERAGIR';
+  candidates[2].available = Boolean(transporterActionAvailable);
+  const pending = transporterDispatchBuffer.getPending();
+  candidates[2].target = pending && transporterDestinationId === pending.destinationId
+    ? 'PLATAFORMA · DESTINO RECEBIDO · PRONTA'
+    : 'PLATAFORMA · SEM DESTINO DEFINIDO';
+  candidates[3].available = Boolean(terrestrialTransportInteractionAvailable || terrestrialTransportConsoleActive);
+  candidates[3].label = terrestrialTransportConsoleActive ? '◎ FECHAR TERMINAL BT-01' : '◎ TERMINAL BT-01';
+  candidates[3].target = terrestrialTransportConsoleActive
+    ? 'TERMINAL TERRESTRE · CONECTADO'
+    : 'TERMINAL DE TRANSPORTE · BT-01';
+  candidates[4].available = Boolean(transporterInteractionAvailable || transporterConsoleActive);
+  candidates[4].label = transporterConsoleActive ? '◎ FECHAR AURORA OS' : '◎ AURORA OS';
+  candidates[4].target = transporterConsoleActive
+    ? (pending ? 'DESTINO ENVIADO · PLATAFORMA AGUARDANDO' : 'AURORA OS · TRANSPORTE CONECTADO')
+    : 'CONSOLE AURORA OS · TRANSPORTE PLANETÁRIO';
+
+  const elevatorMoving = Boolean(externalElevator?.moving);
+  candidates[5].visible = elevatorMoving;
+  candidates[6].visible = !elevatorMoving && Boolean(externalElevatorActionAvailable);
+  candidates[6].available = Boolean(externalElevatorActionAvailable && !elevatorMoving);
+  candidates[6].label = externalElevator?.phase === 'bottom' ? 'SUBIR' : 'DESCER';
+
+  candidates[7].available = Boolean(matrixInteractionAvailable || matrixConsoleActive);
+  candidates[7].label = matrixConsoleActive ? '◎ FECHAR MATRIZ' : '◎ ACESSAR MATRIZ';
+  candidates[7].target = matrixConsoleActive
+    ? 'TERMINAL DA MATRIZ CONECTADO'
+    : 'TERMINAL DA MATRIZ DE DILÍTIO';
+  candidates[8].available = Boolean(refineryInteractionAvailable || refineryConsoleActive);
+  candidates[8].label = refineryConsoleActive ? '◎ FECHAR REFINARIA' : '◎ REFINARIA';
+  candidates[8].target = refineryConsoleActive
+    ? 'TERMINAL DA REFINARIA CONECTADO'
+    : 'TERMINAL DA REFINARIA';
+  candidates[9].available = Boolean(deflectorInteractionAvailable || deflectorConsoleActive);
+  candidates[9].label = deflectorConsoleActive ? '◎ DESCONECTAR DEFLETOR' : '◎ CONSOLE DO DEFLETOR';
+  candidates[9].target = deflectorConsoleActive
+    ? 'COMPUTADOR DO DEFLETOR CONECTADO'
+    : 'COMPUTADOR DO DEFLETOR';
+  candidates[10].available = Boolean(engineeringInteractionAvailable || engineeringConsoleActive);
+  candidates[10].label = engineeringConsoleActive ? '◎ DESCONECTAR ENGENHARIA' : '◎ ENGENHARIA';
+  candidates[10].target = engineeringConsoleActive
+    ? 'CONSOLE DE ENGENHARIA CONECTADO'
+    : 'CONSOLE DE ENGENHARIA';
+
+  let pilotAvailable = false;
+  if (!nearbyElevator && shipVisual) {
+    characterModel.group.getWorldPosition(pilotPlayerWorldPosition);
+    pilotAvailable = isPilotConsoleInRange(pilotPlayerWorldPosition, shipVisual);
+  }
+  pilotInteractionAvailable = pilotAvailable;
+  candidates[11].available = pilotAvailable;
+
+  characterInteractionFallback.hidden = Boolean(nearbyElevator);
+  characterInteractionFallback.target = nearbyElevator
+    ? 'ELEVADOR INTERNO'
+    : characterInWorldFrame && terrestrialTransportBase
+      ? 'BASE TERRESTRE BRASIL · BT-01'
+      : pending ? 'DESTINO ENVIADO · DIRIJA-SE À PLATAFORMA' : null;
+  characterInteractionManager.render(candidates, characterInteractionFallback);
 }
 
 function setPilotInterface(activePilot) {
@@ -3075,20 +3219,7 @@ function updateCharacterWeapon(dt) {
 }
 
 $('character-action-btn')?.addEventListener('click', () => {
-  if (nearbyAlexiaInteraction) { alexiaInteractionMenu?.open?.(); return; }
-  if (lightingConsoleInteractionAvailable || lightingConsoleActive) {
-    document.dispatchEvent(new CustomEvent('starfrontier:aurora-open-app', { detail: { app: 'lighting', source: 'deck1-console' } }));
-    return;
-  }
-  if (transporterActionAvailable) { transporterActionMenu?.open?.(transporterDispatchBuffer.getPending()?.destinationName); return; }
-  if (terrestrialTransportInteractionAvailable || terrestrialTransportConsoleActive) { toggleTerrestrialTransportConsole(); return; }
-  if (transporterInteractionAvailable || transporterConsoleActive) { togglePlanetaryTransportConsole(); return; }
-  if (externalElevatorActionAvailable) activateExternalElevator();
-  else if (matrixInteractionAvailable || matrixConsoleActive) toggleDilithiumMatrixConsole();
-  else if (refineryInteractionAvailable || refineryConsoleActive) toggleRefineryConsole();
-  else if (deflectorInteractionAvailable || deflectorConsoleActive) toggleDeflectorConsole();
-  else if (engineeringInteractionAvailable || engineeringConsoleActive) toggleEngineeringConsole();
-  else enterPilotMode();
+  characterInteractionManager.activate();
 });
 window.addEventListener('keydown', event => {
   if (event.key === 'Escape' && !$('inventory-modal')?.classList.contains('hidden')) { closeInventory(); return; }
