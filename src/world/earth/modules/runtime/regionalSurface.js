@@ -370,6 +370,12 @@ export function createEarthRegionalSurfaceRuntime({
     for (const mesh of active.values()) {
       syncMaterial(mesh.material, surface.material);
       applyTextureDebugTint(mesh.material);
+      if (mesh.userData?.earthQuadtree) {
+        mesh.userData.earthQuadtree.colorSource =
+          mesh.material?.map === regionalTexture && regionalTexture?.image
+            ? 'nasa-blue-marble-500m-jau'
+            : mesh.material?.map?.image ? 'nasa-blue-marble-global' : 'missing';
+      }
       const timing = surface.userData?.earthBlueMarbleTiming;
       if (mesh.material?.map?.image && timing?.loadedAtMs != null && firstRegionalTextureMs === null) {
         const syncedAt = nowMs();
@@ -628,8 +634,8 @@ export function createEarthRegionalSurfaceRuntime({
         mode: 'cube-sphere-quadtree',
         activeTiles: active.size,
         texturedTiles,
-        globalColorTiles: texturedTiles - [...active.values()].filter(mesh => mesh.material?.userData?.earthRegionalColorTile && mesh.material?.map?.image).length,
-        regionalColorTiles: [...active.values()].filter(mesh => mesh.material?.userData?.earthRegionalColorTile && mesh.material?.map?.image).length,
+        globalColorTiles: texturedTiles - [...active.values()].filter(mesh => mesh.material?.map === regionalTexture && Boolean(regionalTexture?.image)).length,
+        regionalColorTiles: [...active.values()].filter(mesh => mesh.material?.map === regionalTexture && Boolean(regionalTexture?.image)).length,
         textureDebug,
         globalTextureState: surface?.userData?.earthBlueMarbleTiming?.textureState ?? (globalImage ? 'ready' : 'missing'),
         globalTextureColorSpace: globalTexture?.colorSpace ?? null,
