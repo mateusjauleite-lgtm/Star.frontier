@@ -8,18 +8,18 @@ function fixture() {
   }]));
   const document = { getElementById: id => elements.get(id) || null };
   const calls = [];
+  const channel = name => ({
+    reset: () => calls.push([name + '-reset']),
+    setEnabled: enabled => calls.push([name + '-enabled', enabled])
+  });
   const characterHUD = { show: visible => calls.push(['character-hud', visible]) };
-  const characterControls = {
-    reset: () => calls.push(['character-reset']),
-    setEnabled: enabled => calls.push(['character-enabled', enabled])
-  };
-  const shipMovementControls = {
-    reset: () => calls.push(['ship-reset']),
-    setEnabled: enabled => calls.push(['ship-enabled', enabled])
-  };
+  const characterControls = channel('character');
+  const shipMovementControls = channel('ship-move');
+  const shipAimControls = channel('ship-aim');
+  const shipCommandControls = channel('ship-commands');
   const layouts = [];
   const controller = createGameplayControlModeController({
-    document, characterHUD, characterControls, shipMovementControls,
+    document, characterHUD, characterControls, shipMovementControls, shipAimControls, shipCommandControls,
     applyHudLayout: (...args) => layouts.push(args),
     readHudLayout: profile => ({ profile })
   });
@@ -34,38 +34,40 @@ test('walking in ship and on planet uses only character controls and HUD', () =>
   controller.setMode('on-foot-planet');
   assert.equal(controller.getMode(), 'on-foot-planet');
   assert.equal(calls.filter(call => call[0] === 'character-enabled' && call[1] === true).length, 2);
-  assert.equal(calls.filter(call => call[0] === 'ship-enabled' && call[1] === false).length, 2);
+  assert.equal(calls.filter(call => call[0] === 'ship-move-enabled' && call[1] === false).length, 2);
+  assert.equal(calls.filter(call => call[0] === 'ship-aim-enabled' && call[1] === false).length, 2);
+  assert.equal(calls.filter(call => call[0] === 'ship-commands-enabled' && call[1] === false).length, 2);
   assert.equal(elements.get('flight-controls').classList.hidden, true);
 });
 
-test('piloting disables character input and enables only ship input', () => {
+test('piloting disables character input and enables all ship input channels', () => {
   const { controller, elements, calls } = fixture();
   controller.setMode('on-foot-ship');
   controller.setMode('piloting');
   assert.equal(controller.isPilotActive(), true);
   assert.equal(controller.isCharacterActive(), false);
-  assert.equal(calls.at(-1)[0], 'ship-enabled');
+  assert.equal(calls.at(-1)[0], 'ship-commands-enabled');
   assert.equal(calls.at(-1)[1], true);
+  assert.equal(calls.filter(call => call[0] === 'ship-aim-enabled' && call[1] === true).length, 1);
   assert.equal(elements.get('flight-controls').classList.hidden, false);
-  assert.equal(elements.get('character-controls'), undefined);
 });
 
-test('switching modes resets both input channels before activation', () => {
+test('switching modes resets every input channel before activation', () => {
   const { controller, calls } = fixture();
   controller.setMode('on-foot-ship');
   calls.length = 0;
   controller.setMode('piloting');
-  assert.deepEqual(calls.slice(0, 4), [
-    ['character-reset'], ['ship-reset'], ['character-enabled', false], ['ship-enabled', true]
+  assert.deepEqual(calls.slice(0, 5), [
+    ['character-reset'], ['ship-move-reset'], ['ship-aim-reset'], ['ship-commands-reset'], ['character-enabled', false]
   ]);
 });
 
-test('inactive mode hides both interfaces and blocks both input channels', () => {
+test('inactive mode hides both interfaces and blocks all input channels', () => {
   const { controller, elements, calls } = fixture();
   controller.setMode('inactive');
   assert.equal(controller.isCharacterActive(), false);
   assert.equal(controller.isPilotActive(), false);
   assert.equal(elements.get('hud').classList.hidden, true);
-  assert.equal(calls.at(-1)[0], 'ship-enabled');
+  assert.equal(calls.at(-1)[0], 'ship-commands-enabled');
   assert.equal(calls.at(-1)[1], false);
 });

@@ -2995,16 +2995,6 @@ const characterControls = registerCharacterControls({
     }
   }
 });
-gameplayControlModes = createGameplayControlModeController({
-  document,
-  characterHUD,
-  characterControls,
-  shipMovementControls,
-  applyHudLayout,
-  readHudLayout
-});
-gameplayControlModes.setMode(characterInWorldFrame ? 'on-foot-planet' : 'on-foot-ship');
-
 const characterJumpButton = characterControls.jumpButton;
 const characterSprintButton = characterControls.sprintButton;
 const characterAnimationButton = $('character-animation-btn');
@@ -3259,7 +3249,7 @@ document.addEventListener('visibilitychange', () => {
   handleRuntimeVisibility(document.hidden);
 });
 
-registerAimControls({ document, THREE, state, getCameraInput: () => cameraRuntimeInput });
+const shipAimControls = registerAimControls({ document, THREE, state, getCameraInput: () => cameraRuntimeInput });
 const instrumentBindings = [
   ['hull', 'hull-bar', 100], ['shield', 'shield-bar', 100],
   ['fuel', 'fuel-bar', 100], ['speed', 'speed-bar', 12000]
@@ -3278,7 +3268,7 @@ instrumentBindings.forEach(([valueId]) => {
   if (value) instrumentObserver.observe(value, { childList:true, characterData:true, subtree:true });
 });
 updateInstrumentBars();
-registerHeldFlightControls({
+const shipCommandControls = registerHeldFlightControls({
   document, window, state,
   dispatchPropulsionCommand: payload => {
     const response = shipComputer.dispatch('pilot-console', 'propulsion', 'setPilotInput', payload);
@@ -3296,6 +3286,18 @@ document.querySelectorAll('[data-warp-stage]').forEach(button => {
   });
 });
 registerFlightSelectionGuards({ document });
+
+gameplayControlModes = createGameplayControlModeController({
+  document,
+  characterHUD,
+  characterControls,
+  shipMovementControls,
+  shipAimControls,
+  shipCommandControls,
+  applyHudLayout,
+  readHudLayout
+});
+gameplayControlModes.setMode(characterInWorldFrame ? 'on-foot-planet' : 'on-foot-ship');
 
 function cancelLandingGuidance(reason = 'cancelled') {
   shipLandingAutopilot?.cancel?.();

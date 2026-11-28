@@ -5,6 +5,8 @@ export function createGameplayControlModeController({
   characterHUD,
   characterControls,
   shipMovementControls,
+  shipAimControls = null,
+  shipCommandControls = null,
   applyHudLayout = () => {},
   readHudLayout = () => ({})
 }) {
@@ -14,6 +16,7 @@ export function createGameplayControlModeController({
 
   let activeMode = null;
   const pilotElements = ['hud', 'warp-drive-display', 'flight-controls', 'leave-pilot-btn'];
+  const shipInputControllers = [shipMovementControls, shipAimControls, shipCommandControls].filter(Boolean);
 
   function setMode(mode) {
     if (!MODES.has(mode)) throw new TypeError('Modo de controle inválido: ' + mode);
@@ -22,11 +25,11 @@ export function createGameplayControlModeController({
     const characterActive = mode === 'on-foot-ship' || mode === 'on-foot-planet';
     const pilotActive = mode === 'piloting';
 
-    // Limpa qualquer toque/tecla mantido antes de liberar o outro conjunto.
+    // Encerra todas as capturas e comandos mantidos antes de liberar outro modo.
     characterControls.reset();
-    shipMovementControls.reset();
+    shipInputControllers.forEach(controller => controller.reset?.());
     characterControls.setEnabled(characterActive);
-    shipMovementControls.setEnabled(pilotActive);
+    shipInputControllers.forEach(controller => controller.setEnabled?.(pilotActive));
 
     characterHUD.show(characterActive);
     pilotElements.forEach(id => {
