@@ -297,6 +297,7 @@ export function createEarthRegionalSurfaceRuntime({
   let regionalTextureAfterLoadMs = null;
   let lastSyncedMap = surface?.material?.map ?? null;
   let lastSyncedEmissiveMap = surface?.material?.emissiveMap ?? null;
+  let lastSyncedMaterialVersion = surface?.material?.version ?? 0;
   let generationStartedAt = null;
   let lastGenerationMs = null;
   let completedGenerations = 0;
@@ -330,9 +331,12 @@ export function createEarthRegionalSurfaceRuntime({
     if (!surface?.material) return;
     const sourceMap = surface.material.map ?? null;
     const sourceEmissiveMap = surface.material.emissiveMap ?? null;
-    if (!force && sourceMap === lastSyncedMap && sourceEmissiveMap === lastSyncedEmissiveMap) return;
+    const sourceVersion = surface.material.version ?? 0;
+    if (!force && sourceMap === lastSyncedMap && sourceEmissiveMap === lastSyncedEmissiveMap &&
+        sourceVersion === lastSyncedMaterialVersion) return;
     lastSyncedMap = sourceMap;
     lastSyncedEmissiveMap = sourceEmissiveMap;
+    lastSyncedMaterialVersion = sourceVersion;
     for (const mesh of active.values()) {
       syncMaterial(mesh.material, surface.material);
       const timing = surface.userData?.earthBlueMarbleTiming;
