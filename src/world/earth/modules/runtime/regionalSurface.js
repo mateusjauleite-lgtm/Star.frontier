@@ -273,6 +273,7 @@ export function createEarthRegionalSurfaceRuntime({
 } = {}) {
   const active = new Map();
   const tileBuilds = new Map();
+  const preparedTiles = new Set();
   const tileRoot = surface?.parent ?? surface;
   let pending = [];
   let buildToken = 0;
@@ -451,6 +452,13 @@ export function createEarthRegionalSurfaceRuntime({
     if (mesh.material?.map !== lastSyncedMap || mesh.material?.emissiveMap !== lastSyncedEmissiveMap) {
       mesh.material.needsUpdate = true;
     }
+    preparedTiles.delete(id);
+    preparedTiles.add(id);
+    while (preparedTiles.size > 3) {
+      const oldest = preparedTiles.values().next().value;
+      preparedTiles.delete(oldest);
+      if (!lastSelection.includes(oldest)) removeTile(oldest);
+    }
     return { ok: true, key: node.key, textured: Boolean(mesh.material?.map?.image), elevationSource: mesh.userData?.earthQuadtree?.elevationSource };
   }
 
@@ -514,6 +522,7 @@ export function createEarthRegionalSurfaceRuntime({
       const keys = selected.map(node => tileId(node, demActive));
       const changed = keys.length !== lastSelection.length ||
         keys.some((key, index) => key !== lastSelection[index]) || demModeChanged;
+      for (const key of keys) preparedTiles.delete(key);
       if (changed) {
         // Keep the previous complete surface visible while its replacement is
         // built. A mode change creates a second tile generation instead of
@@ -523,7 +532,9 @@ export function createEarthRegionalSurfaceRuntime({
         generationStartedAt = nowMs();
         pending = selected.filter(node => !active.has(tileId(node, demActive)));
         if (!keys.length) {
-          for (const key of [...active.keys()]) removeTile(key);
+          for (const key of [...active.keys()]) {
+            if (!preparedTiles.has(key)) removeTile(key);
+          }
         }
       }
       if (!building && pending.length) {
@@ -546,7 +557,7 @@ export function createEarthRegionalSurfaceRuntime({
               generationStartedAt = null;
             }
             for (const key of [...active.keys()]) {
-              if (!lastSelection.includes(key)) removeTile(key);
+              if (!lastSelection.includes(key) && !preparedTiles.has(key)) removeTile(key);
             }
           }
         });
@@ -557,7 +568,7 @@ export function createEarthRegionalSurfaceRuntime({
           generationStartedAt = null;
         }
         for (const key of [...active.keys()]) {
-          if (!lastSelection.includes(key)) removeTile(key);
+          if (!lastSelection.includes(key) && !preparedTiles.has(key)) removeTile(key);
         }
       }
     },
@@ -591,7 +602,8 @@ export function createEarthRegionalSurfaceRuntime({
         regionalTextureAfterLoadMs,
         lastGenerationMs,
         completedGenerations,
-        selectedKeys: [...lastSelection]
+        selectedKeys: [...lastSelection],
+        preparedTiles: preparedTiles.size
       };
     },
     dispose() {
@@ -599,6 +611,7 @@ export function createEarthRegionalSurfaceRuntime({
       disposed = true;
       buildToken++;
       pending = [];
+      preparedTiles.clear();
       for (const key of [...active.keys()]) removeTile(key);
     }
   };
