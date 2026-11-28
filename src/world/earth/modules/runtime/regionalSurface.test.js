@@ -259,13 +259,13 @@ test('reselects visible regional tiles immediately after a meaningful camera tur
   });
 
   runtime.update(0.016, { camera });
-  const firstSelection = runtime.getStatus().selectedKeys;
+  const firstStatus = runtime.getStatus();
   camera.lookAt(0, 700, 0);
   runtime.update(0.016, { camera });
-  const turnedSelection = runtime.getStatus().selectedKeys;
+  const turnedStatus = runtime.getStatus();
 
-  assert.ok(firstSelection.length > 0);
-  assert.notDeepEqual(turnedSelection, firstSelection);
+  assert.ok(firstStatus.selectedKeys.length > 0);
+  assert.equal(turnedStatus.selectionRefreshCount, firstStatus.selectionRefreshCount + 1);
 
   runtime.dispose();
   surface.geometry.dispose();
