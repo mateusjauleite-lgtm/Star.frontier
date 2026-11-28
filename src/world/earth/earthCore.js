@@ -106,6 +106,14 @@ export function createEarthCore(options = {}) {
     getCollisionSurface() {
       return layers.terrain?.collisionSurface ?? null;
     },
+    prepareTerrainRegion({ latitudeDeg, longitudeDeg, altitudeMeters = 0 } = {}) {
+      if (disposed) return Promise.resolve({ ok: false, reason: 'earth-disposed' });
+      const prepare = updatePipeline.getRuntime?.('terrain')?.prepareRegion;
+      if (typeof prepare !== 'function') {
+        return Promise.resolve({ ok: false, reason: 'terrain-preparation-unavailable' });
+      }
+      return prepare({ latitudeDeg, longitudeDeg, altitudeMeters });
+    },
     // Exposes the rendered axial spin so grounded world objects can share
     // the same angular transform without becoming children of the Earth mesh.
     getSurfaceRotationState() {
