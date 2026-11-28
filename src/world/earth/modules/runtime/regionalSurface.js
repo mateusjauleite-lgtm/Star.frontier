@@ -456,6 +456,10 @@ export function createEarthRegionalSurfaceRuntime({
 
   return {
     prepareRegion,
+    syncSurfaceMaterials() {
+      syncActiveTileMaterials(true);
+      return active.size;
+    },
     update(delta, context) {
       if (disposed || !surface || !context?.camera) return;
       syncActiveTileMaterials();
