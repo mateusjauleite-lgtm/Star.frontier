@@ -9,7 +9,8 @@ import {
   getEarthQuadtreeChildren,
   selectEarthQuadtreeTiles,
   createEarthQuadtreeTileGeometry,
-  getEarthQuadtreeNodeForDirection
+  getEarthQuadtreeNodeForDirection,
+  createEarthRegionalSurfaceRuntime
 } from './regionalSurface.js';
 
 test('cube-sphere faces produce normalized directions', () => {
@@ -162,4 +163,60 @@ test('regional tiles use the same longitude UV convention as the global SphereGe
   assert.equal(earthLongitudeToSphereUv(180), 0);
   assert.equal(earthLongitudeToSphereUv(-180), 0);
   assert.equal(earthLongitudeToSphereUv(Number.NaN), null);
+});
+
+
+test('prepares the destination anchor tile before the camera arrives', async () => {
+  const root = new THREE.Group();
+  const surface = new THREE.Mesh(
+    new THREE.SphereGeometry(600, 8, 8),
+    new THREE.MeshStandardMaterial({ color: 0xffffff })
+  );
+  root.add(surface);
+  const runtime = createEarthRegionalSurfaceRuntime({
+    surface,
+    radius: 600,
+    elevationSampler: () => 0,
+    sampleElevationMetersBatch: async points => {
+      const values = new Float32Array(points.length);
+      values.fill(100);
+      return values;
+    },
+    elevationMetersToUnits: meters => meters * 0.01,
+    maxLevel: 8,
+    maxTiles: 24,
+    segments: 2,
+    buildPerUpdate: 2
+  });
+
+  const prepared = await runtime.prepareRegion({
+    latitudeDeg: -22.2964,
+    longitudeDeg: -48.557,
+    altitudeUnits: 0
+  });
+
+  assert.equal(prepared.ok, true);
+  assert.equal(prepared.elevationSource, 'regional-dem');
+  assert.equal(runtime.getStatus().activeTiles, 1);
+  assert.equal(runtime.getStatus().demTiles, 1);
+
+  runtime.dispose();
+  surface.geometry.dispose();
+  surface.material.dispose();
+});
+
+test('rejects invalid destination coordinates without building tiles', async () => {
+  const root = new THREE.Group();
+  const surface = new THREE.Mesh(
+    new THREE.SphereGeometry(600, 8, 8),
+    new THREE.MeshStandardMaterial()
+  );
+  root.add(surface);
+  const runtime = createEarthRegionalSurfaceRuntime({ surface, radius: 600 });
+  const result = await runtime.prepareRegion({ latitudeDeg: 91, longitudeDeg: 0 });
+  assert.deepEqual(result, { ok: false, reason: 'invalid-region' });
+  assert.equal(runtime.getStatus().activeTiles, 0);
+  runtime.dispose();
+  surface.geometry.dispose();
+  surface.material.dispose();
 });
