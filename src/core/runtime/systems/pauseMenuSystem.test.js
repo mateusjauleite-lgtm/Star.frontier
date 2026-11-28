@@ -101,11 +101,9 @@ test('shutdown remove os eventos do menu de pausa', () => {
 test('monitor de desempenho atualiza a última leitura de FPS durante a execução', () => {
   const { elements, system, advanceClock } = createFixture();
   system.initialize();
-  for (let frame = 0; frame < 29; frame += 1) {
+  for (let frame = 0; frame <= 30; frame += 1) {
     advanceClock(1000 + frame * (500 / 30));
     system.update();
   }
-  advanceClock(1500);
-  system.update();
   assert.equal(elements.get('pause-fps-value').textContent, '60');
 });
