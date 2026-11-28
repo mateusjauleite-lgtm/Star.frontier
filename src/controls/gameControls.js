@@ -1,21 +1,31 @@
 export function registerAimControls({ document, THREE, state, getCameraInput = () => null }) {
-  // Arrasto livre de câmera em 360°: não altera a orientação física da nave.
   const aimArea = document.getElementById('aim-touch-area');
+  const aimStick = document.getElementById('aim-stick');
+  const knob = aimStick?.querySelector('.knob');
+  let enabled = false;
   let aimPointer = null;
+  let stickPointer = null;
   let previousTouchX = 0;
   let previousTouchY = 0;
 
+  const releaseCapture = (element, pointerId) => {
+    if (pointerId === null || pointerId === undefined) return;
+    try {
+      if (element?.hasPointerCapture?.(pointerId)) element.releasePointerCapture(pointerId);
+    } catch {}
+  };
+
   if (aimArea) {
     aimArea.addEventListener('pointerdown', event => {
-      if (event.target.closest('#aim-stick')) return;
+      if (!enabled || event.target.closest('#aim-stick') || aimPointer !== null) return;
       event.preventDefault();
       aimPointer = event.pointerId;
       previousTouchX = event.clientX;
       previousTouchY = event.clientY;
-      aimArea.setPointerCapture(aimPointer);
+      try { aimArea.setPointerCapture(aimPointer); } catch {}
     });
     aimArea.addEventListener('pointermove', event => {
-      if (aimPointer !== event.pointerId) return;
+      if (!enabled || aimPointer !== event.pointerId) return;
       event.preventDefault();
       const dx = event.clientX - previousTouchX;
       const dy = event.clientY - previousTouchY;
@@ -27,23 +37,14 @@ export function registerAimControls({ document, THREE, state, getCameraInput = (
       };
       const cameraInput = getCameraInput?.();
       if (cameraInput) cameraInput.setView(nextView.x, nextView.y);
-      else {
-        state.view.x = nextView.x;
-        state.view.y = nextView.y;
-      }
+      else { state.view.x = nextView.x; state.view.y = nextView.y; }
     });
     const endAim = event => { if (aimPointer === event.pointerId) aimPointer = null; };
-    aimArea.addEventListener('pointerup', endAim);
-    aimArea.addEventListener('pointercancel', endAim);
-    aimArea.addEventListener('lostpointercapture', endAim);
+    ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type => aimArea.addEventListener(type, endAim));
   }
 
-  // Joystick de mira separado: desloca o ponto de visão relativo ao casco.
-  const aimStick = document.getElementById('aim-stick');
-  if (!aimStick) return;
-  const knob = aimStick.querySelector('.knob');
-  let stickPointer = null;
   const updateAim = event => {
+    if (!enabled || !aimStick) return;
     const rect = aimStick.getBoundingClientRect();
     const max = Math.max(1, rect.width * 0.31);
     let x = event.clientX - rect.left - rect.width / 2;
@@ -55,10 +56,7 @@ export function registerAimControls({ document, THREE, state, getCameraInput = (
     const cameraInput = getCameraInput?.();
     if (cameraInput) {
       cameraInput.setAim(aimX, aimY);
-      cameraInput.setView(
-        state.view.x - aimY * 0.035,
-        state.view.y + aimX * 0.055
-      );
+      cameraInput.setView(state.view.x - aimY * 0.035, state.view.y + aimX * 0.055);
     } else {
       state.aim.x = aimX;
       state.aim.y = aimY;
@@ -67,15 +65,16 @@ export function registerAimControls({ document, THREE, state, getCameraInput = (
     }
     if (knob) knob.style.transform = `translate(-50%,-50%) translate(${x}px,${y}px)`;
   };
-  aimStick.addEventListener('pointerdown', event => {
-    if (stickPointer !== null) return;
+
+  aimStick?.addEventListener('pointerdown', event => {
+    if (!enabled || stickPointer !== null) return;
     event.preventDefault();
     stickPointer = event.pointerId;
-    aimStick.setPointerCapture(stickPointer);
+    try { aimStick.setPointerCapture(stickPointer); } catch {}
     updateAim(event);
   });
-  aimStick.addEventListener('pointermove', event => {
-    if (stickPointer !== event.pointerId) return;
+  aimStick?.addEventListener('pointermove', event => {
+    if (!enabled || stickPointer !== event.pointerId) return;
     event.preventDefault();
     updateAim(event);
   });
@@ -87,12 +86,37 @@ export function registerAimControls({ document, THREE, state, getCameraInput = (
     else { state.aim.x = 0; state.aim.y = 0; }
     if (knob) knob.style.transform = 'translate(-50%,-50%)';
   };
-  aimStick.addEventListener('pointerup', endStick);
-  aimStick.addEventListener('pointercancel', endStick);
-  aimStick.addEventListener('lostpointercapture', endStick);
+  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type => aimStick?.addEventListener(type, endStick));
+
+  const reset = () => {
+    const areaPointer = aimPointer;
+    const activeStickPointer = stickPointer;
+    aimPointer = null;
+    stickPointer = null;
+    releaseCapture(aimArea, areaPointer);
+    releaseCapture(aimStick, activeStickPointer);
+    const cameraInput = getCameraInput?.();
+    if (cameraInput) cameraInput.resetAim();
+    else { state.aim.x = 0; state.aim.y = 0; }
+    if (knob) knob.style.transform = 'translate(-50%,-50%)';
+  };
+
+  return Object.freeze({
+    isEnabled: () => enabled,
+    setEnabled: value => {
+      const next = Boolean(value);
+      if (enabled === next) return;
+      enabled = next;
+      if (!enabled) reset();
+    },
+    reset
+  });
 }
 
 export function registerHeldFlightControls({ document, window, state, dispatchPropulsionCommand = null, onWarpRejected = () => {} }) {
+  let enabled = false;
+  const resetters = [];
+
   function holdButton(id, key, control) {
     const button = document.getElementById(id);
     if (!button) return;
@@ -109,44 +133,43 @@ export function registerHeldFlightControls({ document, window, state, dispatchPr
     };
     const stop = event => {
       if (activePointer !== null && event?.pointerId !== undefined && event.pointerId !== activePointer) return;
-      if (activePointer !== null) apply(false);
+      const pointer = activePointer;
+      if (pointer !== null) apply(false);
       activePointer = null;
+      try {
+        if (pointer !== null && button.hasPointerCapture?.(pointer)) button.releasePointerCapture(pointer);
+      } catch {}
       if (control.startsWith('maneuver')) {
         state.maneuver ||= { left: false, right: false, up: false, down: false };
         state.maneuver[control.slice('maneuver'.length).toLowerCase()] = false;
       } else state[key] = false;
       button.classList.remove('active');
     };
+    resetters.push(stop);
     button.addEventListener('pointerdown', event => {
-      if (activePointer !== null || (event.pointerType === 'mouse' && event.button !== 0)) return;
+      if (!enabled || activePointer !== null || (event.pointerType === 'mouse' && event.button !== 0)) return;
       event.preventDefault();
       if (!apply(true)) return;
       activePointer = event.pointerId;
       button.classList.add('active');
-      try { button.setPointerCapture(event.pointerId); } catch {
-        // pointerup/blur continuam responsáveis por liberar a entrada.
-      }
+      try { button.setPointerCapture(event.pointerId); } catch {}
     });
     ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type => button.addEventListener(type, stop));
     window.addEventListener('blur', stop);
   }
-  // Propulsor principal funciona como a dobra: toque liga, novo toque desliga.
+
   const throttleButton = document.getElementById('throttle-btn');
   if (throttleButton) {
     throttleButton.setAttribute('aria-pressed', String(Boolean(state.throttle)));
     throttleButton.classList.toggle('active', Boolean(state.throttle));
     throttleButton.addEventListener('click', () => {
+      if (!enabled) return;
       const active = !Boolean(state.throttle);
       let accepted = true;
       if (typeof dispatchPropulsionCommand === 'function') {
         accepted = dispatchPropulsionCommand({ control: 'throttle', active })?.accepted === true;
-      } else {
-        state.throttle = active;
-      }
-      if (!accepted) {
-        onWarpRejected('throttle-command-rejected');
-        return;
-      }
+      } else state.throttle = active;
+      if (!accepted) { onWarpRejected('throttle-command-rejected'); return; }
       state.throttle = active;
       throttleButton.setAttribute('aria-pressed', String(active));
       throttleButton.classList.toggle('active', active);
@@ -158,11 +181,11 @@ export function registerHeldFlightControls({ document, window, state, dispatchPr
   holdButton('maneuver-up-btn', 'maneuverUp', 'maneuverUp');
   holdButton('maneuver-down-btn', 'maneuverDown', 'maneuverDown');
 
-  // Dobra é um comando de alternância: não depende de manter o toque pressionado.
   const warpButton = document.getElementById('warp-drive-btn');
   if (warpButton) {
     warpButton.setAttribute('aria-pressed', String(Boolean(state.warpDriveButton)));
     warpButton.addEventListener('click', () => {
+      if (!enabled) return;
       const active = !Boolean(state.warpDriveButton);
       if (typeof dispatchPropulsionCommand === 'function') {
         const result = dispatchPropulsionCommand({ control: 'warpDriveButton', active });
@@ -175,6 +198,18 @@ export function registerHeldFlightControls({ document, window, state, dispatchPr
       warpButton.classList.toggle('active', active);
     });
   }
+
+  const reset = () => resetters.forEach(stop => stop());
+  return Object.freeze({
+    isEnabled: () => enabled,
+    setEnabled: value => {
+      const next = Boolean(value);
+      if (enabled === next) return;
+      enabled = next;
+      if (!enabled) reset();
+    },
+    reset
+  });
 }
 
 export function registerFlightSelectionGuards({ document }) {
