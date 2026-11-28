@@ -272,6 +272,7 @@ export function createEarthRegionalSurfaceRuntime({
   buildPerUpdate = 1
 } = {}) {
   const active = new Map();
+  const tileBuilds = new Map();
   const tileRoot = surface?.parent ?? surface;
   let pending = [];
   let buildToken = 0;
@@ -351,7 +352,7 @@ export function createEarthRegionalSurfaceRuntime({
     active.delete(key);
   };
 
-  async function buildTile(node, token, useDem) {
+  async function buildTileInternal(node, token, useDem) {
     const id = tileId(node, useDem);
     if (active.has(id)) return active.get(id);
     const points = [];
@@ -409,6 +410,20 @@ export function createEarthRegionalSurfaceRuntime({
     if (hasDem) demTiles++;
     else fallbackTiles++;
     return mesh;
+  }
+
+
+  async function buildTile(node, token, useDem) {
+    const id = tileId(node, useDem);
+    if (active.has(id)) return active.get(id);
+    if (tileBuilds.has(id)) return tileBuilds.get(id);
+    const task = buildTileInternal(node, token, useDem);
+    tileBuilds.set(id, task);
+    try {
+      return await task;
+    } finally {
+      if (tileBuilds.get(id) === task) tileBuilds.delete(id);
+    }
   }
 
   async function prepareRegion({ latitudeDeg, longitudeDeg, altitudeUnits = 0 } = {}) {
