@@ -2771,7 +2771,7 @@ function updatePilotInteraction() {
 
 function updateCharacterAction() {
   const onFoot = characterCore.snapshot().mode === 'on-foot';
-  if (!onFoot) {
+  if (!onFoot || !characterModel) {
     characterInteractionManager.render([], { hidden: true, label: 'AÇÃO' });
     return;
   }
@@ -2851,7 +2851,7 @@ function updateCharacterAction() {
     target: engineeringConsoleActive ? 'CONSOLE DE ENGENHARIA CONECTADO' : 'CONSOLE DE ENGENHARIA',
     activate: () => toggleEngineeringConsole()
   });
-  if (pilotInteractionAvailable) candidates.push({
+  if (pilotInteractionAvailable && !nearbyElevator) candidates.push({
     id: 'pilot-console', priority: 10, available: true,
     label: '◎ PILOTAR', target: 'PILOTAGEM DISPONÍVEL',
     activate: () => enterPilotMode()
