@@ -672,6 +672,60 @@ select:focus {
   margin: 6px 0;
 }
 
+/* O conteúdo do menu permanece vertical e pode rolar em telas baixas. */
+#game-menu-modal .modal-card {
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+@supports (height: 100dvh) {
+  #game-menu-modal .modal-card {
+    max-height: calc(100dvh - 24px);
+  }
+}
+
+#game-menu-modal .pause-settings-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+}
+
+#game-menu-modal .pause-settings-panel .field-row {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 7px;
+  width: 100%;
+  min-width: 0;
+}
+
+#game-menu-modal .pause-settings-panel label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+}
+
+#game-menu-modal .pause-settings-panel select,
+#game-menu-modal .pause-settings-panel input[type="range"] {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+#game-menu-modal .pause-settings-panel small {
+  display: block;
+  line-height: 1.45;
+}
+
 /* CELULAR EM MODO PAISAGEM */
 
 @media (orientation: landscape) and (max-height: 600px) {
