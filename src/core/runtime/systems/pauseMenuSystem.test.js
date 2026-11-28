@@ -32,6 +32,8 @@ function createFixture() {
     ['character-menu-btn', new FakeElement()],
     ['game-menu-btn', new FakeElement()],
     ['resume-btn', new FakeElement()],
+    ['pause-menu-actions', new FakeElement()],
+    ['pause-settings-panel', new FakeElement(true)],
     ['game-menu-modal', new FakeElement(true)]
   ]);
   const document = { getElementById: id => elements.get(id) ?? null };
@@ -55,8 +57,12 @@ function createFixture() {
 test('menu de pausa abre, interrompe o Runtime e libera comandos de propulsão', () => {
   const { elements, calls, state, system } = createFixture();
   system.initialize();
+  elements.get('pause-menu-actions').classList.add('hidden');
+  elements.get('pause-settings-panel').classList.remove('hidden');
   elements.get('game-menu-btn').dispatch('click');
 
+  assert.equal(elements.get('pause-menu-actions').classList.contains('hidden'), false);
+  assert.equal(elements.get('pause-settings-panel').classList.contains('hidden'), true);
   assert.equal(elements.get('game-menu-modal').classList.contains('hidden'), false);
   assert.equal(elements.get('game-menu-modal').attributes['aria-hidden'], 'false');
   assert.equal(calls.pause, 1);
