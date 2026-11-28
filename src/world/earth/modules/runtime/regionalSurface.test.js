@@ -9,7 +9,8 @@ import {
   getEarthQuadtreeChildren,
   selectEarthQuadtreeTiles,
   createEarthQuadtreeTileGeometry,
-  getEarthQuadtreeNodeForDirection
+  getEarthQuadtreeNodeForDirection,
+  createEarthRegionalSurfaceRuntime
 } from './regionalSurface.js';
 
 test('cube-sphere faces produce normalized directions', () => {
@@ -162,4 +163,113 @@ test('regional tiles use the same longitude UV convention as the global SphereGe
   assert.equal(earthLongitudeToSphereUv(180), 0);
   assert.equal(earthLongitudeToSphereUv(-180), 0);
   assert.equal(earthLongitudeToSphereUv(Number.NaN), null);
+});
+
+
+test('prepares the destination anchor tile before the camera arrives', async () => {
+  const root = new THREE.Group();
+  const surface = new THREE.Mesh(
+    new THREE.SphereGeometry(600, 8, 8),
+    new THREE.MeshStandardMaterial({ color: 0xffffff })
+  );
+  root.add(surface);
+  const runtime = createEarthRegionalSurfaceRuntime({
+    surface,
+    radius: 600,
+    elevationSampler: () => 0,
+    sampleElevationMetersBatch: async points => {
+      const values = new Float32Array(points.length);
+      values.fill(100);
+      return values;
+    },
+    elevationMetersToUnits: meters => meters * 0.01,
+    maxLevel: 8,
+    maxTiles: 24,
+    segments: 2,
+    buildPerUpdate: 2
+  });
+
+  const prepared = await runtime.prepareRegion({
+    latitudeDeg: -22.2964,
+    longitudeDeg: -48.557,
+    altitudeUnits: 0
+  });
+
+  assert.equal(prepared.ok, true);
+  assert.equal(prepared.elevationSource, 'regional-dem');
+  assert.equal(runtime.getStatus().activeTiles, 1);
+  assert.equal(runtime.getStatus().demTiles, 1);
+
+  const loadedTexture = new THREE.Texture();
+  surface.material.map = loadedTexture;
+  surface.material.emissiveMap = loadedTexture;
+  runtime.syncSurfaceMaterials();
+  const preparedMesh = root.children.find(child => child.name.startsWith('Earth-Regional-Tile-'));
+  assert.equal(preparedMesh.material.map, loadedTexture);
+  assert.equal(preparedMesh.material.emissiveMap, loadedTexture);
+
+  const distantCamera = new THREE.PerspectiveCamera(70, 1.8, 0.1, 10000);
+  distantCamera.position.set(0, 0, 2000);
+  distantCamera.lookAt(0, 0, 0);
+  runtime.update(0.016, { camera: distantCamera });
+  assert.equal(runtime.getStatus().preparedTiles, 1);
+  assert.equal(runtime.getStatus().activeTiles, 1);
+
+  runtime.dispose();
+  loadedTexture.dispose();
+  surface.geometry.dispose();
+  surface.material.dispose();
+});
+
+test('rejects invalid destination coordinates without building tiles', async () => {
+  const root = new THREE.Group();
+  const surface = new THREE.Mesh(
+    new THREE.SphereGeometry(600, 8, 8),
+    new THREE.MeshStandardMaterial()
+  );
+  root.add(surface);
+  const runtime = createEarthRegionalSurfaceRuntime({ surface, radius: 600 });
+  const result = await runtime.prepareRegion({ latitudeDeg: 91, longitudeDeg: 0 });
+  assert.deepEqual(result, { ok: false, reason: 'invalid-region' });
+  assert.equal(runtime.getStatus().activeTiles, 0);
+  runtime.dispose();
+  surface.geometry.dispose();
+  surface.material.dispose();
+});
+
+
+test('reselects visible regional tiles immediately after a meaningful camera turn', () => {
+  const root = new THREE.Group();
+  const surface = new THREE.Mesh(
+    new THREE.SphereGeometry(600, 8, 8),
+    new THREE.MeshStandardMaterial()
+  );
+  root.add(surface);
+  const camera = new THREE.PerspectiveCamera(70, 1.8, 0.1, 10000);
+  camera.position.set(0, 0, 700);
+  camera.lookAt(700, 0, 0);
+  const runtime = createEarthRegionalSurfaceRuntime({
+    surface,
+    radius: 600,
+    elevationSampler: () => 0,
+    maxLevel: 8,
+    maxTiles: 24,
+    segments: 2,
+    buildPerUpdate: 1
+  });
+
+  runtime.update(0.016, { camera });
+  const firstStatus = runtime.getStatus();
+  runtime.update(0.016, { camera });
+  assert.equal(runtime.getStatus().selectionRefreshCount, firstStatus.selectionRefreshCount);
+  camera.lookAt(0, 700, 0);
+  runtime.update(0.016, { camera });
+  const turnedStatus = runtime.getStatus();
+
+  assert.ok(firstStatus.selectedKeys.length > 0);
+  assert.equal(turnedStatus.selectionRefreshCount, firstStatus.selectionRefreshCount + 1);
+
+  runtime.dispose();
+  surface.geometry.dispose();
+  surface.material.dispose();
 });

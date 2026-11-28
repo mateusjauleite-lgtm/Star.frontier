@@ -137,3 +137,38 @@ test('bloqueia retorno à nave sem energia ou sem posição fixa válida', () =>
   assert.equal(core.transferToPosition({ position: { x: NaN, y: 2, z: 3 } }).reason, 'destination-unresolved');
   assert.equal(moved, false);
 });
+
+
+test('prepares the selected Earth destination without moving the actor or consuming energy', async () => {
+  const preparedRegions = [];
+  let moved = false;
+  let consumed = 0;
+  const core = createPlanetaryTransportCore({
+    resolveDestination: destination => ({
+      position: { x: destination.longitudeDeg, y: 5, z: destination.latitudeDeg }
+    }),
+    prepareDestinationRegion: async (destination, options) => {
+      preparedRegions.push({ destination, options });
+      return { ok: true, key: '4/12/2048/1000', textured: true };
+    },
+    moveActor: () => { moved = true; return true; },
+    getActors: () => ({ character: {} }),
+    consumePower: amount => { consumed += amount; return amount; }
+  });
+  core.registerDestination({
+    id: 'landing',
+    name: 'Landing region',
+    latitudeDeg: -22.2964,
+    longitudeDeg: -48.557
+  });
+
+  const preview = core.previewDestination('landing', { altitudeOffsetMeters: 2.2 });
+  assert.equal(preview.ok, true);
+  const preparation = await core.prepareDestination('landing', { altitudeOffsetMeters: 2.2 });
+
+  assert.equal(preparation.preparation.ok, true);
+  assert.equal(preparedRegions.length, 2);
+  assert.equal(preparedRegions[0].options.altitudeOffsetMeters, 2.2);
+  assert.equal(moved, false);
+  assert.equal(consumed, 0);
+});
