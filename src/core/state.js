@@ -93,7 +93,8 @@ export const state = {
     quality: 'Média',
     music: 40,
     effects: 70,
-    sensitivity: 1
+    sensitivity: 1,
+    simulationTimeScale: 1
   }
 };
 
