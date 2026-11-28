@@ -15,7 +15,6 @@ export function createPauseMenuRuntimeSystem({
   let bindings = [];
   let fpsWindowStart = null;
   let fpsWindowFrames = 0;
-  let lastMeasuredFps = null;
 
   const bind = (id, handler) => {
     const element = document.getElementById(id);
@@ -81,11 +80,11 @@ export function createPauseMenuRuntimeSystem({
       fpsWindowFrames += 1;
       const elapsed = timestamp - fpsWindowStart;
       if (elapsed < 500) return;
-      lastMeasuredFps = Math.round(fpsWindowFrames * 1000 / elapsed);
+      const measuredFps = Math.round(Math.max(0, fpsWindowFrames - 1) * 1000 / elapsed);
       fpsWindowStart = timestamp;
       fpsWindowFrames = 0;
       const readout = document.getElementById('pause-fps-value');
-      if (readout) readout.textContent = String(lastMeasuredFps);
+      if (readout) readout.textContent = String(measuredFps);
     },
     open,
     resume
