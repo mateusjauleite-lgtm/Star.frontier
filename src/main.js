@@ -2016,7 +2016,8 @@ function updateCharacterWorldDiagnostics(dt = 0) {
 }
 
 function updateCharacterMovement(dt) {
-  updateCharacterWorldDiagnostics(dt);\n  if (!characterModel || characterCore.snapshot().mode !== 'on-foot') return;
+  updateCharacterWorldDiagnostics(dt);
+  if (!characterModel || characterCore.snapshot().mode !== 'on-foot') return;
   syncCharacterDeckFrame();
   // A gravidade artificial pertence somente ao referencial interno da nave.
   // No exterior, o personagem usa exclusivamente a gravidade planetária.
