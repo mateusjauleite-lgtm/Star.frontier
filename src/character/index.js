@@ -162,3 +162,7 @@ export function createCharacterSystem(options = {}) {
     dispose
   });
 }
+
+// Ambiente e sessão são independentes da identidade/modelo do personagem.
+export { createCharacterEnvironmentRouter } from './characterEnvironment.js';
+export { createCharacterSession } from './characterSession.js';
