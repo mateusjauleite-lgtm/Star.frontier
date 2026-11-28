@@ -70,6 +70,7 @@ export function createGameplayFramePhases(getDependencies) {
   updateTransporterPlatformInteraction?.();
   updateAlexiaInteraction?.(dt);
   updateLightingConsoleInteraction?.(dt);
+  updateCharacterAction?.();
     },
 
     updateLanding(dt) {
