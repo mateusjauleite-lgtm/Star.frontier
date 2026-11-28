@@ -113,6 +113,8 @@ test('regional 500 m texture remains assigned after global material synchronizat
   const root = new THREE.Group();
   const globalTexture = new THREE.Texture({ width: 2, height: 2 });
   const regionalTexture = new THREE.Texture({ width: 2, height: 2 });
+  globalTexture.colorSpace = THREE.SRGBColorSpace;
+  regionalTexture.colorSpace = THREE.SRGBColorSpace;
   const surface = new THREE.Mesh(
     new THREE.SphereGeometry(600, 8, 8),
     new THREE.MeshStandardMaterial({ color: 0xffffff, map: globalTexture })
@@ -142,6 +144,9 @@ test('regional 500 m texture remains assigned after global material synchronizat
   assert.equal(tile.material.map, regionalTexture);
   assert.equal(runtime.getStatus().regionalColorTiles, 1);
   assert.equal(runtime.getStatus().regionalColorTextureState, 'ready');
+  assert.equal(runtime.getStatus().globalTextureColorSpace, THREE.SRGBColorSpace);
+  assert.equal(runtime.getStatus().regionalColorTextureColorSpace, THREE.SRGBColorSpace);
+  assert.deepEqual(runtime.getStatus().regionalColorTextureDimensions, { width: 2, height: 2 });
 
   runtime.dispose();
   globalTexture.dispose();
