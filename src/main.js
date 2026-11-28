@@ -2851,7 +2851,13 @@ function updateCharacterAction() {
     target: engineeringConsoleActive ? 'CONSOLE DE ENGENHARIA CONECTADO' : 'CONSOLE DE ENGENHARIA',
     activate: () => toggleEngineeringConsole()
   });
-  if (pilotInteractionAvailable && !nearbyElevator) candidates.push({
+  let pilotAvailable = false;
+  if (!nearbyElevator) {
+    characterModel.group.getWorldPosition(pilotPlayerWorldPosition);
+    pilotAvailable = isPilotConsoleInRange(pilotPlayerWorldPosition, shipVisual);
+  }
+  pilotInteractionAvailable = pilotAvailable;
+  if (pilotAvailable) candidates.push({
     id: 'pilot-console', priority: 10, available: true,
     label: '◎ PILOTAR', target: 'PILOTAGEM DISPONÍVEL',
     activate: () => enterPilotMode()
