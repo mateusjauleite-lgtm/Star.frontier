@@ -301,6 +301,7 @@ export function createEarthRegionalSurfaceRuntime({
   let generationStartedAt = null;
   let lastGenerationMs = null;
   let completedGenerations = 0;
+  let selectionRefreshCount = 0;
   const nowMs = () => globalThis.performance?.now?.() ?? Date.now();
 
   const tileId = (node, useDem) => `${node.key}@${useDem ? 'dem' : 'base'}`;
@@ -502,6 +503,7 @@ export function createEarthRegionalSurfaceRuntime({
         Math.abs(lastCameraAspect - cameraAspect) > 0.01;
       const demModeChanged = demActive !== lastDemActive;
       if (!positionChanged && !directionChanged && !projectionChanged && !demModeChanged) return;
+      selectionRefreshCount++;
       lastCameraLocalPosition = cameraLocal.clone();
       lastCameraForwardLocal = forwardLocal.clone();
       lastCameraFov = cameraFov;
@@ -606,6 +608,7 @@ export function createEarthRegionalSurfaceRuntime({
         regionalTextureAfterLoadMs,
         lastGenerationMs,
         completedGenerations,
+        selectionRefreshCount,
         selectedKeys: [...lastSelection],
         preparedTiles: preparedTiles.size
       };
