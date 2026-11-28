@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { registerAimControls, registerHeldFlightControls, registerFlightSelectionGuards, registerCameraCycleControl } from './controls/gameControls.js';
 import { registerCharacterControls } from './controls/characterControls.js';
+import { registerShipMovementControls } from './controls/shipMovementControls.js';
+import { createGameplayControlModeController } from './ui/gameplayControlModes.js';
 import { registerGameplayActions } from './systems/gameplayActions.js';
 import { createMiningRuntimeSystem } from './systems/miningSystem.js';
 import { loadRuntimeKernel } from './core/runtime/RuntimeKernel.js';
@@ -2815,7 +2817,16 @@ function updatePilotInteraction() {
   updateCharacterHUD();
 }
 
+let gameplayControlModes = null;
+
 function setPilotInterface(activePilot) {
+  const mode = activePilot
+    ? 'piloting'
+    : characterInWorldFrame ? 'on-foot-planet' : 'on-foot-ship';
+  if (gameplayControlModes) {
+    gameplayControlModes.setMode(mode);
+    return;
+  }
   characterHUD.show(!activePilot);
   ['hud', 'warp-drive-display', 'flight-controls', 'leave-pilot-btn'].forEach(id => {
     $(id)?.classList.toggle('hidden', !activePilot);
@@ -2935,74 +2946,13 @@ function updateCamera() {
 
 /* JOYSTICK */
 
-function bindStick(id, key) {
-  const element = $(id);
-  if (!element) return;
-
-  const knob = element.querySelector('.knob');
-  let pointer = null;
-  const hasPropulsion = () => Number(state.fuel) > 0 || Number(state.refinedDilithium) > 0 || state.maneuveringAssist !== false;
-  const isCharacterWalking = () => characterCore.snapshot().mode === 'on-foot' && !shipManagementTerminal.getSnapshot().open;
-  const reset = () => {
-    state[key].x = 0;
-    state[key].y = 0;
-    if (knob) knob.style.transform = 'translate(-50%,-50%)';
-    element.classList.remove('is-active');
-  };
-
-  const moveStick = event => {
-    if (key === 'move' && isCharacterWalking()) { reset(); return; }
-    const rect = element.getBoundingClientRect();
-    const max = Math.max(1, rect.width * 0.34);
-    let x = event.clientX - rect.left - rect.width / 2;
-    let y = event.clientY - rect.top - rect.height / 2;
-    const length = Math.hypot(x, y);
-    if (length > max) { x *= max / length; y *= max / length; }
-
-    if (key === 'move' && !hasPropulsion()) {
-      reset();
-      element.classList.add('no-propulsion');
-      return;
-    }
-    element.classList.remove('no-propulsion');
-    state[key].x = THREE.MathUtils.clamp(x / max, -1, 1);
-    state[key].y = THREE.MathUtils.clamp(y / max, -1, 1);
-    if (knob) knob.style.transform = `translate(-50%,-50%) translate(${x}px,${y}px)`;
-  };
-
-  element.addEventListener('pointerdown', event => {
-    if (pointer !== null || (event.pointerType === 'mouse' && event.button !== 0)) return;
-    if (key === 'move' && isCharacterWalking()) return;
-    if (key === 'move' && !hasPropulsion()) {
-      element.classList.add('no-propulsion');
-      return;
-    }
-    event.preventDefault();
-    pointer = event.pointerId;
-    element.classList.add('is-active');
-    try { element.setPointerCapture(pointer); } catch {}
-    moveStick(event);
-  });
-
-  element.addEventListener('pointermove', event => {
-    if (pointer !== event.pointerId) return;
-    event.preventDefault();
-    moveStick(event);
-  });
-
-  const end = event => {
-    if (pointer !== event.pointerId) return;
-    pointer = null;
-    reset();
-  };
-  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type => element.addEventListener(type, end));
-  window.addEventListener('blur', () => {
-    pointer = null;
-    reset();
-  });
-}
-
-bindStick('move-stick', 'move');
+const shipMovementControls = registerShipMovementControls({
+  document,
+  window,
+  state,
+  THREE,
+  hasPropulsion: () => Number(state.fuel) > 0 || Number(state.refinedDilithium) > 0 || state.maneuveringAssist !== false
+});
 
 const characterControls = registerCharacterControls({
   document,
@@ -3045,6 +2995,16 @@ const characterControls = registerCharacterControls({
     }
   }
 });
+gameplayControlModes = createGameplayControlModeController({
+  document,
+  characterHUD,
+  characterControls,
+  shipMovementControls,
+  applyHudLayout,
+  readHudLayout
+});
+gameplayControlModes.setMode(characterInWorldFrame ? 'on-foot-planet' : 'on-foot-ship');
+
 const characterJumpButton = characterControls.jumpButton;
 const characterSprintButton = characterControls.sprintButton;
 const characterAnimationButton = $('character-animation-btn');
