@@ -2198,7 +2198,6 @@ function updateExternalElevatorAnimation(dt) {
     characterPhysics?.reset(feetY);
     characterCore.setGrounded(true);
     characterAnimator?.play('idle', { restart: true });
-    characterCore.setInteractionTarget('ELEVADOR EXTERNO');
     updateCharacterHUD();
     toast('Retorno ao Deck 4 concluído.');
   }
