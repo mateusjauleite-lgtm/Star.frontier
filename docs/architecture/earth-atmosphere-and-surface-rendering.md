@@ -26,15 +26,17 @@ The module contract in `src/world/earth/modules/atmosphere.js` describes both vi
 
 ## Blue Marble surface and regional tile handoff
 
-The global surface uses the NASA Blue Marble topography/bathymetry texture at `public/earth/blue-marble-topography-bathymetry.jpg` (runtime URL: `earth/blue-marble-topography-bathymetry.jpg`). The texture is loaded asynchronously and the surface status reports `loading`, `ready`, or `fallback`. A successful bundle/asset check proves packaging, not the appearance on a physical Android display.
+The global surface uses NASA's January Blue Marble topography/bathymetry 2 km composite, packaged at `public/earth/blue-marble-topography-bathymetry.jpg` (runtime URL: `earth/blue-marble-topography-bathymetry.jpg`). It is resized to 6144x3072 to bound mobile GPU memory. The local Jaú region uses a native 500 m/pixel crop from NASA's B2 quadrant at `public/earth/jau-regional-500m.jpg`, covering longitude -52.557..-44.557 and latitude -26.2964..-18.2964. The 1920x1920 crop is built at CI time and cached; neither source image is committed to Git.
 
-Regional cube-sphere tiles clone the global surface material and synchronize its texture map after asynchronous loading. Their UV longitude convention must match Three.js `SphereGeometry`: longitude 0° maps to U=0.5, +90° to U=0.25, and -90° to U=0.75. The tile UV mapping is covered by a regression test so the Blue Marble image does not mirror when the renderer hands off from the global sphere to regional tiles.
+Both textures are loaded asynchronously with `SRGBColorSpace`. Global tiles retain the global material; regional tiles fully inside the Jaú crop use dedicated local UVs and the 500 m image. Tiles crossing the crop boundary remain on the global texture, avoiding stretched edge pixels. Surface status reports global and regional texture states separately. A successful bundle/asset check proves packaging, not the appearance on a physical Android display.
+
+Regional cube-sphere tiles clone the global surface material and synchronize its texture map after asynchronous loading. Jaú tiles use a second UV attribute normalized against the local crop bounds; the tile is assigned the local image only when every vertex is inside those bounds. The original global UV longitude convention remains unchanged: longitude 0° maps to U=0.5, +90° to U=0.25, and -90° to U=0.75. Regression tests cover both conventions and ensure global material synchronization cannot overwrite the local 500 m map.
 
 The global sphere remains the distant fallback. Regional tiles are built asynchronously and installed as a complete generation before older tiles are retired. The regional DEM is activated during closer approach; cached Terrarium samples are also used by the shared collision sampler, with the global ETOPO grid as the synchronous fallback when no regional sample is cached.
 
 ## Known validation limits and remaining visual checks
 
-Automated tests can verify UV mapping, tile selection bounds, elevation sampling, status transitions, and resource lifecycle. They cannot establish that the atmospheric rim, Blue Marble colors, horizon, or tile seams look correct on the Galaxy A34.
+Automated tests can verify global and local UV mapping, local-crop coverage, texture assignment through material synchronization, tile selection bounds, elevation sampling, status transitions, and resource lifecycle. The optional `layers.terrain.setTextureDebug(true)` diagnostic tints any active tile without a loaded color map red; `getStatus()` reports global-color, local-color, and untextured tile counts. They cannot establish that the atmospheric rim, Blue Marble colors, horizon, or tile seams look correct on the Galaxy A34.
 
 Device validation should inspect:
 1. the globe from orbit after the texture status becomes `ready`;
