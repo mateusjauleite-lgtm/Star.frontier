@@ -87,7 +87,15 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Prepare NASA Blue Marble visual texture
+      - name: Restore NASA Blue Marble visual assets
+        uses: actions/cache@v4
+        with:
+          path: |
+            public/earth/blue-marble-topography-bathymetry.jpg
+            public/earth/jau-regional-500m.jpg
+          key: nasa-blue-marble-global-2km-jau-500m-v1
+
+      - name: Prepare NASA Blue Marble visual textures
         run: |
           python -m pip install --disable-pip-version-check pillow
           npm run prepare:earth:visual
@@ -155,7 +163,8 @@ jobs:
       - name: Verify Blue Marble texture in web bundle
         run: |
           test -s dist/earth/blue-marble-topography-bathymetry.jpg
-          ls -lh dist/earth/blue-marble-topography-bathymetry.jpg
+          test -s dist/earth/jau-regional-500m.jpg
+          ls -lh dist/earth/blue-marble-topography-bathymetry.jpg dist/earth/jau-regional-500m.jpg
 
       - name: Generate and sync native Android project
         run: |
@@ -167,7 +176,8 @@ jobs:
       - name: Verify Blue Marble texture in Android assets
         run: |
           test -s android/app/src/main/assets/public/earth/blue-marble-topography-bathymetry.jpg
-          ls -lh android/app/src/main/assets/public/earth/blue-marble-topography-bathymetry.jpg
+          test -s android/app/src/main/assets/public/earth/jau-regional-500m.jpg
+          ls -lh android/app/src/main/assets/public/earth/blue-marble-topography-bathymetry.jpg android/app/src/main/assets/public/earth/jau-regional-500m.jpg
 
       - name: Configure landscape orientation
         run: |
