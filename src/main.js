@@ -643,6 +643,42 @@ function renderPanel(key) {
   });
 }
 
+// O menu de pausa reutiliza as mesmas preferências gerais do menu principal.
+function syncPauseSettingsControls() {
+  state.settings ||= {};
+  const quality = $('pause-quality');
+  const sensitivity = $('pause-sens');
+  if (quality) quality.value = state.settings.quality || 'Alta';
+  if (sensitivity) sensitivity.value = String(state.settings.sensitivity ?? 1);
+  const readout = $('pause-sens-value');
+  if (readout) readout.textContent = Number(sensitivity?.value ?? 1).toFixed(1).replace('.', ',');
+}
+
+$('pause-settings-btn')?.addEventListener('click', () => {
+  syncPauseSettingsControls();
+  $('pause-menu-actions')?.classList.add('hidden');
+  $('pause-settings-panel')?.classList.remove('hidden');
+});
+
+$('pause-settings-back-btn')?.addEventListener('click', () => {
+  $('pause-settings-panel')?.classList.add('hidden');
+  $('pause-menu-actions')?.classList.remove('hidden');
+});
+
+$('pause-quality')?.addEventListener('change', event => {
+  state.settings ||= {};
+  state.settings.quality = event.target.value;
+  save();
+});
+
+$('pause-sens')?.addEventListener('input', event => {
+  state.settings ||= {};
+  state.settings.sensitivity = Number(event.target.value);
+  const readout = $('pause-sens-value');
+  if (readout) readout.textContent = state.settings.sensitivity.toFixed(1).replace('.', ',');
+  save();
+});
+
 document.querySelectorAll('[data-panel]').forEach(button => {
   button.addEventListener('click', () => {
     renderPanel(button.dataset.panel);
