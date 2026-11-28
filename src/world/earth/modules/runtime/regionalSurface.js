@@ -288,6 +288,12 @@ export function createEarthRegionalSurfaceRuntime({
   let fallbackTiles = 0;
   let lastCameraAltitude = null;
   let cameraInsideSurface = false;
+  let firstRegionalTextureMs = null;
+  let regionalTextureAfterLoadMs = null;
+  let generationStartedAt = null;
+  let lastGenerationMs = null;
+  let completedGenerations = 0;
+  const nowMs = () => globalThis.performance?.now?.() ?? Date.now();
 
   const tileId = (node, useDem) => `${node.key}@${useDem ? 'dem' : 'base'}`;
 
@@ -382,6 +388,11 @@ export function createEarthRegionalSurfaceRuntime({
     mesh.userData.earthQuadtree = { ...node, elevationSource: hasDem ? 'regional-dem' : 'global-fallback' };
     tileRoot.add(mesh);
     active.set(id, mesh);
+    const blueMarbleTiming = surface.userData?.earthBlueMarbleTiming;
+    if (material.map && material.map.image && blueMarbleTiming?.textureLoadMs !== null && firstRegionalTextureMs === null) {
+      firstRegionalTextureMs = nowMs();
+      regionalTextureAfterLoadMs = blueMarbleTiming.textureLoadMs;
+    }
     completedTiles++;
     if (hasDem) demTiles++;
     else fallbackTiles++;
@@ -435,6 +446,7 @@ export function createEarthRegionalSurfaceRuntime({
         // deleting the ETOPO-backed generation before DEM data is ready.
         lastSelection = keys;
         lastDemActive = demActive;
+        generationStartedAt = nowMs();
         pending = selected.filter(node => !active.has(tileId(node, demActive)));
         if (!keys.length) {
           for (const key of [...active.keys()]) removeTile(key);
@@ -454,12 +466,22 @@ export function createEarthRegionalSurfaceRuntime({
           // Atomic handoff: retire old tiles only after every selected tile
           // in the new generation has been installed.
           if (lastSelection.every(key => active.has(key))) {
+            if (generationStartedAt !== null) {
+              lastGenerationMs = nowMs() - generationStartedAt;
+              completedGenerations++;
+              generationStartedAt = null;
+            }
             for (const key of [...active.keys()]) {
               if (!lastSelection.includes(key)) removeTile(key);
             }
           }
         });
       } else if (lastSelection.every(key => active.has(key))) {
+        if (generationStartedAt !== null) {
+          lastGenerationMs = nowMs() - generationStartedAt;
+          completedGenerations++;
+          generationStartedAt = null;
+        }
         for (const key of [...active.keys()]) {
           if (!lastSelection.includes(key)) removeTile(key);
         }
@@ -485,6 +507,10 @@ export function createEarthRegionalSurfaceRuntime({
         demEnabled: typeof sampleElevationMetersBatch === 'function',
         demActive,
         lastError,
+        firstRegionalTextureMs,
+        regionalTextureAfterLoadMs,
+        lastGenerationMs,
+        completedGenerations,
         selectedKeys: [...lastSelection]
       };
     },
