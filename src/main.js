@@ -10,7 +10,7 @@ import { registerGameRuntimeSystems } from './core/runtime/systems/registerGameR
 import { createGameplayFramePhases } from './core/runtime/gameplayFramePhases.js';
 import { registerGameWorldEntities } from './core/entities/GameEntityBindings.js';
 import { createGameWorld } from './world/gameWorld.js';
-import { GRAPHICS_QUALITY_LEVELS, getGraphicsQualityProfile, normalizeGraphicsQuality } from './ui/graphicsQuality.js';
+import { getGraphicsQualityProfile, normalizeGraphicsQuality } from './ui/graphicsQuality.js';
 import { createShipLandingMetricTelemetryAdapter, SHIP_MODEL_METERS_PER_UNIT } from './ships/flight/landingAutopilot.js';
 import { EXTERNAL_ELEVATOR_CONFIG } from './ships/externalElevator.js';
 import { getLandingSite } from './ships/flight/landingSites.js';
