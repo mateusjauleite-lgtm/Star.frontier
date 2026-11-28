@@ -200,7 +200,16 @@ test('prepares the destination anchor tile before the camera arrives', async () 
   assert.equal(runtime.getStatus().activeTiles, 1);
   assert.equal(runtime.getStatus().demTiles, 1);
 
+  const loadedTexture = new THREE.Texture();
+  surface.material.map = loadedTexture;
+  surface.material.emissiveMap = loadedTexture;
+  runtime.syncSurfaceMaterials();
+  const preparedMesh = root.children.find(child => child.name.startsWith('Earth-Regional-Tile-'));
+  assert.equal(preparedMesh.material.map, loadedTexture);
+  assert.equal(preparedMesh.material.emissiveMap, loadedTexture);
+
   runtime.dispose();
+  loadedTexture.dispose();
   surface.geometry.dispose();
   surface.material.dispose();
 });
