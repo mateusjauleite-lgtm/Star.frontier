@@ -82,8 +82,10 @@ const characterCore = createCharacterCore();
 const characterInteractionManager = createCharacterInteractionManager({
   button: $('character-action-btn'),
   onTargetChange: target => {
-    characterCore.setInteractionTarget(target);
-    updateCharacterHUD();
+    if (characterCore.snapshot().interactionTarget !== target) {
+      characterCore.setInteractionTarget(target);
+      updateCharacterHUD();
+    }
   }
 });
 const characterAudio = createCharacterAudio({ core: characterCore });
@@ -2773,6 +2775,7 @@ function updateCharacterAction() {
   const onFoot = characterCore.snapshot().mode === 'on-foot';
   if (!onFoot || !characterModel) {
     characterInteractionManager.render([], { hidden: true, label: 'AÇÃO' });
+    characterInteractionManager.syncTarget();
     return;
   }
 
@@ -2874,6 +2877,7 @@ function updateCharacterAction() {
     label: 'AÇÃO',
     target: fallbackTarget
   });
+  characterInteractionManager.syncTarget();
 }
 
 function setPilotInterface(activePilot) {
