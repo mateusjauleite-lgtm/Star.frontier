@@ -46,7 +46,7 @@ test('piloting disables character input and enables all ship input channels', ()
   controller.setMode('piloting');
   assert.equal(controller.isPilotActive(), true);
   assert.equal(controller.isCharacterActive(), false);
-  assert.deepEqual(calls.find(call => call[0] === 'ship-commands-enabled'), ['ship-commands-enabled', true]);
+  assert.deepEqual(calls.filter(call => call[0] === 'ship-commands-enabled').at(-1), ['ship-commands-enabled', true]);
   assert.equal(calls.filter(call => call[0] === 'ship-aim-enabled' && call[1] === true).length, 1);
   assert.equal(elements.get('flight-controls').classList.hidden, false);
 });

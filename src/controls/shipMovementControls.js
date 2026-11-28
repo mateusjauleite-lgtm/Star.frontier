@@ -70,7 +70,10 @@ export function registerShipMovementControls({
     isEnabled: () => enabled,
     setEnabled: value => {
       const next = Boolean(value);
-      if (enabled === next) return;
+      if (enabled === next) {
+        if (!next) reset();
+        return;
+      }
       enabled = next;
       if (!enabled) reset();
     },

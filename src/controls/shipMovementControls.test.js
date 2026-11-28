@@ -54,6 +54,9 @@ test('disabled ship joystick ignores new pointer input and clears held movement'
     hasPropulsion: () => true
   });
 
+  controls.setEnabled(true);
+  element.dispatch('pointerdown', { pointerId: 8, clientX: 80, clientY: 50 });
+  assert.notDeepEqual(state.move, { x: 0, y: 0 });
   controls.setEnabled(false);
   element.dispatch('pointerdown', { pointerId: 8, clientX: 80, clientY: 50 });
   assert.deepEqual(state.move, { x: 0, y: 0 });
