@@ -229,3 +229,38 @@ test('rejects invalid destination coordinates without building tiles', async () 
   surface.geometry.dispose();
   surface.material.dispose();
 });
+
+
+test('reselects visible regional tiles immediately after a meaningful camera turn', () => {
+  const root = new THREE.Group();
+  const surface = new THREE.Mesh(
+    new THREE.SphereGeometry(600, 8, 8),
+    new THREE.MeshStandardMaterial()
+  );
+  root.add(surface);
+  const camera = new THREE.PerspectiveCamera(70, 1.8, 0.1, 10000);
+  camera.position.set(0, 0, 601);
+  camera.lookAt(1, 0, 0);
+  const runtime = createEarthRegionalSurfaceRuntime({
+    surface,
+    radius: 600,
+    elevationSampler: () => 0,
+    maxLevel: 8,
+    maxTiles: 24,
+    segments: 2,
+    buildPerUpdate: 1
+  });
+
+  runtime.update(0.016, { camera });
+  const firstSelection = runtime.getStatus().selectedKeys;
+  camera.lookAt(0, 1, 0);
+  runtime.update(0.016, { camera });
+  const turnedSelection = runtime.getStatus().selectedKeys;
+
+  assert.ok(firstSelection.length > 0);
+  assert.notDeepEqual(turnedSelection, firstSelection);
+
+  runtime.dispose();
+  surface.geometry.dispose();
+  surface.material.dispose();
+});
