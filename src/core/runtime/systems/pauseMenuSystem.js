@@ -20,10 +20,16 @@ export function createPauseMenuRuntimeSystem({
     bindings.push({ element, handler });
   };
 
+  const resetPauseView = () => {
+    document.getElementById('pause-menu-actions')?.classList.remove('hidden');
+    document.getElementById('pause-settings-panel')?.classList.add('hidden');
+  };
+
   const open = () => {
     const modal = document.getElementById('game-menu-modal');
     if (!modal) return false;
 
+    resetPauseView();
     resetInputs();
     if (state) {
       state.throttle = false;
@@ -41,6 +47,7 @@ export function createPauseMenuRuntimeSystem({
     const modal = document.getElementById('game-menu-modal');
     if (!modal) return false;
 
+    resetPauseView();
     modal.classList.add('hidden');
     modal.setAttribute?.('aria-hidden', 'true');
     if (runtime.status === 'paused') runtime.resume();
