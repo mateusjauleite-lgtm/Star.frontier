@@ -67,10 +67,6 @@ export function createCharacterInteractionManager({ button = null, onTargetChang
     return null;
   }
 
-  function syncTarget() {
-    onTargetChange(activeTarget, active);
-  }
-
   function activate() {
     if (!active || active.disabled === true || active.available !== true ||
         typeof active.activate !== 'function') return false;
@@ -80,7 +76,6 @@ export function createCharacterInteractionManager({ button = null, onTargetChang
 
   return {
     render,
-    syncTarget,
     activate,
     getActiveInteraction: () => active ? { ...active } : null
   };
