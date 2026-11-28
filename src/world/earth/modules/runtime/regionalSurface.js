@@ -489,9 +489,15 @@ export function createEarthRegionalSurfaceRuntime({
       }
     },
     getStatus() {
+      const texturedTiles = [...active.values()].filter(mesh =>
+        Boolean(mesh.material?.map?.image)
+      ).length;
       return {
         mode: 'cube-sphere-quadtree',
         activeTiles: active.size,
+        texturedTiles,
+        untexturedTiles: active.size - texturedTiles,
+        textureCoverage: active.size ? texturedTiles / active.size : 0,
         queuedTiles: pending.length,
         building,
         selectedTiles: lastSelection.length,
