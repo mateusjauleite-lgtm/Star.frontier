@@ -1358,8 +1358,7 @@ async function init3D() {
       const packet = transporterDispatchBuffer.queue(destination);
       transporterDestinationId = packet.destinationId;
       transporterActionAvailable = false;
-      characterCore.setInteractionTarget('DESTINO ENVIADO · PLATAFORMA AGUARDANDO');
-      updateCharacterHUD();
+          updateCharacterHUD();
       toast('Destino registrado e enviado. A plataforma está aguardando a confirmação física.');
     }
   });
@@ -2186,8 +2185,7 @@ function updateExternalElevatorAnimation(dt) {
     transferCharacterToWorldFrame();
     characterWorldGrounded = false;
     characterCore.setGrounded(false);
-    characterCore.setInteractionTarget('ELEVADOR EXTERNO');
-    updateCharacterHUD();
+      updateCharacterHUD();
     toast('Você chegou ao exterior da nave.');
   } else if (reached === 'top') {
     externalElevatorRiding = false;
@@ -2737,7 +2735,6 @@ function executePlanetaryTransport() {
   characterCore.setGrounded(false);
   characterPhysics?.reset(characterModel.group.position.y);
   characterAnimator?.play('idle', { restart: true });
-  characterCore.setInteractionTarget('LOCAL DE TRANSPORTE TERRESTRE');
   updateCharacterHUD();
   toast('Teletransporte concluído. Você chegou ao destino terrestre.');
   return true;
@@ -2859,7 +2856,7 @@ function updateCharacterAction() {
   candidates[4].available = Boolean(transporterInteractionAvailable || transporterConsoleActive);
   candidates[4].label = transporterConsoleActive ? '◎ FECHAR AURORA OS' : '◎ AURORA OS';
   candidates[4].target = transporterConsoleActive
-    ? 'AURORA OS · TRANSPORTE CONECTADO'
+    ? (pending ? 'DESTINO ENVIADO · PLATAFORMA AGUARDANDO' : 'AURORA OS · TRANSPORTE CONECTADO')
     : 'CONSOLE AURORA OS · TRANSPORTE PLANETÁRIO';
 
   const elevatorMoving = Boolean(externalElevator?.moving);
@@ -2890,7 +2887,7 @@ function updateCharacterAction() {
     : 'CONSOLE DE ENGENHARIA';
 
   let pilotAvailable = false;
-  if (!nearbyElevator) {
+  if (!nearbyElevator && shipVisual) {
     characterModel.group.getWorldPosition(pilotPlayerWorldPosition);
     pilotAvailable = isPilotConsoleInRange(pilotPlayerWorldPosition, shipVisual);
   }
